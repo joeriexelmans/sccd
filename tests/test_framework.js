@@ -30,7 +30,7 @@ TestFramework = {
 					}
 					return;
 				} else {
-					log("initializing test \"" + name + "\"");
+					// log("initializing test \"" + name + "\"");
 				}
 				var controller = new (window[name].Controller)(new JsEventLoop());
 				var listener = controller.addOutputListener("test_output");
@@ -47,7 +47,7 @@ TestFramework = {
 				}
 				var check_output = (function(log, test_name, listener, expected, run_next_callback, results) {
 					return function() {
-						log("checking output...");
+						// log("checking output...");
 						var passed = true;
 
 						if (listener.queue.length !== expected.length) {
@@ -114,7 +114,7 @@ TestFramework = {
 					controller.addInput(new Event(ii.name, ii.port, ii.parameters), ii.time_offset);
 				}
 
-				log("starting controller...");
+				// log("starting controller...");
 				controller.finished_callback = check_output;
 				controller.start();
 			};

@@ -30,4 +30,4 @@ optional arguments:
 
 Tests
 -------------
-Building tests can be done by executing `make clean all' in the `tests' folder. Executing the tests written for the Python compiler and generated Python code can be done by running `run_tests.py`. This file imports the test cases from the `tests/target_py` folder. Javascript tests are run using the `run_tests.html' file.
+Building tests can be done by executing `make clean all` in the `tests` folder. Executing the tests written for the Python compiler and generated Python code can be done by running `run_tests.py`. This file imports the test cases from the `tests/target_py` folder. Javascript tests are run using the `run_tests.html` file.

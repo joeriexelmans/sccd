@@ -1,0 +1,42 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="take_many">
+	<description>
+		Take Many-semantics: A big step doesn't end until there are no more enabled transitions.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml initial="a" big_step_maximality="take_many">
+			<state id="a">
+				<onentry>
+					<raise event="entered_a" port="out"/>
+				</onentry>
+				<transition target="../b"/>
+			</state>
+			<state id="b">
+				<onentry>
+					<raise event="entered_b" port="out"/>
+				</onentry>
+				<transition target="../c"/>
+			</state>
+			<state id="c">
+				<onentry>
+					<raise event="entered_c" port="out"/>
+				</onentry>
+			</state>
+		</scxml>
+	</class>
+	<test>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_a" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="entered_b" port="out"/>
+				<event name="entered_c" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

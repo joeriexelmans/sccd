@@ -1,0 +1,76 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="orthogonal_take_one_queue">
+	<description>
+		Internal event lifeline - Queue-semantics: Internal events are treated just like external events: They are added to the object's event queue and will be sensed in another big step. This way, a raised internal event will always be sensed at some point later in time, but it is possible that other (external) events in the object's event queue are treated first.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml big_step_maximality="take_one" internal_event_lifeline="queue">
+			<parallel id="p">
+				<state id="o0" initial="sa">
+					<state id="sa">
+						<onentry>
+							<raise event="entered_sa" port="out"/>
+						</onentry>
+						<transition event="f" target="../sb">
+							<raise event="g"/>
+						</transition>
+					</state>
+					<state id="sb">
+						<onentry>
+							<raise event="entered_sb" port="out"/>
+						</onentry>
+						<transition target="../sa"/>
+					</state>
+				</state>
+				<state id="o1" initial="sc">
+					<state id="sc">
+						<onentry>
+							<raise event="entered_sc" port="out"/>
+						</onentry>
+						<transition event="e" port="in" target="../sd">
+							<raise event="f"/>
+						</transition>
+					</state>
+					<state id="sd">
+						<onentry>
+							<raise event="entered_sd" port="out"/>
+						</onentry>
+						<transition event="g" target="../se"/>
+					</state>
+					<state id="se">
+						<onentry>
+							<raise event="entered_se" port="out"/>
+						</onentry>
+					</state>
+				</state>
+			</parallel>
+		</scxml>
+	</class>
+	<test>
+		<input>
+			<event name="e" port="in" time="0.0"/>
+		</input>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_sa" port="out"/>
+				<event name="entered_sc" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step, input events = [e] -->
+				<event name="entered_sd" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step, input events = [f] -->
+				<event name="entered_sb" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step, input events = [g] -->
+				<event name="entered_sa" port="out"/>
+				<event name="entered_se" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

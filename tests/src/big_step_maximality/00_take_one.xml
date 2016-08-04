@@ -1,0 +1,45 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="take_one">
+	<description>
+		Take One-semantics: Each big step, only one transition can be made (per orthogonal component).
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml big_step_maximality="take_one" initial="a">
+			<state id="a">
+				<onentry>
+					<raise event="entered_a" port="out"/>
+				</onentry>
+				<transition target="../b"/>
+			</state>
+			<state id="b">
+				<onentry>
+					<raise event="entered_b" port="out"/>
+				</onentry>
+				<transition target="../c"/>
+			</state>
+			<state id="c">
+				<onentry>
+					<raise event="entered_c" port="out"/>
+				</onentry>
+			</state>
+		</scxml>
+	</class>
+	<test>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_a" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="entered_b" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="entered_c" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

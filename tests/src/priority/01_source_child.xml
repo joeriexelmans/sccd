@@ -1,0 +1,48 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="source_child">
+	<description>
+		'Source Child' priority-semantics: If 2 transitions are enabled, and the source state of the first is an ancestor of the second, only the second is executed.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml initial="parent" priority="source_child">
+			<state id="parent" initial="a">
+				<onentry>
+					<raise event="entered_parent" port="out"/>
+				</onentry>
+				<state id="a">
+					<onentry>
+						<raise event="entered_a" port="out"/>
+					</onentry>
+					<transition target="../b"/>
+				</state>
+				<state id="b">
+					<onentry>
+						<raise event="entered_b" port="out"/>
+					</onentry>
+				</state>
+				<transition target="/c"/>
+			</state>
+			<state id="c">
+				<onentry>
+					<raise event="entered_c" port="out"/>
+				</onentry>
+			</state>
+		</scxml>
+	</class>
+	<test>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_parent" port="out"/>
+				<event name="entered_a" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="entered_b" port="out"/>
+				<event name="entered_c" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

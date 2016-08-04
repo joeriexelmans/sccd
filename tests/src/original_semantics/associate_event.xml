@@ -1,0 +1,66 @@
+<?xml version="1.0" ?>
+<diagram author="Glenn De Jonghe" name="TestAssociateEvent">
+    <description>
+        Testing the object manager
+    </description>
+    <inport name="test_input" />
+    <outport name="test_output" />
+    <class name="Class1" default="true">
+        <relationships>
+            <association class="Class2" name="test2_association" />
+			<association class="Class2" name="test3_association" />
+        </relationships>
+        <scxml initial="start">
+            <state id="start">
+                <transition port="test_input" event="create" target="../wait">
+                    <raise scope="cd" event="create_instance">
+                        <parameter expr='"test2_association"'/>
+                    </raise>
+                    <raise port="test_output" event="request_send"/>
+                    
+                </transition>
+            </state>
+
+            <state id="wait">
+                <transition event="instance_created" target="../start">
+                    <parameter name="association_name" type="string"/>
+                    <raise port="test_output" event="instance_created"/>
+                    <raise scope="cd" event="start_instance">
+	                    <parameter expr='"test2_association"'/>
+	                </raise> 
+                    <raise target='"test2_association"' event="hello" />
+					<raise scope="cd" event="associate_instance">
+						<parameter expr='"test2_association"'/>
+						<parameter expr='"test3_association"'/>
+					</raise>
+                </transition>
+            </state>
+        </scxml>
+    </class>
+    <class name="Class2" default="false">
+        <scxml>
+            <state id="start">
+            	<log>started</log>
+                <transition event="hello" target=".">
+                    <raise port="test_output" event="second_working" />
+                </transition>
+            </state>
+        </scxml>
+    </class>
+    <test>
+    	<input>
+    		<event name="create" port="test_input" time="0.0"/>
+    	</input>
+       <expected>
+           <slot>
+               <event name="request_send" port="test_output"/>
+           </slot>
+           <slot>
+               <event name="instance_created" port="test_output"/>
+           </slot>
+           <slot>
+               <event name="second_working" port="test_output"/>
+           </slot>
+        </expected>
+    </test>
+</diagram>

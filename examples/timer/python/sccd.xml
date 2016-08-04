@@ -1,0 +1,59 @@
+<?xml version="1.0" ?>
+<diagram author="Simon Van Mierlo" name="Timer">
+    <description>
+    </description>
+    <top>
+        from python_runtime.libs.ui import ui
+        from python_runtime.accurate_time import time
+        from python_runtime.statecharts_core import get_simulated_time
+    </top>    
+    <inport name="ui" />
+
+    <class name="MainApp" default="true">
+        <method name="MainApp">
+            <body>
+                <![CDATA[
+                self.canvas = ui.append_canvas(ui.window,100,100,{'background':'#eee'})
+                self.clock_text = self.canvas.element.create_text(25,25,{'text':'0.0'})
+                self.actual_clock_text = self.canvas.element.create_text(25,50,{'text':'0.0'})
+                interrupt_button = ui.append_button(ui.window, 'INTERRUPT');
+                continue_button = ui.append_button(ui.window, 'CONTINUE');
+                ui.bind_event(interrupt_button.element, ui.EVENTS.MOUSE_CLICK, self.controller, 'interrupt_clicked');
+                ui.bind_event(continue_button.element, ui.EVENTS.MOUSE_CLICK, self.controller, 'continue_clicked');
+                ]]>
+            </body>        
+        </method>
+        <method name="update_timers">
+            <body>
+                self.canvas.element.itemconfigure(self.clock_text, text=str('%.2f' % get_simulated_time()))
+                self.canvas.element.itemconfigure(self.actual_clock_text, text='%.2f' % time())
+            </body>
+        </method>
+        <scxml initial="running">
+            <state id="running">
+                <transition target="." after="0.05">
+                    <script>
+                        self.update_timers()
+                    </script>
+                </transition>
+                <transition target="../interrupted" event="interrupt_clicked" port="ui">
+                    <script>
+                        self.update_timers()
+                    </script>
+                </transition>
+            </state>
+            <state id="interrupted">
+                <transition target="." event="interrupt_clicked" port="ui">
+                    <script>
+                        self.update_timers()
+                    </script>
+                </transition>
+                <transition target="../running" event="continue_clicked" port="ui">
+                    <script>
+                        self.update_timers()
+                    </script>
+                </transition>
+            </state>
+        </scxml>
+    </class>
+</diagram>

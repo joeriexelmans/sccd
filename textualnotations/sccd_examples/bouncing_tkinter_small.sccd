@@ -1,0 +1,20 @@
+Diagram(name = 'BouncingBalls',
+		author = 'Simon Van Mierlo',
+		description = 'Tkinter frame with bouncing balls in it.'):
+	Top {
+		self.canvas = ui->append_canvas(ui.window,100,310,['background':'#eee'])
+		self.colors = ['#f00','#ff0','#0f0']
+		self.lights = [canvas->add_rectangle(size/2, size / 2, size, size, ['fill':'#000']),
+						canvas->add_rectangle(size / 2, size / 2 + offset, size, size, ['fill':'#000']),
+						canvas->add_rectangle(size / 2, size / 2 + 2 * offset, size, size, ['fill':'#000'])]
+
+	}
+
+	Inport(name = 'input')
+
+	Class(name = 'MainApp', default = True):
+		Association(name = 'fields', class = 'Field')
+		Inheritance(class = 'RuntimeClassBase', priority = 1)
+		Inheritance(class = 'tk.Tk', priority = 0)
+
+

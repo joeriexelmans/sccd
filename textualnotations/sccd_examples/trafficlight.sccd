@@ -1,0 +1,91 @@
+Diagram(name = 'Statechart', author = 'MSDL', description = 'Exported SCCD HUTN'):
+      Top {
+          import httplib
+          import json
+          method = 'PUT'
+          host = 'localhost:8124'
+          uri = '/GET/console?wid=5'
+          timeout = 5000
+          }
+      Inport(name = 'ui')
+
+      Class(name = 'MainApp', default = True):
+          Method highlightState(nodeId) {
+              headers = ['Content-Type': 'text/plain']
+              data = json->dumps(['text':'CLIENT_BDAPI :: ["func":"_highlightState","args":["asid":'+str(nodeId)+',"followCrossFormalismLinks":"*"]]'])
+              conn = httplib->HTTPConnection(host)
+              conn->request(method, uri, data, headers)
+              resp = conn->getresponse()
+              conn->close()
+          }
+          Method unhighlightState(nodeId) {
+              headers = ['Content-Type': 'text/plain']
+              data = json->dumps(['text':'CLIENT_BDAPI :: ["func":"_unhighlightState","args":["asid":'+str(nodeId)+']]'])
+              conn = httplib->HTTPConnection(host)
+              conn->request(method, uri, data, headers)
+              resp = conn->getresponse()
+              conn->close()
+          }
+          StateMachine:
+              initial = 'normal'
+              State('normal'):
+                  initial = 'red'
+                  State('red'):
+                      OnEnter {
+                          self->setRed()
+                          self->highlightState(5)
+                      }
+                      OnExit {
+                          self->unhighlightState(5)
+                      }
+                      Transition(after=3.0, target='../green')
+                  State('green'):
+                      OnEnter {
+                          self->setGreen()
+                          self->highlightState(6)
+                      }
+                      OnExit {
+                          self->unhighlightState(6)
+                      }
+                      Transition(after=2.0, target='../yellow')
+                  State('yellow'):
+                      OnEnter {
+                          self->setYellow()
+                          self->highlightState(7)
+                      }
+                      OnExit {
+                          self->unhighlightState(7)
+                      }
+                      Transition(after=1.0, target='../red')
+                  OnEnter {
+                  }
+                  OnExit {
+                  }
+                  Transition(target='../interrupted'):
+                      event = police_interrupt_clicked()
+              State('interrupted'):
+                  initial = 'yellow'
+                  State('yellow'):
+                      OnEnter {
+                          self->setYellow()
+                          self->highlightState(14)
+                      }
+                      OnExit {
+                          self->unhighlightState(14)
+                      }
+                      Transition(after=5.0, target='../black')
+                  State('black'):
+                      OnEnter {
+                          self->clear()
+                          self->highlightState(15)
+                      }
+                      OnExit {
+                          self->unhighlightState(15)
+                      }
+                      Transition(after=5.0, target='../yellow')
+                  OnEnter {
+                  }
+                  OnExit {
+                  }
+                  Transition(target='../normal'):
+                      event = police_interrupt_clicked()

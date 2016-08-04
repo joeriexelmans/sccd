@@ -1,0 +1,38 @@
+<?xml version="1.0" ?>
+<diagram author="Glenn De Jonghe" name="TestOuterFirst">
+    <description>
+        Testing outer first.
+    </description>
+    <inport name="test_input" />
+    <outport name="test_output" />
+    <class name="Class1">
+        <scxml initial="state1" priority="source_parent">
+            <state id="state1" initial="state1">
+                <state id="state1">
+                    <transition port="test_input" event="event" target="../statea"/>
+                </state>
+                <state id="statea">
+                    <onentry>
+                        <raise port="test_output" event="in_a"/>
+                    </onentry>
+                </state>
+                <transition port="test_input" event="event" target="../stateb"/>
+            </state>
+            <state id="stateb">
+                <onentry>
+                    <raise port="test_output" event="in_b"/>
+                </onentry>
+            </state>
+        </scxml>
+    </class>
+    <test>
+        <input>
+            <event name="event" port="test_input" time="0.0"/>
+        </input>
+       <expected>
+           <slot>
+               <event name="in_b" port="test_output"/>
+           </slot>
+        </expected>
+    </test>
+</diagram>

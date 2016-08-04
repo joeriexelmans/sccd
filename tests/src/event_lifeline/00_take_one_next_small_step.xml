@@ -1,0 +1,47 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="take_one_next_small_step">
+	<description>
+		Internal event lifeline - Next Small Step-semantics: Events raised in a small step are present only in the next small step of the same big step. It is possible for raised internal events to be "lost": For instance, if in the current big step it is no longer possible for another transition to be executed (due to big-step maximality semantics), there can't be another small step in which raised internal events of the last small step become present; all events raised in the last small step of a big step will never have any effect.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml initial="a" big_step_maximality="take_one" internal_event_lifeline="next_small_step">
+			<state id="a">
+				<onentry>
+					<raise event="entered_a" port="out"/>
+				</onentry>
+				<transition event="e" port="in" target="../b">
+					<raise event="f"/>
+				</transition>
+			</state>
+			<state id="b">
+				<onentry>
+					<raise event="entered_b" port="out"/>
+				</onentry>
+				<transition event="f" target="../c"/>
+			</state>
+			<state id="c">
+				<onentry>
+					<raise event="entered_c" port="out"/>
+				</onentry>
+			</state>
+		</scxml>
+	</class>
+	<test>
+		<input>
+			<event name="e" port="in" time="0.0"/>
+		</input>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_a" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="entered_b" port="out"/>
+				<!-- internally raised event 'f' is lost, 'c' is never entered -->
+			</slot>
+		</expected>
+	</test>
+</diagram>

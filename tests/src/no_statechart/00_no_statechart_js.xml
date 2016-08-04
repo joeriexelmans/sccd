@@ -1,0 +1,78 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="no_statechart" language="javascript">
+	<description>
+		Test to see what happens when a class with no statechart is defined.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<!-- POD -->
+	<class name="my_struct">
+		<attribute name="x"/>
+		<attribute name="y"/>
+		<constructor>
+			<parameter name="x"/>
+			<parameter name="y"/>
+			<body>
+				this.x = x;
+				this.y = y;
+			</body>
+		</constructor>
+	</class>
+	<class name="my_class" default="true">
+		<constructor>
+			<body>
+				this.data = new my_struct(0, 0);
+			</body>
+		</constructor>
+		<scxml initial="a">
+			<state id="a">
+				<transition after="0.1" cond="this.data.x &lt; 2" target="../b">
+					<raise event="to_b" port="out">
+						<parameter expr="this.data.x"/>
+					</raise>
+					<script>
+						this.data.x += 1;
+					</script>
+				</transition>
+			</state>
+			<state id="b">
+				<transition after="0.1" cond="this.data.y &lt; 2" target="../a">
+					<script>
+						this.data.y += 1;
+					</script>
+					<raise event="to_a" port="out">
+						<parameter expr="this.data.y"/>
+					</raise>
+				</transition>
+			</state>
+		</scxml>
+	</class>
+	<test>
+		<expected>
+			<slot>
+				<!-- big step -->
+				<event name="to_b" port="out">
+					<parameter value="0"/>
+				</event>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="to_a" port="out">
+					<parameter value="1"/>
+				</event>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="to_b" port="out">
+					<parameter value="1"/>
+				</event>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="to_a" port="out">
+					<parameter value="2"/>
+				</event>
+			</slot>
+		</expected>
+	</test>
+</diagram>

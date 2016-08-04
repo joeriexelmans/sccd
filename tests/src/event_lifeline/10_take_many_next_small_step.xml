@@ -1,0 +1,47 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="take_many_next_small_step">
+	<description>
+		Internal event lifeline - Next Small Step-semantics: Internally raised events become present in the next small step.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml initial="a" big_step_maximality="take_many" internal_event_lifeline="next_small_step">
+			<state id="a">
+				<onentry>
+					<raise event="entered_a" port="out"/>
+				</onentry>
+				<transition event="e" port="in" target="../b">
+					<raise event="f"/>
+				</transition>
+			</state>
+			<state id="b">
+				<onentry>
+					<raise event="entered_b" port="out"/>
+				</onentry>
+				<transition event="f" target="../c"/>
+			</state>
+			<state id="c">
+				<onentry>
+					<raise event="entered_c" port="out"/>
+				</onentry>
+			</state>
+		</scxml>
+	</class>
+	<test>
+		<input>
+			<event name="e" port="in" time="0.0"/>
+		</input>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_a" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step, input_events = [e] -->
+				<event name="entered_b" port="out"/>
+				<event name="entered_c" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

@@ -1,0 +1,77 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="orthogonal_take_many_queue">
+	<description>
+		This test is a variation of 'orthogonal_queue', using 'Take Many' semantics instead of 'Take One'. Because 'Queue' internal event lifeline-semantics already does not suffer from events getting "lost", the combination of 'Take Many' and 'Queue' is not very useful. But it is included as a test for the sake of completeness.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml big_step_maximality="take_many" internal_event_lifeline="queue">
+			<parallel id="p">
+				<state id="o0" initial="sa">
+					<state id="sa">
+						<onentry>
+							<raise event="entered_sa" port="out"/>
+						</onentry>
+						<transition event="f" target="../sb">
+							<raise event="g"/>
+						</transition>
+					</state>
+					<state id="sb">
+						<onentry>
+							<raise event="entered_sb" port="out"/>
+						</onentry>
+						<transition target="../sa"/>
+					</state>
+				</state>
+				<state id="o1" initial="sc">
+					<state id="sc">
+						<onentry>
+							<raise event="entered_sc" port="out"/>
+						</onentry>
+						<transition event="e" port="in" target="../sd">
+							<raise event="f"/>
+						</transition>
+					</state>
+					<state id="sd">
+						<onentry>
+							<raise event="entered_sd" port="out"/>
+						</onentry>
+						<transition event="g" target="../se"/>
+					</state>
+					<state id="se">
+						<onentry>
+							<raise event="entered_se" port="out"/>
+						</onentry>
+					</state>
+				</state>
+			</parallel>
+		</scxml>
+	</class>
+	<test>
+		<input>
+			<event name="e" port="in" time="0.0"/>
+		</input>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_sa" port="out"/>
+				<event name="entered_sc" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step, input events = [e] -->
+				<event name="entered_sd" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step, input events = [f] -->
+				<event name="entered_sb" port="out"/>
+				<!-- immediately after entering 'sb' we make an unconditional (null) transition back to 'sa', because it is the only remaining enabled transition at this point (event 'g' doesn't become present until the next big step) -->
+				<event name="entered_sa" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step, input events = [g] -->
+				<event name="entered_se" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

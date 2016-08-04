@@ -1,0 +1,1 @@
+..\..\python_sccd_compiler\sccdc.py -p threads -l python client.xml

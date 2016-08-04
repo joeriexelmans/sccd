@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<diagram author="Glenn De Jonghe" name="TestCorrectDuplicateStateId">
+    <description>
+        Testing duplicate id's.
+    </description>
+    <class name="Class1">
+        <scxml initial="state1">
+            <state id="state0" initial="state1">
+                <state id="state1"/>
+                <state id="state0"/>
+            </state>
+            <state id="state1" initial="state1">
+                <state id="state1"/>
+                <state id="state0"/>
+            </state>
+        </scxml>
+    </class>
+    <test/> <!-- Should just compile without a thrown exception. -->
+</diagram>

@@ -1,0 +1,197 @@
+<?xml version="1.0" ?>
+<diagram author="Glenn De Jonghe" name="Player Tank">
+    <description>
+        Handling the player tank.
+    </description>
+    <inport name="engine" />
+    <inport name="input" />
+    <outport name="gui" />
+    <class name="Main" default="true">
+        <attribute name="tank" type="PlayerTank"/>
+        <method name="Main">
+            <parameter type="PlayerTank" name="tank"></parameter>
+            <body>
+                self.tank = tank
+           </body>
+        </method>
+        <relationships>
+            <association class="Cannon" name="cannon" min="1" max="1"/>
+            <association class="Body" name="body" min="1" max="1"/>
+        </relationships>
+        <scxml initial="state_1">
+            <state id="state_1">
+                <transition target="../state_2">
+                    <raise event="create_instance" scope="CD">
+                        <parameter expr="'cannon'"/>
+                        <parameter expr="SELF.tank"/>
+                    </raise>
+                </transition>
+            </state>
+            <state id="state_2">
+                <transition event="instance_created" target="../state_3"/>
+            </state>
+            <state id="state_3">
+                <transition target="../state_4">
+                     <raise event="create_instance" scope="CD">
+                        <parameter expr="'body'"/>
+                        <parameter expr="SELF.tank"/>
+                    </raise>
+                </transition>
+            </state>
+            <state id="state_4">
+                <transition event="instance_created" target="../end">
+                    <raise event="start_instance" scope="CD">
+                        <parameter expr="'cannon'"/>
+                    </raise> 
+                    <raise event="start_instance" scope="CD">
+                        <parameter expr="'body'"/>
+                    </raise>
+                </transition>
+            </state>
+            <state id="end"/>
+        </scxml>
+    </class>
+    
+    <class name="Cannon">
+        <attribute name="tank" type="PlayerTank"/>
+        <attribute name="reload_time" type="float"/>
+        <method name="Cannon">
+            <parameter type="PlayerTank" name="tank"></parameter>
+            <body>
+                self.tank = tank
+                self.reload_time = tank.getReloadTime()
+           </body>
+        </method>
+        <scxml>
+            <parallel id="container">
+                <state id="rotating" initial="none">
+                    <state id="none">
+                        <transition port="input" event="cannon-left-pressed" target="../left"/>
+                        <transition port="input" event="cannon-right-pressed" target="../right"/>
+                    </state>
+                    <state id="left">
+                        <transition port="input" event="cannon-left-released" target="../none"/>
+                        <transition port="input" event="cannon-right-pressed" target="../both"/>
+                        <transition port="engine" event="update" target=".">
+                            <script>
+                                self.tank.turnCannonLeft()
+                            </script>
+                        </transition>
+                    </state>
+                    <state id="both">
+                        <transition port="input" event="cannon-left-released" target="../right"/>
+                        <transition port="input" event="cannon-right-released" target="../left"/>
+                    </state>
+                    <state id="right">
+                        <transition port="input" event="cannon-left-pressed" target="../both"/>
+                        <transition port="input" event="cannon-right-released" target="../none"/>
+                        <transition port="engine" event="update" target=".">
+                            <script>
+                                self.tank.turnCannonRight()
+                            </script>
+                        </transition>
+                    </state>
+                </state>
+                <state id="shoot" initial="hold">
+                    <state id="hold">
+                        <transition port="input" event="shoot-pressed" target="../shoot">
+                            <raise event="shoot"/>
+                        </transition>
+                    </state>
+                    <state id="shoot">
+                        <transition port="input" event="shoot-released" target="../hold"/>
+                        <transition event="loaded" target=".">
+                            <raise event="shoot"/>
+                        </transition>
+                    </state>
+                </state>
+                <state id="ammo" initial="loaded">
+                    <state id="loaded">
+                        <transition event="shoot" target="../unloaded">
+                            <script>
+                                self.tank.shoot()
+                            </script>
+                            <raise port="gui" event="reloading"/>
+                        </transition>
+                    </state>
+                    <state id="unloaded">
+                        <transition after="SELF.reload_time" target="../loaded">
+                            <raise event="loaded"/>
+                            <raise port="gui" event="loaded"/>
+                        </transition>
+                    </state>
+                </state>
+            </parallel>
+        </scxml>
+    </class>
+    
+    <class name="Body">
+        <attribute name="tank" type="PlayerTank"/>
+        <method name="Body">
+            <parameter type="PlayerTank" name="tank"></parameter>
+            <body>
+                self.tank = tank
+           </body>
+        </method>
+        <scxml>
+            <parallel id="container">
+                <state id="horizontal" initial="none">
+                    <state id="none">
+                        <transition port="input" event="left-pressed" target="../left"/>
+                        <transition port="input" event="right-pressed" target="../right"/>
+                    </state>
+                    <state id="left">
+                        <transition port="input" event="left-released" target="../none"/>
+                        <transition port="input" event="right-pressed" target="../both"/>
+                        <transition port="engine" event="update" target=".">
+                            <script>
+                                self.tank.turnLeft()
+                            </script>
+                        </transition>
+                    </state>
+                    <state id="both">
+                        <transition port="input" event="left-released" target="../right"/>
+                        <transition port="input" event="right-released" target="../left"/>
+                    </state>
+                    <state id="right">
+                        <transition port="input" event="left-pressed" target="../both"/>
+                        <transition port="input" event="right-released" target="../none"/>
+                        <transition port="engine" event="update" target=".">
+                            <script>
+                                self.tank.turnRight()
+                            </script>
+                        </transition>
+                    </state>
+                </state>           
+                <state id="vertical" initial="none">
+                    <state id="none">
+                        <transition port="input" event="down-pressed" target="../down"/>
+                        <transition port="input" event="up-pressed" target="../up"/>
+                    </state>
+                    <state id="down">
+                        <transition port="input" event="down-released" target="../none"/>
+                        <transition port="input" event="up-pressed" target="../both"/>
+                        <transition port="engine" event="update" target=".">
+                            <script>
+                                self.tank.moveDown()
+                            </script>
+                        </transition>
+                    </state>
+                    <state id="both">
+                        <transition port="input" event="down-released" target="../up"/>
+                        <transition port="input" event="up-released" target="../down"/>
+                    </state>
+                    <state id="up">
+                        <transition port="input" event="down-pressed" target="../both"/>
+                        <transition port="input" event="up-released" target="../none"/>
+                        <transition port="engine" event="update" target=".">
+                            <script>
+                                self.tank.moveUp()
+                            </script>
+                        </transition>
+                    </state>
+                </state>             
+            </parallel>
+        </scxml>
+    </class>
+</diagram>

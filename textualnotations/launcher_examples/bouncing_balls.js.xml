@@ -1,0 +1,403 @@
+<?xml version="1.0" ?>
+<diagram name="Bouncing_Balls" author="Simon Van Mierlo+Joeri Exelmans+Raphael Mannadiar">
+	<description>
+		Tkinter frame with bouncing balls in it.
+	</description>
+	<inport name="field_ui"/>
+	<inport name="ball_ui"/>
+	<inport name="ui"/>
+	<class name="Button">
+		<relationships>
+			<association name="parent" class="Field" min="1" max="1"/>
+		</relationships>
+		<method name="Button">
+			<parameter name="parent" type="Field"/>
+			<parameter name="event_name" type="str"/>
+			<parameter name="button_text" type="str"/>
+			<body>
+			<![CDATA[
+				this.event_name = event_name;
+				var button = ui.append_button(parent.field_window, event_name);
+				ui.bind_event(button.element, ui.EVENTS.MOUSE_CLICK, this.controller, 'mouse_click');
+			]]>
+			</body>
+		</method>
+		<scxml  initial="initializing">
+			<state id="initializing">
+				<transition target="../running">
+					<raise event="button_created" scope="narrow" target="'parent'">
+					</raise>
+				</transition>
+			</state>
+			<state id="running">
+				<transition port="ui" target="." event="mouse_click" cond="button == ui.MOUSE_BUTTONS.LEFT">
+					<parameter name="x" type="int"/>
+					<parameter name="y" type="int"/>
+					<parameter name="button" type="Button"/>
+					<raise event="button_pressed" scope="narrow" target="'parent'">
+						<parameter expr="this.event_name"/>
+					</raise>
+				</transition>
+			</state>
+		</scxml>
+	</class>
+	<class name="Field">
+		<inport name="field_ui"/>
+		<relationships>
+			<association name="parent" class="MainApp" min="1" max="1"/>
+			<association name="buttons" class="Button"/>
+			<association name="balls" class="Ball"/>
+		</relationships>
+		<attribute name="field_window"/>
+		<attribute name="canvas"/>
+		<method name="Field">
+			<body>
+			<![CDATA[
+				this.field_window = ui.new_window(400, 450);
+				this.canvas = ui.append_canvas(this.field_window, 400, 400, {'background':'#eee'});
+				ui.bind_event(this.field_window, ui.EVENTS.WINDOW_CLOSE, this.controller, 'window_close');
+				ui.bind_event(this.field_window, ui.EVENTS.KEY_PRESS, this.controller, 'key_press');
+				ui.bind_event(this.canvas.element, ui.EVENTS.MOUSE_RIGHT_CLICK, this.controller, 'right_click', this.inports['field_ui']);
+				ui.bind_event(this.canvas.element, ui.EVENTS.MOUSE_MOVE, this.controller, 'mouse_move');
+				ui.bind_event(this.canvas.element, ui.EVENTS.MOUSE_RELEASE, this.controller, 'mouse_release');
+			]]>
+			</body>
+		</method>
+		<method name="~Field">
+			<body>
+			<![CDATA[
+				ui.close_window(this.field_window);
+			]]>
+			</body>
+		</method>
+		<scxml  initial="root">
+			<state id="root" initial="waiting">
+				<state id="waiting">
+					<transition target="../initializing" event="set_association_name">
+						<parameter name="association_name" type="str"/>
+						<script>
+							<![CDATA[
+								this.association_name = association_name;
+							]]>
+						</script>
+					</transition>
+				</state>
+				<state id="packing">
+					<transition target="../running" event="button_created">
+					</transition>
+				</state>
+				<state id="deleting">
+					<transition after="0.05" target="../deleted">
+						<raise event="delete_field" scope="narrow" target="'parent'">
+							<parameter expr="this.association_name"/>
+						</raise>
+					</transition>
+				</state>
+				<state id="creating">
+					<transition target="../packing" event="instance_created">
+						<parameter name="association_name" type="string"/>
+						<raise event="start_instance" scope="cd">
+							<parameter expr="association_name"/>
+						</raise>
+					</transition>
+				</state>
+				<state id="initializing">
+					<transition target="../creating">
+						<raise event="create_instance" scope="cd">
+							<parameter expr="'buttons'"/>
+							<parameter expr="'Button'"/>
+							<parameter expr="this"/>
+							<parameter expr="'create_new_field'"/>
+							<parameter expr="'Spawn New Window'"/>
+						</raise>
+					</transition>
+				</state>
+				<state id="deleted">
+				</state>
+				<parallel id="running">
+					<transition port="ui" target="../deleting" event="window_close" cond="window == this.field_window || window == ui.window">
+						<parameter name="window" type="Window"/>
+						<raise event="delete_instance" scope="cd">
+							<parameter expr="'buttons'"/>
+						</raise>
+						<raise event="delete_self" scope="narrow" target="'balls'">
+						</raise>
+					</transition>
+					<state id="main_behaviour" initial="running">
+						<state id="running">
+							<transition port="field_ui" target="../creating" event="right_click">
+								<parameter name="x" type="int"/>
+								<parameter name="y" type="int"/>
+								<parameter name="button" type="Button"/>
+								<raise event="create_instance" scope="cd">
+									<parameter expr="'balls'"/>
+									<parameter expr="'Ball'"/>
+									<parameter expr="this.canvas"/>
+									<parameter expr="x"/>
+									<parameter expr="y"/>
+									<parameter expr="this.field_window"/>
+								</raise>
+							</transition>
+						</state>
+						<state id="creating">
+							<transition target="../running" event="instance_created">
+								<parameter name="association_name" type="string"/>
+								<raise event="set_association_name" scope="narrow" target="association_name">
+									<parameter expr="association_name"/>
+								</raise>
+								<raise event="start_instance" scope="cd">
+									<parameter expr="association_name"/>
+								</raise>
+							</transition>
+						</state>
+					</state>
+					<state id="deleting_behaviour" initial="running">
+						<state id="running">
+							<transition target="." event="delete_ball">
+								<parameter name="association_name" type="str"/>
+								<raise event="delete_instance" scope="cd">
+									<parameter expr="association_name"/>
+								</raise>
+							</transition>
+						</state>
+					</state>
+					<state id="child_behaviour" initial="listening">
+						<state id="listening">
+							<transition target="." event="button_pressed">
+								<parameter name="event_name" type="str"/>
+								<raise event="button_pressed" scope="narrow" target="'parent'">
+									<parameter expr="event_name"/>
+								</raise>
+							</transition>
+						</state>
+					</state>
+				</parallel>
+			</state>
+		</scxml>
+	</class>
+	<class name="MainApp" default="True">
+		<relationships>
+			<association name="fields" class="Field"/>
+		</relationships>
+		<method name="MainApp">
+			<body>
+			<![CDATA[
+				this.nr_of_fields = 0;
+				ui.bind_event(ui.window, ui.EVENTS.WINDOW_CLOSE, this.controller, 'window_close');
+			]]>
+			</body>
+		</method>
+		<scxml  initial="running">
+			<state id="running" initial="root">
+				<state id="stopped">
+				</state>
+				<parallel id="root">
+					<state id="main_behaviour" initial="initializing">
+						<state id="initializing">
+							<transition target="../running">
+								<raise event="create_field">
+								</raise>
+							</transition>
+						</state>
+						<state id="running">
+							<transition target="." event="button_pressed" cond="event_name == 'create_new_field'">
+								<parameter name="event_name" type="str"/>
+								<raise event="create_field">
+								</raise>
+							</transition>
+						</state>
+					</state>
+					<state id="cd_behaviour" initial="waiting">
+						<state id="creating">
+							<transition target="../waiting" event="instance_created">
+								<parameter name="association_name" type="string"/>
+								<raise event="start_instance" scope="cd">
+									<parameter expr="association_name"/>
+								</raise>
+								<raise event="set_association_name" scope="narrow" target="association_name">
+									<parameter expr="association_name"/>
+								</raise>
+								<script>
+									<![CDATA[
+										this.nr_of_fields += 1;
+									]]>
+								</script>
+							</transition>
+						</state>
+						<state id="waiting">
+							<transition target="../creating" event="create_field">
+								<raise event="create_instance" scope="cd">
+									<parameter expr="'fields'"/>
+								</raise>
+							</transition>
+							<transition target="../check_nr_of_fields" event="delete_field">
+								<parameter name="association_name" type="str"/>
+								<raise event="delete_instance" scope="cd">
+									<parameter expr="association_name"/>
+								</raise>
+								<script>
+									<![CDATA[
+										this.nr_of_fields -= 1;
+									]]>
+								</script>
+							</transition>
+						</state>
+						<state id="check_nr_of_fields">
+							<transition target="../waiting" cond="this.nr_of_fields != 0">
+							</transition>
+							<transition target="../../../stopped" cond="this.nr_of_fields == 0">
+								<script>
+									<![CDATA[
+										ui.close_window(ui.window);
+									]]>
+								</script>
+							</transition>
+						</state>
+					</state>
+				</parallel>
+			</state>
+		</scxml>
+	</class>
+	<class name="Ball">
+		<inport name="ball_ui"/>
+		<relationships>
+			<association name="parent" class="Field" min="1" max="1"/>
+		</relationships>
+		<attribute name="field_window"/>
+		<attribute name="canvas"/>
+		<attribute name="element"/>
+		<method name="Ball">
+			<parameter name="canvas"/>
+			<parameter name="x"/>
+			<parameter name="y"/>
+			<parameter name="field_window"/>
+			<body>
+			<![CDATA[
+				this.canvas = canvas;
+				this.field_window = field_window;
+				this.r = 20.0;
+				this.vel = {'x':utils.random() * 2.0 - 1.0, 'y':utils.random() * 2.0 - 1.0};
+				this.mouse_pos = {'':''};
+				this.smooth = 0.4;
+				var circle = this.canvas.add_circle(x, y, this.r, {'fill':'#000'});
+				ui.bind_event(circle, ui.EVENTS.MOUSE_PRESS, this.controller, 'mouse_press', this.inports['ball_ui']);
+				ui.bind_event(circle, ui.EVENTS.MOUSE_RIGHT_CLICK, this.controller, 'right_click');
+				this.element = circle;
+			]]>
+			</body>
+		</method>
+		<method name="~Ball">
+			<body>
+			<![CDATA[
+				this.canvas.remove_element(this.element);
+			]]>
+			</body>
+		</method>
+		<scxml  initial="main_behaviour">
+			<state id="main_behaviour" initial="initializing">
+				<transition target="../deleted" event="delete_self">
+					<raise event="delete_ball" scope="narrow" target="'parent'">
+						<parameter expr="this.association_name"/>
+					</raise>
+				</transition>
+				<state id="dragging">
+					<transition port="ui" target="../bouncing" event="mouse_release">
+						<parameter name="x" type="int"/>
+						<parameter name="y" type="int"/>
+						<script>
+							<![CDATA[
+								this.element.set_color('#f00');
+							]]>
+						</script>
+					</transition>
+					<transition port="ui" target="." event="mouse_move">
+						<parameter name="x" type="int"/>
+						<parameter name="y" type="int"/>
+						<parameter name="button" type="Button"/>
+						<script>
+							<![CDATA[
+								var dx = x - this.mouse_pos['x'];
+								var dy = y - this.mouse_pos['y'];
+								this.element.move(dx, dy);
+								var pos = this.element.get_position();
+								if(pos.x - this.r <= 0) {
+									pos.x = this.r + 1;
+								} else {
+									if(pos.x + this.r >= this.canvas.width) {
+										pos.x = this.canvas.width - this.r - 1;
+									}
+								}
+								if(pos.y - this.r <= 0) {
+									pos.y = this.r + 1;
+								} else {
+									if(pos.y + this.r >= this.canvas.height) {
+										pos.y = this.canvas.height - this.r - 1;
+									}
+								}
+								this.element.set_position(pos.x, pos.y);
+								this.mouse_pos = {'x':x, 'y':y};
+								this.vel = {'x':(1 - this.smooth) * dx + this.smooth * this.vel['x'], 'y':(1 - this.smooth) * dy + this.smooth * this.vel['y']};
+							]]>
+						</script>
+					</transition>
+				</state>
+				<state id="selected">
+					<transition port="ball_ui" target="../dragging" event="mouse_press" cond="button == ui.MOUSE_BUTTONS.LEFT">
+						<parameter name="x" type="int"/>
+						<parameter name="y" type="int"/>
+						<parameter name="button" type="Button"/>
+						<script>
+							<![CDATA[
+								this.mouse_pos = {'x':x, 'y':y};
+							]]>
+						</script>
+					</transition>
+					<transition port="ui" target="." event="key_press" cond="key == ui.KEYCODES.DELETE &amp;&amp; active_window == this.field_window">
+						<parameter name="key" type="Key"/>
+						<parameter name="active_window" type="Window"/>
+						<raise event="delete_self" scope="local">
+						</raise>
+					</transition>
+				</state>
+				<state id="initializing">
+					<transition target="../bouncing" event="set_association_name">
+						<parameter name="association_name" type="str"/>
+						<script>
+							<![CDATA[
+								this.association_name = association_name;
+							]]>
+						</script>
+					</transition>
+				</state>
+				<state id="bouncing">
+					<transition after="0.01" target=".">
+						<script>
+							<![CDATA[
+								var pos = this.element.get_position();
+								if(pos.x - this.r <= 0 || pos.x + this.r >= this.canvas.width) {
+									this.vel['x'] = -this.vel['x'];
+								}
+								if(pos.y - this.r <= 0 || pos.y + this.r >= this.canvas.height) {
+									this.vel['y'] = -this.vel['y'];
+								}
+								this.element.move(this.vel['x'], this.vel['y']);
+							]]>
+						</script>
+					</transition>
+					<transition port="ball_ui" target="../selected" event="mouse_press" cond="button == ui.MOUSE_BUTTONS.LEFT">
+						<parameter name="x" type="int"/>
+						<parameter name="y" type="int"/>
+						<parameter name="button" type="Button"/>
+						<script>
+							<![CDATA[
+								this.element.set_color('#ff0');
+							]]>
+						</script>
+					</transition>
+				</state>
+			</state>
+			<state id="deleted">
+			</state>
+		</scxml>
+	</class>
+</diagram>

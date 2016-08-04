@@ -1,0 +1,55 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="input_event_timeout" language="python">
+	<description>
+		After transitions taking place when suddenly an input event with higher priority becomes present.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<attribute name="i"/>
+		<constructor>
+			<body>
+				self.number_of_times_entered_state_a_a = 0
+			</body>
+		</constructor>
+		<scxml initial="a">
+			<state id="a">
+				<onentry>
+					<raise event="entered_a" port="out"/>
+				</onentry>
+				<state id="a">
+					<onentry>
+						<script>self.number_of_times_entered_state_a_a += 1</script>
+					</onentry>
+					<transition after="0.01" target="."/>
+				</state>
+				<transition event="e" port="in" target="../b"/>
+			</state>
+			<state id="b">
+				<onentry>
+					<raise event="entered_b" port="out">
+						<parameter expr="self.number_of_times_entered_state_a_a"/>
+					</raise>
+				</onentry>
+			</state>
+		</scxml>
+	</class>
+	<test>
+		<input>
+			<event name="e" port="in" time="0.1"/>
+		</input>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_a" port="out"/>
+			</slot>
+			<!-- bunch of big steps now happen -->
+			<slot>
+				<!-- big step -->
+				<event name="entered_b" port="out">
+					<parameter value="10"/>
+				</event>
+			</slot>
+		</expected>
+	</test>
+</diagram>

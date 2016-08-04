@@ -1,0 +1,71 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="orthogonal_take_one">
+	<description>
+		Take One-semantics: Each big step, a transition in each orthogonal component is made.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml big_step_maximality="take_one">
+			<parallel id="p">
+				<state id="o0" initial="sa">
+					<state id="sa">
+						<onentry>
+							<raise event="entered_sa" port="out"/>
+						</onentry>
+						<transition target="../sb"/>
+					</state>
+					<state id="sb">
+						<onentry>
+							<raise event="entered_sb" port="out"/>
+						</onentry>
+						<transition target="../sc"/>
+					</state>
+					<state id="sc">
+						<onentry>
+							<raise event="entered_sc" port="out"/>
+						</onentry>
+					</state>
+				</state>
+				<state id="o1" initial="sd">
+					<state id="sd">
+						<onentry>
+							<raise event="entered_sd" port="out"/>
+						</onentry>
+						<transition target="../se"/>
+					</state>
+					<state id="se">
+						<onentry>
+							<raise event="entered_se" port="out"/>
+						</onentry>
+						<transition target="../sf"/>
+					</state>
+					<state id="sf">
+						<onentry>
+							<raise event="entered_sf" port="out"/>
+						</onentry>
+					</state>
+				</state>
+			</parallel>
+		</scxml>
+	</class>
+	<test>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_sa" port="out"/>
+				<event name="entered_sd" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="entered_sb" port="out"/>
+				<event name="entered_se" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="entered_sc" port="out"/>
+				<event name="entered_sf" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

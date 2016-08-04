@@ -1,0 +1,75 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="orthogonal_take_one_next_small_step">
+	<description>
+		Internal event lifeline - Next Small Step-semantics: Events raised in a small step are present only in the next small step of the same big step. It is possible for internally raised events to be "lost": For instance, if in the current big step it is no longer possible for another transition to be executed (due to big-step maximality semantics), there can't be another small step in which internally raised events of the last small step become present; all events raised in the last small step of a big step will never have any effect.
+
+		In combination with 'Take One' semantics (as used in this test), an internally raised event can only be sensed by a transition whose arena is orthogonal to the arena of the transition that caused the event to be raised, with the additional requirement that no transitions were already executed in the arena of the 'sensing' transition in the current big step. This can be counter-intuitive to the modeler. Using 'Take Many' semantics solves this problem (see 'orthogonal_take_many_next_small_step'), at the cost of having the risk of never-ending big steps.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml big_step_maximality="take_one" internal_event_lifeline="next_small_step">
+			<parallel id="p">
+				<state id="o0" initial="sa">
+					<state id="sa">
+						<onentry>
+							<raise event="entered_sa" port="out"/>
+						</onentry>
+						<transition event="f" target="../sb">
+							<raise event="g"/>
+						</transition>
+					</state>
+					<state id="sb">
+						<onentry>
+							<raise event="entered_sb" port="out"/>
+						</onentry>
+						<transition target="../sa"/>
+					</state>
+				</state>
+				<state id="o1" initial="sc">
+					<state id="sc">
+						<onentry>
+							<raise event="entered_sc" port="out"/>
+						</onentry>
+						<transition event="e" port="in" target="../sd">
+							<raise event="f"/>
+						</transition>
+					</state>
+					<state id="sd">
+						<onentry>
+							<raise event="entered_sd" port="out"/>
+						</onentry>
+						<transition event="g" target="../se"/>
+					</state>
+					<state id="se">
+						<onentry>
+							<raise event="entered_se" port="out"/>
+						</onentry>
+					</state>
+				</state>
+			</parallel>
+		</scxml>
+	</class>
+	<test>
+		<input>
+			<event name="e" port="in" time="0.0"/>
+		</input>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_sa" port="out"/>
+				<event name="entered_sc" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step, input events = [e] -->
+				<event name="entered_sd" port="out"/>
+				<event name="entered_sb" port="out"/>
+				<!-- internally raised event 'g' is lost and 'se' is never entered -->
+			</slot>
+			<slot>
+				<!-- big step, input events = [] -->
+				<event name="entered_sa" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

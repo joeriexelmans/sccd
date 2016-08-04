@@ -1,0 +1,262 @@
+Diagram(name = 'Bouncing_Balls',
+		author = 'Simon Van Mierlo+Joeri Exelmans+Raphael Mannadiar',
+		description = 'Tkinter frame with bouncing balls in it.'):
+	Top {}
+	Inport(name = 'ui')
+
+	Class(name = 'MainApp', default = True):
+		Association(name = 'fields', class = 'Field')
+
+		Constructor {
+			self.nr_of_fields = 0
+			ui->bind_event(ui.window, ui.EVENTS.WINDOW_CLOSE, self.controller, 'window_close')
+		}
+		StateMachine:
+			initial = 'running'
+			State('running'):
+				initial = 'root'
+				Orthogonal('root'):
+					State('main_behaviour'):
+						initial = 'initializing'
+						State('initializing'):
+							Transition(target='../running'):
+								raise += { create_field() }
+						State('running'):
+							Transition(target='.'):
+								event = button_pressed(event_name: str)
+								guard = {event_name == 'create_new_field'}
+								raise += { create_field() }
+					State('cd_behaviour'):
+						initial = 'waiting'
+						State('waiting'):
+							Transition(target='../creating'):
+								event = create_field()
+								raise += { scope=cd, create_instance("fields") }
+							Transition(target='../check_nr_of_fields'):
+								event = delete_field(association_name: str)
+								raise += { scope=cd, delete_instance(association_name) }
+								Actions {
+									self.nr_of_fields -= 1
+								}
+						State('creating'):
+							Transition(target='../waiting'):
+								event = instance_created(association_name: string)
+								raise += { scope=cd, start_instance(association_name) }
+								raise += { scope=narrow, target=association_name, set_association_name(association_name) }
+								Actions {
+									self.nr_of_fields += 1
+								}
+						State('check_nr_of_fields'):
+							Transition(target='../../../stopped'):
+								guard = {self.nr_of_fields == 0}
+								Actions {
+									ui->close_window(ui.window)
+								}
+							Transition(target='../waiting'):
+								guard = {self.nr_of_fields != 0}
+				State('stopped')
+
+
+	Class(name = 'Field'):
+		Attribute(name='canvas')
+		Attribute(name='field_window')
+
+		Inport(name = 'field_ui')
+
+		Association(name = 'balls', class = 'Ball')
+		Association(name = 'buttons', class = 'Button')
+		Association(name = 'parent', class = 'MainApp', min = 1, max = 1)
+
+		Constructor {
+			self.field_window = ui->new_window(400,450)
+			self.canvas = ui->append_canvas(self.field_window,400,400,['background':'#eee'])
+			ui->bind_event(self.field_window, ui.EVENTS.WINDOW_CLOSE, self.controller, 'window_close')
+			ui->bind_event(self.field_window, ui.EVENTS.KEY_PRESS, self.controller, 'key_press')
+			ui->bind_event(self.canvas.element, ui.EVENTS.MOUSE_RIGHT_CLICK, self.controller,'right_click', self.inports["field_ui"])
+			ui->bind_event(self.canvas.element, ui.EVENTS.MOUSE_MOVE, self.controller, 'mouse_move')
+			ui->bind_event(self.canvas.element, ui.EVENTS.MOUSE_RELEASE, self.controller, 'mouse_release')
+		}
+		Destructor {
+			ui->close_window(self.field_window)
+		}
+		StateMachine:
+			initial = 'root'
+			State('root'):
+				initial = 'waiting'
+				State('waiting'):
+					Transition(target='../initializing'):
+						event = set_association_name(association_name: str)
+						Actions {
+							self.association_name = association_name
+						}
+				State('initializing'):
+					Transition(target='../creating'):
+						raise += { scope=cd, create_instance('buttons', "Button", self, 'create_new_field', 'Spawn New Window') }
+				State('creating'):
+					Transition(target='../packing'):
+						event = instance_created(association_name: string)
+						raise += { scope=cd, start_instance(association_name) }
+				State('packing'):
+					Transition(target='../running'):
+						event = button_created()
+				Orthogonal('running'):
+					Transition(port = 'ui', target='../deleting'):
+						event = window_close(window: Window)
+						guard = { window == self.field_window or window == ui.window }
+						raise += { scope=narrow, target='balls',delete_self() }
+						raise += { scope=cd, delete_instance("buttons") }
+					State('main_behaviour'):
+						initial = 'running'
+						State('running'):
+							Transition(port = 'field_ui', target='../creating'):
+								event = right_click(x: int, y: int, button: Button)
+								raise += { scope=cd, create_instance('balls', "Ball", self.canvas, x, y, self.field_window) }
+						State('creating'):
+							Transition(target='../running'):
+								event = instance_created(association_name: string)
+								raise += { scope=cd, start_instance(association_name) }
+								raise += { scope=narrow, target=association_name, set_association_name(association_name) }
+					State('deleting_behaviour'):
+						initial = 'running'
+						State('running'):
+							Transition(target='.'):
+								event = delete_ball(association_name: str)
+								raise += { scope=cd, delete_instance(association_name) }
+					State('child_behaviour'):
+						initial = 'listening'
+						State('listening'):
+							Transition(target='.'):
+								event = button_pressed(event_name: str)
+								raise += { scope=narrow, target='parent', button_pressed(event_name) }
+				State('deleting'):
+					Transition(after=0.05, target='../deleted'):
+						raise += { scope=narrow, target='parent', delete_field(self.association_name) }
+				State('deleted')
+
+	Class(name = 'Button'):
+		Association(name = 'parent', class = 'Field', min = 1, max = 1)
+
+		Constructor(parent: Field, event_name: str, button_text: str) {
+			self.event_name = event_name
+			Button button = ui->append_button(parent.field_window, event_name)
+			ui->bind_event(button.element, ui.EVENTS.MOUSE_CLICK, self.controller, 'mouse_click')
+		}
+		StateMachine:
+			initial = 'initializing'
+			State('initializing'):
+				Transition(target='../running'):
+					raise += { scope=narrow, target='parent', button_created() }
+			State('running'):
+				Transition(port = 'ui', target='.'):
+					event = mouse_click(x: int, y: int, button: Button)
+					guard = {button == ui.MOUSE_BUTTONS.LEFT}
+					raise += { scope=narrow, target='parent', button_pressed(self.event_name) }
+
+	Class(name = 'Ball'):
+
+		Association(name = 'parent', class = 'Field', min = 1, max = 1)
+		Inport(name = 'ball_ui')
+
+		Attribute(name = 'canvas')
+		Attribute(name = 'element')
+		Attribute(name = 'field_window')
+
+		Constructor(canvas, x, y, field_window) {
+			self.canvas = canvas
+			self.field_window = field_window
+			self.r = 20.0
+			self.vel = ['x': utils->random() * 2.0 - 1.0, 'y': utils->random() * 2.0 - 1.0]
+			self.mouse_pos = ['':'']
+			self.smooth = 0.4
+
+			Circle circle = self.canvas->add_circle(x, y, self.r, ['fill':'#000'])
+			ui->bind_event(circle, ui.EVENTS.MOUSE_PRESS, self.controller, 'mouse_press', self.inports["ball_ui"])
+			ui->bind_event(circle, ui.EVENTS.MOUSE_RIGHT_CLICK, self.controller, 'right_click')
+			self.element = circle
+		}
+
+		Destructor {
+			self.canvas->remove_element(self.element)
+		}
+		StateMachine:
+			initial = 'main_behaviour'
+			State('main_behaviour'):
+				initial = 'initializing'
+				State('initializing'):
+					Transition(target='../bouncing'):
+						event = set_association_name(association_name: str)
+						Actions {
+							self.association_name = association_name
+						}
+				State('bouncing'):
+					Transition(after=0.01, target='.'):
+						Actions {
+
+							Integer pos = self.element->get_position()
+							if pos.x-self.r <= 0 or pos.x+self.r >= self.canvas.width:
+								self.vel['x'] = -self.vel['x']
+							end
+							if pos.y-self.r <= 0 or pos.y+self.r >= self.canvas.height:
+								self.vel['y'] = -self.vel['y']
+							end
+							self.element->move(self.vel['x'], self.vel['y'])
+						}
+					Transition(port = 'ball_ui', target='../selected'):
+						event = mouse_press(x: int,y: int,button: Button)
+						guard = {button == ui.MOUSE_BUTTONS.LEFT}
+						Actions {
+							self.element->set_color("#ff0")
+						}
+				State('dragging'):
+					Transition(port = 'ui', target='.'):
+						event = mouse_move(x: int, y: int, button: Button)
+						Actions {
+							Integer dx = x - self.mouse_pos['x']
+							Integer dy = y - self.mouse_pos['y']
+
+							self.element->move(dx, dy)
+
+							Integer pos = self.element->get_position()
+							if pos.x - self.r <= 0 :
+								pos.x = self.r + 1
+							else:
+								if pos.x + self.r >= self.canvas.width :
+									pos.x = self.canvas.width - self.r - 1
+								end
+							end
+							if pos.y - self.r <= 0 :
+								pos.y = self.r + 1
+							else:
+								if pos.y+self.r >= self.canvas.height :
+									pos.y = self.canvas.height-self.r - 1
+								end
+							end
+							self.element->set_position(pos.x, pos.y)
+							self.mouse_pos = ['x':x, 'y':y]
+							self.vel = [
+								'x': (1 - self.smooth)*dx + self.smooth*self.vel['x'],
+								'y': (1 - self.smooth)*dy + self.smooth*self.vel['y']
+							]
+						}
+
+					Transition(port = 'ui', target='../bouncing'):
+						event = mouse_release(x: int, y: int)
+						Actions {
+							self.element->set_color("#f00")
+						}
+				State('selected'):
+					Transition(port = 'ball_ui', target='../dragging'):
+						event = mouse_press(x: int, y: int, button: Button)
+						guard = {button == ui.MOUSE_BUTTONS.LEFT}
+						Actions {
+							self.mouse_pos = ['x':x, 'y':y]
+						}
+					Transition(port = 'ui', target='.'):
+						event = key_press(key: Key, active_window: Window)
+						guard = {key == ui.KEYCODES.DELETE and active_window == self.field_window}
+						raise += { scope=local, delete_self() }
+				Transition(target='../deleted'):
+					event = delete_self()
+					raise += { scope=narrow, target='parent', delete_ball(self.association_name) }
+			State('deleted')
+

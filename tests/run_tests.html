@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>test</title>
+<style>
+.code { font-family: monospace; background-color: #eee }
+</style>
+</head>
+<body>
+<p>Tests must be built first. Missing tests will be skipped. Use the supplied Makefile to build tests.</p>
+
+<p>Test output:</p>
+<p id="test_output" class="code">
+</p>
+
+<script src="../javascript_runtime/statecharts_core.js"></script>
+<script src="test_framework.js"></script>
+
+<script src="target_js/big_step_maximality/00_take_one.js"></script>
+<script src="target_js/big_step_maximality/01_take_many.js"></script>
+<script src="target_js/big_step_maximality/10_orthogonal_take_one.js"></script>
+<script src="target_js/big_step_maximality/11_orthogonal_take_many.js"></script>
+
+<script src="target_js/event_lifeline/00_take_one_next_small_step.js"></script>
+<script src="target_js/event_lifeline/02_take_one_queue.js"></script>
+<script src="target_js/event_lifeline/10_take_many_next_small_step.js"></script>
+<script src="target_js/event_lifeline/11_take_many_next_combo_step.js"></script>
+<script src="target_js/event_lifeline/12_take_many_queue.js"></script>
+<script src="target_js/event_lifeline/20_orthogonal_take_one_next_small_step.js"></script>
+<script src="target_js/event_lifeline/21_orthogonal_take_one_queue.js"></script>
+<script src="target_js/event_lifeline/30_orthogonal_take_many_next_small_step.js"></script>
+<script src="target_js/event_lifeline/31_orthogonal_take_many_next_combo_step.js"></script>
+<script src="target_js/event_lifeline/32_orthogonal_take_many_queue.js"></script>
+
+<script src="target_js/priority/00_source_parent.js"></script>
+<script src="target_js/priority/01_source_child.js"></script>
+
+<script src="target_js/timing/00_rapid_js.js"></script>
+
+<script src="target_js/no_statechart/00_no_statechart_js.js"></script>
+
+<script src="target_js/original_semantics/after.js"></script>
+<script src="target_js/original_semantics/associate_event.js"></script>
+<script src="target_js/original_semantics/correct_duplicate_state_id.js"></script>
+<script src="target_js/original_semantics/enter_exit_hierarchy.js"></script>
+<script src="target_js/original_semantics/guard.js"></script>
+<script src="target_js/original_semantics/history.js"></script>
+<script src="target_js/original_semantics/history_deep.js"></script>
+<script src="target_js/original_semantics/history_parallel_deep.js"></script>
+<script src="target_js/original_semantics/inner_first.js"></script>
+<script src="target_js/original_semantics/instate.js"></script>
+<script src="target_js/original_semantics/multiple_target.js"></script>
+<script src="target_js/original_semantics/object_manager.js"></script>
+<script src="target_js/original_semantics/outer_first.js"></script>
+<script src="target_js/original_semantics/parallel.js"></script>
+<script src="target_js/original_semantics/parallel_history.js"></script>
+<script src="target_js/original_semantics/parallel_history_2.js"></script>
+
+<script>
+var tests = [
+// Big Step Maximality
+"take_one",
+"take_many",
+"orthogonal_take_one",
+"orthogonal_take_many",
+// Event Lifeline
+"take_one_next_small_step",
+"take_one_queue",
+"take_many_next_small_step",
+"take_many_next_combo_step",
+"take_many_queue",
+"orthogonal_take_one_next_small_step",
+"orthogonal_take_one_queue",
+"orthogonal_take_many_next_small_step",
+"orthogonal_take_many_next_combo_step",
+"orthogonal_take_many_queue",
+// Original Semantics
+"TestAfter",
+"TestAssociateEvent",
+"TestCorrectDuplicateStateId",
+"TestEnterExitHierarchy",
+"TestGuard",
+"TestHistory",
+"TestHistoryDeep",
+"TestHistoryParallelDeep",
+"TestInnerFirst",
+"TestInstate",
+"TestMultipleTarget",
+"TestObjectManager",
+"TestOuterFirst",
+"TestParallel",
+"TestParallelHistory",
+"TestParallelHistory2",
+// Priority
+"source_parent",
+"source_child",
+// Timing
+"rapid",
+// No Statechart
+"no_statechart"];
+
+var element = document.getElementById("test_output");
+
+var log = (function(e) {
+	return function(msg) {
+		//console.log(msg);
+		e.innerHTML += msg + "<br />";
+	};
+})(element);
+
+TestFramework.RunAll(tests, log);
+
+</script>
+</body>
+</html>

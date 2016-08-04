@@ -1,0 +1,1 @@
+..\..\..\python_sccd_compiler\sccdc.py -p eventloop -l python -o target_py\sccd.py sccd.xml

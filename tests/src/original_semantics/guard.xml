@@ -1,0 +1,38 @@
+<?xml version="1.0" ?>
+<diagram author="Glenn De Jonghe" name="TestGuard">
+    <description>
+        Testing the guard.
+    </description>
+    <outport name="test_output" />
+    <class name="Class1" default="true">
+        <attribute name="member1" type="int" visibility="private" init-value="0" />
+        <scxml initial="state_1">
+            <state id="state_1">
+                <onentry>
+                    <assign ident="SELF.member1" expr="SELF.member1 + 1"/>
+                </onentry>
+                <transition target="/state_2"/>          
+            </state>
+            <state id="state_2">
+                <transition cond="SELF.member1 &lt; 3"  target="/state_1" />
+                <transition cond="SELF.member1 &gt;= 3" target="/state_3" />
+            </state>
+            <state id="state_3">
+                <onentry>
+                    <raise port="test_output" event="received">
+                        <parameter expr="SELF.member1"/>
+                    </raise>
+                </onentry>
+            </state>
+        </scxml>
+    </class>
+    <test>
+       <expected>
+           <slot>
+               <event name="received" port="test_output">
+                   <parameter value="3"/>
+               </event>
+           </slot>
+        </expected>
+    </test>
+</diagram>

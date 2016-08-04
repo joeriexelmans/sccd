@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<diagram author="Glenn De Jonghe" name="TestFaultMultipleUnconditional">
+    <description>
+        Testing multiple unconditional transitions.
+    </description>
+    <class name="Class1">
+        <scxml initial="state1">
+            <state id="state1">
+                <transition target="."/>
+                <transition target="../state2"/>
+            </state>
+            <state id="state2"/>
+        </scxml>
+    </class>
+    <test exception="TransitionException"/>
+</diagram>

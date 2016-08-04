@@ -1,0 +1,72 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="orthogonal_take_many_next_combo_step">
+	<description>
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml big_step_maximality="take_many" internal_event_lifeline="next_combo_step">
+			<parallel id="p">
+				<state id="o0" initial="sa">
+					<state id="sa">
+						<onentry>
+							<raise event="entered_sa" port="out"/>
+						</onentry>
+						<transition event="f" target="../sb">
+							<raise event="g"/>
+						</transition>
+					</state>
+					<state id="sb">
+						<onentry>
+							<raise event="entered_sb" port="out"/>
+						</onentry>
+						<transition target="../sa"/>
+					</state>
+				</state>
+				<state id="o1" initial="sc">
+					<state id="sc">
+						<onentry>
+							<raise event="entered_sc" port="out"/>
+						</onentry>
+						<transition event="e" port="in" target="../sd">
+							<raise event="f"/>
+						</transition>
+					</state>
+					<state id="sd">
+						<onentry>
+							<raise event="entered_sd" port="out"/>
+						</onentry>
+						<transition event="g" target="../se"/>
+					</state>
+					<state id="se">
+						<onentry>
+							<raise event="entered_se" port="out"/>
+						</onentry>
+					</state>
+				</state>
+			</parallel>
+		</scxml>
+	</class>
+	<test>
+		<input>
+			<event name="e" port="in" time="0.0"/>
+		</input>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_sa" port="out"/>
+				<event name="entered_sc" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step, input events = [e] -->
+				<!-- combo step -->
+				<event name="entered_sd" port="out"/>
+				<!-- combo step -->
+				<event name="entered_sb" port="out"/>
+				<!-- combo step -->
+				<event name="entered_sa" port="out"/>
+				<event name="entered_se" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

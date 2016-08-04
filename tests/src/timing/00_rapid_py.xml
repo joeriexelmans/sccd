@@ -1,0 +1,44 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="rapid" language="python">
+	<description>
+		After event with a very small timeout.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<attribute name="i"/>
+		<constructor>
+			<body>
+				self.i = 0
+			</body>
+		</constructor>
+		<scxml>
+			<state id="a">
+				<onentry>
+					<raise event="entered_a" port="out"/>
+				</onentry>
+				<transition after="1e-10" target="." cond="self.i &lt; 2">
+					<script>
+						self.i += 1
+					</script>
+				</transition>
+			</state>
+		</scxml>
+	</class>
+	<test>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_a" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="entered_a" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step -->
+				<event name="entered_a" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

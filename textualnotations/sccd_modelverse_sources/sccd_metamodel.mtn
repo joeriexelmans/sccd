@@ -1,0 +1,1726 @@
+alias Model = protected.formalisms.SimpleClassDiagrams
+
+package protected.formalisms:
+    Model:
+        name = 'SCCD'
+
+        Attribute:
+            name = 'name'
+            type = String
+        Attribute:
+            name = 'author'
+            type = String
+        Attribute:
+            name = 'description'
+            type = String
+
+#####################
+####Classes
+#####################
+
+    ## Class related
+
+        Class:
+            name = 'Named'
+            is_abstract = True
+            id_field = 'Named.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Class:
+            name = 'ID'
+            is_abstract = True
+            id_field = 'ID.id'
+            Attribute:
+                name = 'id'
+                type = String
+
+        Class:
+            name = 'Class'
+            Attribute:
+                name = 'default'
+                type = Boolean
+
+        Class:
+            name = 'Attribute'
+            Attribute:
+                name = 'type'
+                type = String
+            Attribute:
+                name = 'default'
+                type = String
+
+        Class:
+            name = 'Relationship'
+            is_abstract = True
+            Attribute:
+                name = 'class'
+                type = String
+            Attribute:
+                name = 'min'
+                type = Integer
+            Attribute:
+                name = 'max'
+                type = Integer
+
+        Class:
+            name = 'Inheritance'
+            Attribute:
+                name = 'priority'
+                type = Integer
+
+        Class:
+            name = 'Association'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Class:
+            name = 'Composition'
+
+        Class:
+            name = 'Aggregation'
+
+        ## Method related
+        Class:
+            name = 'AbsMethod'
+            is_abstract = True
+
+        Class:
+            name = 'Method'
+            Attribute:
+                name = 'returnType'
+                type = String
+            Attribute:
+                name = 'name'
+                type = String
+
+        Class:
+            name = 'Constructor'
+
+        Class:
+            name = 'Destructor'
+
+        Class:
+            name = 'Parameter'
+            Attribute:
+                name = 'name'
+                type = String
+            Attribute:
+                name = 'default'
+                type = String
+
+        ## Action Statements related
+        Class:
+            name = 'ActionBlock'
+
+        Class:
+            name = 'Top'
+
+        Class:
+            name = 'Bottom'
+
+        ## Statemachine related
+        Class:
+            name = 'StateMachine'
+
+        Class:
+            name = 'InPort'
+
+        Class:
+            name = 'AbsState'
+            is_abstract = True
+            Attribute:
+                name = 'name'
+                type = String
+
+        Class:
+            name = 'State'
+
+        Class:
+            name = 'OnEnter'
+
+        Class:
+            name = 'OnExit'
+
+        Class:
+            name = 'OrthogonalComponent'
+
+        Class:
+            name = 'PseudoState'
+            is_abstract = True
+            Attribute:
+                name = 'name'
+                type = String
+
+        Class:
+            name = 'InitialState'
+
+        Class:
+            name = 'FinalState'
+
+        Class:
+            name = 'HistoryState'
+            Attribute:
+                name = 'isDeepHistory'
+                type = Boolean
+
+        Class:
+            name = 'Transition'
+            Attribute:
+                name = 'target'
+                type = String
+            Attribute:
+                name = 'default'
+                type = Boolean
+
+        Class:
+            name = 'Event'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Class:
+            name = 'Guard'
+
+        Class:
+            name = 'Raise'
+
+        Class:
+            name = 'Scope'
+
+        Class:
+            name = 'Target'
+
+        ## Action Statements related
+
+        Class:
+            name = 'Statement'
+            is_abstract = True
+
+        Class:
+            name = 'Import'
+            Attribute:
+                name = 'location'
+                type = String
+            Attribute:
+                name = 'from'
+                type = String
+            Attribute:
+                name = 'as'
+                type = String
+
+        Class:
+            name = 'Declaration'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Class:
+            name = 'Assignment'
+            is_abstract = True
+
+        Class:
+            name = 'PlainAssignment'
+
+        Class:
+            name = 'PlusAssignment'
+
+        Class:
+            name = 'MinusAssignment'
+
+        Class:
+            name = 'IfElse'
+
+        Class:
+            name = 'While'
+
+        Class:
+            name = 'Continue'
+
+        Class:
+            name = 'Break'
+
+        Class:
+            name = 'Return'
+
+        Class:
+            name = 'AbsMethodCall'
+            is_abstract = True
+            Attribute:
+                name = 'name'
+                type = String
+
+        Class:
+            name = 'MethodCallStm'
+
+        Class:
+            name = 'Argument'
+            Attribute:
+                name = 'name'
+                type = String
+
+        ## Expressions related
+        Class:
+            name = 'Expression'
+            is_abstract = True
+
+        Class:
+            name = 'MethodCall'
+
+        Class:
+            name = 'AbsNavigationExpression'
+            is_abstract = True
+
+        Class:
+            name = 'NavigationExpression'
+
+        Class:
+            name = 'SelfExpression'
+
+        Class:
+            name = 'DotExpression'
+            Attribute:
+                name = 'path'
+                type = String
+
+        Class:
+            name = 'Unop'
+            is_abstract = True
+
+        Class:
+            name = 'Not'
+
+        Class:
+            name = 'Parenthesis'
+
+        Class:
+            name = 'Minus'
+
+        Class:
+            name = 'Binop'
+            is_abstract = True
+
+        Class:
+            name = 'Or'
+
+        Class:
+            name = 'And'
+
+        Class:
+            name = 'NEqual'
+
+        Class:
+            name = 'Equal'
+
+        Class:
+            name = 'LEThan'
+
+        Class:
+            name = 'LThan'
+
+        Class:
+            name = 'GEThan'
+
+        Class:
+            name = 'GThan'
+
+        Class:
+            name = 'Mod'
+
+        Class:
+            name = 'Div'
+
+        Class:
+            name = 'Mult'
+
+        Class:
+            name = 'Subtract'
+
+        Class:
+            name = 'Add'
+
+        Class:
+            name = 'Selection'
+
+        Class:
+            name = 'AtomValue'
+            is_abstract = True
+
+        Class:
+            name = 'StringValue'
+            Attribute:
+                name = 'value'
+                type = String
+
+        Class:
+            name = 'FloatValue'
+            Attribute:
+                name = 'value'
+                type = Float
+
+        Class:
+            name = 'IntegerValue'
+            Attribute:
+                name = 'value'
+                type = Integer
+
+        Class:
+            name = 'BooleanValue'
+            Attribute:
+                name = 'value'
+                type = Boolean
+
+        Class:
+            name = 'Composite'
+            is_abstract = True
+
+        Class:
+            name = 'Dict'
+
+        Class:
+            name = 'Array'
+
+        Class:
+            name = 'Tuple'
+
+        Class:
+            name = 'CompositeArgument'
+            is_abstract = True
+
+        Class:
+            name = 'RegularArgument'
+
+        Class:
+            name = 'DictArgument'
+
+
+#####################
+####Associations
+#####################
+
+        Association:
+            name = 'class_attribute'
+
+            from_port = 'from_class'
+            from_class = Class
+            to_min = 0
+            to_max = *
+            to_port = 'to_attribute'
+            to_class = Attribute
+
+            id_field = 'class_attribute.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'class_relationship'
+
+            from_port = 'from_class'
+            from_class = Class
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_relationship'
+            to_class = Relationship
+
+            id_field = 'class_relationship.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'class_method'
+
+            from_port = 'from_class'
+            from_class = Class
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_method'
+            to_class = AbsMethod
+
+            id_field = 'class_method.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'class_statemachine'
+
+            from_port = 'from_class'
+            from_class = Class
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_statemachine'
+            to_class = StateMachine
+
+            id_field = 'class_statemachine.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'statemachine_absstate'
+
+            from_port = 'from_statemachine'
+            from_class = StateMachine
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_absstate'
+            to_class = AbsState
+
+            id_field = 'statemachine_absstate.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'statemachine_pseudostate'
+
+            from_port = 'from_statemachine'
+            from_class = StateMachine
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_pseudostate'
+            to_class = PseudoState
+
+            id_field = 'statemachine_pseudostate.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'absstate_absstate_inner'
+
+            from_port = 'from_absstate'
+            from_class = AbsState
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_absstate'
+            to_class = AbsState
+
+            id_field = 'absstate_absstate_inner.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'absstate_pseudostate'
+
+            from_port = 'from_absstate'
+            from_class = AbsState
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_pseudostate'
+            to_class = PseudoState
+
+            id_field = 'absstate_pseudostate.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'transition_event_trigger'
+
+            from_port = 'from_transition'
+            from_class = Transition
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_event'
+            to_class = Event
+
+            id_field = 'transition_event_trigger.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'transition_guard'
+
+            from_port = 'from_transition'
+            from_class = Transition
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_guard'
+            to_class = Guard
+
+            id_field = 'transition_guard.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'after_expression'
+
+            from_port = 'from_transition'
+            from_class = Transition
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'after_expression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'guard_expression'
+
+            from_port = 'from_guard'
+            from_class = Guard
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'guard_expression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'transition_raise'
+
+            from_port = 'from_transition'
+            from_class = Transition
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_raise'
+            to_class = Raise
+
+            id_field = 'transition_raise.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'raise_methodcall'
+
+            from_port = 'from_raise'
+            from_class = Raise
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_methodcall'
+            to_class = MethodCall
+
+            id_field = 'raise_methodcall.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'raise_target'
+
+            from_port = 'from_raise'
+            from_class = Raise
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_Target'
+            to_class = Target
+
+            id_field = 'raise_target.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'target_expression'
+
+            from_port = 'from_target'
+            from_class = Target
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'target_expression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'raise_scope'
+
+            from_port = 'from_raise'
+            from_class = Raise
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_scope'
+            to_class = Scope
+
+            id_field = 'raise_scope.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'scope_expression'
+
+            from_port = 'from_scope'
+            from_class = Scope
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'scope_expression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'class_inport'
+
+            from_port = 'from_class'
+            from_class = Class
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_inport'
+            to_class = InPort
+
+            id_field = 'class_inport.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'transition_inport'
+
+            from_port = 'from_transition'
+            from_class = Transition
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_inport'
+            to_class = InPort
+
+            id_field = 'transition_inport.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'transition_actionblock'
+
+            from_port = 'from_transition'
+            from_class = Transition
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_actionblock'
+            to_class = ActionBlock
+
+            id_field = 'transition_actionblock.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'absstate_onenter'
+
+            from_port = 'from_absstate'
+            from_class = AbsState
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_onenter'
+            to_class = OnEnter
+
+            id_field = 'absstate_onenter.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'absstate_onexit'
+
+            from_port = 'from_absstate'
+            from_class = AbsState
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_onexit'
+            to_class = OnExit
+
+            id_field = 'absstate_onexit.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'absstate_transition'
+
+            from_port = 'from_absstate'
+            from_class = AbsState
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_transition'
+            to_class = Transition
+
+            id_field = 'absstate_transition.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'statemachine_transition'
+
+            from_port = 'from_statemachine'
+            from_class = StateMachine
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_transition'
+            to_class = Transition
+
+            id_field = 'statemachine_transition.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'event_parameter'
+
+            from_port = 'from_event'
+            from_class = Event
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_parameter'
+            to_class = Parameter
+
+            id_field = 'event_parameter.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'absmethod_parameter'
+
+            from_port = 'from_absmethod'
+            from_class = AbsMethod
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_parameter'
+            to_class = Parameter
+
+            id_field = 'absmethod_parameter.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'parameter_parameter_next'
+
+            from_port = 'from_parameter'
+            from_class = Parameter
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_parameter'
+            to_class = Parameter
+
+            id_field = 'parameter_parameter_next.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'parameter_type_expression'
+
+            from_port = 'from_parameter'
+            from_class = Parameter
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_type_expression'
+            to_class = NavigationExpression
+
+            id_field = 'parameter_type_expression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'absmethod_actionblock_body'
+
+            from_port = 'from_absmethod'
+            from_class = AbsMethod
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_actionblock'
+            to_class = ActionBlock
+
+            id_field = 'absmethod_actionblock_body.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'assignment_expression_left'
+
+            from_port = 'from_assignment'
+            from_class = Assignment
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'assignment_expression_left.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'assignment_expression_right'
+
+            from_port = 'from_assignment'
+            from_class = Assignment
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'assignment_expression_right.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'while_actionblock_body'
+
+            from_port = 'from_while'
+            from_class = While
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_actionblock'
+            to_class = ActionBlock
+
+            id_field = 'while_actionblock_body.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'while_expression_condition'
+
+            from_port = 'from_while'
+            from_class = While
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'while_expression_condition.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'ifelse_actionblock_ifbody'
+
+            from_port = 'from_ifelse'
+            from_class = IfElse
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_actionblock'
+            to_class = ActionBlock
+
+            id_field = 'ifelse_actionblock_ifbody.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'ifelse_actionblock_elsebody'
+
+            from_port = 'from_ifelse'
+            from_class = IfElse
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_actionblock'
+            to_class = ActionBlock
+
+            id_field = 'ifelse_actionblock_elsebody.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'ifelse_expression_condition'
+
+            from_port = 'from_ifelse'
+            from_class = IfElse
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'ifelse_expression_condition.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'return_expression'
+
+            from_port = 'from_return'
+            from_class = Return
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'return_expression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'actionblock_statement'
+
+            from_port = 'from_actionblock'
+            from_class = ActionBlock
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_statement'
+            to_class = Statement
+
+            id_field = 'actionblock_statement.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'statement_statement_next'
+
+            from_port = 'from_statement'
+            from_class = Statement
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_statement'
+            to_class = Statement
+
+            id_field = 'statement_statement_next.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'declaration_expression_init'
+
+            from_port = 'from_declaration'
+            from_class = Declaration
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'declaration_expression_init.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'declaration_navigationexpression_type'
+
+            from_port = 'from_declaration'
+            from_class = Declaration
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_navigationexpression'
+            to_class = NavigationExpression
+
+            id_field = 'declaration_navigationexpression_type.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'methodcall_argument'
+
+            from_port = 'from_methodcall'
+            from_class = AbsMethodCall
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_argument'
+            to_class = Argument
+
+            id_field = 'methodcall_argument.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'argument_value'
+
+            from_port = 'from_argument'
+            from_class = Argument
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_value'
+            to_class = Expression
+
+            id_field = 'argument_value.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'argument_argument_next'
+
+            from_port = 'from_argument'
+            from_class = Argument
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_argument'
+            to_class = Argument
+
+            id_field = 'argument_argument_next.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'methodcall_sender'
+
+            from_port = 'from_methodcall'
+            from_class = AbsMethodCall
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'methodcall_sender.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'binop_expression_left'
+
+            from_port = 'from_binop'
+            from_class = Binop
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'binop_expression_left.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'binop_expression_right'
+
+            from_port = 'from_binop'
+            from_class = Binop
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'binop_expression_right.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'unop_expression'
+
+            from_port = 'from_unop'
+            from_class = Unop
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'unop_expression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'composite_compositeargument'
+
+            from_port = 'from_composite'
+            from_class = Composite
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_compositeargument'
+            to_class = CompositeArgument
+
+            id_field = 'composite_compositeargument.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'regularargument_expression'
+
+            from_port = 'from_regularargument'
+            from_class = RegularArgument
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'regularargument_expression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'dictargument_expression'
+
+            from_port = 'from_regularargument'
+            from_class = DictArgument
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'dictargument_expression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'dictargument_labelexpression'
+
+            from_port = 'from_dictargument'
+            from_class = DictArgument
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_expression'
+            to_class = Expression
+
+            id_field = 'dictargument_labelexpression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+
+        Association:
+            name = 'compositeargument_compositeargument_next'
+
+            from_port = 'from_compositeargument'
+            from_class = CompositeArgument
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_compositeargument'
+            to_class = CompositeArgument
+
+            id_field = 'compositeargument_compositeargument_next.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'navigationexpression_absnavigationexpression'
+
+            from_port = 'from_navigationexpression'
+            from_class = NavigationExpression
+
+            to_min = 1
+            to_max = 1
+            to_port = 'to_absnavigationexpression'
+            to_class = AbsNavigationExpression
+
+            id_field = 'navigationexpression_absnavigationexpression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'selfexpression_dotexpression'
+
+            from_port = 'from_selfexpression'
+            from_class = SelfExpression
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_dotexpression'
+            to_class = DotExpression
+
+            id_field = 'selfexpression_dotexpression.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+#####################
+####Inheritances
+#####################
+
+        Inheritance:
+            name = 'Class_i_Named'
+            from_class = Class
+            to_class = Named
+
+        Inheritance:
+            name = 'Attribute_i_Named'
+            from_class = Attribute
+            to_class = Named
+
+        Inheritance:
+            name = 'Relationship_i_ID'
+            from_class = Relationship
+            to_class = ID
+
+        Inheritance:
+            name = 'Inheritance_i_Relationship'
+            from_class = Inheritance
+            to_class = Relationship
+
+        Inheritance:
+            name = 'Aggregation_i_Relationship'
+            from_class = Aggregation
+            to_class = Relationship
+
+        Inheritance:
+            name = 'Composition_i_Relationship'
+            from_class = Composition
+            to_class = Relationship
+
+        Inheritance:
+            name = 'Association_i_Relationship'
+            from_class = Association
+            to_class = Relationship
+
+        Inheritance:
+            name = 'ActionBlock_i_ID'
+            from_class = ActionBlock
+            to_class = ID
+
+        Inheritance:
+            name = 'OnEnter_i_ActionBlock'
+            from_class = OnEnter
+            to_class = ActionBlock
+
+        Inheritance:
+            name = 'OnExit_i_ActionBlock'
+            from_class = OnExit
+            to_class = ActionBlock
+
+        Inheritance:
+            name = 'Top_i_ActionBlock'
+            from_class = Top
+            to_class = ActionBlock
+
+        Inheritance:
+            name = 'Bottom_i_ActionBlock'
+            from_class = Bottom
+            to_class = ActionBlock
+
+        Inheritance:
+            name = 'StateMachine_i_ID'
+            from_class = StateMachine
+            to_class = ID
+
+        Inheritance:
+            name = 'InPort_i_Named'
+            from_class = InPort
+            to_class = Named
+
+        Inheritance:
+            name = 'AbsState_i_ID'
+            from_class = AbsState
+            to_class = ID
+
+        Inheritance:
+            name = 'State_i_AbsState'
+            from_class = State
+            to_class = AbsState
+
+        Inheritance:
+            name = 'OrthogonalComponent_i_AbsState'
+            from_class = OrthogonalComponent
+            to_class = AbsState
+
+        Inheritance:
+            name = 'PseudoState_i_ID'
+            from_class = PseudoState
+            to_class = ID
+
+        Inheritance:
+            name = 'HistoryState_i_PseudoState'
+            from_class = HistoryState
+            to_class = PseudoState
+
+        Inheritance:
+            name = 'InitialState_i_PseudoState'
+            from_class = InitialState
+            to_class = PseudoState
+
+        Inheritance:
+            name = 'FinalState_i_PseudoState'
+            from_class = FinalState
+            to_class = PseudoState
+
+        Inheritance:
+            name = 'Transition_i_ID'
+            from_class = Transition
+            to_class = ID
+
+        Inheritance:
+            name = 'Event_i_ID'
+            from_class = Event
+            to_class = ID
+
+        Inheritance:
+            name = 'Guard_i_ID'
+            from_class = Guard
+            to_class = ID
+
+        Inheritance:
+            name = 'Raise_i_ID'
+            from_class = Raise
+            to_class = ID
+
+        Inheritance:
+            name = 'Scope_i_ID'
+            from_class = Scope
+            to_class = ID
+
+        Inheritance:
+            name = 'Target_i_ID'
+            from_class = Target
+            to_class = ID
+
+        Inheritance:
+            name = 'AbsMethod_i_ID'
+            from_class = AbsMethod
+            to_class = ID
+
+        Inheritance:
+            name = 'Method_i_AbsMethod'
+            from_class = Method
+            to_class = AbsMethod
+
+        Inheritance:
+            name = 'Constructor_i_AbsMethod'
+            from_class = Constructor
+            to_class = AbsMethod
+
+        Inheritance:
+            name = 'Destructor_i_AbsMethod'
+            from_class = Destructor
+            to_class = AbsMethod
+
+        Inheritance:
+            name = 'Parameter_i_ID'
+            from_class = Parameter
+            to_class = ID
+
+        Inheritance:
+            name = 'Statement_i_ID'
+            from_class = Statement
+            to_class = ID
+
+        Inheritance:
+            name = 'Import_i_Statement'
+            from_class = Import
+            to_class = Statement
+
+        Inheritance:
+            name = 'Assignment_i_Statement'
+            from_class = Assignment
+            to_class = Statement
+
+        Inheritance:
+            name = 'PlainAssignment_i_Assignment'
+            from_class = PlainAssignment
+            to_class = Assignment
+
+        Inheritance:
+            name = 'PlusAssignment_i_Assignment'
+            from_class = PlusAssignment
+            to_class = Assignment
+
+        Inheritance:
+            name = 'MinusAssignment_i_Assignment'
+            from_class = MinusAssignment
+            to_class = Assignment
+
+        Inheritance:
+            name = 'Declaration_i_Statement'
+            from_class = Declaration
+            to_class = Statement
+
+        Inheritance:
+            name = 'IfElse_i_Statement'
+            from_class = IfElse
+            to_class = Statement
+
+        Inheritance:
+            name = 'While_i_Statement'
+            from_class = While
+            to_class = Statement
+
+        Inheritance:
+            name = 'Continue_i_Statement'
+            from_class = Continue
+            to_class = Statement
+
+        Inheritance:
+            name = 'Break_i_Statement'
+            from_class = Break
+            to_class = Statement
+
+        Inheritance:
+            name = 'Return_i_Statement'
+            from_class = Return
+            to_class = Statement
+
+        Inheritance:
+            name = 'MethodCallStm_i_AbsMethodCall'
+            from_class = MethodCallStm
+            to_class = AbsMethodCall
+
+        Inheritance:
+            name = 'MethodCallStm_i_Statement'
+            from_class = MethodCallStm
+            to_class = Statement
+
+        Inheritance:
+            name = 'Argument_i_ID'
+            from_class = Argument
+            to_class = ID
+
+        Inheritance:
+            name = 'Expression_i_ID'
+            from_class = Expression
+            to_class = ID
+
+        Inheritance:
+            name = 'MethodCall_i_Expression'
+            from_class = MethodCall
+            to_class = Expression
+
+        Inheritance:
+            name = 'MethodCall_i_AbsMethodCall'
+            from_class = MethodCall
+            to_class = AbsMethodCall
+
+        Inheritance:
+            name = 'NavigationExpression_i_Expression'
+            from_class = NavigationExpression
+            to_class = Expression
+
+        Inheritance:
+            name = 'AbsNavigationExpression_i_ID'
+            from_class = AbsNavigationExpression
+            to_class = ID
+
+        Inheritance:
+            name = 'DotExpression_i_AbsNavigationExpression'
+            from_class = DotExpression
+            to_class = AbsNavigationExpression
+
+        Inheritance:
+            name = 'SelfExpression_i_AbsNavigationExpression'
+            from_class = SelfExpression
+            to_class = AbsNavigationExpression
+
+        Inheritance:
+            name = 'Unop_i_Expression'
+            from_class = Unop
+            to_class = Expression
+
+        Inheritance:
+            name = 'Not_i_Unop'
+            from_class = Not
+            to_class = Unop
+
+        Inheritance:
+            name = 'Parenthesis_i_Unop'
+            from_class = Parenthesis
+            to_class = Unop
+
+        Inheritance:
+            name = 'Minus_i_Unop'
+            from_class = Minus
+            to_class = Unop
+
+        Inheritance:
+            name = 'Binop_i_Expression'
+            from_class = Binop
+            to_class = Expression
+
+        Inheritance:
+            name = 'Or_i_Binop'
+            from_class = Or
+            to_class = Binop
+
+        Inheritance:
+            name = 'And_i_Binop'
+            from_class = And
+            to_class = Binop
+
+        Inheritance:
+            name = 'NEqual_i_Binop'
+            from_class = NEqual
+            to_class = Binop
+
+        Inheritance:
+            name = 'Equal_i_Binop'
+            from_class = Equal
+            to_class = Binop
+
+        Inheritance:
+            name = 'LEThan_i_Binop'
+            from_class = LEThan
+            to_class = Binop
+
+        Inheritance:
+            name = 'LThan_i_Binop'
+            from_class = LThan
+            to_class = Binop
+
+        Inheritance:
+            name = 'GEThan_i_Binop'
+            from_class = GEThan
+            to_class = Binop
+
+        Inheritance:
+            name = 'GThan_i_Binop'
+            from_class = GThan
+            to_class = Binop
+
+        Inheritance:
+            name = 'Mod_i_Binop'
+            from_class = Mod
+            to_class = Binop
+
+        Inheritance:
+            name = 'Div_i_Binop'
+            from_class = Div
+            to_class = Binop
+
+        Inheritance:
+            name = 'Mult_i_Binop'
+            from_class = Mult
+            to_class = Binop
+
+        Inheritance:
+            name = 'Subtract_i_Binop'
+            from_class = Subtract
+            to_class = Binop
+
+        Inheritance:
+            name = 'Add_i_Binop'
+            from_class = Add
+            to_class = Binop
+
+        Inheritance:
+            name = 'Selection_i_Binop'
+            from_class = Selection
+            to_class = Binop
+
+        Inheritance:
+            name = 'AtomValue_i_Expression'
+            from_class = AtomValue
+            to_class = Expression
+
+        Inheritance:
+            name = 'StringValue_i_AtomValue'
+            from_class = StringValue
+            to_class = AtomValue
+
+        Inheritance:
+            name = 'FloatValue_i_AtomValue'
+            from_class = FloatValue
+            to_class = AtomValue
+
+        Inheritance:
+            name = 'IntegerValue_i_AtomValue'
+            from_class = IntegerValue
+            to_class = AtomValue
+
+        Inheritance:
+            name = 'BooleanValue_i_AtomValue'
+            from_class = BooleanValue
+            to_class = AtomValue
+
+        Inheritance:
+            name = 'Composite_i_Expression'
+            from_class = Composite
+            to_class = Expression
+
+        Inheritance:
+            name = 'Array_i_Composite'
+            from_class = Array
+            to_class = Composite
+
+        Inheritance:
+            name = 'Tuple_i_Composite'
+            from_class = Tuple
+            to_class = Composite
+
+        Inheritance:
+            name = 'Dict_i_Composite'
+            from_class = Dict
+            to_class = Composite
+
+        Inheritance:
+            name = 'CompositeArgument_i_ID'
+            from_class = CompositeArgument
+            to_class = ID
+
+        Inheritance:
+            name = 'DictArgument_i_CompositeArgument'
+            from_class = DictArgument
+            to_class = CompositeArgument
+
+        Inheritance:
+            name = 'RegularArgument_i_CompositeArgument'
+            from_class = RegularArgument
+            to_class = CompositeArgument

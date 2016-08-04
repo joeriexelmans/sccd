@@ -1,0 +1,76 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="orthogonal_take_many_next_small_step">
+	<description>
+		This test is a variation of 'orthogonal_next_small_step', but instead we use 'Take Many' big-step maximality semantics, allowing a big step to consist of as many small steps as possible (i.e. keep on executing transitions until there are no longer any enabled transitions).
+
+		In this configuration, internally raised events cannot be lost: if there is a transition that is triggered by an internal event that was raised by a transition from the previous small step, the transition will have a chance of being executed, *but* if there are other transitions (e.g. in other orthogonal components) that are enabled as well, it is possible for one of those to "occupy" the small step and the transition to "miss" it's event. There are 2 solutions to this problem:
+			1) Combine 'Take One' and 'Take Many' semantics, by using 'Take Many' for big step maximality, and 'Take One' for combo step maximality. An internally raised event then becomes present in the next combo step. These semantics are used in Statemate.
+			2) Use concurrency semantics: multiple (orthogonal) transitions are allowed to be executed in a single small step.
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml big_step_maximality="take_many" internal_event_lifeline="next_small_step">
+			<parallel id="p">
+				<state id="o0" initial="sa">
+					<state id="sa">
+						<onentry>
+							<raise event="entered_sa" port="out"/>
+						</onentry>
+						<transition event="f" target="../sb">
+							<raise event="g"/>
+						</transition>
+					</state>
+					<state id="sb">
+						<onentry>
+							<raise event="entered_sb" port="out"/>
+						</onentry>
+						<transition target="../sa"/>
+					</state>
+				</state>
+				<state id="o1" initial="sc">
+					<state id="sc">
+						<onentry>
+							<raise event="entered_sc" port="out"/>
+						</onentry>
+						<transition event="e" port="in" target="../sd">
+							<raise event="f"/>
+						</transition>
+					</state>
+					<state id="sd">
+						<onentry>
+							<raise event="entered_sd" port="out"/>
+						</onentry>
+						<transition event="g" target="../se"/>
+					</state>
+					<state id="se">
+						<onentry>
+							<raise event="entered_se" port="out"/>
+						</onentry>
+					</state>
+				</state>
+			</parallel>
+		</scxml>
+	</class>
+	<test>
+		<input>
+			<event name="e" port="in" time="0.0"/>
+		</input>
+		<expected>
+			<slot>
+				<!-- initialization -->
+				<event name="entered_sa" port="out"/>
+				<event name="entered_sc" port="out"/>
+			</slot>
+			<slot>
+				<!-- big step, input events = [e] -->
+				<event name="entered_sd" port="out"/>
+				<event name="entered_sb" port="out"/>
+				<!-- at this point, both the unconditional (null) transition from 'sb' to 'sa', and the transition with event 'g' can be triggered -->
+				<!-- the transition from 'sb' to 'sa' is chosen on the basis of document order -->
+				<event name="entered_sa" port="out"/>
+				<!-- event 'g' is lost and 'se' is never entered -->
+			</slot>
+		</expected>
+	</test>
+</diagram>

@@ -1,0 +1,34 @@
+<?xml version="1.0" ?>
+<diagram author="Herr Joeri Exelmans" name="source_parent_history">
+	<description>
+	</description>
+	<inport name="in"/>
+	<outport name="out"/>
+	<class name="c" default="true">
+		<scxml priority="source_parent">
+			<state id="main" initial="A">
+				<history id="history"/>
+				<state id="A">
+					<transition event="e" port="in" target="../B">
+						<raise event="to_B" port="out"/>
+					</transition>
+				</state>
+				<state id="B"/>
+				<transition event="e" port="in" target="./history">
+					<raise event="to_history" port="out"/>
+				</transition>
+			</state>
+		</scxml>
+	</class>
+	<test>
+		<input>
+			<event name="e" port="in" time="0.0"/>
+		</input>
+		<expected>
+			<slot>
+				<!-- big step -->
+				<event name="to_history" port="out"/>
+			</slot>
+		</expected>
+	</test>
+</diagram>

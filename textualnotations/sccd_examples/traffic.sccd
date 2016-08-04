@@ -1,0 +1,102 @@
+Diagram(name = 'Traffic_Light',
+		author = 'Raphael Mannadiar',
+		description = 'PIM Traffic lights.'):
+	Top {}
+	Inport(name = 'ui')
+
+	Class(name = 'MainApp', default = True):
+		Association(name = 'trafficlight', class = 'TrafficLight')
+
+		Constructor {
+			self.canvas = ui->append_canvas(ui.window,100,310,['background':'#eee'])
+			Button police_button = ui->append_button(ui.window, 'Police interrupt')
+			Button stop_button = ui->append_button(ui.window, 'Stop')
+			ui->bind_event(police_button.element, ui.EVENTS.MOUSE_CLICK, self.controller, 'police_interrupt_clicked')
+			ui->bind_event(stop_button.element, ui.EVENTS.MOUSE_CLICK, self.controller, 'stop_clicked')
+		}
+		StateMachine:
+			initial = 'initializing'
+			State('initializing'):
+				Transition(target='../creating'):
+					raise += { scope=cd, create_instance("trafficlight", "TrafficLight", self.canvas) }
+			State('creating'):
+				Transition(target='../initialized'):
+					event = instance_created(association_name: string)
+					raise += { scope=cd, start_instance(association_name) }
+					raise += { scope=narrow, target=association_name, set_association_name(association_name) }
+			State('initialized')
+
+	Class(name = 'TrafficLight'):
+		Constructor(canvas) {
+			Integer size = 100
+			Integer offset = size + 5
+			self.RED = 0
+			self.YELLOW = 1
+			self.GREEN = 2
+			self.colors = ['#f00','#ff0','#0f0']
+			self.lights = [canvas->add_rectangle(size/2, size / 2, size, size, ['fill':'#000']),
+								canvas->add_rectangle(size / 2, size / 2 + offset, size, size, ['fill':'#000']),
+								canvas->add_rectangle(size / 2, size / 2 + 2 * offset, size, size, ['fill':'#000'])]
+		}
+		Method clear() {
+			self.lights[self.RED]->set_color('#000')
+			self.lights[self.YELLOW]->set_color('#000')
+			self.lights[self.GREEN]->set_color('#000')
+		}
+		Method setGreen() {
+				self->clear()
+				self.lights[self.GREEN]->set_color(self.colors[self.GREEN])
+		}
+		Method setYellow() {
+				self->clear()
+				self.lights[self.YELLOW]->set_color(self.colors[self.YELLOW])
+		}
+		Method setRed() {
+				self->clear()
+				self.lights[self.RED]->set_color(self.colors[self.RED])
+		}
+		StateMachine:
+			initial = 'on'
+			State('on'):
+				initial = 'normal'
+				State('normal'):
+					initial = 'red'
+					State('red'):
+						Transition(after=3.0, target='../green')
+						OnEnter {
+							self->setRed()
+						}
+					State('green'):
+						Transition(after=2.0, target='../yellow')
+						OnEnter {
+							self->setGreen()
+						}
+					State('yellow'):
+						Transition(after=1.0, target='../red')
+						OnEnter {
+							self->setYellow()
+						}
+					Transition(port='ui', target='../interrupted'):
+						event = police_interrupt_clicked()
+					history = 'history'
+				State('interrupted'):
+					initial = 'yellow'
+					State('yellow'):
+						Transition(after=.5, target='../black')
+						OnEnter {
+							self->setYellow()
+						}
+					State('black'):
+						Transition(after=.5, target='../yellow')
+						OnEnter {
+							self->clear()
+						}
+					Transition(port='ui', target='../normal/history'):
+						event = police_interrupt_clicked()
+				Transition(port='ui', target='../off'):
+					event = stop_clicked()
+			State('off'):
+				OnEnter {
+					self->clear()
+				}
+

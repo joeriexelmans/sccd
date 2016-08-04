@@ -1,0 +1,129 @@
+Diagram(name = 'FSASimulator',
+		author = 'Sadaf Mustafiz and Bruno Barroca',
+		description = 'An FSA simulator written in SCCD. It supports variables, after, events and guards'):
+	Top {
+		import fsaclasses
+	}
+
+	Class(name = 'FSASimulator', default = True):
+		Attribute(name = 'timestep')
+		Attribute(name = 'elapsed')
+		Attribute(name = 'currentState')
+		Attribute(name = 'logicalTime')
+		Attribute(name = 'currentEvent')
+		Attribute(name = 'eventList')
+		Attribute(name = 'initialState')
+		Attribute(name = 'model')
+
+		Constructor(amodel, events) {
+			self.elapsed = 0
+			self.timestep = 0.5
+			self.model = amodel
+			self.initialState = self.model.initialState
+			self.eventList = events
+		}
+
+		Method resetElapsed() {
+			self->setElapsed(0)
+		}
+		Method setElapsed(elapsed) {
+			self.elapsed = elapsed
+		}
+		Method getInitialState() {
+			return self.initialState
+		}
+		Method getTransitionFrom(State,RunTimeEvent) {
+			return self.model->getTransitionFrom(State,RunTimeEvent)
+		}
+		Method getTransitionAfterAt(State,time) {
+			return self.model->getTransitionAfter(State,time)
+		}
+		Method setLogicalTime(time) {
+			self.logicalTime = time
+		}
+
+		Method setCurrentState(state) {
+			self.currentState = state
+		}
+
+		Method getCurrentState() {
+			return self.currentState
+		}
+
+		Method getCurrentEvent() {
+			return self.currentEvent
+		}
+		
+		Method setCurrentEvent(e) {
+			self.currentEvent = e
+		}
+		
+		Method popEventList() {
+			return self.eventList->pop()
+		}
+
+		Method getInputEventAt(time) {
+			return self.eventList->getInputAt(time)
+		}
+
+		StateMachine:
+			initial = 'Start'
+			final = 'End'
+			State('Start'):
+				Transition(target='../Check'):
+					Actions {
+						self->setLogicalTime(0)
+						self->setCurrentState(self->getInitialState())
+					}
+			State('Check'):
+				Transition(target='../Processing'):
+					guard = { self.currentState.final == False }
+					Actions {
+						self->setCurrentEvent(self->getInputEventAt(self.logicalTime))
+					
+					}
+				Transition(target='../End'):
+					guard = { self.currentState.final == True }
+					Actions {
+						print('going to end... ')
+					
+					}
+
+			State('Processing'):
+				Transition(target='../Check'):
+					guard = {not self->getTransitionFrom(self->getCurrentState(), self->getCurrentEvent()) == None}
+					Actions {
+						t = self->getTransitionFrom(self->getCurrentState(), self->getCurrentEvent())
+						self->setCurrentState(t.target)
+						self->setLogicalTime(self.logicalTime + self.timestep)
+						self->resetElapsed()
+						
+						print("changing to state: ")
+						print(self->getCurrentState()->getName())
+						print(self.logicalTime)
+						print(self.elapsed)
+					}
+				Transition(target='../Check'):
+					guard = {not (self->getTransitionAfterAt(self->getCurrentState(), self.elapsed) == None) and self->getTransitionFrom(self->getCurrentState(), self->getCurrentEvent()) == None}
+					Actions {
+						t = self->getTransitionAfterAt(self->getCurrentState(), self.elapsed)
+						self->setCurrentState(t.target)
+						self->setLogicalTime(self.logicalTime + self.timestep)
+						self->resetElapsed()
+
+						print("changing to state: ")
+						print(self->getCurrentState()->getName())
+						print(self.logicalTime)
+						print(self.elapsed)
+					}
+				Transition(target='../Check'):
+					guard = {self->getTransitionFrom(self->getCurrentState(), self->getCurrentEvent()) == self->getTransitionAfterAt(self->getCurrentState(), self.elapsed) == None}
+					Actions {
+						self->setLogicalTime(self.logicalTime + self.timestep)
+						self->setElapsed(self.elapsed + self.timestep)
+
+						print(self.logicalTime)
+						print(self.elapsed)
+					}
+
+			State('End')

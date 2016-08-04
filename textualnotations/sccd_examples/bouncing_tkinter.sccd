@@ -1,0 +1,270 @@
+Diagram(name = 'BouncingBalls',
+		author = 'Simon Van Mierlo',
+		description = 'Tkinter frame with bouncing balls in it.'):
+	Top {
+		import time
+		import random
+		import Tkinter as tk
+		from mvk_widget import MvKWidget
+	}
+	Inport(name = 'input')
+
+	Class(name = 'MainApp', default = True):
+		Association(name = 'fields', class = 'Field')
+		#Inheritance(class = 'RuntimeClassBase', priority = 1)
+		Inheritance(class = 'tk.Tk', priority = 0)
+
+		Constructor {
+			tk.Tk->__init__(self)
+			self.fixed_update_time = 20
+			self->update_self()
+			self->withdraw()
+			self.nr_of_fields = 0
+		}
+		Method update_self() {
+			self.controller->update(self.fixed_update_time / 1000.0)
+			self.schedule_time = time->time()
+			self.scheduled_update_id = self->after(self.fixed_update_time, self.update_self)
+		}
+		StateMachine:
+			initial = 'running'
+			State('running'):
+				initial = 'root'
+				Orthogonal('root'):
+					State('main_behaviour'):
+						initial = 'initializing'
+						State('initializing'):
+							Transition(target='../running'):
+								raise += { create_field() }
+						State('running'):
+							Transition(target='.'):
+								event = button_pressed(event_name: String)
+								guard = {event_name == 'create_new_field'}
+								raise += { create_field() }
+					State('cd_behaviour'):
+						initial = 'waiting'
+						State('waiting'):
+							Transition(target='../creating'):
+								event = create_field()
+								raise += { scope=cd, create_field('fields') }
+							Transition(target='../check_nr_of_fields'):
+								event = delete_field(association_name: String)
+								raise += { scope=cd, delete_instance(association_name) }
+								Actions {
+									self.nr_of_fields -= 1
+								}
+						State('creating'):
+							Transition(target='../waiting'):
+								event = instance_created(association_name: String)
+								raise += { scope=cd, start_instance(association_name) }
+								raise += { scope=narrow, target=association_name, set_association_name(association_name) }
+								Actions {
+									self.nr_of_fields += 1
+								}
+						State('check_nr_of_fields'):
+							Transition(target='../../../stopped'):
+								guard = {self.nr_of_fields == 0}
+								Actions {
+									self->destroy()
+								}
+							Transition(target='../waiting'):
+								guard = {self.nr_of_fields != 0}
+				State('stopped')
+
+
+	Class(name = 'Field'):
+		Association(name = 'balls', class = 'Ball')
+		Association(name = 'buttons', class = 'Button')
+		Association(name = 'parent', class = 'MainApp', min = 1, max = 1)
+		#Inheritance(class = 'RuntimeClassBase', priority = 1)
+		Inheritance(class = 'tk.Toplevel', priority = 0)
+		Inheritance(class = 'MvKWidget', priority = -1)
+
+		Constructor {
+			tk.Toplevel->__init__(self)
+			self->title('BouncingBalls')
+
+			CANVAS_SIZE_TUPLE = (0, 0, self->winfo_screenwidth() * 2, self->winfo_screenheight() * 2)
+			self.c = tk->Canvas(self, relief=tk.RIDGE, scrollregion=CANVAS_SIZE_TUPLE)
+
+			MvKWidget->__init__(self, self.controller, self.c)
+		}
+		Destructor {
+			self->destroy()
+		}
+		StateMachine:
+			initial = 'root'
+			State('root'):
+				initial = 'waiting'
+				State('waiting'):
+					Transition(target='../initializing'):
+						event = set_association_name(association_name: String)
+						Actions {
+							self.association_name = association_name
+						}
+				State('initializing'):
+					Transition(target='../creating'):
+						raise += { scope=cd, create_instance('buttons', self, 'create_new_field', 'Spawn New Window') }
+				State('creating'):
+					Transition(target='../packing'):
+						event = instance_created(association_name: String)
+						raise += { scope=cd, start_instance(association_name) }
+				State('packing'):
+					Transition(target='../running'):
+						event = button_created(button: Button)
+						Actions {
+							button->pack(expand=False, fill=tk.X, side=tk.TOP)
+							self.c->focus_force()
+							self.c->pack(expand=True, fill=tk.BOTH)
+						}
+				Orthogonal('running'):
+					Transition(port = 'input', target='../deleting'):
+						event = window-close(tagorid: Integer='None')
+						raise += { scope=narrow, target='balls',delete_self() }
+					State('main_behaviour'):
+						initial = 'running'
+						State('running'):
+							Transition(port = 'input', target='../creating'):
+								event = right-click(tagorid: Integer='None')
+								raise += { scope=cd, create_instance('balls', self.c, self.last_x, self.last_y) }
+						State('creating'):
+							Transition(target='../running'):
+								event = instance_created(association_name: String)
+								raise += { scope=cd, start_instance(association_name) }
+								raise += { scope=narrow, target=association_name, set_association_name(association_name) }
+					State('deleting_behaviour'):
+						initial = 'running'
+						State('running'):
+							Transition(target='.'):
+								event = delete_ball(association_name: String)
+								raise += { scope=cd, delete_instance(association_name) }
+					State('child_behaviour'):
+						initial = 'listening'
+						State('listening'):
+							Transition(target='.'):
+								event = button_pressed(event_name: String)
+								raise += { scope=narrow, target='parent', button_pressed(event_name) }
+				State('deleting'):
+					Transition(after=0.05, target='../deleted'):
+						raise += { scope=narrow, target='parent', delete_field(self.association_name) }
+				State('deleted')
+	Class(name = 'Button'):
+		Association(name = 'parent', class = 'Field', min = 1, max = 1)
+		#Inheritance(class = 'RuntimeClassBase', priority = 1)
+		Inheritance(class = 'MvKWidget', priority = 0)
+		Inheritance(class = 'tk.Button', priority = -1)
+
+		Constructor(parent: Field, event_name: String, button_text: String) {
+				tk.Button->__init__(self, parent, text=button_text)
+				MvKWidget->__init__(self, self.controller)
+				self.event_name = event_name
+		}
+		StateMachine:
+			initial = 'initializing'
+			State('initializing'):
+				Transition(target='../running'):
+					raise += { scope=narrow, target='parent', button_created(self) }
+			State('running'):
+				Transition(port = 'input', target='.'):
+					event = left-click(tagorid: Integer='None')
+					guard = {tagorid == id(self)}
+					raise += { scope=narrow, target='parent', button_pressed(self.event_name) }
+	Class(name = 'Ball'):
+		Association(name = 'parent', class = 'Field', min = 1, max = 1)
+		#Inheritance(class = 'RuntimeClassBase', priority = 1)
+		Inheritance(class = 'MvKWidget', priority = 0)
+		Attribute(name = 'canvas')
+
+		Constructor(canvas, x, y) {
+			self.canvas = canvas
+			self.r = 15.0
+			self.smooth = 0.4 # value between 0 and 1
+			self.vel = ['x': random->random() * 2.0 - 1.0, 'y': random->random() * 2.0 - 1.0]
+			self.id = self.canvas->create_oval(x, y, x + (self.r * 2), y + (self.r * 2), fill="black")
+			MvKWidget->__init__(self, self.controller, self.canvas, self.id)
+		}
+		Destructor {
+			self.canvas->delete(self.id)
+		}
+		StateMachine:
+			initial = 'main_behaviour'
+			State('main_behaviour'):
+				initial = 'initializing'
+				State('initializing'):
+					Transition(target='../bouncing'):
+						event = set_association_name(association_name: String)
+						Actions {
+							self.association_name = association_name
+						}
+				State('bouncing'):
+					Transition(after=0.01, target='.'):
+						Actions {
+							pos = self.canvas->coords(self.id)
+							x = self.canvas->canvasx(pos[0])
+							y = self.canvas->canvasy(pos[1])
+							if x <= 0 or x + (self.r * 2) >= self.canvas->canvasx(self.canvas->winfo_width()):
+								self.vel['x'] = -self.vel['x']
+							end
+							if y <= 0 or y + (self.r * 2) >= self.canvas->canvasy(self.canvas->winfo_height()):
+								self.vel['y'] = -self.vel['y']
+							end
+							self.canvas->move(self.id, self.vel['x'], self.vel['y'])
+						}
+					Transition(port = 'input', target='../selected'):
+						event = left-click(tagorid: Integer='None')
+						guard = {tagorid == id(self)}
+						Actions {
+							self.canvas->itemconfig(self.id, fill="yellow")
+						}
+				State('dragging'):
+					Transition(port = 'input', target='.'):
+						event = motion(tagorid: Integer='None')
+						Actions {
+							coords = self.canvas->coords(self.id)
+							dx = self.canvas->canvasx(self.last_x) - self.canvas->canvasx(coords[0])
+							dy = self.canvas->canvasx(self.last_y) - self.canvas->canvasy(coords[1])
+
+							self.canvas->move(self.id, dx, dy)
+
+							coords = self.canvas->coords(self.id) # keep ball within boundaries
+							x = self.canvas->canvasx(coords[0])
+							y = self.canvas->canvasy(coords[1])
+							if x - self.r <= 0:
+								x = 1
+							else:
+								if x + self.r >= self.canvas->winfo_width():
+									x = self.canvas->winfo_width() - (2 * self.r) - 1
+								end
+							end
+							if y - self.r <= 0:
+								y = 1
+							else:
+								if y + self.r >= self.canvas->winfo_height():
+									y = self.canvas->winfo_height() - (2 * self.r) - 1
+								end
+							end
+							self.canvas->coords(self.id, x, y, x + (self.r * 2), y + (self.r * 2))
+							self.vel = [
+								'x': (1 - self.smooth) * dx + self.smooth * self.vel['x'],
+								'y': (1 - self.smooth) * dy + self.smooth * self.vel['y']
+							]
+						}
+
+					Transition(port = 'input', target='../bouncing'):
+						event = left-release(tagorid: Integer='None')
+						Actions {
+							self.canvas->itemconfig(self.id, fill="red")
+						}
+				State('selected'):
+					Transition(port = 'input', target='../dragging'):
+						event = left-click(tagorid: Integer='None')
+						guard = {tagorid == id(self)}
+					Transition(port = 'input', target='.'):
+						event = delete(tagorid: Integer='None')
+						raise += { scope=local, delete_self() }
+				Transition(target='../deleted'):
+					event = delete_self(tagorid: Integer='None')
+					raise += { scope=narrow, target='parent', delete_ball(self.association_name) }
+			State('deleted')
+
+

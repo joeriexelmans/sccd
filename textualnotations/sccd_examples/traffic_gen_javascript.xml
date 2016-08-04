@@ -1,0 +1,178 @@
+<?xml version="1.0" ?>
+<diagram name="Traffic_Light" author="Raphael Mannadiar">
+	<description>
+		PIM Traffic lights.
+	</description>
+	<inport name="ui"/>
+	<top>
+		from libs.ui import ui;
+		import Tkinter as tk;
+	</top>
+	<class name="TrafficLight">
+		<method name="TrafficLight"/>
+			<body>
+			<![CDATA[
+				var size = 100;
+				var offset = size + 5;
+				this.RED = 0;
+				this.YELLOW = 1;
+				this.GREEN = 2;
+				this.colors = ['#f00', '#ff0', '#0f0'];
+				this.lights = [canvas.add_rectangle(size / 2, size / 2, size, size, {'fill':'#000'}), canvas.add_rectangle(size / 2, size / 2 + offset, size, size, {'fill':'#000'}), canvas.add_rectangle(size / 2, size / 2 + 2 * offset, size, size, {'fill':'#000'})];
+			]]
+			</body>
+		</method>
+		<method name="setYellow"/>
+			<body>
+			<![CDATA[
+				this.clear();
+				this.lights[this.YELLOW].set_color(this.colors[this.YELLOW]);
+			]]
+			</body>
+		</method>
+		<method name="setGreen"/>
+			<body>
+			<![CDATA[
+				this.clear();
+				this.lights[this.GREEN].set_color(this.colors[this.GREEN]);
+			]]
+			</body>
+		</method>
+		<method name="setRed"/>
+			<body>
+			<![CDATA[
+				this.clear();
+				this.lights[this.RED].set_color(this.colors[this.RED]);
+			]]
+			</body>
+		</method>
+		<method name="clear"/>
+			<body>
+			<![CDATA[
+				this.lights[this.RED].set_color('#000');
+				this.lights[this.YELLOW].set_color('#000');
+				this.lights[this.GREEN].set_color('#000');
+			]]
+			</body>
+		</method>
+		<scxml  initial="on">
+			<state id="off">
+				<onentry>
+					<script>
+					<![CDATA[
+						this.clear();
+					]]
+					</script>
+				</onentry>
+			</state>
+			<state id="on" initial="normal">
+				<transition port="ui" target="../off" event="quit_clicked">
+				</transition>
+				<state id="normal" initial="red">
+					<transition port="ui" target="../interrupted" event="police_interrupt_clicked">
+					</transition>
+					history="history"
+					<state id="yellow">
+						<onentry>
+							<script>
+							<![CDATA[
+								this.setYellow();
+							]]
+							</script>
+						</onentry>
+						<transition after="1.0" target="../red">
+						</transition>
+					</state>
+					<state id="green">
+						<onentry>
+							<script>
+							<![CDATA[
+								this.setGreen();
+							]]
+							</script>
+						</onentry>
+						<transition after="2.0" target="../yellow">
+						</transition>
+					</state>
+					<state id="red">
+						<onentry>
+							<script>
+							<![CDATA[
+								this.setRed();
+							]]
+							</script>
+						</onentry>
+						<transition after="3.0" target="../green">
+						</transition>
+					</state>
+				</state>
+				<state id="interrupted" initial="yellow">
+					<transition port="ui" target="../normal/history" event="police_interrupt_clicked">
+					</transition>
+					<state id="yellow">
+						<onentry>
+							<script>
+							<![CDATA[
+								this.setYellow();
+							]]
+							</script>
+						</onentry>
+						<transition after="0.5" target="../black">
+						</transition>
+					</state>
+					<state id="black">
+						<onentry>
+							<script>
+							<![CDATA[
+								this.clear();
+							]]
+							</script>
+						</onentry>
+						<transition after="0.5" target="../yellow">
+						</transition>
+					</state>
+				</state>
+			</state>
+		</scxml>
+	</class>
+	<class name="MainApp" default="True">
+		<relationships>
+			<association name="trafficlight" class="TrafficLight"/>
+		</relationships>
+		<method name="MainApp"/>
+			<body>
+			<![CDATA[
+				this.canvas = ui.append_canvas(ui.window, 100, 310, {'background':'#eee'});
+				var police_button = ui.append_button(ui.window, 'Police interrupt');
+				var quit_button = ui.append_button(ui.window, 'Quit');
+				ui.bind_event(police_button.element, ui.EVENTS.MOUSE_CLICK, this.controller, 'police_interrupt_clicked');
+				ui.bind_event(quit_button.element, ui.EVENTS.MOUSE_CLICK, this.controller, 'quit_clicked');
+			]]
+			</body>
+		</method>
+		<scxml  initial="initializing">
+			<state id="initializing">
+				<transition target="../creating">
+					<raise event="create_instance" scope="'cd'">
+						<parameter expr="'trafficlight'"/>
+						<parameter expr="'TrafficLight'"/>
+						<parameter expr="this.canvas"/>
+					</raise>
+				</transition>
+			</state>
+			<state id="initialized">
+			</state>
+			<state id="creating">
+				<transition target="../initialized" event="instance_created">
+					<parameter name="association_name" type="string"/>
+					<raise event="set_association_name" scope="'narrow'" target="association_name">
+						<parameter expr="association_name"/>
+					</raise>
+					<raise event="start_instance" scope="'cd'">
+						<parameter expr="association_name"/>
+					</raise>
+				</transition>
+			</state>
+		</scxml>
+	</class>
+</diagram>

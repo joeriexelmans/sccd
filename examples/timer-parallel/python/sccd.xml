@@ -3,8 +3,7 @@
     <description>
     </description>
     <top>
-        from python_runtime.libs.ui import ui
-        from python_runtime.accurate_time import time
+        from sccd.runtime.accurate_time import time
     </top>    
     <inport name="input" />
 

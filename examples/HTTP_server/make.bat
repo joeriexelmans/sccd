@@ -1,1 +1,1 @@
-..\..\python_sccd_compiler\sccdc.py -p threads -l python server.xml
+python -m sccd.compiler.sccdc -p threads -l python server.xml

@@ -1,18 +1,17 @@
 .PHONY: all clean
 
-SCCDC = python ../../../python_sccd_compiler/sccdc.py
+SCCDC = python -m sccd.compiler.sccdc
 FLAGS = -l javascript -p eventloop
 
 SOURCE = sccd.xml
 
 TARGET_DIR = target_js
-TARGET = $(TARGET_DIR)/sccd.js
-
+TARGET = $(TARGET_DIR)/target.js
 
 all: $(TARGET_DIR) $(TARGET)
 
 clean:
-	-rm -f  $(TARGET)
+	find $(TARGET_DIR) -type f -delete
 	-rmdir $(TARGET_DIR)
 
 $(TARGET): $(SOURCE)

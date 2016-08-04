@@ -1,11 +1,9 @@
 import sys
-
-sys.path.append("..")
-
 import os
 import importlib
 import unittest
-from python_runtime.statecharts_core import *
+
+from sccd.runtime.statecharts_core import *
 
 class PyTestCase(unittest.TestCase):
     def __init__(self, file_name):

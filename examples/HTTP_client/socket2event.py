@@ -1,5 +1,5 @@
 import threading
-from python_runtime.statecharts_core import Event
+from sccd.runtime.statecharts_core import Event
 import socket
 
 send_data_queues = {}

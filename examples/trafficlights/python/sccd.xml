@@ -3,7 +3,7 @@
     <description>
     </description>
     <top>
-        from python_runtime.libs.ui import ui
+        from sccd.runtime.libs.ui import ui
     </top>    
     <inport name="ui" />
 

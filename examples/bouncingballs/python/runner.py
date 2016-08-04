@@ -5,16 +5,14 @@ Created on 27-jul.-2014
 '''
 
 import Tkinter as tk
-import target_py.sccd as sccd
-from python_runtime.libs.ui import ui
-from python_runtime.statecharts_core import Event
-from python_runtime.tkinter_eventloop import *
-
-FIXED_UPDATE_TIME = 20	# ms
+import target_py.target as target
+from sccd.runtime.libs.ui import ui
+from sccd.runtime.statecharts_core import Event
+from sccd.runtime.tkinter_eventloop import *
 
 if __name__ == '__main__':
 	ui.window = tk.Tk()
 	ui.window.withdraw()
-	controller = sccd.Controller(TkEventLoop(ui.window))
+	controller = target.Controller(TkEventLoop(ui.window))
 	controller.start()
 	ui.window.mainloop()

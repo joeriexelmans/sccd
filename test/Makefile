@@ -1,6 +1,6 @@
 .PHONY: all all_javascript all_python clean clean_javascript clean_python test test_javascript test_python help
 
-SCCDC = python ../python_sccd_compiler/sccdc.py
+SCCDC = python -m sccd.compiler.sccdc
 
 PYTHON = python
 BROWSER = firefox 2>/dev/null -new-window

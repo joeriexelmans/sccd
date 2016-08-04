@@ -1,18 +1,18 @@
 .PHONY: all clean
 
-SCCDC = python ../../../python_sccd_compiler/sccdc.py
-FLAGS = -l python -p eventloop
+SCCDC = python -m sccd.compiler.sccdc
+FLAGS = -l python -p threads
 
 SOURCE = sccd.xml
 
 TARGET_DIR = target_py
-TARGET = $(TARGET_DIR)/sccd.py
+TARGET = $(TARGET_DIR)/target.py
 
 
 all: $(TARGET_DIR) $(TARGET)
 
 clean:
-	-rm -f  $(TARGET)
+	find $(TARGET_DIR) -type f -delete
 	-rmdir $(TARGET_DIR)
 
 $(TARGET): $(SOURCE)
@@ -20,4 +20,5 @@ $(TARGET): $(SOURCE)
 
 $(TARGET_DIR):
 	-mkdir $@
+	touch $@/__init__.py
 

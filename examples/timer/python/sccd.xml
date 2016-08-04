@@ -3,9 +3,9 @@
     <description>
     </description>
     <top>
-        from python_runtime.libs.ui import ui
-        from python_runtime.accurate_time import time
-        from python_runtime.statecharts_core import get_simulated_time
+        from sccd.runtime.libs.ui import ui
+        from sccd.runtime.accurate_time import time
+        from sccd.runtime.statecharts_core import get_simulated_time
     </top>    
     <inport name="ui" />
 

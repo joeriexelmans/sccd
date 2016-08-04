@@ -51,6 +51,7 @@
                     <transition target="../state_2">
                         <raise event="create_instance" scope="CD">
                             <parameter expr="'turret_control'"/>
+                            <parameter expr="'TurretControl'"/>
                             <parameter expr="SELF.tank"/>
                         </raise>
                     </transition>
@@ -62,6 +63,7 @@
                     <transition target="../state_4">
                         <raise event="create_instance" scope="CD">
                             <parameter expr="'motor_control'"/>
+                            <parameter expr="'MotorControl'"/>
                             <parameter expr="SELF.tank"/>
                         </raise>
                     </transition>
@@ -73,6 +75,7 @@
                     <transition target="../state_6">
                         <raise event="create_instance" scope="CD">
                             <parameter expr="'turret_steering'"/>
+                            <parameter expr="'TurretSteering'"/>
                             <parameter expr="SELF.tank"/>
                         </raise>
                     </transition>
@@ -84,6 +87,7 @@
                     <transition target="../state_8">
                         <raise event="create_instance" scope="CD">
                             <parameter expr="'steering'"/>
+                            <parameter expr="'Steering'"/>
                             <parameter expr="SELF.tank"/>
                             <parameter expr="SELF.map"/>
                         </raise>
@@ -96,6 +100,7 @@
                     <transition target="../state_10">
                         <raise event="create_instance" scope="CD">
                             <parameter expr="'path_finder'"/>
+                            <parameter expr="'PathFinder'"/>
                             <parameter expr="SELF.tank"/>
                             <parameter expr="SELF.map"/>
                         </raise>
@@ -108,6 +113,7 @@
                     <transition target="../state_12">
                         <raise event="create_instance" scope="CD">
                             <parameter expr="'attack_planner'"/>
+                            <parameter expr="'AttackPlanner'"/>
                         </raise>
                     </transition>
                 </state>
@@ -118,6 +124,7 @@
                     <transition target="../state_14">
                         <raise event="create_instance" scope="CD">
                             <parameter expr="'explore_planner'"/>
+                            <parameter expr="'ExplorePlanner'"/>
                             <parameter expr="SELF.tank"/>
                             <parameter expr="SELF.map"/>
                         </raise>
@@ -130,6 +137,7 @@
                     <transition target="../state_16">
                         <raise event="create_instance" scope="CD">
                             <parameter expr="'pilot_strategy'"/>
+                            <parameter expr="'PilotStrategy'"/>
                         </raise>
                     </transition>
                 </state>
@@ -140,6 +148,7 @@
                     <transition target="../state_18">
                         <raise event="create_instance" scope="CD">
                             <parameter expr="'enemy_tracker'"/>
+                            <parameter expr="'EnemyTracker'"/>
                         </raise>
                     </transition>
                 </state>
@@ -150,6 +159,7 @@
                     <transition target="../state_20">
                         <raise event="create_instance" scope="CD">
                             <parameter expr="'radar'"/>
+                            <parameter expr="'Radar'"/>
                             <parameter expr="SELF.tank"/>
                         </raise>
                     </transition>
@@ -322,21 +332,21 @@
         <scxml initial="no_enemy">
             <state id="no_enemy">
                 <transition cond="SELF.isEnemyVisible()" target="../enemy_in_sight">
-                    <raise event="enemy_sighted" target="enemy_tracker">
+                    <raise event="enemy_sighted" target="'enemy_tracker'">
                         <parameter expr="SELF.getEnemyPos()"/>
                     </raise>
-                    <raise event="enemy_sighted" target="pilot_strategy">
+                    <raise event="enemy_sighted" target="'pilot_strategy'">
                         <parameter expr="SELF.getEnemyPos()"/>
                     </raise>
                 </transition>
             </state>
             <state id="enemy_in_sight">
                 <transition cond="not SELF.isEnemyVisible()" target="../no_enemy">
-                    <raise event="enemy_out_of_sight" target="enemy_tracker"/>
+                    <raise event="enemy_out_of_sight" target="'enemy_tracker'"/>
                 </transition>
                 <!-- else, of course this is not present in scxml so add negated cond -->
                 <transition event="update" port="engine" cond="SELF.isEnemyVisible()" target=".">
-                    <raise event="enemy_pos" target="enemy_tracker">
+                    <raise event="enemy_pos" target="'enemy_tracker'">
                         <parameter expr="SELF.getEnemyPos()"/>
                     </raise>
                 </transition> 
@@ -373,17 +383,17 @@
                     <script>
                         self.enemy_pos = position
                     </script>
-                    <raise event="enemy_pos_changed" target="attack_planner">
+                    <raise event="enemy_pos_changed" target="'attack_planner'">
                         <parameter expr="SELF.enemy_pos"/>
                     </raise>
                 </transition>
                 <transition event="enemy_out_of_sight" target="../enemy_pos_unsure">
-                    <raise event="enemy_out_of_sight" target="attack_planner"/>
+                    <raise event="enemy_out_of_sight" target="'attack_planner'"/>
                 </transition>
             </state>
             <state id="enemy_pos_unsure">
                 <transition event="destination_reached" target="../no_enemy">
-                    <raise event="enemy_lost" target="pilot_strategy"/>
+                    <raise event="enemy_lost" target="'pilot_strategy'"/>
                     <log>raise enemy_lost</log>
                 </transition>
                 <transition event="enemy_sighted" target="../enemy_pos_known"> 
@@ -409,21 +419,21 @@
         <scxml initial="exploring">
             <state id="exploring">
                 <onentry>
-                    <raise event="explore" target="explore_planner"/>
+                    <raise event="explore" target="'explore_planner'"/>
                 </onentry>
                 <onexit>
-                    <raise event="stop_exploring" target="explore_planner"/>
+                    <raise event="stop_exploring" target="'explore_planner'"/>
                 </onexit>
                 <transition event="enemy_sighted" target="../attacking">
                     <parameter name="position"/>
-                    <raise event="attack" target="attack_planner">
+                    <raise event="attack" target="'attack_planner'">
                         <parameter expr="position"/>
                     </raise>
                 </transition>
             </state>
             <state id="attacking">
                 <onexit>
-                    <raise event="stop_attacking" target="attack_planner"/>
+                    <raise event="stop_attacking" target="'attack_planner'"/>
                     <log>raise stop_attacking</log>
                 </onexit>
                 <transition event="enemy_lost" target="../exploring">
@@ -459,7 +469,7 @@
                 </transition>
                 <state id="no_destination">
                     <transition target="../destination_set">
-                        <raise event="new_destination" target="path_finder">
+                        <raise event="new_destination" target="'path_finder'">
                             <parameter expr="SELF.map.getNewExplore(self.tank.getPosition(),self.tank.getAngle())"/>
                         </raise>
                     </transition>
@@ -483,10 +493,10 @@
                 <transition event="attack" target="../action">
                     <log>received attack</log>
                     <parameter name="enemy_pos"/>
-                    <raise event="new_destination" target="path_finder">
+                    <raise event="new_destination" target="'path_finder'">
                         <parameter expr="enemy_pos"/>
                     </raise>
-                    <raise event="aim_at" target="turret_steering">
+                    <raise event="aim_at" target="'turret_steering'">
                         <parameter expr="enemy_pos"/>
                     </raise>
                 </transition>
@@ -494,28 +504,28 @@
             <parallel id="action">
                 <transition event="stop_attacking" target="../idle">
                     <log>received stop attack</log>
-                    <raise event="stop_aiming" target="turret_steering"/>
+                    <raise event="stop_aiming" target="'turret_steering'"/>
                 </transition>
                 <state id="movement">
                     <state id="following">
                         <transition event="enemy_pos_changed" target=".">
                             <parameter name="enemy_pos"/>
-                            <raise event="new_destination" target="path_finder">
+                            <raise event="new_destination" target="'path_finder'">
                                 <parameter expr="enemy_pos"/>
                             </raise>
-                            <raise event="aim_at" target="turret_steering">
+                            <raise event="aim_at" target="'turret_steering'">
                                 <parameter expr="enemy_pos"/>
                             </raise>
                         </transition>
                         <transition event="enemy_out_of_sight" target=".">
-                            <raise event="stop_aiming" target="turret_steering"/>
+                            <raise event="stop_aiming" target="'turret_steering'"/>
                         </transition>
                     </state>
                 </state>
                 <state id="shooting" initial="loaded">
                     <state id="loaded">
                         <transition event="ready_to_shoot" target="../reloading">
-                            <raise event="shoot" target="turret_control"/>
+                            <raise event="shoot" target="'turret_control'"/>
                             <log>raise shoot</log>
                         </transition>
                     </state>
@@ -569,7 +579,7 @@
                         self.waypoints = self.calculatePath()
                     </script>
                     <!--  
-                    <raise event="new_waypoint" target="steering">
+                    <raise event="new_waypoint" target="'steering'">
                         <parameter expr="SELF.waypoints[0]"/>
                     </raise>
                     -->
@@ -580,7 +590,7 @@
                     <script>
                         next_waypoint = self.waypoints.pop(0)
                     </script>
-                    <raise event="new_waypoint" target="steering">
+                    <raise event="new_waypoint" target="'steering'">
                         <parameter expr="next_waypoint"/>
                     </raise>
                 </transition>
@@ -691,26 +701,26 @@
             </state>
             <state id="steering" initial="forward_backward">
                 <transition cond="SELF.pointReached()" target="../idle">
-                    <raise event="waypoint_reached" target="path_finder"/>
+                    <raise event="waypoint_reached" target="'path_finder'"/>
                 </transition>
                 
                 <state id="forward_backward">
                     <transition cond="SELF.pointAhead()" target="../left_right">
-                        <raise event="forward" target="motor_control"/>
+                        <raise event="forward" target="'motor_control'"/>
                     </transition>
                     <transition cond="SELF.pointBehind()" target="../left_right">
-                        <raise event="stop" target="motor_control"/>
+                        <raise event="stop" target="'motor_control'"/>
                     </transition>
                 </state>
                 <state id="left_right">
                     <transition cond="SELF.pointStraight()" target="../wait">
-                        <raise event="stop_turning" target="motor_control"/>
+                        <raise event="stop_turning" target="'motor_control'"/>
                     </transition>
                     <transition cond="SELF.pointLeft()" target="../wait">
-                        <raise event="turn_left" target="motor_control"/>
+                        <raise event="turn_left" target="'motor_control'"/>
                     </transition>
                     <transition cond="SELF.pointRight()" target="../wait">
-                        <raise event="turn_right" target="motor_control"/>
+                        <raise event="turn_right" target="'motor_control'"/>
                     </transition>
                 </state>
                 <state id="wait">
@@ -782,7 +792,7 @@
             
             <state id="aiming" initial="adjust">
                 <transition event="stop_aiming" target="../idle">
-                    <raise event="stop_turning" target="turret_control"/>
+                    <raise event="stop_turning" target="'turret_control'"/>
                 </transition>
                 <transition event="aim_at" target=".">
                     <parameter name="target"/>
@@ -793,14 +803,14 @@
                 
                 <state id="adjust">
                     <transition cond="SELF.pointRight()" target="../wait">
-                        <raise event="turn_right" target="turret_control"/>
+                        <raise event="turn_right" target="'turret_control'"/>
                     </transition>
                     <transition cond="SELF.pointLeft()" target="../wait">
-                        <raise event="turn_left" target="turret_control"/>
+                        <raise event="turn_left" target="'turret_control'"/>
                     </transition>
                     <transition cond="SELF.pointCorrect()" target="../wait">
-                        <raise event="stop_turning" target="turret_control"/>
-                        <raise event="ready_to_shoot" target="attack_planner"/>
+                        <raise event="stop_turning" target="'turret_control'"/>
+                        <raise event="ready_to_shoot" target="'attack_planner'"/>
                     </transition>
                 </state>
                 <state id="wait">

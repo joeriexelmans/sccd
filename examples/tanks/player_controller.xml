@@ -23,6 +23,7 @@
                 <transition target="../state_2">
                     <raise event="create_instance" scope="CD">
                         <parameter expr="'cannon'"/>
+                        <parameter expr="'Cannon'"/>
                         <parameter expr="SELF.tank"/>
                     </raise>
                 </transition>
@@ -34,6 +35,7 @@
                 <transition target="../state_4">
                      <raise event="create_instance" scope="CD">
                         <parameter expr="'body'"/>
+                        <parameter expr="'Body'"/>
                         <parameter expr="SELF.tank"/>
                     </raise>
                 </transition>

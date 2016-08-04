@@ -4,8 +4,8 @@
         Tkinter frame with bouncing balls in it.
     </description>
     <top>
-        from python_runtime.libs.ui import ui
-        from python_runtime.libs.utils import utils
+        from sccd.runtime.libs.ui import ui
+        from sccd.runtime.libs.utils import utils
         import random
     </top>
     <inport name="ui"/>

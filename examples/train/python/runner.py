@@ -2,9 +2,10 @@ from Tkinter import *
 import random
 import math
 
-import target_py.sccd as sccd
-from python_runtime.statecharts_core import Event
-from python_runtime.tkinter_eventloop import *
+import target_py.target as target
+from sccd.runtime.libs.ui import ui
+from sccd.runtime.statecharts_core import Event
+from sccd.runtime.tkinter_eventloop import *
 
 width_railway = 20
 marked = {}
@@ -182,7 +183,7 @@ class SimulationGUI(Tk):
 root = SimulationGUI()
 if __name__ == "__main__":
     random.seed(1)
-    controller = sccd.Controller(root, TkEventLoop(root))
+    controller = target.Controller(root, TkEventLoop(root))
     root.controller = controller
     controller.start()
     try:

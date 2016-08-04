@@ -180,7 +180,7 @@ class TanksGame(tk.Tk):
         else :
             self.elapsed = time.time() - self.schedule_time
             self.after_cancel(self.scheduled_update_id)
-            self.showOverlay()
+            self.showPauseOverlay()
             self.is_paused = True
             self.bind("p", self.pausePressed)
             self.unbind("<KeyPress>")

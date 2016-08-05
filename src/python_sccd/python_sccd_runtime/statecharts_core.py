@@ -340,7 +340,7 @@ class ControllerBase(object):
         self.output_ports = []
         self.output_listeners = []
         
-        self.simulated_time = 0
+        self.simulated_time = None
         
     def getSimulatedTime(self):
         return self.simulated_time
@@ -362,6 +362,7 @@ class ControllerBase(object):
         
     def start(self):
         set_start_time()
+        self.simulated_time = 0
         self.object_manager.start()
     
     def stop(self):
@@ -378,7 +379,7 @@ class ControllerBase(object):
             if e.getPort() not in self.input_ports :
                 raise InputException("Input port mismatch, no such port: " + e.getPort() + ".")
             
-            self.input_queue.add(((time() if self.simulated_time else 0) + time_offset, e))
+            self.input_queue.add(((0 if self.simulated_time is None else time()) + time_offset, e))
 
     def getEarliestEventTime(self):
         return min(self.object_manager.getEarliestEventTime(), self.input_queue.getEarliestTime())
@@ -459,7 +460,7 @@ class EventLoopControllerBase(ControllerBase):
         self.event_loop = event_loop
         self.finished_callback = finished_callback
         self.behind_schedule_callback = behind_schedule_callback
-        self.last_print_time = 0.0
+        self.last_print_time = 0
         self.behind = False
 
     def addInput(self, input_event, time_offset = 0):
@@ -492,7 +493,7 @@ class EventLoopControllerBase(ControllerBase):
             now = time()
             if now - start_time > 10 or earliest_event_time - now > 0:
                 self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
-                if now - earliest_event_time > 10 and now - self.last_print_time >= 1:
+                if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
                     if self.behind_schedule_callback:
                         self.behind_schedule_callback(self, now - earliest_event_time)
                     print '\rrunning %ims behind schedule' % (now - earliest_event_time),
@@ -815,6 +816,7 @@ class RuntimeClassBase(object):
         self.current_state = {}
         self.history_values = {}
         self.timers = {}
+        self.timers_to_add = {}
 
         self.big_step = BigStepState()
         self.combo_step = ComboStepState()
@@ -840,11 +842,14 @@ class RuntimeClassBase(object):
         self.__set_stable(True)
     
     def addTimer(self, index, timeout):
-        self.timers[index] = self.events.add((self.controller.simulated_time + int(timeout * 1000), Event("_%iafter" % index)))
+        self.timers_to_add[index] = (self.controller.simulated_time + int(timeout * 1000), Event("_%iafter" % index))
     
     def removeTimer(self, index):
-        self.events.remove(self.timers[index])
-        del self.timers[index]
+        if index in self.timers_to_add:
+            del self.timers_to_add[index]
+        if index in self.timers:
+            self.events.remove(self.timers[index])
+            del self.timers[index]
         
     def addEvent(self, event_list, time_offset = 0):
         event_time = self.controller.simulated_time + time_offset
@@ -868,7 +873,7 @@ class RuntimeClassBase(object):
         self.is_stable = is_stable
         # self.earliest_event_time keeps track of the earliest time this instance will execute a transition
         if not is_stable:
-            self.earliest_event_time = 0.0
+            self.earliest_event_time = 0
         elif not self.active:
             self.earliest_event_time = INFINITY
         else:
@@ -882,6 +887,9 @@ class RuntimeClassBase(object):
                 due = [self.events.pop()]
             is_stable = not self.bigStep(due)
             self.processBigStepOutput()
+        for index, entry in self.timers_to_add.iteritems():
+            self.timers[index] = self.events.add(entry)
+        self.timers_to_add = {}
         self.__set_stable(True)
 
     def inState(self, state_strings):

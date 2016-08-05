@@ -4,7 +4,8 @@ import os
 global start_time
 def set_start_time():
     global start_time
-    start_time = t.time()
+    if os.name == 'posix':
+        start_time = t.time()
 
 if os.name == 'posix':
     def time():

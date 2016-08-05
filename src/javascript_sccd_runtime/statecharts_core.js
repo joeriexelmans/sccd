@@ -459,7 +459,7 @@ function ControllerBase(object_manager) {
 	this.output_ports = new Array();
 	this.output_listeners = new Array();
 
-    this.simulated_time = 0
+    this.simulated_time = null;
 }
 
 ControllerBase.prototype.getSimulatedTime = function() {
@@ -490,6 +490,7 @@ ControllerBase.prototype.broadcast = function(new_event, time_offset) {
 
 ControllerBase.prototype.start = function() {
     start_time = (new Date()).getTime();
+    this.simulated_time = 0;
 	this.object_manager.start();
 };
 
@@ -510,7 +511,7 @@ ControllerBase.prototype.addInput = function(input_event_list, time_offset) {
 		if (input_port === undefined) {
 			throw new InputException("Input port mismatch, no such port: " + input_event_list[e].port + ".");
 		}
-        this.input_queue.add(new EventQueueEntry((this.simulated_time ? time() : 0) + time_offset, input_event_list[e]));
+        this.input_queue.add(new EventQueueEntry((this.simulated_time === null ? 0 : time()) + time_offset, input_event_list[e]));
 	}
 };
 
@@ -605,7 +606,7 @@ function EventLoopControllerBase(object_manager, event_loop, finished_callback) 
 	ControllerBase.call(this, object_manager);
 	this.event_loop = event_loop;
 	this.finished_callback = finished_callback;
-	this.last_print_time = 0.0;
+	this.last_print_time = 0;
 }
 
 EventLoopControllerBase.prototype = new ControllerBase();
@@ -642,9 +643,9 @@ EventLoopControllerBase.prototype.run = function() {
             return;
 		}
         var now = time();
-        if (now - start_time > 10 || earliest_event_time - now > 0.0) {
+        if (now - start_time > 10 || earliest_event_time - now > 0) {
             this.event_loop.schedule(this.run.bind(this), earliest_event_time - now, now - start_time > 10);
-            if (now - earliest_event_time > 10 && now - this.last_print_time >= 1) {
+            if (now - earliest_event_time > 10 && now - this.last_print_time >= 1000) {
                 console.log('running ' + (now - earliest_event_time) + ' ms behind schedule');
                 this.last_print_time = now;
             }
@@ -982,6 +983,7 @@ RuntimeClassBase.prototype.start = function() {
 	this.current_state = new Object();
 	this.history_values = new Object();
 	this.timers = new Object();
+    this.timers_to_add = new Object();
 
 	this.big_step = new BigStepState();
 	this.combo_step = new ComboStepState();
@@ -1008,10 +1010,11 @@ RuntimeClassBase.prototype.stop = function() {
 };
 
 RuntimeClassBase.prototype.addTimer = function(index, timeout) {
-	this.timers[index] = this.events.add(new EventQueueEntry(this.controller.simulated_time + Math.trunc(timeout * 1000), new Event("_" + index + "after")));
+    this.timers_to_add[index] = new EventQueueEntry(this.controller.simulated_time + Math.trunc(timeout * 1000), new Event("_" + index + "after"));
 };
 
 RuntimeClassBase.prototype.removeTimer = function(index) {
+    if (index in this.timers_to_add) delete this.timers_to_add[index];
 	this.events.remove(this.timers[index]);
     delete this.timers[index];
 };
@@ -1070,6 +1073,11 @@ RuntimeClassBase.prototype.step = function(delta) {
         is_stable = !this.bigStep(due);
         this.processBigStepOutput();
     }
+    for (key in this.timers_to_add) {
+        if (!this.timers_to_add.hasOwnProperty(key)) continue;
+        this.timers[key] = this.events.add(this.timers_to_add[key]);
+    }
+	this.timers_to_add = new Object();
     this.__set_stable(true);
 };
 

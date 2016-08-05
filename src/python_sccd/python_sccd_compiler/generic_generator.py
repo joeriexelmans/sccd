@@ -118,6 +118,7 @@ class GenericGenerator(Visitor):
         if self.platform == Platforms.EventLoop:
             self.writer.addFormalParameter("event_loop_callbacks")
             self.writer.addFormalParameter("finished_callback", GLC.NoneExpression())
+            self.writer.addFormalParameter("behind_schedule_callback", GLC.NoneExpression())
         elif self.platform == Platforms.Threads:
             self.writer.addFormalParameter("keep_running", GLC.TrueExpression())
         self.writer.beginMethodBody()
@@ -126,6 +127,7 @@ class GenericGenerator(Visitor):
         if self.platform == Platforms.EventLoop:
             self.writer.addActualParameter("event_loop_callbacks")
             self.writer.addActualParameter("finished_callback")
+            self.writer.addActualParameter("behind_schedule_callback")
         elif self.platform == Platforms.Threads:
             self.writer.addActualParameter("keep_running")
         self.writer.endSuperClassConstructorCall()
@@ -575,13 +577,17 @@ class GenericGenerator(Visitor):
                     trigger = GLC.NewExpression("Event", [GLC.String("_%iafter" % (t.trigger.getAfterIndex()))])
                 elif t.trigger.event:
                     trigger = GLC.NewExpression("Event", [GLC.String(t.trigger.event), GLC.NoneExpression() if t.trigger.port is None else GLC.String(t.trigger.port)])
+                else:
+                    trigger = GLC.NoneExpression()
                 if trigger:
-                    self.writer.addAssignment(
-                        GLC.Property(
-                            "%s_%i" % (s.friendly_name, i),
-                            "trigger"
-                        ),
-                        trigger
+                    self.writer.add(
+                        GLC.FunctionCall(
+                            GLC.Property(
+                                "%s_%i" % (s.friendly_name, i),
+                                "setTrigger"
+                            ),
+                            [trigger]
+                        )
                     )
                 # if any guard associated with transition: set guard to correct function (generated later)
                 if t.guard:

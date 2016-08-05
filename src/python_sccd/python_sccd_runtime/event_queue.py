@@ -15,7 +15,7 @@ class EventQueue(object):
     
     def add(self, event):
         self.event_list.append(event)
-        self.event_list.sort()
+        self.event_list.sort(key=lambda i: i[0])
         return id(event)
     
     def remove(self, event_id):

@@ -11,7 +11,7 @@ class TkEventLoop(EventLoop):
         def schedule(callback, timeout, behind = False):
             if behind:
                 tk.update_idletasks()
-            return tk.after(int(math.ceil(timeout * 1000.0)), callback)
+            return tk.after(timeout, callback)
 
         EventLoop.__init__(self, schedule, tk.after_cancel)
 

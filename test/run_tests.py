@@ -23,7 +23,7 @@ class PyTestCase(unittest.TestCase):
 
         if inputs:
             for i in inputs:
-                controller.addInput(Event(i.name, i.port, i.parameters), i.time_offset)
+                controller.addInput(Event(i.name, i.port, i.parameters), int(i.time_offset * 1000))
 
         if not expected:
             controller.start()

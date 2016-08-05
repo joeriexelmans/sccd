@@ -7,13 +7,7 @@ from infinity import INFINITY
 from Queue import Queue, Empty
 
 from sccd.runtime.event_queue import EventQueue
-from sccd.runtime.accurate_time import time
-
-global simulated_time
-simulated_time = 0.0
-def get_simulated_time():
-    global simulated_time
-    return simulated_time
+from sccd.runtime.accurate_time import time, set_start_time
 
 class RuntimeException(Exception):
     def __init__(self, message):
@@ -85,11 +79,11 @@ class ObjectManagerBase(object):
         self.events = EventQueue()
         self.instances = set() # a set of RuntimeClassBase instances
         
-    def addEvent(self, event, time_offset = 0.0):
-        self.events.add((simulated_time + time_offset, event))
+    def addEvent(self, event, time_offset = 0):
+        self.events.add((self.controller.simulated_time + time_offset, event))
         
     # broadcast an event to all instances
-    def broadcast(self, new_event, time_offset = 0.0):
+    def broadcast(self, new_event, time_offset = 0):
         for i in self.instances:
             i.addEvent(new_event, time_offset)
         
@@ -104,7 +98,7 @@ class ObjectManagerBase(object):
     def stepAll(self):
         self.step()
         for i in self.instances:
-            if i.active:
+            if i.active and (i.getEarliestEventTime() <= self.controller.simulated_time or i.eventlessTransitions()):
                 i.step()
 
     def step(self):
@@ -170,14 +164,14 @@ class ObjectManagerBase(object):
         association_name = parameters[1]
         
         association = source.associations[association_name]
-        #association = self.instances_map[source].getAssociation(association_name)
+        # association = self.instances_map[source].getAssociation(association_name)
         if association.allowedToAdd() :
             ''' allow subclasses to be instantiated '''
             class_name = association.to_class if len(parameters) == 2 else parameters[2]
             new_instance = self.createInstance(class_name, parameters[3:])
             if not new_instance:
                 raise ParameterException("Creating instance: no such class: " + class_name)
-            #index = association.addInstance(new_instance)
+            # index = association.addInstance(new_instance)
             try:
                 index = association.addInstance(new_instance)
             except AssociationException as exception:
@@ -197,7 +191,7 @@ class ObjectManagerBase(object):
             association_name = parameters[1]
             traversal_list = self.processAssociationReference(association_name)
             instances = self.getInstances(source, traversal_list)
-            #association = self.instances_map[source].getAssociation(traversal_list[0][0])
+            # association = self.instances_map[source].getAssociation(traversal_list[0][0])
             association = source.associations[traversal_list[0][0]]
             for i in instances:
                 try:
@@ -206,7 +200,7 @@ class ObjectManagerBase(object):
                 except AssociationException as exception:
                     raise RuntimeException("Error removing instance from association '" + association_name + "': " + str(exception))
                 i["instance"].stop()
-                #if hasattr(i.instance, 'user_defined_destructor'):
+                # if hasattr(i.instance, 'user_defined_destructor'):
                 i["instance"].user_defined_destructor()
             source.addEvent(Event("instance_deleted", parameters = [parameters[1]]))
                 
@@ -245,7 +239,7 @@ class ObjectManagerBase(object):
             "assoc_name" : None,
             "assoc_index" : None
         }]
-        #currents = [source]
+        # currents = [source]
         for (name, index) in traversal_list :
             nexts = []
             for current in currents :
@@ -333,6 +327,7 @@ class InputPortEntry(object):
         
 class ControllerBase(object):
     def __init__(self, object_manager):
+    
         self.object_manager = object_manager
 
         self.private_port_counter = 0
@@ -345,7 +340,10 @@ class ControllerBase(object):
         self.output_ports = []
         self.output_listeners = []
         
-        self.started = False
+        self.simulated_time = 0
+        
+    def getSimulatedTime(self):
+        return self.simulated_time
             
     def addInputPort(self, virtual_name, instance = None):
         if instance == None :
@@ -359,17 +357,17 @@ class ControllerBase(object):
     def addOutputPort(self, port_name):
         self.output_ports.append(port_name)
 
-    def broadcast(self, new_event, time_offset = 0.0):
+    def broadcast(self, new_event, time_offset = 0):
         self.object_manager.broadcast(new_event, time_offset)
         
     def start(self):
-        self.started = True
+        set_start_time()
         self.object_manager.start()
     
     def stop(self):
         pass
 
-    def addInput(self, input_event_list, time_offset = 0.0):
+    def addInput(self, input_event_list, time_offset = 0):
         if not isinstance(input_event_list, list):
             input_event_list = [input_event_list]
 
@@ -380,7 +378,7 @@ class ControllerBase(object):
             if e.getPort() not in self.input_ports :
                 raise InputException("Input port mismatch, no such port: " + e.getPort() + ".")
             
-            self.input_queue.add((time() + time_offset, e))
+            self.input_queue.add(((time() if self.simulated_time else 0) + time_offset, e))
 
     def getEarliestEventTime(self):
         return min(self.object_manager.getEarliestEventTime(), self.input_queue.getEarliestTime())
@@ -393,9 +391,9 @@ class ControllerBase(object):
             e.port = input_port.virtual_name
             target_instance = input_port.instance
             if target_instance == None:
-                self.broadcast(e, event_time - simulated_time)
+                self.broadcast(e, event_time - self.simulated_time)
             else:
-                target_instance.addEvent(e, event_time - simulated_time)
+                target_instance.addEvent(e, event_time - self.simulated_time)
 
     def outputEvent(self, event):
         for listener in self.output_listeners :
@@ -420,8 +418,7 @@ class GameLoopControllerBase(ControllerBase):
         self.handleInput()
         earliest_event_time = self.getEarliestEventTime()
         if earliest_event_time > time():
-            global simulated_time
-            simulated_time = earliest_event_time
+            self.simulated_time = earliest_event_time
             self.object_manager.stepAll()
 
 class EventLoop:
@@ -457,18 +454,18 @@ class EventLoop:
             self.scheduled_id = None
 
 class EventLoopControllerBase(ControllerBase):
-    def __init__(self, object_manager, event_loop, finished_callback = None):
+    def __init__(self, object_manager, event_loop, finished_callback = None, behind_schedule_callback = None):
         ControllerBase.__init__(self, object_manager)
         self.event_loop = event_loop
         self.finished_callback = finished_callback
+        self.behind_schedule_callback = behind_schedule_callback
         self.last_print_time = 0.0
         self.behind = False
 
-    def addInput(self, input_event, time_offset = 0.0):
+    def addInput(self, input_event, time_offset = 0):
         ControllerBase.addInput(self, input_event, time_offset)
         self.event_loop.clear()
-        global simulated_time
-        simulated_time = self.getEarliestEventTime()
+        self.simulated_time = self.getEarliestEventTime()
         self.run()
 
     def start(self):
@@ -480,7 +477,6 @@ class EventLoopControllerBase(ControllerBase):
         ControllerBase.stop(self)
 
     def run(self):
-        global simulated_time
         start_time = time()
         while 1:
             # clear existing timeout
@@ -494,19 +490,21 @@ class EventLoopControllerBase(ControllerBase):
                 if self.finished_callback: self.finished_callback() # TODO: This is not necessarily correct (keep_running necessary?)
                 return
             now = time()
-            if now - start_time > 0.01 or earliest_event_time - now > 0.0:
-                self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 0.01)
-                if now - earliest_event_time > 0.1 and now - self.last_print_time >= 1:
-                    print '\rrunning %ims behind schedule' % ((now - earliest_event_time) * 1000),
+            if now - start_time > 10 or earliest_event_time - now > 0:
+                self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
+                if now - earliest_event_time > 10 and now - self.last_print_time >= 1:
+                    if self.behind_schedule_callback:
+                        self.behind_schedule_callback(self, now - earliest_event_time)
+                    print '\rrunning %ims behind schedule' % (now - earliest_event_time),
                     self.last_print_time = now
                     self.behind = True
-                elif now - earliest_event_time < 0.1 and self.behind:
+                elif now - earliest_event_time < 10 and self.behind:
                     print '\r' + ' ' * 80,
                     self.behind = False
-                simulated_time = earliest_event_time
+                self.simulated_time = earliest_event_time
                 return
             else:
-                simulated_time = earliest_event_time
+                self.simulated_time = earliest_event_time
         
 class ThreadsControllerBase(ControllerBase):
     def __init__(self, object_manager, keep_running):
@@ -515,7 +513,7 @@ class ThreadsControllerBase(ControllerBase):
         self.input_condition = threading.Condition()
         self.stop_thread = False
 
-    def addInput(self, input_event, time_offset = 0.0):
+    def addInput(self, input_event, time_offset = 0):
         with self.input_condition:
             ControllerBase.addInput(self, input_event, time_offset)
             self.input_condition.notifyAll()
@@ -545,7 +543,7 @@ class ThreadsControllerBase(ControllerBase):
             if earliest_event_time == INFINITY and not self.keep_running:
                 return
             with self.input_condition:
-                self.input_condition.wait(earliest_event_time - time())
+                self.input_condition.wait((earliest_event_time - time()) / 1000.0)
             earliest_event_time = self.getEarliestEventTime()
             if earliest_event_time == INFINITY:
                 if self.keep_running:
@@ -556,8 +554,7 @@ class ThreadsControllerBase(ControllerBase):
             if self.stop_thread:
                 break
             earliest_event_time = self.getEarliestEventTime()
-            global simulated_time
-            simulated_time = earliest_event_time
+            self.simulated_time = earliest_event_time
 
 class StatechartSemantics:
     # Big Step Maximality
@@ -604,6 +601,7 @@ class State:
         self.default_state = None
         self.transitions = []
         self.history = []
+        self.has_eventless_transitions = False
         
     def getEffectiveTargetStates(self):
         targets = [self]
@@ -699,6 +697,7 @@ class Transition:
         self.targets = targets
         self.obj = obj
         self.enabled_event = None # the event that enabled this transition
+        self.optimize()
     
     def isEnabled(self, events):
         if self.trigger is None:
@@ -706,7 +705,7 @@ class Transition:
             return (self.guard is None) or self.guard([])
         else:
             for event in events:
-                if ((self.trigger is None) or (self.trigger.name == event.name and self.trigger.port == event.port)) and ((self.guard is None) or self.guard(event.parameters)):
+                if ((self.trigger is None) or (self.trigger.name == event.name and (not self.trigger.port or self.trigger.port == event.port))) and ((self.guard is None) or self.guard(event.parameters)):
                     self.enabled_event = event
                     return True
     
@@ -775,13 +774,22 @@ class Transition:
             yield target
     
     def conflicts(self, transition):
-        return self.__exitSet() & transition.__exitSet()
+        return self.__exitSet(self.__getEffectiveTargetStates()) & transition.__exitSet(transition.__getEffectiveTargetStates())
         
     def setGuard(self, guard):
         self.guard = guard
         
     def setAction(self, action):
         self.action = action
+    
+    def setTrigger(self, trigger):
+        self.trigger = trigger
+        if self.trigger is None:
+            self.source.has_eventless_transitions = True
+        
+    def optimize(self):
+        # TODO: many optimizations.
+        pass
         
     def __repr__(self):
         return "Transition(%i, %s)" % (self.source.state_id, [target.state_id for target in self.targets])
@@ -817,6 +825,12 @@ class RuntimeClassBase(object):
 
         self.initializeStatechart()
         self.processBigStepOutput()
+        
+    def getSimulatedTime(self):
+        return self.controller.simulated_time
+        
+    def eventlessTransitions(self):
+        return sum(map(lambda x: x.has_eventless_transitions, self.configuration))
     
     def updateConfiguration(self, states):
         self.configuration.extend(states)
@@ -826,14 +840,14 @@ class RuntimeClassBase(object):
         self.__set_stable(True)
     
     def addTimer(self, index, timeout):
-        self.timers[index] = self.events.add((simulated_time + timeout, Event("_%iafter" % index)))
+        self.timers[index] = self.events.add((self.controller.simulated_time + int(timeout * 1000), Event("_%iafter" % index)))
     
     def removeTimer(self, index):
         self.events.remove(self.timers[index])
         del self.timers[index]
         
-    def addEvent(self, event_list, time_offset = 0.0):
-        event_time = simulated_time + time_offset
+    def addEvent(self, event_list, time_offset = 0):
+        event_time = self.controller.simulated_time + time_offset
         if event_time < self.earliest_event_time:
             self.earliest_event_time = event_time
         if not isinstance(event_list, list):
@@ -864,7 +878,7 @@ class RuntimeClassBase(object):
         is_stable = False
         while not is_stable:
             due = []
-            if self.events.getEarliestTime() <= simulated_time:
+            if self.events.getEarliestTime() <= self.controller.simulated_time:
                 due = [self.events.pop()]
             is_stable = not self.bigStep(due)
             self.processBigStepOutput()

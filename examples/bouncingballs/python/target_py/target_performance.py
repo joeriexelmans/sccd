@@ -744,11 +744,8 @@ class Ball(RuntimeClassBase):
     
     def initializeStatechart(self):
         # enter default state
-        states = self.states["/main_behaviour"].getEffectiveTargetStates()
-        self.updateConfiguration(states)
-        for state in states:
-            if state.enter:
-                state.enter()
+        self.default_targets = self.states["/main_behaviour"].getEffectiveTargetStates()
+        RuntimeClassBase.initializeStatechart(self)
 
 class ObjectManager(ObjectManagerBase):
     def __init__(self, controller):

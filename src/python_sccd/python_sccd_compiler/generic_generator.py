@@ -121,6 +121,7 @@ class GenericGenerator(Visitor):
             self.writer.addFormalParameter("behind_schedule_callback", GLC.NoneExpression())
         elif self.platform == Platforms.Threads:
             self.writer.addFormalParameter("keep_running", GLC.TrueExpression())
+            self.writer.addFormalParameter("behind_schedule_callback", GLC.NoneExpression())
         self.writer.beginMethodBody()
         self.writer.beginSuperClassConstructorCall(controller_sub_class)
         self.writer.addActualParameter(GLC.NewExpression("ObjectManager", [GLC.SelfExpression()]))
@@ -130,6 +131,7 @@ class GenericGenerator(Visitor):
             self.writer.addActualParameter("behind_schedule_callback")
         elif self.platform == Platforms.Threads:
             self.writer.addActualParameter("keep_running")
+            self.writer.addActualParameter("behind_schedule_callback")
         self.writer.endSuperClassConstructorCall()
         for i in class_diagram.inports:
             self.writer.add(GLC.FunctionCall(GLC.SelfProperty("addInputPort"), [GLC.String(i)]))

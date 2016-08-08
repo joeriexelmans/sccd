@@ -3,6 +3,7 @@ import re
 import threading
 import traceback
 import math
+import cPickle
 from infinity import INFINITY
 from Queue import Queue, Empty
 
@@ -97,8 +98,9 @@ class ObjectManagerBase(object):
     
     def stepAll(self):
         self.step()
+        simulated_time = self.controller.simulated_time
         for i in self.instances:
-            if i.active and (i.getEarliestEventTime() <= self.controller.simulated_time or i.eventlessTransitions()):
+            if i.active and (i.earliest_event_time <= simulated_time or i.eventless_states):
                 i.step()
 
     def step(self):
@@ -508,11 +510,14 @@ class EventLoopControllerBase(ControllerBase):
                 self.simulated_time = earliest_event_time
         
 class ThreadsControllerBase(ControllerBase):
-    def __init__(self, object_manager, keep_running):
+    def __init__(self, object_manager, keep_running, behind_schedule_callback = None):
         ControllerBase.__init__(self, object_manager)
         self.keep_running = keep_running
+        self.behind_schedule_callback = behind_schedule_callback
         self.input_condition = threading.Condition()
         self.stop_thread = False
+        self.last_print_time = 0
+        self.behind = False
 
     def addInput(self, input_event, time_offset = 0):
         with self.input_condition:
@@ -543,18 +548,30 @@ class ThreadsControllerBase(ControllerBase):
             earliest_event_time = self.getEarliestEventTime()
             if earliest_event_time == INFINITY and not self.keep_running:
                 return
-            with self.input_condition:
-                self.input_condition.wait((earliest_event_time - time()) / 1000.0)
+            now = time()
+            if earliest_event_time - now > 0:
+                if self.behind:                
+                    print '\r' + ' ' * 80,
+                    self.behind = False
+                with self.input_condition:
+                    self.input_condition.wait((earliest_event_time - now) / 1000.0)
+            else:
+                if now - self.last_print_time >= 1000:
+                    if self.behind_schedule_callback:
+                        self.behind_schedule_callback(self, now - earliest_event_time)
+                    print '\rrunning %ims behind schedule' % (now - earliest_event_time),
+                    self.last_print_time = now
+                    self.behind = True
             earliest_event_time = self.getEarliestEventTime()
             if earliest_event_time == INFINITY:
                 if self.keep_running:
                     with self.input_condition:
                         self.input_condition.wait()
+                        earliest_event_time = self.getEarliestEventTime()
                 else:
                     self.stop_thread = True
             if self.stop_thread:
                 break
-            earliest_event_time = self.getEarliestEventTime()
             self.simulated_time = earliest_event_time
 
 class StatechartSemantics:
@@ -633,18 +650,6 @@ class State:
         
     def setExit(self, exit):
         self.exit = exit
-    
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.state_id == other.state_id
-        else:
-            return False
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-    
-    def __hash__(self):
-        return self.state_id
         
     def __repr__(self):
         return "State(%i)" % self.state_id
@@ -706,7 +711,7 @@ class Transition:
             return (self.guard is None) or self.guard([])
         else:
             for event in events:
-                if ((self.trigger is None) or (self.trigger.name == event.name and (not self.trigger.port or self.trigger.port == event.port))) and ((self.guard is None) or self.guard(event.parameters)):
+                if (self.trigger.name == event.name and (not self.trigger.port or self.trigger.port == event.port)) and ((self.guard is None) or self.guard(event.parameters)):
                     self.enabled_event = event
                     return True
     
@@ -722,6 +727,7 @@ class Transition:
                     f = lambda s0: not s0.descendants and s0 in s.descendants
                 self.obj.history_values[h.state_id] = filter(f, self.obj.configuration)
         for s in exit_set:
+            self.obj.eventless_states -= s.has_eventless_transitions
             # execute exit action(s)
             if s.exit:
                 s.exit()
@@ -738,6 +744,7 @@ class Transition:
         # enter states...
         enter_set = self.__enterSet(targets)
         for s in enter_set:
+            self.obj.eventless_states += s.has_eventless_transitions
             self.obj.configuration.append(s)
             # execute enter action(s)
             if s.enter:
@@ -807,6 +814,7 @@ class RuntimeClassBase(object):
         self.inports = {}
         self.timers = {}
         self.states = {}
+        self.eventless_states = 0
 
         self.semantics = StatechartSemantics()
 
@@ -830,9 +838,6 @@ class RuntimeClassBase(object):
         
     def getSimulatedTime(self):
         return self.controller.simulated_time
-        
-    def eventlessTransitions(self):
-        return sum(map(lambda x: x.has_eventless_transitions, self.configuration))
     
     def updateConfiguration(self, states):
         self.configuration.extend(states)
@@ -859,9 +864,6 @@ class RuntimeClassBase(object):
             event_list = [event_list]
         for e in event_list:
             self.events.add((event_time, e))
-        
-    def getEarliestEventTime(self):
-        return self.earliest_event_time
 
     def processBigStepOutput(self):
         for e in self.big_step.output_events_port:
@@ -895,12 +897,10 @@ class RuntimeClassBase(object):
     def inState(self, state_strings):
         state_ids = [self.states[state_string].state_id for state_string in state_strings]
         for state_id in state_ids:
-            found = False
             for s in self.configuration:
                 if s.state_id == state_id:
-                    found = True
                     break
-            if not found:
+            else:
                 return False
         return True
 
@@ -983,9 +983,12 @@ class RuntimeClassBase(object):
         elif self.semantics.internal_event_lifeline == StatechartSemantics.Queue:
             self.events.add((time(), event))
 
-    @abc.abstractmethod
     def initializeStatechart(self):
-        pass
+        self.updateConfiguration(self.default_targets)
+        for state in self.default_targets:
+            self.eventless_states += state.has_eventless_transitions
+            if state.enter:
+                state.enter()
         
 
 class BigStepState(object):

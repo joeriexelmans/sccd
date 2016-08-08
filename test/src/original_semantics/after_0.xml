@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram author="Yentl Van Tendeloo" name="after_0">
+    <description>
+        Used for testing the AFTER(0) event---which should not block the deletion of the B instance.
+    </description>
+    
+    <outport name="test_output" />
+
+    <class name="A" default="true">
+        <relationships>
+            <association name="child" class="B" min="0" max="1"/>
+        </relationships>
+
+        <scxml initial="x">
+            <state id="x">
+                <onentry>
+                    <raise scope="cd" event="create_instance">
+                        <parameter expr="'child'"/>
+                        <parameter expr="'B'"/>
+                    </raise>
+                   <raise event="creating_instance" port="test_output" />
+                </onentry>
+
+                <transition event="instance_created" target="../ready" />
+            </state>
+            <state id="ready">
+                <onentry>
+                    <raise scope="cd" event="start_instance">
+                        <parameter expr="'child[0]'"/>
+                    </raise>
+                   <raise event="starting_instance" port="test_output" />
+                </onentry>
+
+                <transition event="close" target="../done">
+                    <raise scope="cd" event="delete_instance">
+                        <parameter expr="'child[0]'"/>
+                    </raise>
+                    <raise event="deleting_instance" port="test_output" />
+                </transition>
+
+            </state>
+            <state id="done"/>
+        </scxml>
+    </class>
+
+    <class name="B">
+        <relationships>
+            <association name="parent" class="A" min="1" max="1"/>
+        </relationships>
+
+        <scxml initial="z">
+            <state id="z">
+                <transition after="0" target=".">
+                    <raise scope="broad" event="close"/>
+                    <raise event="after_0" port="test_output" />
+                </transition>
+            </state>
+        </scxml>
+    </class>
+    <test>
+       <expected>
+           <slot>
+               <event name="creating_instance" port="test_output"/>
+           </slot>
+           <slot>
+               <event name="starting_instance" port="test_output"/>
+           </slot>
+           <slot>
+               <event name="after_0" port="test_output"/>
+           </slot>
+           <slot>
+               <event name="deleting_instance" port="test_output"/>
+               <event name="after_0" port="test_output"/>
+           </slot>
+        </expected>
+    </test>
+
+</diagram>

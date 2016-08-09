@@ -6,8 +6,8 @@ def set_start_time():
     global start_time
     if os.name == 'posix':
         start_time = t.time()
-    else:
-         start_time = t.clock()
+    elif os.name == 'nt':
+        start_time = t.clock()
 
 if os.name == 'posix':
     def time():

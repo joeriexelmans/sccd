@@ -492,7 +492,7 @@ class EventLoopControllerBase(ControllerBase):
             if earliest_event_time == INFINITY:
                 if self.finished_callback: self.finished_callback() # TODO: This is not necessarily correct (keep_running necessary?)
                 return
-            accurate_time.time()
+            now = accurate_time.time()
             if now - start_time > 10 or earliest_event_time - now > 0:
                 self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
                 if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:

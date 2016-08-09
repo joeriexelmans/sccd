@@ -11,7 +11,7 @@ from sccd.runtime.statecharts_core import Event
 
 if __name__ == '__main__':
     def callback(ctrl, behind_schedule):
-        if behind_schedule > 500:
+        if behind_schedule > 2000:
             print len(ctrl.object_manager.instances)
             ctrl.stop()
             sys.exit()

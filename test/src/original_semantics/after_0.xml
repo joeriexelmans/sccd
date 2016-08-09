@@ -39,7 +39,7 @@
                 </transition>
 
             </state>
-            <state id="done"/>
+            <state id="done" />
         </scxml>
     </class>
 

@@ -14,7 +14,7 @@ if __name__ == '__main__':
     ui.window = tk.Tk()
     ui.window.withdraw()
     def callback(ctrl, behind_schedule):
-        if behind_schedule > 500:
+        if behind_schedule > 2000:
             print len(ctrl.object_manager.instances)
             ctrl.stop()
             ui.window.destroy()

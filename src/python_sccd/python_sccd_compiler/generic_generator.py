@@ -248,7 +248,7 @@ class GenericGenerator(Visitor):
             
             # get effective target of initial transition
             self.writer.addAssignment(
-                GLC.LocalVariableDeclaration("states"),
+                GLC.SelfProperty("default_targets"),
                 GLC.FunctionCall(
                     GLC.Property(
                         GLC.MapIndexedExpression(
@@ -260,32 +260,11 @@ class GenericGenerator(Visitor):
                 )
             )
             
-            # update state configuration
-            self.writer.add(
-                GLC.FunctionCall(
-                    GLC.SelfProperty("updateConfiguration"),
-                    ["states"]
-                )
-            )
-            
-            # call enter action of states to enter, if present
-            self.writer.beginForLoopIterateArray("states", "state")
-            self.writer.beginElseIf(
-                GLC.Property(
-                    "state",
-                    "enter"
-                )
-            )
-            self.writer.add(
-                GLC.FunctionCall(
-                    GLC.Property(
-                        "state",
-                        "enter"
-                    )
-                )
-            )
-            self.writer.endElseIf()
-            self.writer.endForLoopIterateArray()
+            self.writer.add(GLC.SuperClassMethodCall(
+                "RuntimeClassBase",
+                "initializeStatechart",
+                []
+            ))
             
             self.writer.endMethodBody()
             self.writer.endMethod()

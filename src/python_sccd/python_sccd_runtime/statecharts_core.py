@@ -4,8 +4,9 @@ import threading
 import traceback
 import math
 import cPickle
+from heapq import heappush, heappop
 from infinity import INFINITY
-from Queue import Queue, Empty
+from Queue import Queue, Empty 
 
 from sccd.runtime.event_queue import EventQueue
 from sccd.runtime.accurate_time import time, set_start_time
@@ -37,8 +38,7 @@ class Association(object):
         self.instances = {} # maps index (as string) to instance
         self.instances_to_ids = {}
         self.size = 0
-        self.next_id = 0
-        
+        self.next_id = 0        
 
     def allowedToAdd(self):
         return self.max_card == -1 or self.size < self.max_card
@@ -79,6 +79,8 @@ class ObjectManagerBase(object):
         self.controller = controller
         self.events = EventQueue()
         self.instances = set() # a set of RuntimeClassBase instances
+        self.instance_times = []
+        self.eventless = set()
         
     def addEvent(self, event, time_offset = 0):
         self.events.add((self.controller.simulated_time + time_offset, event))
@@ -89,29 +91,28 @@ class ObjectManagerBase(object):
             i.addEvent(new_event, time_offset)
         
     def getEarliestEventTime(self):
-        earliest_time = self.events.getEarliestTime()
-        if self.instances:
-            for i in self.instances:
-                if i.earliest_event_time < earliest_time:
-                    earliest_time = i.earliest_event_time
-        return earliest_time
+        return min(self.instance_times[0][0], self.events.getEarliestTime())
     
     def stepAll(self):
         self.step()
         simulated_time = self.controller.simulated_time
-        for i in self.instances:
+        to_step = set()
+        while self.instance_times[0][0] <= simulated_time:
+            to_step.add(heappop(self.instance_times)[1])
+        # print simulated_time, len(self.instances), len(to_step | self.eventless)
+        for i in to_step | self.eventless:
             if i.active and (i.earliest_event_time <= simulated_time or i.eventless_states):
                 i.step()
 
     def step(self):
-        while self.events.getEarliestTime() <= time():
+        while self.events.getEarliestTime() <= self.controller.simulated_time:
             self.handleEvent(self.events.pop())
                
     def start(self):
         for i in self.instances:
             i.start()          
                
-    def handleEvent(self, e):   
+    def handleEvent(self, e):
         if e.getName() == "narrow_cast" :
             self.handleNarrowCastEvent(e.getParameters())            
         elif e.getName() == "broad_cast" :
@@ -201,9 +202,8 @@ class ObjectManagerBase(object):
                     self.instances.discard(i["instance"])
                 except AssociationException as exception:
                     raise RuntimeException("Error removing instance from association '" + association_name + "': " + str(exception))
-                i["instance"].stop()
-                # if hasattr(i.instance, 'user_defined_destructor'):
                 i["instance"].user_defined_destructor()
+                i["instance"].stop()
             source.addEvent(Event("instance_deleted", parameters = [parameters[1]]))
                 
     def handleAssociateEvent(self, parameters):
@@ -749,6 +749,11 @@ class Transition:
             # execute enter action(s)
             if s.enter:
                 s.enter()
+        
+        if self.obj.eventless_states:
+            self.obj.controller.object_manager.eventless.add(self.obj)
+        else:
+            self.obj.controller.object_manager.eventless.discard(self.obj)
                 
         self.obj.configuration.sort(key=lambda x: x.state_id)
         self.enabled_event = None
@@ -806,11 +811,12 @@ class RuntimeClassBase(object):
     __metaclass__  = abc.ABCMeta
     
     def __init__(self, controller):
-        self.active = False
-        self.__set_stable(True)
         self.events = EventQueue()
+        
+        self.active = False
 
         self.controller = controller
+        self.__set_stable(True)
         self.inports = {}
         self.timers = {}
         self.states = {}
@@ -821,6 +827,8 @@ class RuntimeClassBase(object):
     def start(self):
         self.configuration = []
         
+        self.active = True
+        
         self.current_state = {}
         self.history_values = {}
         self.timers = {}
@@ -830,21 +838,20 @@ class RuntimeClassBase(object):
         self.combo_step = ComboStepState()
         self.small_step = SmallStepState()
 
-        self.active = True
         self.__set_stable(False)
 
         self.initializeStatechart()
         self.processBigStepOutput()
+        
+    def stop(self):
+        self.active = False
+        self.__set_stable(True)
         
     def getSimulatedTime(self):
         return self.controller.simulated_time
     
     def updateConfiguration(self, states):
         self.configuration.extend(states)
-    
-    def stop(self):
-        self.active = False
-        self.__set_stable(True)
     
     def addTimer(self, index, timeout):
         self.timers_to_add[index] = (self.controller.simulated_time + int(timeout * 1000), Event("_%iafter" % index))
@@ -858,6 +865,7 @@ class RuntimeClassBase(object):
         
     def addEvent(self, event_list, time_offset = 0):
         event_time = self.controller.simulated_time + time_offset
+        heappush(self.controller.object_manager.instance_times, (event_time, self))
         if event_time < self.earliest_event_time:
             self.earliest_event_time = event_time
         if not isinstance(event_list, list):
@@ -876,10 +884,9 @@ class RuntimeClassBase(object):
         # self.earliest_event_time keeps track of the earliest time this instance will execute a transition
         if not is_stable:
             self.earliest_event_time = 0
-        elif not self.active:
-            self.earliest_event_time = INFINITY
         else:
             self.earliest_event_time = self.events.getEarliestTime()
+        heappush(self.controller.object_manager.instance_times, (self.earliest_event_time, self))
 
     def step(self):        
         is_stable = False
@@ -981,7 +988,7 @@ class RuntimeClassBase(object):
         elif self.semantics.internal_event_lifeline == StatechartSemantics.NextComboStep:
             self.combo_step.addNextEvent(event)
         elif self.semantics.internal_event_lifeline == StatechartSemantics.Queue:
-            self.events.add((time(), event))
+            self.addEvent(event)
 
     def initializeStatechart(self):
         self.updateConfiguration(self.default_targets)
@@ -989,6 +996,8 @@ class RuntimeClassBase(object):
             self.eventless_states += state.has_eventless_transitions
             if state.enter:
                 state.enter()
+        if self.eventless_states:
+            self.controller.object_manager.eventless.add(self)
         
 
 class BigStepState(object):

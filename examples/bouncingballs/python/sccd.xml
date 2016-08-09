@@ -313,7 +313,7 @@
                     </transition>
                 </state>
                 <state id="bouncing">
-                    <transition after="0.05" target=".">
+                    <transition after="(20 - self.getSimulatedTime() % 20) / 1000.0" target=".">
                         <script>
                             <![CDATA[
                             pos = self.element.get_position();    

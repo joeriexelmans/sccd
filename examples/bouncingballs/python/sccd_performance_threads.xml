@@ -123,7 +123,7 @@
         <scxml initial="main_behaviour">
             <state id="main_behaviour" initial="bouncing">
                 <state id="bouncing">
-                    <transition after="(1000 - self.getSimulatedTime() % 1000) / 1000.0" target=".">
+                    <transition after="(20 - self.getSimulatedTime() % 20) / 1000.0" target=".">
                         <script>
                             <![CDATA[
                             self.pos

@@ -34,6 +34,9 @@
                                 <raise scope="cd" event="start_instance">
                                     <parameter expr="association_name" />
                                 </raise>
+                                <script>
+                                    self.nr_of_fields += 1
+                                </script>
                             </transition>
                         </state>
                     </state>

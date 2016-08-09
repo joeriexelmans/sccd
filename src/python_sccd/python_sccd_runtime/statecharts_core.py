@@ -9,7 +9,7 @@ from infinity import INFINITY
 from Queue import Queue, Empty 
 
 from sccd.runtime.event_queue import EventQueue
-from sccd.runtime.accurate_time import time, set_start_time
+import sccd.runtime.accurate_time as accurate_time
 
 class RuntimeException(Exception):
     def __init__(self, message):
@@ -81,6 +81,7 @@ class ObjectManagerBase(object):
         self.instances = set() # a set of RuntimeClassBase instances
         self.instance_times = []
         self.eventless = set()
+        self.regex_pattern = re.compile("^([a-zA-Z_]\w*)(?:\[(\d+)\])?$")
         
     def addEvent(self, event, time_offset = 0):
         self.events.add((self.controller.simulated_time + time_offset, event))
@@ -129,11 +130,10 @@ class ObjectManagerBase(object):
     def processAssociationReference(self, input_string):
         if len(input_string) == 0 :
             raise AssociationReferenceException("Empty association reference.")
-        regex_pattern = re.compile("^([a-zA-Z_]\w*)(?:\[(\d+)\])?$")
         path_string =  input_string.split("/")
         result = []
         for piece in path_string :
-            match = regex_pattern.match(piece)
+            match = self.regex_pattern.match(piece)
             if match :
                 name = match.group(1)
                 index = match.group(2)
@@ -363,7 +363,7 @@ class ControllerBase(object):
         self.object_manager.broadcast(new_event, time_offset)
         
     def start(self):
-        set_start_time()
+        accurate_time.set_start_time()
         self.simulated_time = 0
         self.object_manager.start()
     
@@ -381,7 +381,7 @@ class ControllerBase(object):
             if e.getPort() not in self.input_ports :
                 raise InputException("Input port mismatch, no such port: " + e.getPort() + ".")
             
-            self.input_queue.add(((0 if self.simulated_time is None else time()) + time_offset, e))
+            self.input_queue.add(((0 if self.simulated_time is None else accurate_time.time()) + time_offset, e))
 
     def getEarliestEventTime(self):
         return min(self.object_manager.getEarliestEventTime(), self.input_queue.getEarliestTime())
@@ -480,7 +480,7 @@ class EventLoopControllerBase(ControllerBase):
         ControllerBase.stop(self)
 
     def run(self):
-        start_time = time()
+        start_time = accurate_time.time()
         while 1:
             # clear existing timeout
             self.event_loop.clear()
@@ -492,7 +492,7 @@ class EventLoopControllerBase(ControllerBase):
             if earliest_event_time == INFINITY:
                 if self.finished_callback: self.finished_callback() # TODO: This is not necessarily correct (keep_running necessary?)
                 return
-            now = time()
+            accurate_time.time()
             if now - start_time > 10 or earliest_event_time - now > 0:
                 self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
                 if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
@@ -548,7 +548,7 @@ class ThreadsControllerBase(ControllerBase):
             earliest_event_time = self.getEarliestEventTime()
             if earliest_event_time == INFINITY and not self.keep_running:
                 return
-            now = time()
+            now = accurate_time.time()
             if earliest_event_time - now > 0:
                 if self.behind:                
                     print '\r' + ' ' * 80,
@@ -846,6 +846,9 @@ class RuntimeClassBase(object):
     def stop(self):
         self.active = False
         self.__set_stable(True)
+        
+    def sccd_yield(self):
+        return max(0, (accurate_time.time() - self.controller.simulated_time) / 1000.0)
         
     def getSimulatedTime(self):
         return self.controller.simulated_time

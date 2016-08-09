@@ -4,15 +4,19 @@
         Tkinter frame with bouncing balls in it.
     </description>
     <top>
-        import random, sys
+        import random, sys, os
     </top>
     <class name="MainApp" default="true">
         <relationships>
             <association name="fields" class="Field" />
         </relationships>
         <constructor>
+            <parameter name="fields_to_create" />
+            <parameter name="balls_to_create" />
             <body>
                 <![CDATA[
+                self.fields_to_create = fields_to_create
+                self.balls_to_create = balls_to_create
                 self.nr_of_fields = 0
                 ]]>
             </body>
@@ -25,6 +29,8 @@
                             <transition event="create_field" target="../creating">
                                 <raise scope="cd" event="create_instance">
                                     <parameter expr='"fields"' />
+                                    <parameter expr='"Field"' />
+                                    <parameter expr="self.balls_to_create" />
                                 </raise>
                             </transition>
                         </state>
@@ -34,13 +40,28 @@
                                 <raise scope="cd" event="start_instance">
                                     <parameter expr="association_name" />
                                 </raise>
+                                <script>
+                                    self.nr_of_fields += 1
+                                </script>
                             </transition>
                         </state>
                     </state>
                     <state id="spawn_windows" initial="spawning">
                         <state id="spawning">
-                            <transition target="." after="(1000 - self.getSimulatedTime() % 1000) / 1000.0" cond="self.nr_of_fields &lt; 10">
+                            <transition target="." after="0.1" cond="self.nr_of_fields &lt; self.fields_to_create">
                                 <raise event="create_field" />
+                            </transition>
+                            <transition target="../stopped_spawning" cond="self.nr_of_fields &gt;= self.fields_to_create" />
+                        </state>
+                        <state id="stopped_spawning" />
+                    </state>
+                    <state id="killer" initial="killing">
+                        <state id="killing">
+                            <transition after="5" target=".">
+                                <script>
+                                    print "cpu usage for %i fields with %i balls: %.5f" % (self.fields_to_create, self.balls_to_create, os.times()[0] / 5.0)
+                                    sys.exit()
+                                </script>
                             </transition>
                         </state>
                     </state>
@@ -55,6 +76,15 @@
             <association name="balls" class="Ball" />
             <association name="parent" class="MainApp" min="1" max="1" />
         </relationships>
+        <constructor>
+            <parameter name="balls_to_create" />
+            <body>
+                <![CDATA[
+                self.balls_to_create = balls_to_create
+                self.nr_of_balls = 0
+                ]]>
+            </body>
+        </constructor>
         <scxml initial="root">
             <state id="root" initial="running">
                 <parallel id="running">
@@ -77,18 +107,23 @@
                                 <raise scope="cd" event="start_instance">
                                     <parameter expr="association_name" />
                                 </raise>
+                                <script>
+                                    self.nr_of_balls += 1
+                                </script>
                             </transition>
                         </state>
                     </state>
                     <state id="spawn_balls" initial="spawning">
                         <state id="spawning">
-                            <transition target="." after="(50 - self.getSimulatedTime() % 50) / 1000.0">
+                            <transition target="." after="0" cond="self.nr_of_balls &lt; self.balls_to_create">
                                 <raise event="spawn_ball">
                                     <parameter expr="150" />
                                     <parameter expr="150" />
                                 </raise>
                             </transition>
+                            <transition target="../stopped_spawning" cond="self.nr_of_balls &gt;= self.balls_to_create" />
                         </state>
+                        <state id="stopped_spawning" />
                     </state>
                 </parallel>
                 <state id="deleting">
@@ -135,6 +170,7 @@
                             self.pos['y'] += self.vel['y']
                             ]]>                            
                         </script>
+                        <raise event="test" scope="narrow" target="'parent[0]'" />
                     </transition>
                 </state>
             </state>

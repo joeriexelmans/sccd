@@ -69,19 +69,23 @@
 							</transition>
 						</state>
 						<state id="check_nr_of_fields">
-							<transition target="../../../stopped" cond="this.nr_of_fields == 0">
-								<script>
-									<![CDATA[
-									//NOTE: ideally, this should be ui.close_window(ui.window). we can't do this though 
-									//		  due to a security measure preventing scripts from closing pages they didn't
-									//		  open themselves
-									ui.println('refresh to play again');
-									]]>
-								</script>
+							<transition target="../stopped" cond="this.nr_of_fields == 0">
+                                <raise event="stop" />								
 							</transition>
 							<transition target="../waiting" cond="this.nr_of_fields != 0"/>
 						</state>
+                        <state id="stopped" />
 					</state>
+                    <transition target="../stopped" event="stop">
+                        <script>
+                            <![CDATA[
+                            //NOTE: ideally, this should be ui.close_window(ui.window). we can't do this though 
+                            //		  due to a security measure preventing scripts from closing pages they didn't
+                            //		  open themselves
+                            ui.println('refresh to play again');
+                            ]]>
+                        </script>
+                    </transition>
 				</parallel>
 				<state id="stopped" />
 			</state>

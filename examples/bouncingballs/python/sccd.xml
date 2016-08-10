@@ -72,16 +72,20 @@
                             </transition>
                         </state>
                         <state id="check_nr_of_fields">
-                            <transition target="../../../stopped" cond="self.nr_of_fields == 0" after="0.05">
-                                <script>
-                                    <![CDATA[
-                                    ui.close_window(ui.window)
-                                    ]]>
-                                </script>
+                            <transition target="../stopped" cond="self.nr_of_fields == 0" after="0.05">
+                                <raise event="stop" />
                             </transition>
                             <transition target="../waiting" cond="self.nr_of_fields != 0"/>
                         </state>
+                        <state id="stopped" />
                     </state>
+                    <transition target="../stopped" event="stop">
+                        <script>
+                            <![CDATA[
+                            ui.close_window(ui.window)
+                            ]]>
+                        </script>
+                    </transition>
                 </parallel>
                 <state id="stopped" />
             </state>

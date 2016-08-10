@@ -899,16 +899,6 @@ Transition.prototype.__getEffectiveTargetStates = function() {
 }
 
 Transition.prototype.__exitSet = function(targets) {
-    var target = targets[0];
-    this.lca = this.source.my_parent;
-    if (this.source.my_parent != target.my_parent) { // external
-        for (let a of this.source.ancestors) {
-            if (target.ancestors.indexOf(a) >= 0) {
-                this.lca = a;
-                break;
-            }
-        }
-    }
     var exit_set = this.lca.descendants.slice(0).filter(function(obj) {
         return function(s) {
             return obj.obj.configuration.indexOf(s) >= 0;
@@ -933,11 +923,6 @@ Transition.prototype.__enterSet = function*(targets) {
     }
 }
 
-Transition.prototype.conflicts = function(transition) {
-    // TODO: implement
-    throw new Exception("NOT IMPLEMENTED");
-}
-
 Transition.prototype.setGuard = function(guard) {
     this.guard = guard.bind(this.obj);
 }
@@ -954,7 +939,17 @@ Transition.prototype.setTrigger = function(trigger) {
 }
 
 Transition.prototype.optimize = function() {
-    // TODO: implement many optimizations
+    // the least-common ancestor can be computed statically
+    this.lca = this.source.my_parent;
+    var target = this.targets[0];
+    if (this.source.my_parent != target.my_parent) { // external
+        for (let a of this.source.ancestors) {
+            if (target.ancestors.indexOf(a) >= 0) {
+                this.lca = a;
+                break;
+            }
+        }
+    }
 }
 
 // RuntimeClassBase

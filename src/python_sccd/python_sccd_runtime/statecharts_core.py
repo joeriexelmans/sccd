@@ -766,13 +766,6 @@ class Transition:
         return targets
     
     def __exitSet(self, targets):
-        target = targets[0]
-        self.lca = self.source.parent
-        if self.source.parent != target.parent: # external
-            for a in self.source.ancestors:
-                if a in target.ancestors:
-                    self.lca = a
-                    break
         return [s for s in reversed(self.lca.descendants) if (s in self.obj.configuration)]
     
     def __enterSet(self, targets):
@@ -784,9 +777,6 @@ class Transition:
                 yield a
         for target in targets:
             yield target
-    
-    def conflicts(self, transition):
-        return self.__exitSet(self.__getEffectiveTargetStates()) & transition.__exitSet(transition.__getEffectiveTargetStates())
         
     def setGuard(self, guard):
         self.guard = guard
@@ -800,8 +790,14 @@ class Transition:
             self.source.has_eventless_transitions = True
         
     def optimize(self):
-        # TODO: many optimizations.
-        pass
+        # the least-common ancestor can be computed statically
+        self.lca = self.source.parent
+        target = self.targets[0]
+        if self.source.parent != target.parent: # external
+            for a in self.source.ancestors:
+                if a in target.ancestors:
+                    self.lca = a
+                    break
         
     def __repr__(self):
         return "Transition(%i, %s)" % (self.source.state_id, [target.state_id for target in self.targets])

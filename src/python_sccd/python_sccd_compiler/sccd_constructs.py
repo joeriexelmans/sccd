@@ -482,7 +482,10 @@ class StateChartNode(Visitable):
         #transitions
         self.transitions = []
         for transition_xml in xml_element.findall("transition"):
-            self.transitions.append(StateChartTransition(transition_xml, self))
+            transition = StateChartTransition(transition_xml, self)
+            self.transitions.append(transition)
+            if transition.trigger.isAfter():
+                self.has_timers = True
             
         self.optimizeTransitions()
         self.generateChildren(xml_element)    
@@ -538,26 +541,11 @@ class StateChartNode(Visitable):
             self.exit_action = ExitAction(self)
             
     def optimizeTransitions(self):
-        """If a transition with no trigger and no guard is found then it is considered as the only transition.
-        Otherwise the list is ordered by placing transitions having guards only first."""
-        onlyguards = []
-        withtriggers = []
-        optimized = []
-        for transition in self.transitions:
-            if transition.isUCTransition():
-                if not transition.hasGuard():
-                    if optimized :
-                        raise TransitionException("More than one transition found at a single node, that has no trigger and no guard.")
-                    optimized.append(transition)
-                else:
-                    onlyguards.append(transition)
-            else:
-                withtriggers.append(transition)
-                if transition.trigger.isAfter():
-                    self.has_timers = True
-        if not optimized :        
-            optimized = onlyguards + withtriggers
-        self.transitions = optimized
+        """If a transition with no trigger and no guard is found then it is considered as the only transition."""
+        try:
+            self.transitions = [next(t for t in self.transitions if (t.isUCTransition() and not t.hasGuard()))]
+        except StopIteration:
+            pass
     
     def generateChildren(self, xml):
         children_names = []

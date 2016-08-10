@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram name="exit-parallel">
+    <class name="A" default="true">
+        <constructor>
+            self.a = 4
+        </constructor>
+        <scxml initial="x">
+            <parallel id="x">
+                <state id="x1">
+                    <state id="x1">
+                        <transition target="../../../done" cond="self.a == 5">
+                            <script>
+                                print 'taking transition'
+                            </script>
+                        </transition>
+                        <transition event="E" target="../../../done" />
+                    </state>
+                </state>
+                <state id="x2">
+                    <state id="x2" />
+                </state>
+            </parallel>
+            <state id="done">
+                <onentry>
+                    <script>
+                        print 'in done'
+                    </script>
+                </onentry>
+            </state>
+        </scxml>
+    </class>
+</diagram>

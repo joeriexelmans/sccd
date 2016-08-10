@@ -81,9 +81,15 @@ class ObjectManagerBase(object):
         self.instance_times = []
         self.eventless = set()
         self.regex_pattern = re.compile("^([a-zA-Z_]\w*)(?:\[(\d+)\])?$")
+        self.handlers = {"narrow_cast": self.handleNarrowCastEvent,
+                         "broad_cast": self.handleBroadCastEvent,
+                         "create_instance": self.handleCreateEvent,
+                         "associate_instance": self.handleAssociateEvent,
+                         "start_instance": self.handleStartInstanceEvent,
+                         "delete_instance": self.handleDeleteInstanceEvent}
         
     def addEvent(self, event, time_offset = 0):
-        self.events.add((self.controller.simulated_time + time_offset, event))
+        self.events.add(self.controller.simulated_time + time_offset, event)
         
     # broadcast an event to all instances
     def broadcast(self, new_event, time_offset = 0):
@@ -113,18 +119,7 @@ class ObjectManagerBase(object):
             i.start()          
                
     def handleEvent(self, e):
-        if e.getName() == "narrow_cast" :
-            self.handleNarrowCastEvent(e.getParameters())            
-        elif e.getName() == "broad_cast" :
-            self.handleBroadCastEvent(e.getParameters())            
-        elif e.getName() == "create_instance" :
-            self.handleCreateEvent(e.getParameters())            
-        elif e.getName() == "associate_instance" :
-            self.handleAssociateEvent(e.getParameters())            
-        elif e.getName() == "start_instance" :
-            self.handleStartInstanceEvent(e.getParameters())            
-        elif e.getName() == "delete_instance" :
-            self.handleDeleteInstanceEvent(e.getParameters())
+        self.handlers[e.getName()](e.getParameters())
             
     def processAssociationReference(self, input_string):
         if len(input_string) == 0 :
@@ -380,7 +375,7 @@ class ControllerBase(object):
             if e.getPort() not in self.input_ports :
                 raise InputException("Input port mismatch, no such port: " + e.getPort() + ".")
             
-            self.input_queue.add(((0 if self.simulated_time is None else accurate_time.time()) + time_offset, e))
+            self.input_queue.add((0 if self.simulated_time is None else accurate_time.time()) + time_offset, e)
 
     def getEarliestEventTime(self):
         return min(self.object_manager.getEarliestEventTime(), self.input_queue.getEarliestTime())
@@ -869,7 +864,7 @@ class RuntimeClassBase(object):
         if not isinstance(event_list, list):
             event_list = [event_list]
         for e in event_list:
-            self.events.add((event_time, e))
+            self.events.add(event_time, e)
 
     def processBigStepOutput(self):
         for e in self.big_step.output_events_port:
@@ -897,7 +892,7 @@ class RuntimeClassBase(object):
             is_stable = not self.bigStep(due)
             self.processBigStepOutput()
         for index, entry in self.timers_to_add.iteritems():
-            self.timers[index] = self.events.add(entry)
+            self.timers[index] = self.events.add(*entry)
         self.timers_to_add = {}
         self.__set_stable(True)
 

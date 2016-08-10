@@ -50,11 +50,12 @@
 
         <scxml initial="z">
             <state id="z">
-                <transition after="0" target=".">
+                <transition after="0" target="../closed">
                     <raise scope="broad" event="close"/>
                     <raise event="after_0" port="test_output" />
                 </transition>
             </state>
+            <state id="closed" />
         </scxml>
     </class>
     <test>
@@ -70,7 +71,6 @@
            </slot>
            <slot>
                <event name="deleting_instance" port="test_output"/>
-               <event name="after_0" port="test_output"/>
            </slot>
         </expected>
     </test>

@@ -139,6 +139,7 @@ function ObjectManagerBase(controller) {
 	this.controller = controller;
 	this.events = new EventQueue();
 	this.instances = new Array();
+	this.regex = /^([a-zA-Z_]\w*)(?:\[(\d+)\])?$/;
 }
 
 ObjectManagerBase.prototype.addEvent = function(the_event, time_offset) {
@@ -175,7 +176,7 @@ ObjectManagerBase.prototype.stepAll = function() {
 };
 
 ObjectManagerBase.prototype.step = function() {
-	while (this.events.getEarliestTime() <= time()) {
+	while (this.events.getEarliestTime() <= this.controller.simulated_time) {
 		this.handleEvent(this.events.pop());
 	}
 };
@@ -207,13 +208,12 @@ ObjectManagerBase.prototype.processAssociationReference = function(input_string)
 	if (input_string.length == 0) {
 		throw new AssociationReferenceException("Empty association reference.");
 	}
-	var regex = /^([a-zA-Z_]\w*)(?:\[(\d+)\])?$/;
 	var path_string = input_string.split('/');
 	var result = new Array();
 	if (input_string !== "") {
 		for (var p in path_string) {
 			if (!path_string.hasOwnProperty(p)) continue;
-			var m = regex.exec(path_string[p]);
+			var m = this.regex.exec(path_string[p]);
 			if (m) {
 				var name = m[1];
 				var index = m[2];
@@ -602,10 +602,11 @@ EventLoop.prototype.clear = function() {
 };
 
 // EventLoopControllerBase
-function EventLoopControllerBase(object_manager, event_loop, finished_callback) {
+function EventLoopControllerBase(object_manager, event_loop, finished_callback, behind_schedule_callback) {
 	ControllerBase.call(this, object_manager);
 	this.event_loop = event_loop;
 	this.finished_callback = finished_callback;
+    this.behind_schedule_callback = behind_schedule_callback;
 	this.last_print_time = 0;
 }
 
@@ -636,8 +637,8 @@ EventLoopControllerBase.prototype.run = function() {
 		// simulate
 		this.handleInput();
 		this.object_manager.stepAll();
-		// set next timeout
-		earliest_event_time = ControllerBase.prototype.getEarliestEventTime.call(this);
+		// schedule next timeout
+		var earliest_event_time = ControllerBase.prototype.getEarliestEventTime.call(this);
 		if (earliest_event_time == Infinity) {
             if (this.finished_callback != undefined) this.finished_callback(); // TODO: This is not necessarily correct (keep_running necessary?)
             return;
@@ -832,7 +833,7 @@ Transition.prototype.isEnabled = function(events) {
     } else {
         for (var i in events) {
             the_event = events[i];
-            if ((this.trigger === null || (this.trigger.name == the_event.name && (!this.trigger.port || this.trigger.port == the_event.port))) && (this.guard === null || this.guard(the_event.parameters))) {
+            if ((this.trigger.name == the_event.name && (!this.trigger.port || this.trigger.port == the_event.port)) && (this.guard === null || this.guard(the_event.parameters))) {
                 this.enabled_event = the_event;
                 return true;
             }
@@ -995,6 +996,10 @@ RuntimeClassBase.prototype.start = function() {
 	this.initializeStatechart();
 	this.processBigStepOutput();
 };
+
+RuntimeClassBase.prototype.sccd_yield = function() {
+    return Math.max(0, (time() - this.controller.simulated_time) / 1000.0);
+}
 
 RuntimeClassBase.prototype.getSimulatedTime = function() {
     return this.controller.simulated_time;
@@ -1206,7 +1211,12 @@ RuntimeClassBase.prototype.raiseInternalEvent = function(the_event) {
 };
 
 RuntimeClassBase.prototype.initializeStatechart = function() {
-	// pure virtual
+	this.updateConfiguration(this.default_targets);
+    for (let state of this.default_targets) {
+        if (state.enter != null) {
+            state.enter();
+        }
+    }
 };
 
 // BigStepState

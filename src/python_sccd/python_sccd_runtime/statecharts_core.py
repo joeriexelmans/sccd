@@ -3,7 +3,6 @@ import re
 import threading
 import traceback
 import math
-import cPickle
 from heapq import heappush, heappop
 from infinity import INFINITY
 from Queue import Queue, Empty 
@@ -887,6 +886,8 @@ class RuntimeClassBase(object):
         # self.earliest_event_time keeps track of the earliest time this instance will execute a transition
         if not is_stable:
             self.earliest_event_time = 0
+        elif not self.active:
+            self.earliest_event_time = INFINITY
         else:
             self.earliest_event_time = self.events.getEarliestTime()
         heappush(self.controller.object_manager.instance_times, (self.earliest_event_time, self))

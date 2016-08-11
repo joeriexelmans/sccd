@@ -995,7 +995,7 @@ class RuntimeClassBase(object):
                 not self.combo_step.has_stepped and
                     self.semantics.input_event_lifeline == StatechartSemantics.FirstSmallStep))):
             result += self.big_step.input_events
-        return set(result)
+        return result
 
     def raiseInternalEvent(self, event):
         if self.semantics.internal_event_lifeline == StatechartSemantics.NextSmallStep:

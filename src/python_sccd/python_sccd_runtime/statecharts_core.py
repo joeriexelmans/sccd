@@ -606,6 +606,7 @@ class State:
         
         self.ancestors = []
         self.descendants = []
+        self.descendant_bitmap = 0
         self.children = []
         self.parent = None
         self.enter = None
@@ -632,6 +633,8 @@ class State:
         self.descendants.extend(self.children)
         for c in self.children:
             self.descendants.extend(c.descendants)
+        for d in self.descendants:
+            self.descendant_bitmap += 2**d.state_id
             
     def addChild(self, child):
         self.children.append(child)
@@ -644,9 +647,9 @@ class State:
         
     def setExit(self, exit):
         self.exit = exit
-        
+                    
     def __repr__(self):
-        return "State(%i)" % self.state_id
+        return "State(%s)" % (self.state_id)
         
 class HistoryState(State):
     def __init__(self, state_id, obj):
@@ -725,11 +728,12 @@ class Transition:
             # execute exit action(s)
             if s.exit:
                 s.exit()
-            self.obj.configuration.remove(s)
+            # self.obj.configuration.remove(s)
+            self.obj.configuration_bitmap -= 2**s.state_id
         
         # combo state changed area
-        self.obj.combo_step.changed.add(self.lca)
-        self.obj.combo_step.changed.update(self.lca.descendants)
+        self.obj.combo_step.changed_bitmap += 2**self.lca.state_id
+        self.obj.combo_step.changed_bitmap += self.lca.descendant_bitmap
         
         # execute transition action(s)
         if self.action:
@@ -739,7 +743,8 @@ class Transition:
         enter_set = self.__enterSet(targets)
         for s in enter_set:
             self.obj.eventless_states += s.has_eventless_transitions
-            self.obj.configuration.append(s)
+            # self.obj.configuration.append(s)
+            self.obj.configuration_bitmap += 2**s.state_id
             # execute enter action(s)
             if s.enter:
                 s.enter()
@@ -749,7 +754,11 @@ class Transition:
         else:
             self.obj.controller.object_manager.eventless.discard(self.obj)
                 
-        self.obj.configuration.sort(key=lambda x: x.state_id)
+        # self.obj.configuration.sort(key=lambda x: x.state_id)
+        try:
+            self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap]
+        except:
+            self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap] = sorted([s for s in self.obj.states.itervalues() if 2**s.state_id & self.obj.configuration_bitmap], key=lambda s: s.state_id)
         self.enabled_event = None
     
     def __getEffectiveTargetStates(self):
@@ -793,9 +802,9 @@ class Transition:
                 if a in target.ancestors:
                     self.lca = a
                     break
-        
+                    
     def __repr__(self):
-        return "Transition(%i, %s)" % (self.source.state_id, [target.state_id for target in self.targets])
+        return "Transition(%s, %s)" % (self.source, self.targets[0])
 
 class RuntimeClassBase(object):
     __metaclass__  = abc.ABCMeta
@@ -811,6 +820,9 @@ class RuntimeClassBase(object):
         self.timers = {}
         self.states = {}
         self.eventless_states = 0
+        self.configuration_bitmap = 0
+        self.transition_mem = {}
+        self.config_mem = {}
 
         self.semantics = StatechartSemantics()
 
@@ -845,6 +857,7 @@ class RuntimeClassBase(object):
     
     def updateConfiguration(self, states):
         self.configuration.extend(states)
+        self.configuration_bitmap = sum([2**s.state_id for s in states])
     
     def addTimer(self, index, timeout):
         self.timers_to_add[index] = (self.controller.simulated_time + int(timeout * 1000), Event("_%iafter" % index))
@@ -925,13 +938,18 @@ class RuntimeClassBase(object):
     # generate transition candidates for current small step
     # @profile
     def generateCandidates(self):
+        changed_bitmap = self.combo_step.changed_bitmap
+        key = (self.configuration_bitmap, changed_bitmap)
+        try:
+            transitions = self.transition_mem[key]
+        except:
+            self.transition_mem[key] = transitions = [t for s in self.configuration if not (2**s.state_id & changed_bitmap) for t in s.transitions]
+        
         enabledEvents = self.getEnabledEvents()
         enabledTransitions = []
-        for s in self.configuration:
-            if not (s in self.combo_step.changed):
-                for t in s.transitions:
-                    if t.isEnabled(enabledEvents):
-                        enabledTransitions.append(t)
+        for t in transitions:
+            if t.isEnabled(enabledEvents):
+                enabledTransitions.append(t)
         return enabledTransitions
 
     def smallStep(self):        
@@ -968,6 +986,7 @@ class RuntimeClassBase(object):
             self.small_step.has_stepped = True
         return self.small_step.has_stepped
 
+    # @profile
     def getEnabledEvents(self):
         result = self.small_step.current_events + self.combo_step.current_events
         if self.semantics.input_event_lifeline == StatechartSemantics.Whole or (
@@ -976,7 +995,7 @@ class RuntimeClassBase(object):
                 not self.combo_step.has_stepped and
                     self.semantics.input_event_lifeline == StatechartSemantics.FirstSmallStep))):
             result += self.big_step.input_events
-        return result
+        return set(result)
 
     def raiseInternalEvent(self, event):
         if self.semantics.internal_event_lifeline == StatechartSemantics.NextSmallStep:
@@ -1020,7 +1039,7 @@ class ComboStepState(object):
     def __init__(self):
         self.current_events = [] # set of enabled events during combo step
         self.next_events = [] # internal events that were raised during combo step
-        self.changed = set() # set of all or-states that were the arena of a triggered transition during big step.
+        self.changed_bitmap = 0 # set of all or-states that were the arena of a triggered transition during big step.
         self.has_stepped = True
 
     def reset(self):
@@ -1030,20 +1049,11 @@ class ComboStepState(object):
     def next(self):
         self.current_events = self.next_events
         self.next_events = []
-        self.changed = set()
+        self.changed_bitmap = 0
         self.has_stepped = False
 
     def addNextEvent(self, event):
         self.next_events.append(event)
-
-    def setArenaChanged(self, arena):
-        self.changed.add(arena)
-
-    def isArenaChanged(self, arena):
-        return (arena in self.changed)
-
-    def isStable(self):
-        return (len(self.changed) == 0)
 
 
 class SmallStepState(object):

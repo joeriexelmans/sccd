@@ -647,7 +647,7 @@ class StateChart(Visitable):
             if self.big_step_maximality == "take_one":
                 Logger.showWarning("Using 'Next Combo Step' internal event lifeline semantics and 'Take One' big step maximality semantics simultaneously doesn't make sense.")
 
-        self.extractFromHierarchy(self.root) #recursively extracts the basics, composites, histories and nr_of_after_transitions
+        self.extractFromHierarchy(self.root) # recursively extracts the basics, composites, histories and nr_of_after_transitions
             
         # Calculate the history that needs to be taken care of.
         self.shallow_history_parents = []

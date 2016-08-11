@@ -24,4 +24,9 @@ class EventQueue(object):
         self.event_list = sorted([e for e in self.event_list if id(e) != event_id])
     
     def pop(self):
-        return heappop(self.event_list)[2]
+        item = heappop(self.event_list)
+        event_time = item[0]
+        self.event_time_numbers[event_time] -= 1
+        if not self.event_time_numbers[event_time]:
+            del self.event_time_numbers[event_time]
+        return item[2]

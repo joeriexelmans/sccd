@@ -923,6 +923,7 @@ class RuntimeClassBase(object):
         return self.combo_step.has_stepped
 	
     # generate transition candidates for current small step
+    # @profile
     def generateCandidates(self):
         enabledEvents = self.getEnabledEvents()
         enabledTransitions = []

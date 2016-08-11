@@ -17,11 +17,11 @@ class EventQueue(object):
     
     def add(self, event_time, event):
         self.event_time_numbers[event_time] = self.event_time_numbers.setdefault(event_time, 0) + 1
-        heappush(self.event_list, (event_time + self.event_time_numbers[event_time], event))
+        heappush(self.event_list, (event_time, self.event_time_numbers[event_time], event))
         return id(event)
     
     def remove(self, event_id):
         self.event_list = sorted([e for e in self.event_list if id(e) != event_id])
     
     def pop(self):
-        return heappop(self.event_list)[1]
+        return heappop(self.event_list)[2]

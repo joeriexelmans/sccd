@@ -634,7 +634,7 @@ class State:
         for c in self.children:
             self.descendants.extend(c.descendants)
         for d in self.descendants:
-            self.descendant_bitmap += 2**d.state_id
+            self.descendant_bitmap |= 2**d.state_id
             
     def addChild(self, child):
         self.children.append(child)
@@ -730,11 +730,11 @@ class Transition:
             if s.exit:
                 s.exit()
             # self.obj.configuration.remove(s)
-            self.obj.configuration_bitmap -= 2**s.state_id
+            self.obj.configuration_bitmap &= ~2**s.state_id
         
         # combo state changed area
-        self.obj.combo_step.changed_bitmap += 2**self.lca.state_id
-        self.obj.combo_step.changed_bitmap += self.lca.descendant_bitmap
+        self.obj.combo_step.changed_bitmap |= 2**self.lca.state_id
+        self.obj.combo_step.changed_bitmap |= self.lca.descendant_bitmap
         
         # execute transition action(s)
         if self.action:
@@ -745,7 +745,7 @@ class Transition:
         for s in enter_set:
             self.obj.eventless_states += s.has_eventless_transitions
             # self.obj.configuration.append(s)
-            self.obj.configuration_bitmap += 2**s.state_id
+            self.obj.configuration_bitmap |= 2**s.state_id
             # execute enter action(s)
             if s.enter:
                 s.enter()

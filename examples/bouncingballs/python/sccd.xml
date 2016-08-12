@@ -104,8 +104,8 @@
         <constructor>
             <body>
                 <![CDATA[
-                self.field_window = ui.new_window(400,450);
-                self.canvas = ui.append_canvas(self.field_window,400,400,{'background':'#eee'});
+                self.field_window = ui.new_window(800,600,"BouncingBalls");
+                self.canvas = ui.append_canvas(self.field_window,800,600,{'background':'#eee'});
                 ui.bind_event(self.field_window, ui.EVENTS.WINDOW_CLOSE, self.controller, 'window_close', self.inports['field_ui']);
                 ui.bind_event(self.field_window, ui.EVENTS.KEY_PRESS, self.controller, 'key_press', self.inports['field_ui']);
                 ui.bind_event(self.canvas.element, ui.EVENTS.MOUSE_RIGHT_CLICK,    self.controller, 'right_click', self.inports['field_ui']);
@@ -321,9 +321,9 @@
                         <script>
                             <![CDATA[
                             pos = self.element.get_position();    
-                            if pos.x-self.r <= 0 or pos.x+self.r >= self.canvas.width :
+                            if pos.x-self.r <= 0 or pos.x+self.r >= self.canvas.get_width():
                                 self.vel['x'] = -self.vel['x'];
-                            if pos.y-self.r <= 0 or pos.y+self.r >= self.canvas.height :
+                            if pos.y-self.r <= 0 or pos.y+self.r >= self.canvas.get_height():
                                 self.vel['y'] = -self.vel['y'];
                             self.element.move(self.vel['x'], self.vel['y']);
                             ]]>                            

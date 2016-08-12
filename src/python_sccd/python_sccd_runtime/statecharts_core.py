@@ -712,6 +712,7 @@ class Transition:
                     self.enabled_event = event
                     return True
     
+    # @profile
     def fire(self):
         # exit states...
         targets = self.__getEffectiveTargetStates()
@@ -952,6 +953,7 @@ class RuntimeClassBase(object):
                 enabledTransitions.append(t)
         return enabledTransitions
 
+    # @profile
     def smallStep(self):        
         def __younger_than(x, y):
             if x.source in y.source.ancestors:

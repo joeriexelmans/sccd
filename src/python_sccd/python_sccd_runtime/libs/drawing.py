@@ -26,6 +26,12 @@ class drawing:
 
         def remove_element(self, element):
             self.element.delete(element.element_id)
+            
+        def get_width(self):
+            return self.element.winfo_width()
+            
+        def get_height(self):
+            return self.element.winfo_height()
 
 
     class ui_element_wrapper:

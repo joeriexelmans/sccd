@@ -1,48 +1,40 @@
 <?xml version="1.0" ?>
 <diagram author="Simon Van Mierlo" name="Timer (Threaded Version)">
-    <description>
-    </description>
     <top>
         from sccd.runtime.accurate_time import time
-    </top>    
-    <inport name="input" />
+    </top>
+    
+    <inport name="input" />        
+    <outport name="output" />
 
     <class name="MainApp" default="true">
-        <method name="MainApp">
-            <body>
-                <![CDATA[
-                ]]>
-            </body>        
-        </method>
-        <method name="update_timers">
-            <body>
-                print 'SIMTIME = %.2f' % get_simulated_time()
-                print 'ACTTIME = %.2f' % time()
-            </body>
-        </method>
         <scxml initial="running">
             <state id="running">
                 <transition target="." after="0.05">
-                    <script>
-                        self.update_timers()
-                    </script>
+                    <raise event="time_update" port="output">
+                        <parameter expr="self.getSimulatedTime()" />
+                        <parameter expr="time()" />
+                    </raise>
                 </transition>
                 <transition target="../interrupted" event="interrupt" port="input">
-                    <script>
-                        self.update_timers()
-                    </script>
+                    <raise event="time_update" port="output">
+                        <parameter expr="self.getSimulatedTime()" />
+                        <parameter expr="time()" />
+                    </raise>
                 </transition>
             </state>
             <state id="interrupted">
                 <transition target="." event="interrupt" port="input">
-                    <script>
-                        self.update_timers()
-                    </script>
+                    <raise event="time_update" port="output">
+                        <parameter expr="self.getSimulatedTime()" />
+                        <parameter expr="time()" />
+                    </raise>
                 </transition>
                 <transition target="../running" event="continue" port="input">
-                    <script>
-                        self.update_timers()
-                    </script>
+                    <raise event="time_update" port="output">
+                        <parameter expr="self.getSimulatedTime()" />
+                        <parameter expr="time()" />
+                    </raise>
                 </transition>
             </state>
         </scxml>

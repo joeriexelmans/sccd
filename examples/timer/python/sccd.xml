@@ -1,12 +1,10 @@
 <?xml version="1.0" ?>
-<diagram author="Simon Van Mierlo" name="Timer">
-    <description>
-    </description>
+<diagram author="Simon Van Mierlo" name="Timer (Eventloop Version)">
     <top>
         from sccd.runtime.libs.ui import ui
         from sccd.runtime.accurate_time import time
-        from sccd.runtime.statecharts_core import get_simulated_time
-    </top>    
+    </top>
+    
     <inport name="ui" />
 
     <class name="MainApp" default="true">
@@ -25,8 +23,8 @@
         </method>
         <method name="update_timers">
             <body>
-                self.canvas.element.itemconfigure(self.clock_text, text=str('%.2f' % get_simulated_time()))
-                self.canvas.element.itemconfigure(self.actual_clock_text, text='%.2f' % time())
+                self.canvas.element.itemconfigure(self.clock_text, text=str('%.2f' % (self.getSimulatedTime() / 1000.0)))
+                self.canvas.element.itemconfigure(self.actual_clock_text, text='%.2f' % (time() / 1000.0))
             </body>
         </method>
         <scxml initial="running">

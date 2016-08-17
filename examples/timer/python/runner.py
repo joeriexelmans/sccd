@@ -1,9 +1,3 @@
-'''
-Created on 27-jul.-2014
-
-@author: Simon
-'''
-
 import Tkinter as tk
 import target_py.target as target
 from sccd.runtime.libs.ui import ui

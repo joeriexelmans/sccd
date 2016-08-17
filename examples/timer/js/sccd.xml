@@ -1,7 +1,5 @@
 <?xml version="1.0" ?>
 <diagram author="Simon Van Mierlo" name="Timer">
-    <description>
-    </description>
     <inport name="ui" />
 
     <class name="MainApp" default="true">
@@ -20,8 +18,8 @@
         </method>
         <method name="update_timers">
             <body>
-                this.clock_text.set_text(get_simulated_time().toFixed(2));
-                this.actual_clock_text.set_text(time().toFixed(2));
+                this.clock_text.set_text((this.getSimulatedTime() / 1000).toFixed(2));
+                this.actual_clock_text.set_text((this.getSimulatedTime() / 1000).toFixed(2));
             </body>
         </method>
         <scxml initial="running">
@@ -38,16 +36,6 @@
                 </transition>
             </state>
             <state id="interrupted">
-                <onentry>
-                    <script>
-                        console.log("entering interrupted");
-                    </script>
-                </onentry>
-                <onexit>
-                    <script>
-                        console.log("entering interrupted");
-                    </script>
-                </onexit>
                 <transition target="." event="interrupt_clicked" port="ui">
                     <script>
                         this.update_timers();

@@ -10,3 +10,4 @@ csharp_tests/bin
 src/build
 **/*target*
 **/*.lprof
+doc/_build

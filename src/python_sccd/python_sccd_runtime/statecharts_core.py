@@ -1,3 +1,7 @@
+"""
+The classes and functions needed to run (compiled) SCCD models.
+"""
+
 import abc
 import re
 import threading
@@ -11,26 +15,50 @@ from sccd.runtime.event_queue import EventQueue
 import sccd.runtime.accurate_time as accurate_time
 
 class RuntimeException(Exception):
+    """
+    Base class for runtime exceptions.
+    """
     def __init__(self, message):
         self.message = message
     def __str__(self):
         return repr(self.message)
 
 class AssociationException(RuntimeException):
+    """
+    Exception class thrown when an error occurs in a CRUD operation on associations.
+    """
     pass
 
 class AssociationReferenceException(RuntimeException):
+    """
+    Exception class thrown when an error occurs when resolving an association reference.
+    """
     pass
 
 class ParameterException(RuntimeException):
+    """
+    Exception class thrown when an error occurs when passing parameters.
+    """
     pass
 
 class InputException(RuntimeException):
+    """
+    Exception class thrown when an error occurs during input processing.
+    """
     pass
 
 class Association(object):
-    # wrapper object for one association relation
+    """
+    Class representing an SCCD association.
+    """
     def __init__(self, to_class, min_card, max_card):
+        """
+        Constructor
+        
+        :param to_class: the name of the target class
+        :param min_card: the minimal cardinality
+        :param max_card: the maximal cardinality
+        """
         self.to_class = to_class
         self.min_card = min_card
         self.max_card = max_card

@@ -1,9 +1,5 @@
 <?xml version="1.0" ?>
 <diagram author="Raphael Mannadiar" name="Traffic_Light_JavaScript_Version">
-	<description>
-	</description>
-	<top>
-	</top>	
 	<inport name="ui" />
 
 	<class name="MainApp" default="true">

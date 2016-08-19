@@ -767,7 +767,7 @@ class GenericGenerator(Visitor):
                 GLC.SelfProperty("inState"),
                 [
                     GLC.ArrayExpression(
-                        [GLC.String(state_string) for state_string in in_state_call.state_strings]
+                        [GLC.String(target_node.new_full_name) for target in in_state_call.targets for target_node in target.target_nodes]
                     )
                 ]
             )

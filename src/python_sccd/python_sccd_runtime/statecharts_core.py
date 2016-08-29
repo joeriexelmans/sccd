@@ -55,9 +55,9 @@ class Association(object):
         """
         Constructor
         
-        :param to_class: the name of the target class
-        :param min_card: the minimal cardinality
-        :param max_card: the maximal cardinality
+       :param to_class: the name of the target class
+       :param min_card: the minimal cardinality
+       :param max_card: the maximal cardinality
         """
         self.to_class = to_class
         self.min_card = min_card
@@ -74,28 +74,28 @@ class Association(object):
         return self.min_card == -1 or self.size > self.min_card
         
     def addInstance(self, instance):
-        if self.allowedToAdd() :
+        if self.allowedToAdd():
             new_id = self.next_id
             self.next_id += 1
             self.instances[new_id] = instance
             self.instances_to_ids[instance] = new_id
             self.size += 1
             return new_id
-        else :
+        else:
             raise AssociationException("Not allowed to add the instance to the association.")
         
     def removeInstance(self, instance):
-        if self.allowedToRemove() :
+        if self.allowedToRemove():
             del self.instances[self.instances_to_ids[instance]]
             del self.instances_to_ids[instance]
             self.size -= 1
-        else :
+        else:
             raise AssociationException("Not allowed to remove the instance from the association.")
         
     def getInstance(self, index):
-        try :
+        try:
             return self.instances[index]
-        except IndexError :
+        except IndexError:
             raise AssociationException("Invalid index for fetching instance(s) from association.")
 
 # TODO: Clean this mess up. Look at all object management operations and see how they can be improved.
@@ -150,39 +150,39 @@ class ObjectManagerBase(object):
         self.handlers[e.getName()](e.getParameters())
             
     def processAssociationReference(self, input_string):
-        if len(input_string) == 0 :
+        if len(input_string) == 0:
             raise AssociationReferenceException("Empty association reference.")
         path_string =  input_string.split("/")
         result = []
-        for piece in path_string :
+        for piece in path_string:
             match = self.regex_pattern.match(piece)
-            if match :
+            if match:
                 name = match.group(1)
                 index = match.group(2)
-                if index is None :
+                if index is None:
                     index = -1
                 result.append((name,int(index)))
-            else :
+            else:
                 raise AssociationReferenceException("Invalid entry in association reference. Input string: " + input_string)
         return result
     
     def handleStartInstanceEvent(self, parameters):
-        if len(parameters) != 2 :
+        if len(parameters) != 2:
             raise ParameterException ("The start instance event needs 2 parameters.")  
-        else :
+        else:
             source = parameters[0]
             traversal_list = self.processAssociationReference(parameters[1])
-            for i in self.getInstances(source, traversal_list) :
+            for i in self.getInstances(source, traversal_list):
                 i["instance"].start()
             source.addEvent(Event("instance_started", parameters = [parameters[1]]))
         
     def handleBroadCastEvent(self, parameters):
-        if len(parameters) != 1 :
+        if len(parameters) != 1:
             raise ParameterException ("The broadcast event needs 1 parameter.")
         self.broadcast(parameters[0])
 
     def handleCreateEvent(self, parameters):
-        if len(parameters) < 2 :
+        if len(parameters) < 2:
             raise ParameterException ("The create event needs at least 2 parameters.")
 
         source = parameters[0]
@@ -190,7 +190,7 @@ class ObjectManagerBase(object):
         
         association = source.associations[association_name]
         # association = self.instances_map[source].getAssociation(association_name)
-        if association.allowedToAdd() :
+        if association.allowedToAdd():
             ''' allow subclasses to be instantiated '''
             class_name = association.to_class if len(parameters) == 2 else parameters[2]
             new_instance = self.createInstance(class_name, parameters[3:])
@@ -205,13 +205,13 @@ class ObjectManagerBase(object):
             if p:
                 p.addInstance(source)
             source.addEvent(Event("instance_created", None, [association_name+"["+str(index)+"]"]))
-        else :
+        else:
             source.addEvent(Event("instance_creation_error", None, [association_name]))
 
     def handleDeleteInstanceEvent(self, parameters):
-        if len(parameters) < 2 :
+        if len(parameters) < 2:
             raise ParameterException ("The delete event needs at least 2 parameters.")
-        else :
+        else:
             source = parameters[0]
             association_name = parameters[1]
             traversal_list = self.processAssociationReference(association_name)
@@ -229,62 +229,63 @@ class ObjectManagerBase(object):
             source.addEvent(Event("instance_deleted", parameters = [parameters[1]]))
                 
     def handleAssociateEvent(self, parameters):
-        if len(parameters) != 3 :
+        if len(parameters) != 3:
             raise ParameterException ("The associate_instance event needs 3 parameters.")
-        else :
+        else:
             source = parameters[0]
             to_copy_list = self.getInstances(source,self.processAssociationReference(parameters[1]))
-            if len(to_copy_list) != 1 :
+            if len(to_copy_list) != 1:
                 raise AssociationReferenceException ("Invalid source association reference.")
             wrapped_to_copy_instance = to_copy_list[0]["instance"]
             dest_list = self.processAssociationReference(parameters[2])
-            if len(dest_list) == 0 :
+            if len(dest_list) == 0:
                 raise AssociationReferenceException ("Invalid destination association reference.")
             last = dest_list.pop()
-            if last[1] != -1 :
+            if last[1] != -1:
                 raise AssociationReferenceException ("Last association name in association reference should not be accompanied by an index.")
                 
-            for i in self.getInstances(source, dest_list) :
+            for i in self.getInstances(source, dest_list):
                 i["instance"].associations[last[0]].addInstance(wrapped_to_copy_instance)
         
     def handleNarrowCastEvent(self, parameters):
-        if len(parameters) != 3 :
-            raise ParameterException ("The associate_instance event needs 3 parameters.")
+        if len(parameters) != 3:
+            raise ParameterException ("The narrow_cast event needs 3 parameters.")
         source = parameters[0]
         traversal_list = self.processAssociationReference(parameters[1])
         cast_event = parameters[2]
-        for i in self.getInstances(source, traversal_list) :
-            i["instance"].addEvent(cast_event)
+        for i in self.getInstances(source, traversal_list):
+            to_send_event = Event(cast_event.name, i["instance"].narrow_cast_port, cast_event.parameters)
+            i["instance"].controller.addInput(to_send_event)
         
     def getInstances(self, source, traversal_list):
         currents = [{
-            "instance" : source,
-            "ref" : None,
-            "assoc_name" : None,
-            "assoc_index" : None
+            "instance": source,
+            "ref": None,
+            "assoc_name": None,
+            "assoc_index": None
         }]
         # currents = [source]
-        for (name, index) in traversal_list :
+        for (name, index) in traversal_list:
             nexts = []
-            for current in currents :
+            for current in currents:
                 association = current["instance"].associations[name]
-                if (index >= 0 ) :
+                if (index >= 0 ):
                     nexts.append({
-                        "instance" : association.instances[index],
-                        "ref" : current["instance"],
-                        "assoc_name" : name,
-                        "assoc_index" : index
+                        "instance": association.instances[index],
+                        "ref": current["instance"],
+                        "assoc_name": name,
+                        "assoc_index": index
                     })
-                elif (index == -1) :
+                elif (index == -1):
                     for i in association.instances:
                         nexts.append({
-                            "instance" : association.instances[i],
-                            "ref" : current["instance"],
-                            "assoc_name" : name,
-                            "assoc_index" : index
+                            "instance": association.instances[i],
+                            "ref": current["instance"],
+                            "assoc_name": name,
+                            "assoc_index": index
                         })
                     #nexts.extend( association.instances.values() )
-                else :
+                else:
                     raise AssociationReferenceException("Incorrect index in association reference.")
             currents = nexts
         return currents
@@ -314,9 +315,9 @@ class Event(object):
         return self.parameters
     
     def __repr__(self):
-        representation = "(event name : " + str(self.name) + "; port : " + str(self.port)
-        if self.parameters :
-            representation += "; parameters : " + str(self.parameters)
+        representation = "(event name: " + str(self.name) + "; port: " + str(self.port)
+        if self.parameters:
+            representation += "; parameters: " + str(self.parameters)
         representation += ")"
         return representation
     
@@ -326,7 +327,7 @@ class OutputListener(object):
         self.queue = Queue()
 
     def add(self, event):
-        if len(self.port_names) == 0 or event.getPort() in self.port_names :
+        if len(self.port_names) == 0 or event.getPort() in self.port_names:
             self.queue.put_nowait(event)
             
     """ Tries for timeout seconds to fetch an event, returns None if failed.
@@ -370,7 +371,7 @@ class ControllerBase(object):
         return self.simulated_time
             
     def addInputPort(self, virtual_name, instance = None):
-        if instance == None :
+        if instance == None:
             port_name = virtual_name
         else:
             port_name = "private_" + str(self.private_port_counter) + "_" + virtual_name
@@ -397,10 +398,10 @@ class ControllerBase(object):
             input_event_list = [input_event_list]
 
         for e in input_event_list:
-            if e.getName() == ""  :
+            if e.getName() == "":
                 raise InputException("Input event can't have an empty name.")
         
-            if e.getPort() not in self.input_ports :
+            if e.getPort() not in self.input_ports:
                 raise InputException("Input port mismatch, no such port: " + e.getPort() + ".")
             
             self.input_queue.add((0 if self.simulated_time is None else accurate_time.time()) + time_offset, e)
@@ -421,7 +422,7 @@ class ControllerBase(object):
                 target_instance.addEvent(e, event_time - self.simulated_time)
 
     def outputEvent(self, event):
-        for listener in self.output_listeners :
+        for listener in self.output_listeners:
             listener.add(event)
 
     def addOutputListener(self, ports):
@@ -852,6 +853,8 @@ class RuntimeClassBase(object):
         self.configuration_bitmap = 0
         self.transition_mem = {}
         self.config_mem = {}
+        
+        self.narrow_cast_port = self.controller.addInputPort("<narrow_cast>", self)
 
         self.semantics = StatechartSemantics()
 

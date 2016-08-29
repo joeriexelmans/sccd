@@ -1,0 +1,82 @@
+<?xml version="1.0" ?>
+<diagram author="Simon Van Mierlo" name="TestEventConsuming2">
+    <description>
+        Testing event consuming.
+    </description>
+    <inport name="test_input" />
+    <outport name="test_output" />
+    <class name="Class1" default="true">
+        <relationships>
+            <association class="Class2" name="to_Class2" />
+        </relationships>
+        <scxml initial="initial">
+            <state id="initial">
+                <onentry>
+                    <raise event="create_instance" scope="cd">
+                        <parameter expr="'to_Class2'" />
+                    </raise>
+                </onentry>
+                <transition event="instance_created" target="../one">
+                    <parameter name="link_name" />
+                    <raise event="start_instance" scope="cd">
+                        <parameter expr="link_name" />
+                    </raise>
+                </transition>
+            </state>
+            <state id="one">
+                <onentry>
+                    <raise event="enter_one" port="test_output" />
+                </onentry>
+                <onexit>
+                    <raise event="exit_one" port="test_output" />
+                </onexit>
+                <transition event="A" target="../two" cond="0" />
+                <transition event="B" target="../two" />
+            </state>
+            <state id="two">
+                <onentry>
+                    <raise event="enter_two" port="test_output" />
+                </onentry>
+                <onexit>
+                    <raise event="exit_two" port="test_output" />
+                </onexit>
+                <transition event="A" target="../three" />
+            </state>
+            <state id="three">
+                <onentry>
+                    <raise event="enter_three" port="test_output" />
+                </onentry>
+                <onexit>
+                    <raise event="exit_three" port="test_output" />
+                </onexit>
+            </state>
+        </scxml>
+    </class>
+    <class name="Class2">
+        <relationships>
+            <association class="Class1" name="parent" />
+        </relationships>
+        <scxml initial="initial">
+            <state id="initial">
+                <transition target="../final">
+                    <raise event="A" target="'parent'" />
+                    <raise event="B" target="'parent'" />
+                </transition>
+            </state>
+            <state id="final" />
+        </scxml>
+    </class>
+    <test>
+       <expected>
+           <slot>
+               <event name="enter_one" port="test_output"/>
+           </slot>
+           <slot>
+               <event name="exit_one" port="test_output"/>
+           </slot>
+           <slot>
+               <event name="enter_two" port="test_output"/>
+           </slot>
+        </expected>
+    </test>
+</diagram>

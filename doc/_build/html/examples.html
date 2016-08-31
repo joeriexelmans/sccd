@@ -1,0 +1,766 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Examples &#8212; SCCD 0.9 documentation</title>
+    
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/mystyle.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.9',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="SCCD 0.9 documentation" href="index.html" />
+    <link rel="next" title="Semantic Options" href="semantic_options.html" />
+    <link rel="prev" title="Runtime Platforms" href="runtime_platforms.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="semantic_options.html" title="Semantic Options"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="runtime_platforms.html" title="Runtime Platforms"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">SCCD 0.9 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="examples">
+<h1>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="timer">
+<h2>Timer<a class="headerlink" href="#timer" title="Permalink to this headline">¶</a></h2>
+<p>This example demonstrates the timed behavior of SCCD. It does not have dynamic structure.</p>
+<p>We model a clock which prints the current time every 0.05 seconds. Two clocks are printed: the current wall-clock time and the current simulated time. We expect both to (almost) be the same. The user can interrupt the clock by sending an &#8220;interrupt&#8221; event. The user can resume the clock by sending a &#8220;resume&#8221; event.</p>
+<div class="section" id="threads-python">
+<h3>Threads (Python)<a class="headerlink" href="#threads-python" title="Permalink to this headline">¶</a></h3>
+<p>In this version, the model sends the current times to an output port, on which the user listens, to print out these times. <em>self.getSimulatedTime()</em> and <em>time()</em> return the current time in milliseconds, which we have to convert to seconds.</p>
+<p>The SCCD model:</p>
+<div class="highlight-default"><div class="highlight"><pre>&lt;?xml version=&quot;1.0&quot; ?&gt;
+&lt;diagram author=&quot;Simon Van Mierlo&quot; name=&quot;Timer (Threaded Version)&quot;&gt;
+    &lt;top&gt;
+        from sccd.runtime.accurate_time import time
+    &lt;/top&gt;
+
+    &lt;inport name=&quot;input&quot; /&gt;
+    &lt;outport name=&quot;output&quot; /&gt;
+
+    &lt;class name=&quot;MainApp&quot; default=&quot;true&quot;&gt;
+        &lt;scxml initial=&quot;running&quot;&gt;
+            &lt;state id=&quot;running&quot;&gt;
+                &lt;transition target=&quot;.&quot; after=&quot;0.05&quot;&gt;
+                    &lt;raise event=&quot;time_update&quot; port=&quot;output&quot;&gt;
+                        &lt;parameter expr=&quot;self.getSimulatedTime()&quot; /&gt;
+                        &lt;parameter expr=&quot;time()&quot; /&gt;
+                    &lt;/raise&gt;
+                &lt;/transition&gt;
+                &lt;transition target=&quot;../interrupted&quot; event=&quot;interrupt&quot; port=&quot;input&quot;&gt;
+                    &lt;raise event=&quot;time_update&quot; port=&quot;output&quot;&gt;
+                        &lt;parameter expr=&quot;self.getSimulatedTime()&quot; /&gt;
+                        &lt;parameter expr=&quot;time()&quot; /&gt;
+                    &lt;/raise&gt;
+                &lt;/transition&gt;
+            &lt;/state&gt;
+            &lt;state id=&quot;interrupted&quot;&gt;
+                &lt;transition target=&quot;.&quot; event=&quot;interrupt&quot; port=&quot;input&quot;&gt;
+                    &lt;raise event=&quot;time_update&quot; port=&quot;output&quot;&gt;
+                        &lt;parameter expr=&quot;self.getSimulatedTime()&quot; /&gt;
+                        &lt;parameter expr=&quot;time()&quot; /&gt;
+                    &lt;/raise&gt;
+                &lt;/transition&gt;
+                &lt;transition target=&quot;../running&quot; event=&quot;continue&quot; port=&quot;input&quot;&gt;
+                    &lt;raise event=&quot;time_update&quot; port=&quot;output&quot;&gt;
+                        &lt;parameter expr=&quot;self.getSimulatedTime()&quot; /&gt;
+                        &lt;parameter expr=&quot;time()&quot; /&gt;
+                    &lt;/raise&gt;
+                &lt;/transition&gt;
+            &lt;/state&gt;
+        &lt;/scxml&gt;
+    &lt;/class&gt;
+&lt;/diagram&gt;
+</pre></div>
+</div>
+<p>To compile, save this in a file called <code class="docutils literal"><span class="pre">timer.xml</span></code> and run <code class="docutils literal"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">sccd.compiler.sccdc</span> <span class="pre">-p</span> <span class="pre">threads</span> <span class="pre">-l</span> <span class="pre">python</span> <span class="pre">timer.xml</span></code></p>
+<p>Then, the following file will run the model:</p>
+<div class="highlight-default"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">timer</span>
+<span class="kn">from</span> <span class="nn">sccd.runtime.statecharts_core</span> <span class="k">import</span> <span class="n">Event</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">controller</span> <span class="o">=</span> <span class="n">timer</span><span class="o">.</span><span class="n">Controller</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">raw_inputter</span><span class="p">():</span>
+        <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">controller</span><span class="o">.</span><span class="n">addInput</span><span class="p">(</span><span class="n">Event</span><span class="p">(</span><span class="n">raw_input</span><span class="p">(),</span> <span class="s">&quot;input&quot;</span><span class="p">,</span> <span class="p">[]))</span>
+    <span class="n">input_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">raw_inputter</span><span class="p">)</span>
+    <span class="n">input_thread</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="k">True</span>
+    <span class="n">input_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+    <span class="n">output_listener</span> <span class="o">=</span> <span class="n">controller</span><span class="o">.</span><span class="n">addOutputListener</span><span class="p">([</span><span class="s">&quot;output&quot;</span><span class="p">])</span>
+    <span class="k">def</span> <span class="nf">outputter</span><span class="p">():</span>
+        <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">event</span> <span class="o">=</span> <span class="n">output_listener</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="nb">print</span> <span class="s">&quot;SIMTIME: %.2fs&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">getParameters</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1000.0</span><span class="p">)</span>
+            <span class="nb">print</span> <span class="s">&quot;ACTTIME: %.2fs&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">getParameters</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="mf">1000.0</span><span class="p">)</span>
+    <span class="n">output_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">outputter</span><span class="p">)</span>
+    <span class="n">output_thread</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="k">True</span>
+    <span class="n">output_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+    <span class="n">controller</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The time will be printed to the console. The user can send events by typing the string &#8220;interrupt&#8221; or &#8220;continue&#8221; in the console.</p>
+</div>
+<div class="section" id="eventloop-python">
+<h3>Eventloop (Python)<a class="headerlink" href="#eventloop-python" title="Permalink to this headline">¶</a></h3>
+<p>The SCCD model:</p>
+<div class="highlight-default"><div class="highlight"><pre>&lt;?xml version=&quot;1.0&quot; ?&gt;
+&lt;diagram author=&quot;Simon Van Mierlo&quot; name=&quot;Timer (Eventloop Version)&quot;&gt;
+    &lt;top&gt;
+        from sccd.runtime.libs.ui import ui
+        from sccd.runtime.accurate_time import time
+    &lt;/top&gt;
+
+    &lt;inport name=&quot;ui&quot; /&gt;
+
+    &lt;class name=&quot;MainApp&quot; default=&quot;true&quot;&gt;
+        &lt;method name=&quot;MainApp&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                self.canvas = ui.append_canvas(ui.window,100,100,{&#39;background&#39;:&#39;#eee&#39;})
+                self.clock_text = self.canvas.element.create_text(25,25,{&#39;text&#39;:&#39;0.0&#39;})
+                self.actual_clock_text = self.canvas.element.create_text(25,50,{&#39;text&#39;:&#39;0.0&#39;})
+                interrupt_button = ui.append_button(ui.window, &#39;INTERRUPT&#39;);
+                continue_button = ui.append_button(ui.window, &#39;CONTINUE&#39;);
+                ui.bind_event(interrupt_button.element, ui.EVENTS.MOUSE_CLICK, self.controller, &#39;interrupt_clicked&#39;);
+                ui.bind_event(continue_button.element, ui.EVENTS.MOUSE_CLICK, self.controller, &#39;continue_clicked&#39;);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;method name=&quot;update_timers&quot;&gt;
+            &lt;body&gt;
+                self.canvas.element.itemconfigure(self.clock_text, text=str(&#39;%.2f&#39; % (self.getSimulatedTime() / 1000.0)))
+                self.canvas.element.itemconfigure(self.actual_clock_text, text=&#39;%.2f&#39; % (time() / 1000.0))
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;scxml initial=&quot;running&quot;&gt;
+            &lt;state id=&quot;running&quot;&gt;
+                &lt;transition target=&quot;.&quot; after=&quot;0.05&quot;&gt;
+                    &lt;script&gt;
+                        self.update_timers()
+                    &lt;/script&gt;
+                &lt;/transition&gt;
+                &lt;transition target=&quot;../interrupted&quot; event=&quot;interrupt_clicked&quot; port=&quot;ui&quot;&gt;
+                    &lt;script&gt;
+                        self.update_timers()
+                    &lt;/script&gt;
+                &lt;/transition&gt;
+            &lt;/state&gt;
+            &lt;state id=&quot;interrupted&quot;&gt;
+                &lt;transition target=&quot;.&quot; event=&quot;interrupt_clicked&quot; port=&quot;ui&quot;&gt;
+                    &lt;script&gt;
+                        self.update_timers()
+                    &lt;/script&gt;
+                &lt;/transition&gt;
+                &lt;transition target=&quot;../running&quot; event=&quot;continue_clicked&quot; port=&quot;ui&quot;&gt;
+                    &lt;script&gt;
+                        self.update_timers()
+                    &lt;/script&gt;
+                &lt;/transition&gt;
+            &lt;/state&gt;
+        &lt;/scxml&gt;
+    &lt;/class&gt;
+&lt;/diagram&gt;
+</pre></div>
+</div>
+<p>To compile, save this in a file called <code class="docutils literal"><span class="pre">timer.xml</span></code> and run <code class="docutils literal"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">sccd.compiler.sccdc</span> <span class="pre">-p</span> <span class="pre">eventloop</span> <span class="pre">-l</span> <span class="pre">python</span> <span class="pre">timer.xml</span></code></p>
+<p>Then, the following file will run the model:</p>
+<div class="highlight-default"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">Tkinter</span> <span class="k">as</span> <span class="nn">tk</span>
+<span class="kn">import</span> <span class="nn">timer</span>
+<span class="kn">from</span> <span class="nn">sccd.runtime.libs.ui</span> <span class="k">import</span> <span class="n">ui</span>
+<span class="kn">from</span> <span class="nn">sccd.runtime.statecharts_core</span> <span class="k">import</span> <span class="n">Event</span>
+<span class="kn">from</span> <span class="nn">sccd.runtime.tkinter_eventloop</span> <span class="k">import</span> <span class="o">*</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">ui</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="n">tk</span><span class="o">.</span><span class="n">Tk</span><span class="p">()</span>
+
+    <span class="n">controller</span> <span class="o">=</span> <span class="n">timer</span><span class="o">.</span><span class="n">Controller</span><span class="p">(</span><span class="n">TkEventLoop</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">window</span><span class="p">))</span>
+    <span class="n">controller</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+    <span class="n">ui</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">mainloop</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="eventloop-javascript">
+<h3>Eventloop (Javascript)<a class="headerlink" href="#eventloop-javascript" title="Permalink to this headline">¶</a></h3>
+<p>The SCCD model:</p>
+<div class="highlight-default"><div class="highlight"><pre>&lt;?xml version=&quot;1.0&quot; ?&gt;
+&lt;diagram author=&quot;Simon Van Mierlo&quot; name=&quot;Timer&quot;&gt;
+    &lt;inport name=&quot;ui&quot; /&gt;
+
+    &lt;class name=&quot;MainApp&quot; default=&quot;true&quot;&gt;
+        &lt;method name=&quot;MainApp&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                this.canvas = ui.append_canvas(ui.window,400,150,{&#39;background&#39;:&#39;#eee&#39;})
+                this.clock_text = this.canvas.add_text(25,25,&#39;0.0&#39;)
+                this.actual_clock_text = this.canvas.add_text(25,50,&#39;0.0&#39;)
+                var interrupt_button = ui.append_button(ui.window, &#39;INTERRUPT&#39;);
+                var continue_button = ui.append_button(ui.window, &#39;CONTINUE&#39;);
+                ui.bind_event(interrupt_button.element, ui.EVENTS.MOUSE_CLICK, this.controller, &#39;interrupt_clicked&#39;);
+                ui.bind_event(continue_button.element, ui.EVENTS.MOUSE_CLICK, this.controller, &#39;continue_clicked&#39;);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;method name=&quot;update_timers&quot;&gt;
+            &lt;body&gt;
+                this.clock_text.set_text((this.getSimulatedTime() / 1000).toFixed(2));
+                this.actual_clock_text.set_text((this.getSimulatedTime() / 1000).toFixed(2));
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;scxml initial=&quot;running&quot;&gt;
+            &lt;state id=&quot;running&quot;&gt;
+                &lt;transition target=&quot;.&quot; after=&quot;0.05&quot;&gt;
+                    &lt;script&gt;
+                        this.update_timers();
+                    &lt;/script&gt;
+                &lt;/transition&gt;
+                &lt;transition target=&quot;../interrupted&quot; event=&quot;interrupt_clicked&quot; port=&quot;ui&quot;&gt;
+                    &lt;script&gt;
+                        this.update_timers();
+                    &lt;/script&gt;
+                &lt;/transition&gt;
+            &lt;/state&gt;
+            &lt;state id=&quot;interrupted&quot;&gt;
+                &lt;transition target=&quot;.&quot; event=&quot;interrupt_clicked&quot; port=&quot;ui&quot;&gt;
+                    &lt;script&gt;
+                        this.update_timers();
+                    &lt;/script&gt;
+                &lt;/transition&gt;
+                &lt;transition target=&quot;../running&quot; event=&quot;continue_clicked&quot; port=&quot;ui&quot;&gt;
+                    &lt;script&gt;
+                        this.update_timers();
+                    &lt;/script&gt;
+                &lt;/transition&gt;
+            &lt;/state&gt;
+        &lt;/scxml&gt;
+    &lt;/class&gt;
+&lt;/diagram&gt;
+</pre></div>
+</div>
+<p>To compile, save this in a file called <code class="docutils literal"><span class="pre">timer.xml</span></code> and run <code class="docutils literal"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">sccd.compiler.sccdc</span> <span class="pre">-p</span> <span class="pre">eventloop</span> <span class="pre">-l</span> <span class="pre">javascript</span> <span class="pre">timer.xml</span></code></p>
+<p>Then, the following file will run the model:</p>
+<div class="highlight-default"><div class="highlight"><pre><span class="o">&lt;</span><span class="n">div</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;https://msdl.uantwerpen.be/git/simon/SCCD/raw/v0.9/src/javascript_sccd_runtime/libs/HackTimer.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;https://msdl.uantwerpen.be/git/simon/SCCD/raw/v0.9/src/javascript_sccd_runtime/statecharts_core.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;https://msdl.uantwerpen.be/git/simon/SCCD/raw/v0.9/src/javascript_sccd_runtime/libs/utils.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;https://msdl.uantwerpen.be/git/simon/SCCD/raw/v0.9/src/javascript_sccd_runtime/libs/svg.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;https://msdl.uantwerpen.be/git/simon/SCCD/raw/v0.9/src/javascript_sccd_runtime/libs/ui.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;timer.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span><span class="o">&gt;</span>
+        <span class="n">controller</span> <span class="o">=</span> <span class="n">new</span> <span class="n">Timer</span><span class="o">.</span><span class="n">Controller</span><span class="p">(</span><span class="n">new</span> <span class="n">JsEventLoop</span><span class="p">());</span>
+        <span class="n">controller</span><span class="o">.</span><span class="n">start</span><span class="p">();</span>
+    <span class="o">&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="traffic-lights">
+<h2>Traffic Lights<a class="headerlink" href="#traffic-lights" title="Permalink to this headline">¶</a></h2>
+<p>The traffic lights example demonstrates most functionality of SCCD. There are three lights (green, yellow, and red). The traffic light autonomously switches between them, but also listens for a police interrupt, which will flash the yellow light. When a second interrupt comes in, the light returns to its last configuration (using a history state).</p>
+<div class="section" id="python">
+<h3>Python<a class="headerlink" href="#python" title="Permalink to this headline">¶</a></h3>
+<p>The SCCD model:</p>
+<div class="highlight-default"><div class="highlight"><pre>&lt;?xml version=&quot;1.0&quot; ?&gt;
+&lt;diagram author=&quot;Raphael Mannadiar&quot; name=&quot;Traffic_Light_Python_Version&quot;&gt;
+    &lt;top&gt;
+        from sccd.runtime.libs.ui import ui
+    &lt;/top&gt;
+
+    &lt;inport name=&quot;ui&quot; /&gt;
+
+    &lt;class name=&quot;MainApp&quot; default=&quot;true&quot;&gt;
+        &lt;relationships&gt;
+            &lt;association name=&quot;trafficlight&quot; class=&quot;TrafficLight&quot; /&gt;
+        &lt;/relationships&gt;
+        &lt;method name=&quot;MainApp&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                self.canvas   = ui.append_canvas(ui.window,100,310,{&#39;background&#39;:&#39;#eee&#39;});
+                police_button = ui.append_button(ui.window, &#39;Police interrupt&#39;);
+                quit_button   = ui.append_button(ui.window, &#39;Quit&#39;);
+                ui.bind_event(police_button.element, ui.EVENTS.MOUSE_CLICK, self.controller, &#39;police_interrupt_clicked&#39;);
+                ui.bind_event(quit_button.element,      ui.EVENTS.MOUSE_CLICK, self.controller, &#39;quit_clicked&#39;);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;scxml initial=&quot;initializing&quot;&gt;
+            &lt;state id=&quot;initializing&quot;&gt;
+                &lt;transition target=&quot;../creating&quot;&gt;
+                    &lt;raise scope=&quot;cd&quot; event=&quot;create_instance&quot;&gt;
+                        &lt;parameter expr=&#39;&quot;trafficlight&quot;&#39; /&gt;
+                        &lt;parameter expr=&#39;&quot;TrafficLight&quot;&#39; /&gt;
+                        &lt;parameter expr=&quot;self.canvas&quot; /&gt;
+                    &lt;/raise&gt;
+                &lt;/transition&gt;
+            &lt;/state&gt;
+            &lt;state id=&quot;creating&quot;&gt;
+                &lt;transition event=&quot;instance_created&quot; target=&quot;../initialized&quot;&gt;
+                    &lt;parameter name=&quot;association_name&quot; type=&quot;string&quot;/&gt;
+                    &lt;raise scope=&quot;cd&quot; event=&quot;start_instance&quot;&gt;
+                        &lt;parameter expr=&quot;association_name&quot; /&gt;
+                    &lt;/raise&gt;
+                    &lt;raise scope=&quot;narrow&quot; event=&quot;set_association_name&quot; target=&quot;association_name&quot;&gt;
+                        &lt;parameter expr=&quot;association_name&quot; /&gt;
+                    &lt;/raise&gt;
+                &lt;/transition&gt;
+            &lt;/state&gt;
+            &lt;state id=&quot;initialized&quot;&gt;
+            &lt;/state&gt;
+        &lt;/scxml&gt;
+    &lt;/class&gt;
+
+    &lt;class name=&quot;TrafficLight&quot;&gt;
+        &lt;relationships&gt;
+        &lt;/relationships&gt;
+        &lt;method name=&quot;TrafficLight&quot;&gt;
+            &lt;parameter name=&quot;canvas&quot; /&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                size        = 100;
+                offset      = size+5;
+                self.RED    = 0;
+                self.YELLOW = 1;
+                self.GREEN  = 2;
+                self.colors = [&#39;#f00&#39;,&#39;#ff0&#39;,&#39;#0f0&#39;]
+                self.lights = [
+                    canvas.add_rectangle(size/2, size/2, size, size, {&#39;fill&#39;:&#39;#000&#39;}),
+                    canvas.add_rectangle(size/2, size/2+offset,     size, size, {&#39;fill&#39;:&#39;#000&#39;}),
+                    canvas.add_rectangle(size/2, size/2+2*offset, size, size, {&#39;fill&#39;:&#39;#000&#39;})];
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;method name=&quot;clear&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                self.lights[self.RED].set_color(&#39;#000&#39;);
+                self.lights[self.YELLOW].set_color(&#39;#000&#39;);
+                self.lights[self.GREEN].set_color(&#39;#000&#39;);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;method name=&quot;setGreen&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                self.clear();
+                self.lights[self.GREEN].set_color(self.colors[self.GREEN]);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;method name=&quot;setYellow&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                self.clear();
+                self.lights[self.YELLOW].set_color(self.colors[self.YELLOW]);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;method name=&quot;setRed&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                self.clear();
+                self.lights[self.RED].set_color(self.colors[self.RED]);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;scxml initial=&quot;on&quot;&gt;
+            &lt;state id=&quot;on&quot; initial=&quot;normal&quot;&gt;
+                &lt;state id=&quot;normal&quot; initial=&quot;red&quot;&gt;
+                    &lt;state id=&quot;red&quot;&gt;
+                        &lt;onentry&gt;
+                            &lt;script&gt;
+                                &lt;![CDATA[
+                                self.setRed();
+                                ]]&gt;
+                            &lt;/script&gt;
+                        &lt;/onentry&gt;
+                        &lt;transition after=&#39;3&#39; target=&#39;../green&#39;/&gt;
+                    &lt;/state&gt;
+                    &lt;state id=&quot;green&quot;&gt;
+                        &lt;onentry&gt;
+                            &lt;script&gt;
+                                &lt;![CDATA[
+                                self.setGreen();
+                                ]]&gt;
+                            &lt;/script&gt;
+                        &lt;/onentry&gt;
+                        &lt;transition after=&#39;2&#39; target=&#39;../yellow&#39;/&gt;
+                    &lt;/state&gt;
+                    &lt;state id=&quot;yellow&quot;&gt;
+                        &lt;onentry&gt;
+                            &lt;script&gt;
+                                &lt;![CDATA[
+                                self.setYellow();
+                                ]]&gt;
+                            &lt;/script&gt;
+                        &lt;/onentry&gt;
+                    &lt;transition after=&#39;1&#39; target=&#39;../red&#39;/&gt;
+                    &lt;/state&gt;
+                    &lt;transition event=&#39;police_interrupt_clicked&#39; port=&#39;ui&#39; target=&#39;../interrupted&#39;/&gt;
+                    &lt;history id=&quot;history&quot;/&gt;
+                &lt;/state&gt;
+                &lt;state id=&quot;interrupted&quot; initial=&quot;yellow&quot;&gt;
+                    &lt;state id=&quot;yellow&quot;&gt;
+                        &lt;onentry&gt;
+                            &lt;script&gt;
+                                &lt;![CDATA[
+                                self.setYellow();
+                                ]]&gt;
+                            &lt;/script&gt;
+                        &lt;/onentry&gt;
+                        &lt;transition after=&#39;.5&#39; target=&#39;../black&#39;/&gt;
+                    &lt;/state&gt;
+                    &lt;state id=&quot;black&quot;&gt;
+                        &lt;onentry&gt;
+                            &lt;script&gt;
+                                &lt;![CDATA[
+                                self.clear();
+                                ]]&gt;
+                            &lt;/script&gt;
+                        &lt;/onentry&gt;
+                        &lt;transition after=&#39;.5&#39; target=&#39;../yellow&#39;/&gt;
+                    &lt;/state&gt;
+                    &lt;transition event=&#39;police_interrupt_clicked&#39; port=&#39;ui&#39; target=&#39;../normal/history&#39;/&gt;
+                &lt;/state&gt;
+                &lt;transition event=&#39;quit_clicked&#39; port=&#39;ui&#39; target=&#39;../off&#39;/&gt;
+            &lt;/state&gt;
+            &lt;state id=&quot;off&quot;&gt;
+                &lt;onentry&gt;
+                    &lt;script&gt;
+                        &lt;![CDATA[
+                        self.clear();
+                        ]]&gt;
+                    &lt;/script&gt;
+                &lt;/onentry&gt;
+            &lt;/state&gt;
+        &lt;/scxml&gt;
+    &lt;/class&gt;
+&lt;/diagram&gt;
+</pre></div>
+</div>
+<p>To compile, save this in a file called <code class="docutils literal"><span class="pre">trafficlight.xml</span></code> and run <code class="docutils literal"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">sccd.compiler.sccdc</span> <span class="pre">-p</span> <span class="pre">eventloop</span> <span class="pre">-l</span> <span class="pre">python</span> <span class="pre">trafficlight.xml</span></code></p>
+<p>Then, the following file will run the model:</p>
+<div class="highlight-default"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">Tkinter</span> <span class="k">as</span> <span class="nn">tk</span>
+<span class="kn">import</span> <span class="nn">trafficlight</span>
+<span class="kn">from</span> <span class="nn">sccd.runtime.libs.ui</span> <span class="k">import</span> <span class="n">ui</span>
+<span class="kn">from</span> <span class="nn">sccd.runtime.statecharts_core</span> <span class="k">import</span> <span class="n">Event</span>
+<span class="kn">from</span> <span class="nn">sccd.runtime.tkinter_eventloop</span> <span class="k">import</span> <span class="o">*</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">ui</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="n">tk</span><span class="o">.</span><span class="n">Tk</span><span class="p">()</span>
+
+    <span class="n">controller</span> <span class="o">=</span> <span class="n">trafficlight</span><span class="o">.</span><span class="n">Controller</span><span class="p">(</span><span class="n">TkEventLoop</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">window</span><span class="p">))</span>
+    <span class="n">controller</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+    <span class="n">ui</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">mainloop</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="javascript">
+<h3>Javascript<a class="headerlink" href="#javascript" title="Permalink to this headline">¶</a></h3>
+<p>The SCCD model:</p>
+<div class="highlight-default"><div class="highlight"><pre>&lt;?xml version=&quot;1.0&quot; ?&gt;
+&lt;diagram author=&quot;Raphael Mannadiar&quot; name=&quot;Traffic_Light_JavaScript_Version&quot;&gt;
+    &lt;inport name=&quot;ui&quot; /&gt;
+
+    &lt;class name=&quot;MainApp&quot; default=&quot;true&quot;&gt;
+        &lt;relationships&gt;
+            &lt;association name=&quot;trafficlight&quot; class=&quot;TrafficLight&quot; /&gt;
+        &lt;/relationships&gt;
+        &lt;method name=&quot;MainApp&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                this.canvas = ui.append_canvas(ui.window,100,310,{&#39;background&#39;:&#39;#eee&#39;});
+                var police_button = ui.append_button(ui.window, &#39;Police interrupt&#39;);
+                var quit_button     = ui.append_button(ui.window, &#39;Quit&#39;);
+                ui.bind_event(police_button.element, ui.EVENTS.MOUSE_CLICK, this.controller, &#39;police_interrupt_clicked&#39;);
+                ui.bind_event(quit_button.element,   ui.EVENTS.MOUSE_CLICK, this.controller, &#39;quit_clicked&#39;);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;scxml initial=&quot;initializing&quot;&gt;
+            &lt;state id=&quot;initializing&quot;&gt;
+                &lt;transition target=&quot;../creating&quot;&gt;
+                    &lt;raise scope=&quot;cd&quot; event=&quot;create_instance&quot;&gt;
+                        &lt;parameter expr=&#39;&quot;trafficlight&quot;&#39; /&gt;
+                        &lt;parameter expr=&#39;&quot;TrafficLight&quot;&#39; /&gt;
+                        &lt;parameter expr=&quot;this.canvas&quot; /&gt;
+                    &lt;/raise&gt;
+                &lt;/transition&gt;
+            &lt;/state&gt;
+            &lt;state id=&quot;creating&quot;&gt;
+                &lt;transition event=&quot;instance_created&quot; target=&quot;../initialized&quot;&gt;
+                    &lt;parameter name=&quot;association_name&quot; type=&quot;string&quot;/&gt;
+                    &lt;raise scope=&quot;cd&quot; event=&quot;start_instance&quot;&gt;
+                        &lt;parameter expr=&quot;association_name&quot; /&gt;
+                    &lt;/raise&gt;
+                    &lt;raise scope=&quot;narrow&quot; event=&quot;set_association_name&quot; target=&quot;association_name&quot;&gt;
+                        &lt;parameter expr=&quot;association_name&quot; /&gt;
+                    &lt;/raise&gt;
+                &lt;/transition&gt;
+            &lt;/state&gt;
+            &lt;state id=&quot;initialized&quot;&gt;
+            &lt;/state&gt;
+        &lt;/scxml&gt;
+    &lt;/class&gt;
+
+    &lt;class name=&quot;TrafficLight&quot;&gt;
+        &lt;relationships&gt;
+        &lt;/relationships&gt;
+        &lt;method name=&quot;TrafficLight&quot;&gt;
+            &lt;parameter name=&quot;canvas&quot; /&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                var size    = 100;
+                var offset  = size+5;
+                this.RED    = 0;
+                this.YELLOW = 1;
+                this.GREEN  = 2;
+                this.colors = [&#39;#f00&#39;,&#39;#ff0&#39;,&#39;#0f0&#39;]
+                this.lights = [canvas.add_rectangle(size/2, size/2,                          size, size, {&#39;fill&#39;:&#39;#000&#39;}),
+                                    canvas.add_rectangle(size/2, size/2+offset,      size, size, {&#39;fill&#39;:&#39;#000&#39;}),
+                                    canvas.add_rectangle(size/2, size/2+2*offset, size, size, {&#39;fill&#39;:&#39;#000&#39;})];
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;method name=&quot;clear&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                this.lights[this.RED].set_color(&#39;#000&#39;);
+                this.lights[this.YELLOW].set_color(&#39;#000&#39;);
+                this.lights[this.GREEN].set_color(&#39;#000&#39;);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;method name=&quot;setGreen&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                this.clear();
+                this.lights[this.GREEN].set_color(this.colors[this.GREEN]);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;method name=&quot;setYellow&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                this.clear();
+                this.lights[this.YELLOW].set_color(this.colors[this.YELLOW]);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;method name=&quot;setRed&quot;&gt;
+            &lt;body&gt;
+                &lt;![CDATA[
+                this.clear();
+                this.lights[this.RED].set_color(this.colors[this.RED]);
+                ]]&gt;
+            &lt;/body&gt;
+        &lt;/method&gt;
+        &lt;scxml initial=&quot;on&quot;&gt;
+            &lt;state id=&quot;on&quot; initial=&quot;normal&quot;&gt;
+                &lt;state id=&quot;normal&quot; initial=&quot;red&quot;&gt;
+                    &lt;state id=&quot;red&quot;&gt;
+                        &lt;onentry&gt;
+                            &lt;script&gt;
+                                &lt;![CDATA[
+                                this.setRed();
+                                ]]&gt;
+                            &lt;/script&gt;
+                        &lt;/onentry&gt;
+                        &lt;transition after=&#39;3&#39; target=&#39;../green&#39;/&gt;
+                    &lt;/state&gt;
+                    &lt;state id=&quot;green&quot;&gt;
+                        &lt;onentry&gt;
+                            &lt;script&gt;
+                                &lt;![CDATA[
+                                this.setGreen();
+                                ]]&gt;
+                            &lt;/script&gt;
+                        &lt;/onentry&gt;
+                        &lt;transition after=&#39;2&#39; target=&#39;../yellow&#39;/&gt;
+                    &lt;/state&gt;
+                    &lt;state id=&quot;yellow&quot;&gt;
+                        &lt;onentry&gt;
+                            &lt;script&gt;
+                                &lt;![CDATA[
+                                this.setYellow();
+                                ]]&gt;
+                            &lt;/script&gt;
+                        &lt;/onentry&gt;
+                    &lt;transition after=&#39;1&#39; target=&#39;../red&#39;/&gt;
+                    &lt;/state&gt;
+                    &lt;transition event=&#39;police_interrupt_clicked&#39; port=&#39;ui&#39; target=&#39;../interrupted&#39;/&gt;
+                    &lt;history id=&quot;history&quot;/&gt;
+                &lt;/state&gt;
+                &lt;state id=&quot;interrupted&quot; initial=&quot;yellow&quot;&gt;
+                    &lt;state id=&quot;yellow&quot;&gt;
+                        &lt;onentry&gt;
+                            &lt;script&gt;
+                                &lt;![CDATA[
+                                this.setYellow();
+                                ]]&gt;
+                            &lt;/script&gt;
+                        &lt;/onentry&gt;
+                        &lt;transition after=&#39;.5&#39; target=&#39;../black&#39;/&gt;
+                    &lt;/state&gt;
+                    &lt;state id=&quot;black&quot;&gt;
+                        &lt;onentry&gt;
+                            &lt;script&gt;
+                                &lt;![CDATA[
+                                this.clear();
+                                ]]&gt;
+                            &lt;/script&gt;
+                        &lt;/onentry&gt;
+                        &lt;transition after=&#39;.5&#39; target=&#39;../yellow&#39;/&gt;
+                    &lt;/state&gt;
+                    &lt;transition event=&#39;police_interrupt_clicked&#39; port=&#39;ui&#39; target=&#39;../normal/history&#39;/&gt;
+                &lt;/state&gt;
+                &lt;transition event=&#39;quit_clicked&#39; port=&#39;ui&#39; target=&#39;../off&#39;/&gt;
+            &lt;/state&gt;
+            &lt;state id=&quot;off&quot;&gt;
+                &lt;onentry&gt;
+                    &lt;script&gt;
+                        &lt;![CDATA[
+                        this.clear();
+                        ]]&gt;
+                    &lt;/script&gt;
+                &lt;/onentry&gt;
+            &lt;/state&gt;
+        &lt;/scxml&gt;
+    &lt;/class&gt;
+&lt;/diagram&gt;
+</pre></div>
+</div>
+<p>To compile, save this in a file called <code class="docutils literal"><span class="pre">trafficlight.xml</span></code> and run <code class="docutils literal"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">sccd.compiler.sccdc</span> <span class="pre">-p</span> <span class="pre">eventloop</span> <span class="pre">-l</span> <span class="pre">javascript</span> <span class="pre">trafficlight.xml</span></code></p>
+<p>Then, the following file will run the model:</p>
+<div class="highlight-default"><div class="highlight"><pre><span class="o">&lt;</span><span class="n">div</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;https://msdl.uantwerpen.be/git/simon/SCCD/raw/v0.9/src/javascript_sccd_runtime/libs/HackTimer.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;https://msdl.uantwerpen.be/git/simon/SCCD/raw/v0.9/src/javascript_sccd_runtime/statecharts_core.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;https://msdl.uantwerpen.be/git/simon/SCCD/raw/v0.9/src/javascript_sccd_runtime/libs/utils.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;https://msdl.uantwerpen.be/git/simon/SCCD/raw/v0.9/src/javascript_sccd_runtime/libs/svg.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;https://msdl.uantwerpen.be/git/simon/SCCD/raw/v0.9/src/javascript_sccd_runtime/libs/ui.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span> <span class="n">src</span><span class="o">=</span><span class="s">&quot;trafficlight.js&quot;</span><span class="o">&gt;&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">script</span><span class="o">&gt;</span>
+    <span class="n">controller</span> <span class="o">=</span> <span class="n">new</span> <span class="n">Traffic_Light_JavaScript_Version</span><span class="o">.</span><span class="n">Controller</span><span class="p">(</span><span class="n">new</span> <span class="n">JsEventLoop</span><span class="p">());</span>
+    <span class="n">controller</span><span class="o">.</span><span class="n">start</span><span class="p">();</span>
+    <span class="o">&lt;/</span><span class="n">script</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">div</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Examples</a><ul>
+<li><a class="reference internal" href="#timer">Timer</a><ul>
+<li><a class="reference internal" href="#threads-python">Threads (Python)</a></li>
+<li><a class="reference internal" href="#eventloop-python">Eventloop (Python)</a></li>
+<li><a class="reference internal" href="#eventloop-javascript">Eventloop (Javascript)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#traffic-lights">Traffic Lights</a><ul>
+<li><a class="reference internal" href="#python">Python</a></li>
+<li><a class="reference internal" href="#javascript">Javascript</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="runtime_platforms.html"
+                        title="previous chapter">Runtime Platforms</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="semantic_options.html"
+                        title="next chapter">Semantic Options</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/examples.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="semantic_options.html" title="Semantic Options"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="runtime_platforms.html" title="Runtime Platforms"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">SCCD 0.9 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2016, Simon Van Mierlo.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.6.
+    </div>
+  </body>
+</html>

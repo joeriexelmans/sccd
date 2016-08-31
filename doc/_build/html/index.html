@@ -1,0 +1,188 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>SCCD Documentation &#8212; SCCD 0.9 documentation</title>
+    
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/mystyle.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.9',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="SCCD 0.9 documentation" href="#" />
+    <link rel="next" title="Installation" href="installation.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             accesskey="N">next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">SCCD 0.9 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="sccd-documentation">
+<h1>SCCD Documentation<a class="headerlink" href="#sccd-documentation" title="Permalink to this headline">¶</a></h1>
+<p>SCCD <a class="reference internal" href="#sccd" id="id1">[SCCD]</a> is a language that combines the Statecharts <a class="reference internal" href="#statecharts" id="id2">[Statecharts]</a> language with Class Diagrams. It allows users to model complex, timed, autonomous, reactive, dynamic-structure systems.</p>
+<p>The concrete syntax of SCCD is an XML-format loosely based on the <a class="reference external" href="https://www.w3.org/TR/scxml/">W3C SCXML recommendation</a>. A conforming model can be compiled to a number of programming languages, as well as a number of runtime platforms implemented in those languages. This maximizes the number of applications that can be modelled using SCCD, such as user interfaces, the artificial intelligence of game characters, controller software, and much more.</p>
+<p>This documentation serves as an introduction to the SCCD language, its compiler, and the different supported runtime platforms.</p>
+<div class="section" id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html"> Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#download">Download</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#sccd-installation">SCCD Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="language_features.html"> Language Features</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="language_features.html#top-level-elements">Top-Level Elements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="language_features.html#class-diagram-concepts">Class Diagram Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="language_features.html#statechart-concepts">Statechart Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="language_features.html#executable-content">Executable Content</a></li>
+<li class="toctree-l2"><a class="reference internal" href="language_features.html#macros">Macros</a></li>
+<li class="toctree-l2"><a class="reference internal" href="language_features.html#object-manager">Object Manager</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="compiler.html"> Compiler</a></li>
+<li class="toctree-l1"><a class="reference internal" href="runtime_platforms.html"> Runtime Platforms</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="runtime_platforms.html#threads">Threads</a></li>
+<li class="toctree-l2"><a class="reference internal" href="runtime_platforms.html#eventloop">Eventloop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="runtime_platforms.html#gameloop">Gameloop</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html"> Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#timer">Timer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#traffic-lights">Traffic Lights</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="semantic_options.html"> Semantic Options</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="semantic_options.html#big-step-maximality">Big Step Maximality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic_options.html#internal-event-lifeline">Internal Event Lifeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic_options.html#input-event-lifeline">Input Event Lifeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic_options.html#priority">Priority</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic_options.html#concurrency">Concurrency</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sockets.html"> Socket Communication</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="sockets.html#initialization">Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sockets.html#input-events">Input Events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sockets.html#output-events">Output Events</a></li>
+<li class="toctree-l2"><a class="reference internal" href="sockets.html#http-client-server">HTTP client/server</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="internal_documentation.html"> Internal Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="statecharts_core_int.html">Statecharts Core</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="references">
+<h2>References<a class="headerlink" href="#references" title="Permalink to this headline">¶</a></h2>
+<table class="docutils citation" frame="void" id="sccd" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[SCCD]</a></td><td>Simon Van Mierlo, Yentl Van Tendeloo, Bart Meyers, Joeri Exelmans, and Hans Vangheluwe. SCCD: SCXML extended with class diagrams. In <em>3rd Workshop on Engineering Interactive Systems with SCXML, part of EICS 2016</em>, 2016. [<a class="reference external" href="http://www.scxmlworkshop.de/eics2016/submissions/SCCD%20SCXML%20Extended%20with%20Class%20Diagrams.pdf">LINK</a>]</td></tr>
+</tbody>
+</table>
+<table class="docutils citation" frame="void" id="statecharts" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id2">[Statecharts]</a></td><td>David Harel. Statecharts: A visual formalism for complex systems. <em>Sci. Comput. Program. 8</em>, 3 (1987), 231–274. [<a class="reference external" href="http://www.inf.ed.ac.uk/teaching/courses/seoc/2005_2006/resources/statecharts.pdf">LINK</a>]</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">SCCD Documentation</a><ul>
+<li><a class="reference internal" href="#contents">Contents</a></li>
+<li><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Next topic</h4>
+  <p class="topless"><a href="installation.html"
+                        title="next chapter">Installation</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             >next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">SCCD 0.9 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2016, Simon Van Mierlo.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.6.
+    </div>
+  </body>
+</html>

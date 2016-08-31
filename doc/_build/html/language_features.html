@@ -1,0 +1,693 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Language Features &#8212; SCCD 0.9 documentation</title>
+    
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/mystyle.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.9',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="SCCD 0.9 documentation" href="index.html" />
+    <link rel="next" title="Compiler" href="compiler.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="compiler.html" title="Compiler"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">SCCD 0.9 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="language-features">
+<h1>Language Features<a class="headerlink" href="#language-features" title="Permalink to this headline">¶</a></h1>
+<p>SCCD(XML)&#8217;s notation is loosely based on the <a class="reference external" href="https://www.w3.org/TR/scxml/">W3C SCXML recommendation</a>. It adds concepts of Class Diagrams. In essence, an SCCD model consists of a number of classes that are related to each other through associations. Each class has a Statechart, defining its runtime behavior.</p>
+<p>One class is the default class. When the system is run, the runtime creates and starts one instance of that class. Instances can create, start, and delete instances of classes (if it&#8217;s allowed by the constraints modelled on the class diagram). They can also create and delete instances of associations (<em>i.e.</em> links between instances). These links are used for one instance to communicate with (an)other instance(s).</p>
+<div class="section" id="top-level-elements">
+<h2>Top-Level Elements<a class="headerlink" href="#top-level-elements" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="diagram">
+<span id="id1"></span><h3>&lt;diagram&gt;<a class="headerlink" href="#diagram" title="Permalink to this headline">¶</a></h3>
+<p>The top-level element of an SCCD model is a <code class="docutils literal"><span class="pre">&lt;diagram&gt;</span></code>. It has two attributes:</p>
+<ul class="simple">
+<li><em>name</em> specifies the name of the diagram. For models compiled to Python, this is purely informative, while in Javascript this is the name of the namespace to which the compiled classes belong.</li>
+<li><em>author</em> specifies who authored the model</li>
+</ul>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..1]</span></code> <a class="reference internal" href="#description"><span class="std std-ref">&lt;description&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..1]</span></code> <a class="reference internal" href="#top"><span class="std std-ref">&lt;top&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#inport-outport"><span class="std std-ref">&lt;inport&gt; and &lt;outport&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[1..n]</span></code> <a class="reference internal" href="#class"><span class="std std-ref">&lt;class&gt;</span></a></li>
+</ul>
+</div>
+<div class="section" id="description">
+<span id="id2"></span><h3>&lt;description&gt;<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#diagram"><span class="std std-ref">&lt;diagram&gt;</span></a>.</p>
+</div>
+<p>The <code class="docutils literal"><span class="pre">&lt;description&gt;</span></code> element contains a description of the diagram and optionally occurs once. It will be placed as a comment at the top of the compiled file.</p>
+</div>
+<div class="section" id="top">
+<span id="id3"></span><h3>&lt;top&gt;<a class="headerlink" href="#top" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#diagram"><span class="std std-ref">&lt;diagram&gt;</span></a>.</p>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Python only!</p>
+</div>
+<p>The <code class="docutils literal"><span class="pre">&lt;top&gt;</span></code> element can be used to import additional library modules to be used by the classes modelled in the diagram. It can optionally occur once.</p>
+</div>
+<div class="section" id="inport-and-outport">
+<span id="inport-outport"></span><h3>&lt;inport&gt; and &lt;outport&gt;<a class="headerlink" href="#inport-and-outport" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#diagram"><span class="std std-ref">&lt;diagram&gt;</span></a> or <a class="reference internal" href="#class"><span class="std std-ref">&lt;class&gt;</span></a>.</p>
+</div>
+<p>An <code class="docutils literal"><span class="pre">&lt;inport&gt;</span></code> models a communication channel which can receive events from the outside world. An <code class="docutils literal"><span class="pre">&lt;outport&gt;</span></code> models a communication channel with which instances can send event to the outside world.</p>
+<p>Ports have one attribute: a <em>name</em>. This name can be referenced either in <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a> (for input ports) or <a class="reference internal" href="#raise"><span class="std std-ref">&lt;raise&gt;</span></a> (for output ports).</p>
+<p>In case the port is a child of a class, the port is local to that class. Each instance of the class will receive a private instance of the port, on which only they can receive events or can send events to.</p>
+</div>
+</div>
+<div class="section" id="class-diagram-concepts">
+<h2>Class Diagram Concepts<a class="headerlink" href="#class-diagram-concepts" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="class">
+<span id="id4"></span><h3>&lt;class&gt;<a class="headerlink" href="#class" title="Permalink to this headline">¶</a></h3>
+<p>Classes are the basic building block of an SCCD diagram. They model structure in the form of attributes and relations with other classes, and behavior in the form of methods (which can change the value of attributes) and a Statecharts model (which governs the runtime behavior of the class).</p>
+<p>A <code class="docutils literal"><span class="pre">&lt;class&gt;</span></code> element has three attributes:</p>
+<ul class="simple">
+<li><em>name</em>: the name of the class</li>
+<li><em>default</em>: true if this is the default class (of which one instance is created and started at the start of executing the compiled code)</li>
+<li><em>src</em>: the location of a separate XML file (relative to the location in which the main diagram is compiled), containing the definition of the class. If this attribute is set, the <em>name</em> attribute cannot be set, nor can the class element have any children.</li>
+</ul>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..1]</span></code> <a class="reference internal" href="#relationships"><span class="std std-ref">&lt;relationships&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#attribute"><span class="std std-ref">&lt;attribute&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..1]</span></code> <a class="reference internal" href="#constructor"><span class="std std-ref">&lt;constructor&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..1]</span></code> <a class="reference internal" href="#destructor"><span class="std std-ref">&lt;destructor&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#method"><span class="std std-ref">&lt;method&gt;</span></a></li>
+</ul>
+</div>
+<div class="section" id="relationships">
+<span id="id5"></span><h3>&lt;relationships&gt;<a class="headerlink" href="#relationships" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#class"><span class="std std-ref">&lt;class&gt;</span></a>.</p>
+</div>
+<p>Models a number of relationships between its parent class and other classes of the diagram.</p>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#association"><span class="std std-ref">&lt;association&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#inheritance"><span class="std std-ref">&lt;inheritance&gt;</span></a></li>
+</ul>
+</div>
+<div class="section" id="association">
+<span id="id6"></span><h3>&lt;association&gt;<a class="headerlink" href="#association" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#relationships"><span class="std std-ref">&lt;relationships&gt;</span></a>.</p>
+</div>
+<p>An association relation can be insantiated in order to link two instances at runtime, and those instances to exchange messages over that link. An association has two attributes:</p>
+<ul class="simple">
+<li><em>name</em>: the name of the association</li>
+<li><em>class</em>: the name of the target class</li>
+<li><em>min</em>: the minimal cardinality of the association (defaults to 0)</li>
+<li><em>max</em>: the maximum cardinality of the association (defaults to infinity)</li>
+</ul>
+</div>
+<div class="section" id="inheritance">
+<span id="id7"></span><h3>&lt;inheritance&gt;<a class="headerlink" href="#inheritance" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#relationships"><span class="std std-ref">&lt;relationships&gt;</span></a>.</p>
+</div>
+<p>An inhertiance relation allows one class to inherit all methods and attribute from another class. Behaviour (<em>i.e.</em>, the <a class="reference internal" href="#scxml"><span class="std std-ref">&lt;scxml&gt;</span></a> element) of the parent is not inherited. An inheritance relation has four attributes:</p>
+<ul class="simple">
+<li><em>class</em>: the name of the target class</li>
+<li><em>priority</em>: allows to specify in which order classes need to be inherited (in case of multiple inheritance). Inheritance relations with higher priority are inherited from first.</li>
+</ul>
+</div>
+<div class="section" id="attribute">
+<span id="id8"></span><h3>&lt;attribute&gt;<a class="headerlink" href="#attribute" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#class"><span class="std std-ref">&lt;class&gt;</span></a>.</p>
+</div>
+<p>An <a class="reference internal" href="#attribute"><span class="std std-ref">&lt;attribute&gt;</span></a> element has two attributes:</p>
+<ul class="simple">
+<li><em>name</em>: the name of the attribute</li>
+<li><em>type</em>: the type of the attribute</li>
+</ul>
+</div>
+<div class="section" id="constructor">
+<span id="id9"></span><h3>&lt;constructor&gt;<a class="headerlink" href="#constructor" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#class"><span class="std std-ref">&lt;class&gt;</span></a>.</p>
+</div>
+<p>The constructor is called when an object is instantiated. It is used to initialize the instance&#8217;s attribute values.</p>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#parameter"><span class="std std-ref">&lt;parameter&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[1..1]</span></code> <a class="reference internal" href="#body"><span class="std std-ref">&lt;body&gt;</span></a></li>
+</ul>
+</div>
+<div class="section" id="destructor">
+<span id="id10"></span><h3>&lt;destructor&gt;<a class="headerlink" href="#destructor" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#class"><span class="std std-ref">&lt;class&gt;</span></a>.</p>
+</div>
+<p>The destructor is called just before an object is deleted.</p>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[1..1]</span></code> <a class="reference internal" href="#body"><span class="std std-ref">&lt;body&gt;</span></a></li>
+</ul>
+</div>
+<div class="section" id="method">
+<span id="id11"></span><h3>&lt;method&gt;<a class="headerlink" href="#method" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#class"><span class="std std-ref">&lt;class&gt;</span></a>.</p>
+</div>
+<p>A method is a block of action code that can be called repeatedly in other code blocks that belong to the same class definition. It has two attributes:</p>
+<ul class="simple">
+<li><em>name</em>: the name of the method</li>
+<li><em>type</em>: the type of the return value (optional)</li>
+</ul>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#parameter"><span class="std std-ref">&lt;parameter&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[1..1]</span></code> <a class="reference internal" href="#body"><span class="std std-ref">&lt;body&gt;</span></a></li>
+</ul>
+</div>
+<div class="section" id="body">
+<span id="id12"></span><h3>&lt;body&gt;<a class="headerlink" href="#body" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#method"><span class="std std-ref">&lt;method&gt;</span></a>, <a class="reference internal" href="#constructor"><span class="std std-ref">&lt;constructor&gt;</span></a>, or <a class="reference internal" href="#destructor"><span class="std std-ref">&lt;destructor&gt;</span></a>.</p>
+</div>
+<p>A <a class="reference internal" href="#body"><span class="std std-ref">&lt;body&gt;</span></a> element is a block of action code in a programming language (depending on the target language to which the model is compiled). It allows to call other functions and change the values of instance variables. If any parameters were defined as children of this element&#8217;s parent, they can be referenced by name.</p>
+</div>
+</div>
+<div class="section" id="statechart-concepts">
+<h2>Statechart Concepts<a class="headerlink" href="#statechart-concepts" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="scxml">
+<span id="id13"></span><h3>&lt;scxml&gt;<a class="headerlink" href="#scxml" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#class"><span class="std std-ref">&lt;class&gt;</span></a>.</p>
+</div>
+<p>The top-level element containing the Statecharts definition of its parent class. It has one attribute:</p>
+<ul class="simple">
+<li><em>initial</em>: specifies the initial child state of the Statechart (optional). If omitted, the first child in document order is the initial state.</li>
+<li><em>big_step_maximality</em>: (optional). See <a class="reference internal" href="semantic_options.html#big-step-maximality"><span class="std std-ref">Big Step Maximality</span></a>. Allowed values are &#8220;take_many&#8221; (default), &#8220;take_one&#8221;.</li>
+<li><em>internal_event_lifeline</em>: (optional). See <a class="reference internal" href="semantic_options.html#internal-event-lifeline"><span class="std std-ref">Internal Event Lifeline</span></a>. Allowed values are &#8220;queue&#8221; (default), &#8220;next_small_step&#8221;, &#8220;next_combo_step&#8221;.</li>
+<li><em>input_event_lifeline</em>: (optional). See <a class="reference internal" href="semantic_options.html#input-event-lifeline"><span class="std std-ref">Input Event Lifeline</span></a>. Allowed values are &#8220;first_combo_step&#8221; (default), &#8220;first_small_step&#8221;, &#8220;whole&#8221;.</li>
+<li><em>priority</em>: (optional). See <a class="reference internal" href="semantic_options.html#priority"><span class="std std-ref">Priority</span></a>. Allowed values are &#8220;source_parent&#8221; (default), &#8220;source_child&#8221;.</li>
+<li><em>concurrency</em>: (optional). See <a class="reference internal" href="semantic_options.html#concurrency"><span class="std std-ref">Concurrency</span></a>. Allowed values are &#8220;single&#8221; (default), &#8220;many&#8221;.</li>
+</ul>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#state"><span class="std std-ref">&lt;state&gt;</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#parallel"><span class="std std-ref">&lt;parallel&gt;</span></a>.</li>
+</ul>
+</div>
+<div class="section" id="state">
+<span id="id14"></span><h3>&lt;state&gt;<a class="headerlink" href="#state" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#scxml"><span class="std std-ref">&lt;scxml&gt;</span></a>, <a class="reference internal" href="#state"><span class="std std-ref">&lt;state&gt;</span></a>, or <a class="reference internal" href="#parallel"><span class="std std-ref">&lt;parallel&gt;</span></a>.</p>
+</div>
+<p>A state is the basic building block of a Statechart. It represents a &#8220;mode&#8221; the system can be in. A state can be entered (which executes an optional block of executable content) and exited (which executes an optional block of executable content) using transitions (which execute an optional block of executable content). States can be hierarchical (<em>i.e.</em>, one state can contain other states). A state has two attributes:</p>
+<ul class="simple">
+<li><em>id</em>: the identifier of the state. Needs to be unique with respect to other state ids on the same level (<em>i.e.</em>, the parent state cannot have two children with identical ids).</li>
+<li><em>initial</em>: Specifies the initial child state, if this state is a composite state (optional). If omitted, the first child in document order is the initial state.</li>
+</ul>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#state"><span class="std std-ref">&lt;state&gt;</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#parallel"><span class="std std-ref">&lt;parallel&gt;</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#history"><span class="std std-ref">&lt;history&gt;</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">[0..1]</span></code> <a class="reference internal" href="#onentry"><span class="std std-ref">&lt;onentry&gt;</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">[0..1]</span></code> <a class="reference internal" href="#onexit"><span class="std std-ref">&lt;onexit&gt;</span></a>.</li>
+</ul>
+</div>
+<div class="section" id="parallel">
+<span id="id15"></span><h3>&lt;parallel&gt;<a class="headerlink" href="#parallel" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#scxml"><span class="std std-ref">&lt;scxml&gt;</span></a>, <a class="reference internal" href="#state"><span class="std std-ref">&lt;state&gt;</span></a>, or <a class="reference internal" href="#parallel"><span class="std std-ref">&lt;parallel&gt;</span></a>.</p>
+</div>
+<p>A parallel state&#8217;s children run, as the name reveals, in parallel. This means that each child of the parallel state is able to execute a transition <em>at the same time</em>. This is useful to naturally model concurrent behavior, such as animating elements on a canvas while also listening for user input. A paralle state has one attribute:</p>
+<ul class="simple">
+<li><em>id</em>: the identifier of the parallel state. Needs to be unique with respect to other state ids on the same level (<em>i.e.</em>, the parent state cannot have two children with identical ids).</li>
+</ul>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#state"><span class="std std-ref">&lt;state&gt;</span></a>. These children <strong>must</strong> be composite.</li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#parallel"><span class="std std-ref">&lt;parallel&gt;</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#history"><span class="std std-ref">&lt;history&gt;</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">[0..1]</span></code> <a class="reference internal" href="#onentry"><span class="std std-ref">&lt;onentry&gt;</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">[0..1]</span></code> <a class="reference internal" href="#onexit"><span class="std std-ref">&lt;onexit&gt;</span></a>.</li>
+</ul>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">A transition from a child state cannot exit the parallel region, as this breaks encapsulation and can interfere with the behavior of other children of the parallel state. Only transitions directly from the parallel state can exit the parallel region (which will automatically exit its children as well).</p>
+</div>
+</div>
+<div class="section" id="transition">
+<span id="id16"></span><h3>&lt;transition&gt;<a class="headerlink" href="#transition" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#scxml"><span class="std std-ref">&lt;scxml&gt;</span></a>, <a class="reference internal" href="#state"><span class="std std-ref">&lt;state&gt;</span></a>, or <a class="reference internal" href="#parallel"><span class="std std-ref">&lt;parallel&gt;</span></a>.</p>
+</div>
+<p>A transition allows the system to change state (<em>i.e.</em>, go from one &#8220;mode&#8221; to the next). Transitions are <em>triggered</em> by an event or a timeout, or can be spontaneous. They can optionally specify a condition that additionally needs to evaluate to true. A transition can have five attributes:</p>
+<ul class="simple">
+<li><em>target</em>: the target state of the transition. See <a class="reference internal" href="#state-referencing"><span class="std std-ref">State Referencing</span></a> for more details.</li>
+<li><em>after</em>: (optional) an amount of seconds that need to pass before this transition is triggered. Cannot occur together with <em>event</em>. Note that the timer starts counting when the parent state is entered. The timer is cancelled when the state is exited.</li>
+<li><em>event</em>: (optional) the name of the event that triggers this transitions. Cannot occur together with <em>after</em>.</li>
+<li><em>port</em>: (optional) specifies the name of the port on which the event that triggers this transition will arrive. Needs to occur together with <em>event</em>, and cannot occur together with <em>after</em>.</li>
+<li><em>cond</em>: (optional) a condition that evaluates to a boolean value. Can make use of instance variables, and names of parameters passed to the transition.</li>
+</ul>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#parameter"><span class="std std-ref">&lt;parameter&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#raise"><span class="std std-ref">&lt;raise&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#script"><span class="std std-ref">&lt;script&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#log"><span class="std std-ref">&lt;log&gt;</span></a></li>
+</ul>
+<p>The semantics of executing a transition are as follows:</p>
+<ol class="arabic simple">
+<li>The exit set consists of the active descendants of the least-common ancestor state of the transition&#8217;s source and target state. All states in the exit set are exited in order (&#8220;youngest&#8221; child first), executing their exit actions.</li>
+<li>All executable content of the transition is executed in document order.</li>
+<li>The enter set consists of the transition&#8217;s target state, its children, and its ancestors that are not an ancestor of the source state. They are entered in order (&#8220;oldest&#8221; state first), executing their enter actions.</li>
+</ol>
+</div>
+<div class="section" id="history">
+<span id="id17"></span><h3>&lt;history&gt;<a class="headerlink" href="#history" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#state"><span class="std std-ref">&lt;state&gt;</span></a>, or <a class="reference internal" href="#parallel"><span class="std std-ref">&lt;parallel&gt;</span></a>.</p>
+</div>
+<p>A history state keeps track of the current configuration when its parent state is exited. If a transition has the history state as a target, the configuration that was saved is restored. If no configuration was saved yet, the default state is entered instead. A history state has two attributes:</p>
+<ul class="simple">
+<li><em>id</em>: the identifier of the state. Needs to be unique with respect to other state ids on the same level (<em>i.e.</em>, the parent state cannot have two children with identical ids).</li>
+<li><em>type</em>: (optional) either &#8220;shallow&#8221; (default) or &#8220;deep&#8221;. A shallow history state only saves the active states on its level (not the active children of those states). A deep history state saves the active states on its level, and all active states on lower levels.</li>
+</ul>
+<p>A history state cannot have children.</p>
+</div>
+<div class="section" id="onentry">
+<span id="id18"></span><h3>&lt;onentry&gt;<a class="headerlink" href="#onentry" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#state"><span class="std std-ref">&lt;state&gt;</span></a>, or <a class="reference internal" href="#parallel"><span class="std std-ref">&lt;parallel&gt;</span></a>.</p>
+</div>
+<p>An entry action is executed when a state is entered. Executable content is executed in document order.</p>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#raise"><span class="std std-ref">&lt;raise&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#script"><span class="std std-ref">&lt;script&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#log"><span class="std std-ref">&lt;log&gt;</span></a></li>
+</ul>
+</div>
+<div class="section" id="onexit">
+<span id="id19"></span><h3>&lt;onexit&gt;<a class="headerlink" href="#onexit" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#state"><span class="std std-ref">&lt;state&gt;</span></a>, or <a class="reference internal" href="#parallel"><span class="std std-ref">&lt;parallel&gt;</span></a>.</p>
+</div>
+<p>An exit action is executed when a state is exited. Executable content is executed in document order.</p>
+<p>Children:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#raise"><span class="std std-ref">&lt;raise&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#script"><span class="std std-ref">&lt;script&gt;</span></a></li>
+<li><code class="docutils literal"><span class="pre">[0..n]</span></code> <a class="reference internal" href="#log"><span class="std std-ref">&lt;log&gt;</span></a></li>
+</ul>
+</div>
+<div class="section" id="state-referencing">
+<span id="id20"></span><h3>State Referencing<a class="headerlink" href="#state-referencing" title="Permalink to this headline">¶</a></h3>
+<p>States need to be referenced when they are the target of a <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a> or appear in INSTATE <a class="reference internal" href="#macros"><span class="std std-ref">Macros</span></a>. SCCD identifies states hierarchically and evaluates state references in the context of the state where the state reference occurs.</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">.</span></code> is the state itself</li>
+<li><code class="docutils literal"><span class="pre">&lt;empty</span> <span class="pre">string&gt;</span></code> is the root (<em>i.e.</em>, the <a class="reference internal" href="#scxml"><span class="std std-ref">&lt;scxml&gt;</span></a> element)</li>
+<li><code class="docutils literal"><span class="pre">..</span></code> goes up one level (to the parent state)</li>
+<li><code class="docutils literal"><span class="pre">a</span></code> is the child with id &#8216;a&#8217;</li>
+<li><code class="docutils literal"><span class="pre">a/b</span></code> with <em>a</em> and <em>b</em> arbitrary state expressions evaluates state expression <em>b</em> in the context of the state found with state expression <em>a</em>.</li>
+</ul>
+<p>Examples:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">../A</span></code> will look for a state with id &#8216;A&#8217; in the parent state</li>
+<li><code class="docutils literal"><span class="pre">/A</span></code> will look for a state with id &#8216;A&#8217; in the root</li>
+<li><code class="docutils literal"><span class="pre">A/B</span></code> will look for a state with id &#8216;B&#8217; in child with id &#8216;A&#8217;</li>
+</ul>
+</div>
+</div>
+<div class="section" id="executable-content">
+<h2>Executable Content<a class="headerlink" href="#executable-content" title="Permalink to this headline">¶</a></h2>
+<p>Actions are executed when a <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a> is executed. There are three types of actions: event raises (which can in turn trigger other transitions), scripts (which can call functions and update instance variables) and log statements.</p>
+<div class="section" id="raise">
+<span id="id21"></span><h3>&lt;raise&gt;<a class="headerlink" href="#raise" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a>, <a class="reference internal" href="#onentry"><span class="std std-ref">&lt;onentry&gt;</span></a>, or ref:<cite>onexit</cite>.</p>
+</div>
+<p>Raising an event allows to notify the outside world, the Statechart, or another instance. An event has a name, and optionally parameter values that are sent along with the event. As a result, a <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a> can be triggered elsewhere in the Statechart or in the receiving instance.</p>
+<p>A ref:<cite>raise</cite> element can have three attributes: <em>scope</em>, <em>port</em>, and <em>target</em>. They are used to explicitly define the scope of the raised event. Either the event is local to the Statechart, it is broadcast to all instances in the diagram, it is narrowcast to a specific instance, to the <a class="reference internal" href="#object-manager"><span class="std std-ref">Object Manager</span></a>, or to an output port.</p>
+<p>The table bellow summarizes how the different scopes are specified.</p>
+<table border="1" class="table-with-borders docutils">
+<colgroup>
+<col width="18%" />
+<col width="9%" />
+<col width="15%" />
+<col width="18%" />
+<col width="23%" />
+<col width="18%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">attr/scope</th>
+<th class="head">local</th>
+<th class="head">broadcast</th>
+<th class="head">narrowcast</th>
+<th class="head">object manager</th>
+<th class="head">output</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><em>scope</em></td>
+<td>&#8212;</td>
+<td>&#8220;broad&#8221;</td>
+<td>&#8220;narrow&#8221;</td>
+<td>&#8220;cd&#8221;</td>
+<td>&#8220;output&#8221;</td>
+</tr>
+<tr class="row-odd"><td><em>port</em></td>
+<td>&#8212;</td>
+<td>&#8212;&#8211;</td>
+<td>&#8212;&#8212;</td>
+<td>&#8212;&#8212;&#8211;</td>
+<td>port_name</td>
+</tr>
+<tr class="row-even"><td><em>target</em></td>
+<td>&#8212;</td>
+<td>&#8212;&#8211;</td>
+<td>link_name</td>
+<td>&#8212;&#8212;&#8211;</td>
+<td>&#8212;&#8212;</td>
+</tr>
+</tbody>
+</table>
+<p>A &#8220;link name&#8221; identifies a specific (set of) connected instance(s) of the instance that raised the event. For example, if class &#8220;A&#8221; and &#8220;B&#8221; are connected via an association &#8220;A_to_B&#8221;, valid values for &#8220;link_name could be:</p>
+<ul class="simple">
+<li>&#8220;&#8216;A_to_B&#8217;&#8221; to send to all instances of B with which the instance of A that raises the event is connected</li>
+<li>&#8220;&#8216;A_to_B[idx]&#8217;&#8221; where <em>idx</em> is a valid link index, which is sent by the <a class="reference internal" href="#object-manager"><span class="std std-ref">Object Manager</span></a> as a reply to a <em>create_instance</em> request.</li>
+<li>&#8220;self.the_link_name&#8221; if this evaluates to a legal link name.</li>
+</ul>
+</div>
+<div class="section" id="script">
+<span id="id22"></span><h3>&lt;script&gt;<a class="headerlink" href="#script" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a>, <a class="reference internal" href="#onentry"><span class="std std-ref">&lt;onentry&gt;</span></a>, or ref:<cite>onexit</cite>.</p>
+</div>
+<p>A <a class="reference internal" href="#script"><span class="std std-ref">&lt;script&gt;</span></a> element is similar to a <a class="reference internal" href="#body"><span class="std std-ref">&lt;body&gt;</span></a> element: a block of action code in a programming language (depending on the target language to which the model is compiled). It allows to call other functions and change the values of instance variables. If any parameters were defined as children of this element&#8217;s parent (in the case of a <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a>), they can be referenced by name.</p>
+</div>
+<div class="section" id="log">
+<span id="id23"></span><h3>&lt;log&gt;<a class="headerlink" href="#log" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a>, <a class="reference internal" href="#onentry"><span class="std std-ref">&lt;onentry&gt;</span></a>, or ref:<cite>onexit</cite>.</p>
+</div>
+<p>Allows to log a string.</p>
+</div>
+<div class="section" id="parameter">
+<span id="id24"></span><h3>&lt;parameter&gt;<a class="headerlink" href="#parameter" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is a child element of <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a>, <a class="reference internal" href="#raise"><span class="std std-ref">&lt;raise&gt;</span></a>, <a class="reference internal" href="#method"><span class="std std-ref">&lt;method&gt;</span></a>, or <a class="reference internal" href="#constructor"><span class="std std-ref">&lt;constructor&gt;</span></a>.</p>
+</div>
+<p>Depending on where the <a class="reference internal" href="#parameter"><span class="std std-ref">&lt;parameter&gt;</span></a> element is placed, it is either a formal parameter, or an actual parameter value.</p>
+<p>In the case it is a child of a <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a>, <a class="reference internal" href="#method"><span class="std std-ref">&lt;method&gt;</span></a>, or <a class="reference internal" href="#constructor"><span class="std std-ref">&lt;constructor&gt;</span></a>, it is a formal parameter. It then has three attributes:</p>
+<ul class="simple">
+<li><em>name</em>: the name of the parameter</li>
+<li><em>type</em>: (optional) the type of the parameter</li>
+<li><em>default</em>: (optional) the default value of the parameter</li>
+</ul>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Parameters are positional.</p>
+</div>
+<p>In the case it is a child of a <a class="reference internal" href="#raise"><span class="std std-ref">&lt;raise&gt;</span></a>, it is an actual parameter value. It then has one attribute:</p>
+<ul class="simple">
+<li><em>expr</em>: an expression that evaluates to the actual parameter value.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="macros">
+<span id="id25"></span><h2>Macros<a class="headerlink" href="#macros" title="Permalink to this headline">¶</a></h2>
+<p>Two macros are defined that can be used in the <em>cond</em> attribute of <a class="reference internal" href="#transition"><span class="std std-ref">&lt;transition&gt;</span></a> and the <em>expr</em> attribute of <a class="reference internal" href="#parameter"><span class="std std-ref">&lt;parameter&gt;</span></a>:</p>
+<ul class="simple">
+<li><em>INSTATE(state_reference)</em> returns true if the system is currently in the referenced state (see <a class="reference internal" href="#state-referencing"><span class="std std-ref">State Referencing</span></a>).</li>
+<li><em>SELF</em> returns the current object. This is useful to write platform-independent expressions.</li>
+</ul>
+</div>
+<div class="section" id="object-manager">
+<span id="id26"></span><h2>Object Manager<a class="headerlink" href="#object-manager" title="Permalink to this headline">¶</a></h2>
+<p>The object manager is responsible for managing objects and links while the application is running. The instances can communicate with the object manager by raising events using the <em>cd</em> scope (see <a class="reference internal" href="#raise"><span class="std std-ref">&lt;raise&gt;</span></a>).</p>
+<p>The object manager accepts four events:</p>
+<ul>
+<li><dl class="first docutils">
+<dt><strong>create_instance</strong></dt>
+<dd><ul class="first last">
+<li><dl class="first docutils">
+<dt>Parameters:</dt>
+<dd><ul class="first last simple">
+<li><em>association_name</em>: an expression that evaluates to the name of the association that needs to be instantiated</li>
+<li><em>class_name</em>: (optional) an expression that evaluates to the name of the class to instantiate. If omitted, the target class of the association is instantiated.</li>
+<li><em>parameters</em>: (optional) the actual constructor parameter values</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Returns Event:</dt>
+<dd><ul class="first last simple">
+<li><strong>instance_created</strong>(<em>link_id</em>)</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><strong>start_instance</strong></dt>
+<dd><ul class="first last">
+<li><dl class="first docutils">
+<dt>Parameters:</dt>
+<dd><ul class="first last simple">
+<li><em>link_id</em>: the identifier of the link with which the instance to be started is connected to the requesting instance</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Returns Event:</dt>
+<dd><ul class="first last simple">
+<li><strong>instance_started</strong>(<em>link_id</em>)</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><strong>delete_instance</strong></dt>
+<dd><ul class="first last">
+<li><dl class="first docutils">
+<dt>Parameters:</dt>
+<dd><ul class="first last simple">
+<li><em>link_id</em>: the identifier of the link with which the instance to be deleted is connected to the requesting instance</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Returns Event:</dt>
+<dd><ul class="first last simple">
+<li><strong>instance_deleted</strong>(<em>link_id</em>)</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt><strong>associate_instance</strong></dt>
+<dd><ul class="first last">
+<li><dl class="first docutils">
+<dt>Parameters:</dt>
+<dd><ul class="first last simple">
+<li><em>link_expression_dst</em>: an expression evaluating to a set of links, of which the targets need to be associated</li>
+<li><em>link_expression_src</em>: an expression evaluating to an association, which needs to be instantiated to connect the source of the association to the targets that were evaluated in the expression above</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Language Features</a><ul>
+<li><a class="reference internal" href="#top-level-elements">Top-Level Elements</a><ul>
+<li><a class="reference internal" href="#diagram">&lt;diagram&gt;</a></li>
+<li><a class="reference internal" href="#description">&lt;description&gt;</a></li>
+<li><a class="reference internal" href="#top">&lt;top&gt;</a></li>
+<li><a class="reference internal" href="#inport-and-outport">&lt;inport&gt; and &lt;outport&gt;</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#class-diagram-concepts">Class Diagram Concepts</a><ul>
+<li><a class="reference internal" href="#class">&lt;class&gt;</a></li>
+<li><a class="reference internal" href="#relationships">&lt;relationships&gt;</a></li>
+<li><a class="reference internal" href="#association">&lt;association&gt;</a></li>
+<li><a class="reference internal" href="#inheritance">&lt;inheritance&gt;</a></li>
+<li><a class="reference internal" href="#attribute">&lt;attribute&gt;</a></li>
+<li><a class="reference internal" href="#constructor">&lt;constructor&gt;</a></li>
+<li><a class="reference internal" href="#destructor">&lt;destructor&gt;</a></li>
+<li><a class="reference internal" href="#method">&lt;method&gt;</a></li>
+<li><a class="reference internal" href="#body">&lt;body&gt;</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#statechart-concepts">Statechart Concepts</a><ul>
+<li><a class="reference internal" href="#scxml">&lt;scxml&gt;</a></li>
+<li><a class="reference internal" href="#state">&lt;state&gt;</a></li>
+<li><a class="reference internal" href="#parallel">&lt;parallel&gt;</a></li>
+<li><a class="reference internal" href="#transition">&lt;transition&gt;</a></li>
+<li><a class="reference internal" href="#history">&lt;history&gt;</a></li>
+<li><a class="reference internal" href="#onentry">&lt;onentry&gt;</a></li>
+<li><a class="reference internal" href="#onexit">&lt;onexit&gt;</a></li>
+<li><a class="reference internal" href="#state-referencing">State Referencing</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#executable-content">Executable Content</a><ul>
+<li><a class="reference internal" href="#raise">&lt;raise&gt;</a></li>
+<li><a class="reference internal" href="#script">&lt;script&gt;</a></li>
+<li><a class="reference internal" href="#log">&lt;log&gt;</a></li>
+<li><a class="reference internal" href="#parameter">&lt;parameter&gt;</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#macros">Macros</a></li>
+<li><a class="reference internal" href="#object-manager">Object Manager</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="installation.html"
+                        title="previous chapter">Installation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="compiler.html"
+                        title="next chapter">Compiler</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/language_features.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="compiler.html" title="Compiler"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">SCCD 0.9 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2016, Simon Van Mierlo.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.6.
+    </div>
+  </body>
+</html>

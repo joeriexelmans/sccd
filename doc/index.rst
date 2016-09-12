@@ -24,6 +24,7 @@ Contents
     Runtime Platforms <runtime_platforms>
     Examples <examples>
     Semantic Options <semantic_options>
+    Socket Communication <sockets>
     Internal Documentation <internal_documentation>
     
 References

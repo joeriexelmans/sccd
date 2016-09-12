@@ -1,5 +1,17 @@
-import threading
+"""
+Socket 2 Event wrapper
+
+Author: Yentl Van Tendeloo
+
+This maps socket communication to events, and vice versa, allowing for a
+Statechart to use (blocking) sockets. It sends events to the socket_in port,
+and listens for commands on the socket_out port.  As this runs on its own
+thread, you will need to start the code by running
+"boot_translation_service(controller)" before using the ports.
+"""
+
 from sccd.runtime.statecharts_core import Event
+import threading
 import socket
 
 send_data_queues = {}
@@ -86,10 +98,10 @@ def _start_on_daemon_thread(func, args):
     thrd.start()
 
 def boot_translation_service(controller):
-    _start_on_daemon_thread(_poll, [controller, None])
-
-def _poll(controller, _):
     socket_out = controller.addOutputListener("socket_out")
+    _start_on_daemon_thread(_poll, [controller, socket_out])
+
+def _poll(controller, socket_out):
     while 1:
         evt = socket_out.fetch(-1)
         name, params = evt.getName(), evt.getParameters()

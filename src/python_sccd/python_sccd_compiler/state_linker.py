@@ -101,7 +101,7 @@ class StateLinker(Visitor):
                         current_node = child
                         break
                 if not found :
-                    raise StateReferenceException("Refering to non exiting node at posisition " + str(token.pos) + " in state reference.")
+                    raise StateReferenceException("Refering to non exiting node " + cname + " at posisition " + str(token.pos) + " in state reference.")
             elif token.type == TokenType.LBRACKET :
                 split_stack.append(current_node)
             elif token.type == TokenType.RBRACKET :

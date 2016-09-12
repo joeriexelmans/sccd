@@ -487,12 +487,14 @@ class EventLoopControllerBase(ControllerBase):
         self.behind_schedule_callback = behind_schedule_callback
         self.last_print_time = 0
         self.behind = False
+        self.running = False
 
     def addInput(self, input_event, time_offset = 0):
         ControllerBase.addInput(self, input_event, time_offset)
         self.event_loop.clear()
         self.simulated_time = self.getEarliestEventTime()
-        self.run()
+        if not self.running:
+            self.run()
 
     def start(self):
         ControllerBase.start(self)
@@ -504,33 +506,37 @@ class EventLoopControllerBase(ControllerBase):
 
     def run(self):
         start_time = accurate_time.time()
-        while 1:
-            # clear existing timeout
-            self.event_loop.clear()
-            # simulate
-            self.handleInput()
-            self.object_manager.stepAll()
-            # schedule next timeout
-            earliest_event_time = self.getEarliestEventTime()
-            if earliest_event_time == INFINITY:
-                if self.finished_callback: self.finished_callback() # TODO: This is not necessarily correct (keep_running necessary?)
-                return
-            now = accurate_time.time()
-            if now - start_time > 10 or earliest_event_time - now > 0:
-                self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
-                if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
-                    if self.behind_schedule_callback:
-                        self.behind_schedule_callback(self, now - earliest_event_time)
-                    print '\rrunning %ims behind schedule' % (now - earliest_event_time),
-                    self.last_print_time = now
-                    self.behind = True
-                elif now - earliest_event_time < 10 and self.behind:
-                    print '\r' + ' ' * 80,
-                    self.behind = False
-                self.simulated_time = earliest_event_time
-                return
-            else:
-                self.simulated_time = earliest_event_time
+        try:
+            self.running = True
+            while 1:
+                # clear existing timeout
+                self.event_loop.clear()
+                # simulate
+                self.handleInput()
+                self.object_manager.stepAll()
+                # schedule next timeout
+                earliest_event_time = self.getEarliestEventTime()
+                if earliest_event_time == INFINITY:
+                    if self.finished_callback: self.finished_callback() # TODO: This is not necessarily correct (keep_running necessary?)
+                    return
+                now = accurate_time.time()
+                if now - start_time > 10 or earliest_event_time - now > 0:
+                    self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
+                    if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
+                        if self.behind_schedule_callback:
+                            self.behind_schedule_callback(self, now - earliest_event_time)
+                        print '\rrunning %ims behind schedule' % (now - earliest_event_time),
+                        self.last_print_time = now
+                        self.behind = True
+                    elif now - earliest_event_time < 10 and self.behind:
+                        print '\r' + ' ' * 80,
+                        self.behind = False
+                    self.simulated_time = earliest_event_time
+                    return
+                else:
+                    self.simulated_time = earliest_event_time
+        finally:
+            self.running = False
         
 class ThreadsControllerBase(ControllerBase):
     def __init__(self, object_manager, keep_running, behind_schedule_callback = None):

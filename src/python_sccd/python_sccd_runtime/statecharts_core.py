@@ -467,7 +467,7 @@ class EventLoop:
     # but because scheduling '0' timeouts hurts performance, we don't schedule anything
     # and return False instead
     def schedule(self, f, wait_time, behind = False):
-        if self.scheduled_id:
+        if self.scheduled_id is not None:
             # if the following error occurs, it is probably due to a flaw in the logic of EventLoopControllerBase
             raise RuntimeException("EventLoop class intended to maintain at most 1 scheduled callback.")
 
@@ -475,7 +475,7 @@ class EventLoop:
             self.scheduled_id = self.schedule_callback(f, wait_time, behind)
 
     def clear(self):
-        if self.scheduled_id:
+        if self.scheduled_id is not None:
             self.clear_callback(self.scheduled_id)
             self.scheduled_id = None
 

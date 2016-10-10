@@ -560,9 +560,6 @@ class ThreadsControllerBase(ControllerBase):
         with self.input_condition:
             self.stop_thread = True
             self.input_condition.notifyAll()
-        
-    def join(self):
-        self.thread.join()
 
     def run(self):
         ControllerBase.start(self)
@@ -585,7 +582,7 @@ class ThreadsControllerBase(ControllerBase):
                 with self.input_condition:
                     self.input_condition.wait((earliest_event_time - now) / 1000.0)
             else:
-                if now - self.last_print_time >= 1000:
+                if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
                     if self.behind_schedule_callback:
                         self.behind_schedule_callback(self, now - earliest_event_time)
                     print '\rrunning %ims behind schedule' % (now - earliest_event_time),

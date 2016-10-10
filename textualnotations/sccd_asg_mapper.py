@@ -322,6 +322,13 @@ class SCCD_ASG_Mapper(object):
 							'name': ('nameattr.string','String')
 						}
 					},
+			'outport': {'name': 'OutPort',
+						'type': 'Class',
+						'body':
+						{
+							'name': ('nameattr.string','String')
+						}
+					},
 			'transition': { 'name': 'Transition',
 						'type': 'Class',
 						'body':

@@ -12,6 +12,7 @@ class XML2PythonRules(object):
 							'@indent',
 								'@SCCDdescription',
 								'@SCCDInPort',
+								'@SCCDOutPort',
 								'@SCCDTop',
 								'@SCCDClass',
 								'@SCCDBottom',
@@ -32,6 +33,11 @@ class XML2PythonRules(object):
 				'type': 'Class',
 				'name': 'SCCD.InPort',
 				'pattern': ['<inport name="', '@Named.name','"/>', '@newline']
+			},
+			'SCCDOutPort': {
+				'type': 'Class',
+				'name': 'SCCD.OutPort',
+				'pattern': ['<outport name="', '@Named.name','"/>', '@newline']
 			},
 			'SCCDTop': {
 				'type': 'Class',

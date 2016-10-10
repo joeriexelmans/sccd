@@ -490,6 +490,13 @@ class Gen():
 			CreateConstants.TYPE_KEY: LocationValue('protected.formalisms.SimpleClassDiagrams.Class'),
 			CreateConstants.LOCATION_KEY: LocationValue('protected.formalisms.SCCD'),
 			CreateConstants.ATTRS_KEY: MappingValue({
+			StringValue('Class.is_abstract'): BooleanValue(False),
+			StringValue('Class.name'): StringValue('OutPort')})
+		}))
+		cl = self.mvk.create(MappingValue({
+			CreateConstants.TYPE_KEY: LocationValue('protected.formalisms.SimpleClassDiagrams.Class'),
+			CreateConstants.LOCATION_KEY: LocationValue('protected.formalisms.SCCD'),
+			CreateConstants.ATTRS_KEY: MappingValue({
 			StringValue('Class.is_abstract'): BooleanValue(True),
 			StringValue('Class.name'): StringValue('CompositeArgument')})
 		}))
@@ -1398,6 +1405,14 @@ class Gen():
 			CreateConstants.TYPE_KEY: LocationValue('protected.formalisms.SimpleClassDiagrams.Inheritance'),
 			CreateConstants.LOCATION_KEY: LocationValue('protected.formalisms.SCCD'),
 			CreateConstants.ATTRS_KEY: MappingValue({
+			StringValue('Inheritance.name'): StringValue('OutPort_i_Named'),
+			StringValue('from_class'): LocationValue('protected.formalisms.SCCD.OutPort'),
+			StringValue('to_class'): LocationValue('protected.formalisms.SCCD.Named')})
+		}))
+		cl = self.mvk.create(MappingValue({
+			CreateConstants.TYPE_KEY: LocationValue('protected.formalisms.SimpleClassDiagrams.Inheritance'),
+			CreateConstants.LOCATION_KEY: LocationValue('protected.formalisms.SCCD'),
+			CreateConstants.ATTRS_KEY: MappingValue({
 			StringValue('Inheritance.name'): StringValue('Expression_i_ID'),
 			StringValue('from_class'): LocationValue('protected.formalisms.SCCD.Expression'),
 			StringValue('to_class'): LocationValue('protected.formalisms.SCCD.ID')})
@@ -1585,6 +1600,29 @@ class Gen():
 		cl = self.mvk.create(MappingValue({
 			CreateConstants.TYPE_KEY: LocationValue('protected.formalisms.SimpleClassDiagrams.Attribute'),
 			CreateConstants.LOCATION_KEY: LocationValue('protected.formalisms.SCCD.transition_inport'),
+			CreateConstants.ATTRS_KEY: MappingValue({
+			StringValue('Attribute.name'): StringValue('name'),
+			StringValue('Attribute.type'): StringType()})
+		}))
+		cl = self.mvk.create(MappingValue({
+			CreateConstants.TYPE_KEY: LocationValue('protected.formalisms.SimpleClassDiagrams.Association'),
+			CreateConstants.LOCATION_KEY: LocationValue('protected.formalisms.SCCD'),
+			CreateConstants.ATTRS_KEY: MappingValue({
+			StringValue('Association.to_max'): IntegerValue(1),
+			StringValue('Association.from_max'): InfiniteValue('inf'),
+			StringValue('Association.from_port'): StringValue('from_transition'),
+			StringValue('Association.to_min'): IntegerValue(0),
+			StringValue('Class.name'): StringValue('transition_outport'),
+			StringValue('Association.to_port'): StringValue('to_outport'),
+			StringValue('Class.is_abstract'): BooleanValue(False),
+			StringValue('Association.from_min'): IntegerValue(0),
+			StringValue('Class.id_field'): StringValue('transition_outport.name'),
+			StringValue('from_class'): LocationValue('protected.formalisms.SCCD.Transition'),
+			StringValue('to_class'): LocationValue('protected.formalisms.SCCD.OutPort')})
+		}))
+		cl = self.mvk.create(MappingValue({
+			CreateConstants.TYPE_KEY: LocationValue('protected.formalisms.SimpleClassDiagrams.Attribute'),
+			CreateConstants.LOCATION_KEY: LocationValue('protected.formalisms.SCCD.transition_outport'),
 			CreateConstants.ATTRS_KEY: MappingValue({
 			StringValue('Attribute.name'): StringValue('name'),
 			StringValue('Attribute.type'): StringType()})
@@ -2541,6 +2579,29 @@ class Gen():
 		cl = self.mvk.create(MappingValue({
 			CreateConstants.TYPE_KEY: LocationValue('protected.formalisms.SimpleClassDiagrams.Attribute'),
 			CreateConstants.LOCATION_KEY: LocationValue('protected.formalisms.SCCD.class_inport'),
+			CreateConstants.ATTRS_KEY: MappingValue({
+			StringValue('Attribute.name'): StringValue('name'),
+			StringValue('Attribute.type'): StringType()})
+		}))
+		cl = self.mvk.create(MappingValue({
+			CreateConstants.TYPE_KEY: LocationValue('protected.formalisms.SimpleClassDiagrams.Association'),
+			CreateConstants.LOCATION_KEY: LocationValue('protected.formalisms.SCCD'),
+			CreateConstants.ATTRS_KEY: MappingValue({
+			StringValue('Association.to_max'): InfiniteValue('inf'),
+			StringValue('Association.from_max'): InfiniteValue('inf'),
+			StringValue('Association.from_port'): StringValue('from_class'),
+			StringValue('Association.to_min'): IntegerValue(0),
+			StringValue('Class.name'): StringValue('class_outport'),
+			StringValue('Association.to_port'): StringValue('to_outport'),
+			StringValue('Class.is_abstract'): BooleanValue(False),
+			StringValue('Association.from_min'): IntegerValue(0),
+			StringValue('Class.id_field'): StringValue('class_outport.name'),
+			StringValue('from_class'): LocationValue('protected.formalisms.SCCD.Class'),
+			StringValue('to_class'): LocationValue('protected.formalisms.SCCD.OutPort')})
+		}))
+		cl = self.mvk.create(MappingValue({
+			CreateConstants.TYPE_KEY: LocationValue('protected.formalisms.SimpleClassDiagrams.Attribute'),
+			CreateConstants.LOCATION_KEY: LocationValue('protected.formalisms.SCCD.class_outport'),
 			CreateConstants.ATTRS_KEY: MappingValue({
 			StringValue('Attribute.name'): StringValue('name'),
 			StringValue('Attribute.type'): StringType()})

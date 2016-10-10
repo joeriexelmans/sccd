@@ -2,9 +2,10 @@ start: sccd;
 
 sccd: diagram INDENT (top)? element+ (bottom)? DEDENT;
 
-@element: (inport | class);
+@element: (inport | outport | class);
 
 inport: INPORT LPAR nameattr RPAR NEWLINE;
+outport: OUTPORT LPAR nameattr RPAR NEWLINE;
 
 nameattr: NAMEATTR ASSIGN string;
 defaultattr: DEFAULTATTR ASSIGN boolean;
@@ -17,7 +18,7 @@ classdefattrs: classdefattr (COMMA classdefattr)*;
 
 classdefattr: nameattr | defaultattr;
 
-@classelement: inport | association | inheritance | aggregation | composition |
+@classelement: inport | outport | association | inheritance | aggregation | composition |
 				attribute | constructor | destructor | method | statemachine;
 
 aggregation: AGGREGATION LPAR aggregattrs RPAR NEWLINE;
@@ -797,6 +798,7 @@ CLASS: 'Class';
 TOP: 'Top';
 BOTTOM: 'Bottom';
 INPORT: 'Inport';
+OUTPORT: 'Outport';
 
 NAMEATTR: 'name';
 DEFAULTATTR: 'default';

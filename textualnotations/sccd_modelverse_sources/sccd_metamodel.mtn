@@ -129,6 +129,9 @@ package protected.formalisms:
             name = 'InPort'
 
         Class:
+            name = 'OutPort'
+
+        Class:
             name = 'AbsState'
             is_abstract = True
             Attribute:
@@ -715,6 +718,38 @@ package protected.formalisms:
             to_class = InPort
 
             id_field = 'transition_inport.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'class_outport'
+
+            from_port = 'from_class'
+            from_class = Class
+
+            to_min = 0
+            to_max = *
+            to_port = 'to_outport'
+            to_class = OutPort
+
+            id_field = 'class_outport.name'
+            Attribute:
+                name = 'name'
+                type = String
+
+        Association:
+            name = 'transition_outport'
+
+            from_port = 'from_transition'
+            from_class = Transition
+
+            to_min = 0
+            to_max = 1
+            to_port = 'to_outport'
+            to_class = OutPort
+
+            id_field = 'transition_outport.name'
             Attribute:
                 name = 'name'
                 type = String
@@ -1368,6 +1403,11 @@ package protected.formalisms:
         Inheritance:
             name = 'InPort_i_Named'
             from_class = InPort
+            to_class = Named
+
+        Inheritance:
+            name = 'OutPort_i_Named'
+            from_class = OutPort
             to_class = Named
 
         Inheritance:

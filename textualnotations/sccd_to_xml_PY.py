@@ -37,8 +37,8 @@ class XML2PythonRules(object):
 				'type': 'Class',
 				'name': 'SCCD.Top',
 				'pattern': ['<top>', '@newline', '@indent', '@@',
-								'from python_runtime.libs.ui import *', '@newline',
-								'from python_runtime.libs.utils import *', '@newline',
+								'from sccd.runtime.libs.ui import *', '@newline',
+								'from sccd.runtime.libs.utils import *', '@newline',
 								'@ActionBlockStatement',
 				'@dedent', '</top>', '@newline' ]
 			},

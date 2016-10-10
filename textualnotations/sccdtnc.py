@@ -1,14 +1,17 @@
 import argparse
 import os
 from shell import Shell
-from generic_generator import GenericGenerator, Platforms
-from utils import Logger
 
-from generic_language_constructs import GenericConstruct
-from compiler_exceptions import CompilerException
-
-from javascript_writer import JavascriptWriter
-from python_writer import PythonWriter
+from sccd.compiler.generic_generator import GenericGenerator, Platforms
+from sccd.compiler.utils import Enum, Logger, FileWriter
+from sccd.compiler.generic_language_constructs import GenericConstruct
+from sccd.compiler.compiler_exceptions import CompilerException
+from sccd.compiler.javascript_writer import JavascriptWriter
+from sccd.compiler.python_writer import PythonWriter
+from sccd.compiler.super_class_linker import SuperClassLinker
+from sccd.compiler.state_linker import StateLinker
+from sccd.compiler.path_calculator import PathCalculator
+from sccd.compiler.sccd_constructs import ClassDiagram
 
 from sccd_asg_mapper import SCCD_ASG_Mapper
 pathname = os.path.dirname(os.path.realpath(__file__))
@@ -18,12 +21,6 @@ from sccd_to_xml_PY import XML2PythonRules
 
 from mvk_loader import MvKLoader
 from sccd_to_xml import SCCD_to_XML
-
-from utils import Enum, Logger, FileWriter
-from super_class_linker import SuperClassLinker
-from state_linker import StateLinker
-from path_calculator import PathCalculator
-from sccd_constructs import ClassDiagram
 
 def generate(input_file, output_file, target_language, platform):
 	sccd = xmlToSccd(input_file)

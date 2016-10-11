@@ -14,7 +14,7 @@ from mvk.impl.python.object import ClabjectReference, Clabject
 
 from mvk.mvk import MvK
 import mvk
-from shell import Shell
+#from shell import Shell
 
 #from sccd_to_xml_rules import XMLRules
 

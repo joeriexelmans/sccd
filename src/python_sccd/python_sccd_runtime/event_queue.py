@@ -19,10 +19,14 @@ class EventQueue(object):
     def add(self, event_time, event):
         self.event_time_numbers[event_time] = self.event_time_numbers.setdefault(event_time, 0) + 1
         heappush(self.event_list, (event_time, self.event_time_numbers[event_time], event))
+        event.event_time = event_time
         return event
     
     def remove(self, event):
         self.removed.add(event)
+        if len(self.removed) > 100:
+            self.event_list = [x for x in self.event_list if x not in self.removed]
+        self.removed = set()
     
     def pop(self):
         while 1:
@@ -33,5 +37,3 @@ class EventQueue(object):
                 del self.event_time_numbers[event_time]
             if item not in self.removed:
                 return item[2]
-            else:
-                self.removed.remove(item)

@@ -102,7 +102,7 @@ portattr: PORTATTR ASSIGN string;
 targetattr: TARGETATTR ASSIGN string;
 afterattr: AFTERATTR;
 
-AFTERATTR: 'after\([^\)]+\)'
+AFTERATTR: 'after\(.+\)'
 {
 	start: AFTER LPAR expression RPAR;
 

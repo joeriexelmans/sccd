@@ -7,7 +7,7 @@ import re
 import threading
 import traceback
 import math
-from heapq import heappush, heappop
+from heapq import heappush, heappop, heapify
 from infinity import INFINITY
 from Queue import Queue, Empty 
 
@@ -125,15 +125,25 @@ class ObjectManagerBase(object):
             i.addEvent(new_event, time_offset)
         
     def getEarliestEventTime(self):
-        return min(self.instance_times[0][0], self.events.getEarliestTime())
+        return min(INFINITY if not self.instance_times else self.instance_times[0][0], self.events.getEarliestTime())
     
     def stepAll(self):
         self.step()
         simulated_time = self.controller.simulated_time
         to_step = set()
-        while self.instance_times[0][0] <= simulated_time:
+        if len(self.instance_times) > (4 * len(self.instances)):
+            new_instance_times = []
+            for it in self.instance_times:
+                if it[0] not in it[1].removed_timers:
+                    new_instance_times.append(it)
+                else:
+                    it[1].removed_timers.discard(it[0])
+            for i in self.instances:
+                i.removed_timers = set()
+            self.instance_times = new_instance_times
+            heapify(self.instance_times)
+        while self.instance_times and self.instance_times[0][0] <= simulated_time:
             to_step.add(heappop(self.instance_times)[1])
-        # print simulated_time, len(self.instances), len(to_step | self.eventless)
         for i in to_step | self.eventless:
             if i.active and (i.earliest_event_time <= simulated_time or i.eventless_states):
                 i.step()
@@ -255,7 +265,7 @@ class ObjectManagerBase(object):
         cast_event = parameters[2]
         for i in self.getInstances(source, traversal_list):
             to_send_event = Event(cast_event.name, i["instance"].narrow_cast_port, cast_event.parameters)
-            i["instance"].controller.addInput(to_send_event)
+            i["instance"].controller.addInput(to_send_event, force_internal=True)
         
     def getInstances(self, source, traversal_list):
         currents = [{
@@ -366,6 +376,7 @@ class ControllerBase(object):
         self.output_listeners = []
         
         self.simulated_time = None
+        self.behind = False
         
     def getSimulatedTime(self):
         return self.simulated_time
@@ -393,7 +404,8 @@ class ControllerBase(object):
     def stop(self):
         pass
 
-    def addInput(self, input_event_list, time_offset = 0):
+    def addInput(self, input_event_list, time_offset = 0, force_internal=False):
+        # force_internal is for narrow_cast events, otherwise these would arrive as external events (on the current wall-clock time)
         if not isinstance(input_event_list, list):
             input_event_list = [input_event_list]
 
@@ -404,7 +416,10 @@ class ControllerBase(object):
             if e.getPort() not in self.input_ports:
                 raise InputException("Input port mismatch, no such port: " + e.getPort() + ".")
             
-            self.input_queue.add((0 if self.simulated_time is None else accurate_time.time()) + time_offset, e)
+            if force_internal:
+                self.input_queue.add((0 if self.simulated_time is None else self.simulated_time) + time_offset, e)
+            else:
+                self.input_queue.add((0 if self.simulated_time is None else accurate_time.time()) + time_offset, e)
 
     def getEarliestEventTime(self):
         return min(self.object_manager.getEarliestEventTime(), self.input_queue.getEarliestTime())
@@ -486,11 +501,10 @@ class EventLoopControllerBase(ControllerBase):
         self.finished_callback = finished_callback
         self.behind_schedule_callback = behind_schedule_callback
         self.last_print_time = 0
-        self.behind = False
         self.running = False
 
-    def addInput(self, input_event, time_offset = 0):
-        ControllerBase.addInput(self, input_event, time_offset)
+    def addInput(self, input_event, time_offset = 0, force_internal=False):
+        ControllerBase.addInput(self, input_event, time_offset, force_internal)
         self.event_loop.clear()
         self.simulated_time = self.getEarliestEventTime()
         if not self.running:
@@ -546,11 +560,10 @@ class ThreadsControllerBase(ControllerBase):
         self.input_condition = threading.Condition()
         self.stop_thread = False
         self.last_print_time = 0
-        self.behind = False
 
-    def addInput(self, input_event, time_offset = 0):
+    def addInput(self, input_event, time_offset = 0, force_internal=False):
         with self.input_condition:
-            ControllerBase.addInput(self, input_event, time_offset)
+            ControllerBase.addInput(self, input_event, time_offset, force_internal)
             self.input_condition.notifyAll()
         
     def start(self):
@@ -856,6 +869,7 @@ class RuntimeClassBase(object):
         self.configuration_bitmap = 0
         self.transition_mem = {}
         self.config_mem = {}
+        self.removed_timers = set()
         
         self.narrow_cast_port = self.controller.addInputPort("<narrow_cast>", self)
 
@@ -901,6 +915,7 @@ class RuntimeClassBase(object):
         if index in self.timers_to_add:
             del self.timers_to_add[index]
         if index in self.timers:
+            self.removed_timers.add(self.timers[index].event_time)
             self.events.remove(self.timers[index])
             del self.timers[index]
         
@@ -929,7 +944,8 @@ class RuntimeClassBase(object):
             self.earliest_event_time = INFINITY
         else:
             self.earliest_event_time = self.events.getEarliestTime()
-        heappush(self.controller.object_manager.instance_times, (self.earliest_event_time, self))
+        if self.earliest_event_time != INFINITY:
+            heappush(self.controller.object_manager.instance_times, (self.earliest_event_time, self))
 
     def step(self):        
         is_stable = False

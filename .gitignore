@@ -11,3 +11,6 @@ src/build
 **/*target*
 **/*.lprof
 doc/_build
+.project
+.pydevproject
+src/MANIFEST

@@ -28,7 +28,7 @@ from sccd_asg_mapper import SCCD_ASG_Mapper
 
 pathname = os.path.dirname(os.path.realpath(__file__))
 
-from shell import Shell
+#from shell import Shell
 from sccd_modelverse_sources.sccd_metamodel import Gen as GenSCCD
 
 DEBUG = False
@@ -867,7 +867,7 @@ def _read(n, *args):
 	with open(os.path.join(os.getcwd(), n), *args, **kwargs) as f:
 		return f.read()
 
-
+"""
 if __name__ == '__main__':
 	mapper = SCCD_ASG_Mapper()
 	if(len(sys.argv) > 1):
@@ -879,3 +879,4 @@ if __name__ == '__main__':
 	shell = Shell()
 	shell.mvk = context.mvk
 	shell.setupCommandLine()
+"""

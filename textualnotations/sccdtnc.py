@@ -1,7 +1,7 @@
 import argparse
 import os
-from shell import Shell
 
+#from shell import Shell
 from sccd.compiler.generic_generator import GenericGenerator, Platforms
 from sccd.compiler.utils import Enum, Logger, FileWriter
 from sccd.compiler.generic_language_constructs import GenericConstruct
@@ -80,7 +80,7 @@ def main():
     parser.add_argument('-v', '--verbose', type=int, help='2 = all output; 1 = only warnings and errors; 0 = only errors; -1 = no output.  Defaults to 2.', default = 2)
     parser.add_argument('-p', '--platform', type=str, help="Let the compiled code run on top of threads, gameloop or eventloop. The default is eventloop.")
     parser.add_argument('-l', '--language', type=str, help='Target language, either "javascript" or "python". Defaults to the latter.')
-    parser.add_argument('-m', '--mvklocation', type=str, help='Location in the Modelverse. After compilation the modelverse shell is opened.')
+    #parser.add_argument('-m', '--mvklocation', type=str, help='Location in the Modelverse. After compilation the modelverse shell is opened.')
     parser.add_argument('-justxml', dest='justxml', action='store_true')
     parser.set_defaults(justxml=False)
 
@@ -129,12 +129,15 @@ def main():
     else :
         platform = Platforms.Threads
 
+    mvklocation = 'unused_location'
+    """
     if args['mvklocation'] :
         mvklocation = args['mvklocation']
         modelverseshell = True
     else:
         mvklocation = 'temporaryLocation'
         modelverseshell = False
+    """
 
     if args['justxml']:
         try :
@@ -160,10 +163,12 @@ def main():
     except CompilerException as exception :
         Logger.showError(str(exception));
 
+    """
     if(modelverseshell):
         shell = Shell()
         shell.mvk = context.mvk
         shell.setupCommandLine()
+    """
 
 if __name__ == "__main__":
     main()

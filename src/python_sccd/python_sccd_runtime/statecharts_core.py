@@ -14,6 +14,12 @@ from Queue import Queue, Empty
 from sccd.runtime.event_queue import EventQueue
 import sccd.runtime.accurate_time as accurate_time
 
+DEBUG = False
+
+def print_debug(msg):
+    if DEBUG:
+        print msg
+
 class RuntimeException(Exception):
     """
     Base class for runtime exceptions.
@@ -198,6 +204,9 @@ class ObjectManagerBase(object):
         source = parameters[0]
         association_name = parameters[1]
         
+        traversal_list = self.processAssociationReference(association_name)
+        instances = self.getInstances(source, traversal_list)
+        
         association = source.associations[association_name]
         # association = self.instances_map[source].getAssociation(association_name)
         if association.allowedToAdd():
@@ -224,18 +233,29 @@ class ObjectManagerBase(object):
         else:
             source = parameters[0]
             association_name = parameters[1]
+            
             traversal_list = self.processAssociationReference(association_name)
             instances = self.getInstances(source, traversal_list)
             # association = self.instances_map[source].getAssociation(traversal_list[0][0])
             association = source.associations[traversal_list[0][0]]
+            
             for i in instances:
                 try:
+                    for assoc_name in i["instance"].associations:
+                        if assoc_name != 'parent':
+                            traversal_list = self.processAssociationReference(assoc_name)
+                            instances = self.getInstances(i["instance"], traversal_list)
+                            if len(instances) > 0:
+                                raise RuntimeException("Error removing instance from association %s, still %i children left connected with association %s" % (association_name, len(instances), assoc_name))
+                    del i["instance"].controller.input_ports[i["instance"].narrow_cast_port]
                     association.removeInstance(i["instance"])
                     self.instances.discard(i["instance"])
+                    self.eventless.discard(i["instance"])
                 except AssociationException as exception:
                     raise RuntimeException("Error removing instance from association '" + association_name + "': " + str(exception))
                 i["instance"].user_defined_destructor()
                 i["instance"].stop()
+                
             source.addEvent(Event("instance_deleted", parameters = [parameters[1]]))
                 
     def handleAssociateEvent(self, parameters):
@@ -645,8 +665,9 @@ class StatechartSemantics:
         self.concurrency = self.Single
 
 class State:
-    def __init__(self, state_id, obj):
+    def __init__(self, state_id, name, obj):
         self.state_id = state_id
+        self.name = name
         self.obj = obj
         
         self.ancestors = []
@@ -697,12 +718,12 @@ class State:
         return "State(%s)" % (self.state_id)
         
 class HistoryState(State):
-    def __init__(self, state_id, obj):
-        State.__init__(self, state_id, obj)
+    def __init__(self, state_id, name, obj):
+        State.__init__(self, state_id, name, obj)
         
 class ShallowHistoryState(HistoryState):
-    def __init__(self, state_id, obj):
-        HistoryState.__init__(self, state_id, obj)
+    def __init__(self, state_id, name, obj):
+        HistoryState.__init__(self, state_id, name, obj)
         
     def getEffectiveTargetStates(self):
         if self.state_id in self.obj.history_values:
@@ -715,8 +736,8 @@ class ShallowHistoryState(HistoryState):
             return self.parent.getEffectiveTargetStates()
         
 class DeepHistoryState(HistoryState):
-    def __init__(self, state_id, obj):
-        HistoryState.__init__(self, state_id, obj)
+    def __init__(self, state_id, name, obj):
+        HistoryState.__init__(self, state_id, name, obj)
         
     def getEffectiveTargetStates(self):
         if self.state_id in self.obj.history_values:
@@ -726,8 +747,8 @@ class DeepHistoryState(HistoryState):
             return self.parent.getEffectiveTargetStates()
         
 class ParallelState(State):
-    def __init__(self, state_id, obj):
-        State.__init__(self, state_id, obj)
+    def __init__(self, state_id, name, obj):
+        State.__init__(self, state_id, name, obj)
         
     def getEffectiveTargetStates(self):
         targets = [self]
@@ -770,11 +791,11 @@ class Transition:
                     f = lambda s0: not s0.descendants and s0 in s.descendants
                 self.obj.history_values[h.state_id] = filter(f, self.obj.configuration)
         for s in exit_set:
+            print_debug('EXIT: %s::%s' % (self.obj.__class__.__name__, s.name))
             self.obj.eventless_states -= s.has_eventless_transitions
             # execute exit action(s)
             if s.exit:
                 s.exit()
-            # self.obj.configuration.remove(s)
             self.obj.configuration_bitmap &= ~2**s.state_id
         
         # combo state changed area
@@ -788,8 +809,8 @@ class Transition:
         # enter states...
         enter_set = self.__enterSet(targets)
         for s in enter_set:
+            print_debug('ENTER: %s::%s' % (self.obj.__class__.__name__, s.name))
             self.obj.eventless_states += s.has_eventless_transitions
-            # self.obj.configuration.append(s)
             self.obj.configuration_bitmap |= 2**s.state_id
             # execute enter action(s)
             if s.enter:
@@ -800,7 +821,6 @@ class Transition:
         else:
             self.obj.controller.object_manager.eventless.discard(self.obj)
                 
-        # self.obj.configuration.sort(key=lambda x: x.state_id)
         try:
             self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap]
         except:

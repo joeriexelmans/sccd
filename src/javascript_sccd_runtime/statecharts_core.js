@@ -197,6 +197,8 @@ ObjectManagerBase.prototype.handleEvent = function(e) {
 		this.handleCreateEvent(e.parameters);
 	} else if (e.name === "associate_instance") {
 		this.handleAssociateEvent(e.parameters);
+	} else if (e.name === "disassociate_instance") {
+		this.handleDisassociateEvent(e.parameters);
 	} else if (e.name === "start_instance") {
 		this.handleStartInstanceEvent(e.parameters);
 	} else if (e.name === "delete_instance") {
@@ -240,40 +242,7 @@ ObjectManagerBase.prototype.handleStartInstanceEvent = function(parameters) {
 		if (!instances.hasOwnProperty(i)) continue;
 		instances[i].instance.start();
 	}
-};
-
-ObjectManagerBase.prototype.handleDeleteInstanceEvent = function(parameters) {
-	if (parameters.length !== 2) {
-		throw new ParameterException("The delete instance event needs 2 parameters.");
-	}
-	var source = parameters[0];
-	var traversal_list = this.processAssociationReference(parameters[1]);
-	var instances = this.getInstances(source, traversal_list);
-	for (var i in instances) {
-		if (!instances.hasOwnProperty(i)) continue;
-		instances[i].instance.stop();
-		instances[i].instance.user_defined_destructor();
-		// delete association from source instance
-		var association_to_remove = instances[i].ref.associations[instances[i].assoc_name];
-		if (instances[i].assoc_index === -1) {
-			/*for (var x in association_to_remove.instances) {
-				if (!association_to_remove.instances.hasOwnProperty(x)) continue;
-				association_to_remove.instances = new Object();
-				//association_to_remove.instances[x] = null;
-			}*/
-			// empty instances object
-			association_to_remove.instances = new Object();
-			//association_to_remove.instances = new Array();
-		} else {
-			//association_to_remove.instances[instances[i].assoc_index] = null;
-			// remove property from instances object
-			delete association_to_remove.instances[instances[i].assoc_index];
-		}
-		// also remove instance from OM's list of instances
-		index = this.instances.indexOf(instances[i].instance);
-		this.instances.splice(index,1);
-	}
-	source.addEvent(new Event("instance_deleted", undefined, [parameters[1]]));
+    source.addEvent(new Event("instance_started", undefined, [parameters[1]]))
 };
 
 ObjectManagerBase.prototype.handleBroadcastEvent = function(parameters) {
@@ -323,6 +292,40 @@ ObjectManagerBase.prototype.handleCreateEvent = function(parameters) {
 	}
 };
 
+ObjectManagerBase.prototype.handleDeleteInstanceEvent = function(parameters) {
+	if (parameters.length !== 2) {
+		throw new ParameterException("The delete instance event needs 2 parameters.");
+	}
+	var source = parameters[0];
+	var traversal_list = this.processAssociationReference(parameters[1]);
+	var instances = this.getInstances(source, traversal_list);
+	for (var i in instances) {
+		if (!instances.hasOwnProperty(i)) continue;
+		instances[i].instance.stop();
+		instances[i].instance.user_defined_destructor();
+		// delete association from source instance
+		var association_to_remove = instances[i].ref.associations[instances[i].assoc_name];
+		if (instances[i].assoc_index === -1) {
+			/*for (var x in association_to_remove.instances) {
+				if (!association_to_remove.instances.hasOwnProperty(x)) continue;
+				association_to_remove.instances = new Object();
+				//association_to_remove.instances[x] = null;
+			}*/
+			// empty instances object
+			association_to_remove.instances = new Object();
+			//association_to_remove.instances = new Array();
+		} else {
+			//association_to_remove.instances[instances[i].assoc_index] = null;
+			// remove property from instances object
+			delete association_to_remove.instances[instances[i].assoc_index];
+		}
+		// also remove instance from OM's list of instances
+		index = this.instances.indexOf(instances[i].instance);
+		this.instances.splice(index,1);
+	}
+	source.addEvent(new Event("instance_deleted", undefined, [parameters[1]]));
+};
+
 ObjectManagerBase.prototype.handleAssociateEvent = function(parameters) {
 	if (parameters.length !== 3) {
 		throw new ParameterException("The associate_instance event needs 3 parameters.");
@@ -348,6 +351,29 @@ ObjectManagerBase.prototype.handleAssociateEvent = function(parameters) {
 		if (!instances.hasOwnProperty(i)) continue;
 		instances[i].instance.associations[last.name].addInstance(wrapped_to_copy_instance);
 	}
+    source.addEvent(new Event("instance_associated", undefined, [parameters[1], parameters[2]]))
+};
+
+ObjectManagerBase.prototype.handleDisassociateEvent = function(parameters) {
+	if (parameters.length !== 2) {
+		throw new ParameterException("The disassociate event needs 2 parameters.");
+	}
+	var source = parameters[0];
+	var traversal_list = this.processAssociationReference(parameters[1]);
+	var instances = this.getInstances(source, traversal_list);
+	for (var i in instances) {
+		if (!instances.hasOwnProperty(i)) continue;
+		// delete association from source instance
+		var association_to_remove = instances[i].ref.associations[instances[i].assoc_name];
+		if (instances[i].assoc_index === -1) {
+			// empty instances object
+			association_to_remove.instances = new Object();
+		} else {
+			// remove property from instances object
+			delete association_to_remove.instances[instances[i].assoc_index];
+		}
+	}
+	source.addEvent(new Event("instance_disassociated", undefined, [parameters[1]]));
 };
 
 ObjectManagerBase.prototype.handleNarrowCastEvent = function(parameters) {
@@ -691,15 +717,16 @@ StatechartSemantics = {
 
 var DefaultStatechartSemantics = function() {
 	this.big_step_maximality = this.TakeMany;
-	this.concurrency = this.Single
-	this.internal_event_lifeline = this.Queue;
+	this.concurrency = this.Single;
+    this.internal_event_lifeline = this.Queue;
 	this.input_event_lifeline = this.FirstComboStep;
 	this.priority = this.SourceParent;
 };
 
 // State
-function State(state_id, obj) {
+function State(state_id, name, obj) {
     this.state_id = state_id;
+    this.name = name;
     this.obj = obj;
     
     this.ancestors = new Array();
@@ -755,15 +782,15 @@ State.prototype.setExit = function(exit) {
 }
 
 // HistoryState
-function HistoryState(state_id, obj) {
-    State.call(this, state_id, obj);
+function HistoryState(state_id, name, obj) {
+    State.call(this, state_id, name, obj);
 }
 
 HistoryState.prototype = new State();
 
 // ShallowHistoryState
-function ShallowHistoryState(state_id, obj) {
-    HistoryState.call(this, state_id, obj);
+function ShallowHistoryState(state_id, name, obj) {
+    HistoryState.call(this, state_id, name, obj);
 }
 
 ShallowHistoryState.prototype = new HistoryState();
@@ -782,8 +809,8 @@ ShallowHistoryState.prototype.getEffectiveTargetStates = function() {
 }
 
 // DeepHistoryState
-function DeepHistoryState(state_id, obj) {
-    HistoryState.call(this, state_id, obj);
+function DeepHistoryState(state_id, name, obj) {
+    HistoryState.call(this, state_id, name, obj);
 }
 
 DeepHistoryState.prototype = new HistoryState();

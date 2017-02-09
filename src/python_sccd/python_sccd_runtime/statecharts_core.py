@@ -119,6 +119,7 @@ class ObjectManagerBase(object):
                          "broad_cast": self.handleBroadCastEvent,
                          "create_instance": self.handleCreateEvent,
                          "associate_instance": self.handleAssociateEvent,
+                         "disassociate_instance": self.handleDisassociateEvent,
                          "start_instance": self.handleStartInstanceEvent,
                          "delete_instance": self.handleDeleteInstanceEvent}
         
@@ -276,6 +277,28 @@ class ObjectManagerBase(object):
                 
             for i in self.getInstances(source, dest_list):
                 i["instance"].associations[last[0]].addInstance(wrapped_to_copy_instance)
+                
+            source.addEvent(Event("instance_associated", parameters = [parameters[1], parameters[2]]))
+                
+    def handleDisassociateEvent(self, parameters):
+        if len(parameters) < 2:
+            raise ParameterException ("The delete event needs at least 2 parameters.")
+        else:
+            source = parameters[0]
+            association_name = parameters[1]
+            
+            traversal_list = self.processAssociationReference(association_name)
+            instances = self.getInstances(source, traversal_list)
+            # association = self.instances_map[source].getAssociation(traversal_list[0][0])
+            association = source.associations[traversal_list[0][0]]
+            
+            for i in instances:
+                try:
+                    association.removeInstance(i["instance"])
+                except AssociationException as exception:
+                    raise RuntimeException("Error disassociating '" + association_name + "': " + str(exception))
+                
+            source.addEvent(Event("instance_disassociated", parameters = [parameters[1]]))
         
     def handleNarrowCastEvent(self, parameters):
         if len(parameters) != 3:

@@ -51,10 +51,17 @@
             </state>
             
             <state id="waiting_for_disassociate">
-                <transition event="instance_disassociated" target="../done">
+                <transition event="instance_disassociated" target="../sending_hello">
                     <raise port="test_output" event="instance_disassociated"/>
                     <!-- This should no longer work. -->
                     <raise scope="narrow" target="'test3_association'" event="hello" />
+                </transition>
+            </state>
+            
+            <state id="sending_hello">
+                <transition target="../done">
+                    <!-- This should still work. -->
+                    <raise scope="narrow" target="'test2_association'" event="hello" />
                 </transition>
             </state>
             
@@ -90,6 +97,9 @@
            </slot>
            <slot>
                <event name="instance_disassociated" port="test_output"/>
+           </slot>
+           <slot>
+               <event name="second_working" port="test_output"/>
            </slot>
         </expected>
     </test>

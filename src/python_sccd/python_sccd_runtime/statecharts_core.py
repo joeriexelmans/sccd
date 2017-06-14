@@ -958,7 +958,7 @@ class RuntimeClassBase(object):
         if index in self.timers_to_add:
             del self.timers_to_add[index]
         if index in self.timers:
-            self.removed_timers.add(self.timers[index].event_time)
+            self.removed_timers.add(self.timers[index])
             self.events.remove(self.timers[index])
             del self.timers[index]
         self.earliest_event_time = self.events.getEarliestTime()

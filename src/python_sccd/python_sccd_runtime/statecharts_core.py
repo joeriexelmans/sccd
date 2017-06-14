@@ -961,6 +961,7 @@ class RuntimeClassBase(object):
             self.removed_timers.add(self.timers[index].event_time)
             self.events.remove(self.timers[index])
             del self.timers[index]
+        self.earliest_event_time = self.events.getEarliestTime()
         
     def addEvent(self, event_list, time_offset = 0):
         event_time = self.controller.simulated_time + time_offset
@@ -990,7 +991,7 @@ class RuntimeClassBase(object):
         if self.earliest_event_time != INFINITY:
             heappush(self.controller.object_manager.instance_times, (self.earliest_event_time, self))
 
-    def step(self):        
+    def step(self):
         is_stable = False
         while not is_stable:
             due = []

@@ -8,19 +8,22 @@ class EventQueue(object):
         self.removed = set()
     
     def __str__(self):
-        return str(self.event_list)
+        return str([entry for entry in self.event_list if entry not in self.removed])
     
     def isEmpty(self):
-        return not self.event_list
+        return not [item for item in self.event_list if not item in self.removed]
     
     def getEarliestTime(self):
+        while not self.isEmpty() and (self.event_list[0] in self.removed):
+            item = heappop(self.event_list)
+            self.removed.remove(item)
         return INFINITY if self.isEmpty() else self.event_list[0][0]
     
     def add(self, event_time, event):
         self.event_time_numbers[event_time] = self.event_time_numbers.setdefault(event_time, 0) + 1
-        heappush(self.event_list, (event_time, self.event_time_numbers[event_time], event))
-        event.event_time = event_time
-        return event
+        def_event = (event_time, self.event_time_numbers[event_time], event)
+        heappush(self.event_list, def_event)
+        return def_event
     
     def remove(self, event):
         self.removed.add(event)

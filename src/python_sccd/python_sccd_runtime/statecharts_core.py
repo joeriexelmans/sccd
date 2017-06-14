@@ -133,7 +133,6 @@ class ObjectManagerBase(object):
         to_step = set()
         while self.instance_times[0][0] <= simulated_time:
             to_step.add(heappop(self.instance_times)[1])
-        # print simulated_time, len(self.instances), len(to_step | self.eventless)
         for i in to_step | self.eventless:
             if i.active and (i.earliest_event_time <= simulated_time or i.eventless_states):
                 i.step()
@@ -903,6 +902,7 @@ class RuntimeClassBase(object):
         if index in self.timers:
             self.events.remove(self.timers[index])
             del self.timers[index]
+        self.earliest_event_time = self.events.getEarliestTime()
         
     def addEvent(self, event_list, time_offset = 0):
         event_time = self.controller.simulated_time + time_offset
@@ -931,7 +931,7 @@ class RuntimeClassBase(object):
             self.earliest_event_time = self.events.getEarliestTime()
         heappush(self.controller.object_manager.instance_times, (self.earliest_event_time, self))
 
-    def step(self):        
+    def step(self):
         is_stable = False
         while not is_stable:
             due = []

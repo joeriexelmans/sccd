@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram name="multiple-afters-running-behind">
+    <class name="Main" default="true">
+        <method name="cond">
+            <body>
+                return True
+            </body>
+        </method>
+        <scxml initial="x">
+            <state id="x">
+                <transition after="self.sccd_yield() + 0.5" cond="self.cond()" target="." />
+                <transition after="self.sccd_yield() + 0.5" cond="self.cond()" target="." />
+                <transition after="self.sccd_yield() + 0.5" cond="self.cond()" target="." />
+                <onentry>
+                    <script>
+                        import time
+                        print 'time.time() = %s' % time.time()
+                        time.sleep(0.1)
+                        print self.sccd_yield()
+                    </script>
+                </onentry>
+            </state>
+        </scxml>
+    </class>
+</diagram>

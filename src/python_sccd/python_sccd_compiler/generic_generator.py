@@ -670,6 +670,9 @@ class GenericGenerator(Visitor):
         self.writer.beginMethod(parent_node.friendly_name + "_enter")
         self.writer.beginMethodBody()
 
+        if enter_method.action:
+            enter_method.action.accept(self)
+
         # take care of any AFTER events
         for transition in parent_node.transitions :
             trigger = transition.getTrigger()
@@ -678,9 +681,7 @@ class GenericGenerator(Visitor):
                 trigger.after.accept(self)
                 after = self.writer.stopRecordingExpression()
                 self.writer.add(GLC.FunctionCall(GLC.SelfProperty("addTimer"), [str(trigger.getAfterIndex()), after]))
-
-        if enter_method.action:
-            enter_method.action.accept(self)
+                
         self.writer.endMethodBody()
         self.writer.endMethod()
          

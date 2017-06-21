@@ -92,9 +92,11 @@ class Association(object):
         
     def removeInstance(self, instance):
         if self.allowedToRemove():
-            del self.instances[self.instances_to_ids[instance]]
+            index = self.instances_to_ids[instance]
+            del self.instances[index]
             del self.instances_to_ids[instance]
             self.size -= 1
+            return index
         else:
             raise AssociationException("Not allowed to remove the instance from the association.")
         
@@ -264,7 +266,7 @@ class ObjectManagerBase(object):
             raise ParameterException ("The associate_instance event needs 3 parameters.")
         else:
             source = parameters[0]
-            to_copy_list = self.getInstances(source,self.processAssociationReference(parameters[1]))
+            to_copy_list = self.getInstances(source, self.processAssociationReference(parameters[1]))
             if len(to_copy_list) != 1:
                 raise AssociationReferenceException ("Invalid source association reference.")
             wrapped_to_copy_instance = to_copy_list[0]["instance"]
@@ -275,30 +277,37 @@ class ObjectManagerBase(object):
             if last[1] != -1:
                 raise AssociationReferenceException ("Last association name in association reference should not be accompanied by an index.")
                 
+            added_links = []
             for i in self.getInstances(source, dest_list):
-                i["instance"].associations[last[0]].addInstance(wrapped_to_copy_instance)
+                association = i["instance"].associations[last[0]]
+                if association.allowedToAdd():
+                    index = association.addInstance(wrapped_to_copy_instance)
+                    added_links.append(i["path"] + ("" if i["path"] == "" else "/") + last[0] + "[" + str(index) + "]")
                 
-            source.addEvent(Event("instance_associated", parameters = [parameters[1], parameters[2]]))
+            source.addEvent(Event("instance_associated", parameters = [added_links]))
                 
     def handleDisassociateEvent(self, parameters):
         if len(parameters) < 2:
-            raise ParameterException ("The delete event needs at least 2 parameters.")
+            raise ParameterException ("The disassociate_instance event needs at least 2 parameters.")
         else:
             source = parameters[0]
             association_name = parameters[1]
             
             traversal_list = self.processAssociationReference(association_name)
+            if (len(traversal_list) != 1):
+                raise RuntimeException("Can only disassociate direct children!")
             instances = self.getInstances(source, traversal_list)
-            # association = self.instances_map[source].getAssociation(traversal_list[0][0])
             association = source.associations[traversal_list[0][0]]
             
+            deleted_links = []
             for i in instances:
                 try:
-                    association.removeInstance(i["instance"])
+                    index = association.removeInstance(i["instance"])
+                    deleted_links.append(association_name +  "[" + str(index) + "]")
                 except AssociationException as exception:
                     raise RuntimeException("Error disassociating '" + association_name + "': " + str(exception))
                 
-            source.addEvent(Event("instance_disassociated", parameters = [parameters[1]]))
+            source.addEvent(Event("instance_disassociated", parameters = [deleted_links]))
         
     def handleNarrowCastEvent(self, parameters):
         if len(parameters) != 3:
@@ -315,7 +324,8 @@ class ObjectManagerBase(object):
             "instance": source,
             "ref": None,
             "assoc_name": None,
-            "assoc_index": None
+            "assoc_index": None,
+            "path": ""
         }]
         # currents = [source]
         for (name, index) in traversal_list:
@@ -327,7 +337,8 @@ class ObjectManagerBase(object):
                         "instance": association.instances[index],
                         "ref": current["instance"],
                         "assoc_name": name,
-                        "assoc_index": index
+                        "assoc_index": index,
+                        "path": current["path"] + ("" if current["path"] == "" else "/") + name + "[" + str(index) + "]"
                     })
                 elif (index == -1):
                     for i in association.instances:
@@ -335,7 +346,8 @@ class ObjectManagerBase(object):
                             "instance": association.instances[i],
                             "ref": current["instance"],
                             "assoc_name": name,
-                            "assoc_index": index
+                            "assoc_index": index,
+                            "path": current["path"] + ("" if current["path"] == "" else "/") + name + "[" + str(index) + "]"
                         })
                     #nexts.extend( association.instances.values() )
                 else:

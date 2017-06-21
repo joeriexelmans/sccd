@@ -71,7 +71,6 @@
     <class name="Class2" default="false">
         <scxml>
             <state id="start">
-            	<log>started</log>
                 <transition event="hello" target=".">
                     <raise port="test_output" event="second_working" />
                 </transition>

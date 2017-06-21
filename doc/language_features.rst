@@ -434,3 +434,10 @@ The object manager accepts four events:
     * Parameters:
         * *link_expression_dst*: an expression evaluating to a set of links, of which the targets need to be associated
         * *link_expression_src*: an expression evaluating to an association, which needs to be instantiated to connect the source of the association to the targets that were evaluated in the expression above
+    * Returns Event:
+        * **instance_associated**\(*created_links*): the (relative) links which were created
+* **disassociate_instance**
+    * Parameters:
+        * *link_expression_dst*: an expression evaluating to a set of links (only direct children of the current instance!), of which the targets need to be disassociated from the current instance
+    * Returns Event:
+        * **instance_disassociated**\(*deleted_links*): the links which were deleted

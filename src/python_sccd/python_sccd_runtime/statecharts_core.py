@@ -666,17 +666,17 @@ class ThreadsControllerBase(ControllerBase):
                     print '\rrunning %ims behind schedule' % (now - earliest_event_time),
                     self.last_print_time = now
                     self.behind = True
-            earliest_event_time = self.getEarliestEventTime()
-            if earliest_event_time == INFINITY:
-                if self.keep_running:
-                    with self.input_condition:
+            with self.input_condition:
+                earliest_event_time = self.getEarliestEventTime()
+                if earliest_event_time == INFINITY:
+                    if self.keep_running:
                         self.input_condition.wait()
                         earliest_event_time = self.getEarliestEventTime()
-                else:
-                    self.stop_thread = True
-            if self.stop_thread:
-                break
-            self.simulated_time = earliest_event_time
+                    else:
+                        self.stop_thread = True
+                if self.stop_thread:
+                    break
+                self.simulated_time = earliest_event_time
 
 class StatechartSemantics:
     # Big Step Maximality

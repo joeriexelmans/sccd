@@ -12,7 +12,7 @@ from infinity import INFINITY
 from Queue import Queue, Empty 
 
 from sccd.runtime.event_queue import EventQueue
-import sccd.runtime.accurate_time as accurate_time
+from sccd.runtime.accurate_time import AccurateTime
 
 DEBUG = False
 
@@ -433,8 +433,14 @@ class ControllerBase(object):
         self.simulated_time = None
         self.behind = False
         
+        # accurate timer
+        self.accurate_time = AccurateTime()
+        
     def getSimulatedTime(self):
         return self.simulated_time
+        
+    def getWallClockTime(self):
+        return self.accurate_time.get_wct()
             
     def addInputPort(self, virtual_name, instance = None):
         if instance == None:
@@ -452,7 +458,7 @@ class ControllerBase(object):
         self.object_manager.broadcast(new_event, time_offset)
         
     def start(self):
-        accurate_time.set_start_time()
+        self.accurate_time.set_start_time()
         self.simulated_time = 0
         self.object_manager.start()
     
@@ -474,7 +480,7 @@ class ControllerBase(object):
             if force_internal:
                 self.input_queue.add((0 if self.simulated_time is None else self.simulated_time) + time_offset, e)
             else:
-                self.input_queue.add((0 if self.simulated_time is None else accurate_time.time()) + time_offset, e)
+                self.input_queue.add((0 if self.simulated_time is None else self.accurate_time.get_wct()) + time_offset, e)
 
     def getEarliestEventTime(self):
         return min(self.object_manager.getEarliestEventTime(), self.input_queue.getEarliestTime())
@@ -574,7 +580,7 @@ class EventLoopControllerBase(ControllerBase):
         ControllerBase.stop(self)
 
     def run(self):
-        start_time = accurate_time.time()
+        start_time = self.accurate_time.get_wct()
         try:
             self.running = True
             while 1:
@@ -588,7 +594,7 @@ class EventLoopControllerBase(ControllerBase):
                 if earliest_event_time == INFINITY:
                     if self.finished_callback: self.finished_callback() # TODO: This is not necessarily correct (keep_running necessary?)
                     return
-                now = accurate_time.time()
+                now = self.accurate_time.get_wct()
                 if now - start_time > 10 or earliest_event_time - now > 0:
                     self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
                     if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
@@ -642,7 +648,7 @@ class ThreadsControllerBase(ControllerBase):
             earliest_event_time = self.getEarliestEventTime()
             if earliest_event_time == INFINITY and not self.keep_running:
                 return
-            now = accurate_time.time()
+            now = self.accurate_time.get_wct()
             if earliest_event_time - now > 0:
                 if self.behind:                
                     print '\r' + ' ' * 80,
@@ -954,10 +960,13 @@ class RuntimeClassBase(object):
         self.__set_stable(True)
         
     def sccd_yield(self):
-        return max(0, (accurate_time.time() - self.controller.simulated_time) / 1000.0)
+        return max(0, (self.accurate_time.get_wct() - self.controller.simulated_time) / 1000.0)
         
     def getSimulatedTime(self):
-        return self.controller.simulated_time
+        return self.controller.getSimulatedTime()
+        
+    def getWallClockTime(self):
+        return self.controller.getWallClockTime()
     
     def updateConfiguration(self, states):
         self.configuration.extend(states)

@@ -2,9 +2,6 @@
 <diagram author="Simon Van Mierlo" name="Timer (Threaded Version)">
     <description>
     </description>
-    <top>
-        from sccd.runtime.accurate_time import time
-    </top>    
     <inport name="input" />
 
     <class name="MainApp" default="true">
@@ -16,12 +13,12 @@
         </method>
         <method name="print_simulated_time">
             <body>
-                print 'SIMTIME = %.2f' % get_simulated_time()
+                print 'SIMTIME = %.2f' % self.getSimulatedTime()
             </body>
         </method>
         <method name="print_wct_time">
             <body>
-                print 'ACTTIME = %.2f' % time()
+                print 'ACTTIME = %.2f' % self.getWallClockTime()
             </body>
         </method>
         <scxml initial="running">

@@ -1,17 +1,18 @@
 import time as t
 import os
 
-global start_time
-def set_start_time():
-    global start_time
-    if os.name == 'posix':
-        start_time = t.time()
-    elif os.name == 'nt':
-        start_time = t.clock()
-
-if os.name == 'posix':
-    def time():
-        return int((t.time() - start_time) * 1000)
-elif os.name == 'nt':
-    def time():
-        return int((t.clock() - start_time) * 1000)
+class AccurateTime:
+    def __init__(self):
+        if os.name == 'posix':
+            self._get_wct_time = lambda self: int((t.time() - self.start_time) * 1000)
+        elif os.name == 'nt':
+            self._get_wct_time = lambda self: int((t.clock() - self.start_time) * 1000)
+        
+    def set_start_time(self):
+        if os.name == 'posix':
+            self.start_time = t.time()
+        elif os.name == 'nt':
+            self.start_time = t.clock()
+            
+    def get_wct(self):
+        return self._get_wct_time(self)

@@ -1,5 +1,4 @@
 from sccd.runtime.statecharts_core import EventLoop
-from sccd.runtime.accurate_time import time
 
 import math
 

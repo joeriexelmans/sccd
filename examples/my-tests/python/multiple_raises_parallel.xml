@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram name="multiple-raises-parallel">
+    <class name="A" default="true">
+        <scxml big_step_maximality="take_one" initial="x">
+            <parallel id="x">
+                <state id="x1" initial="x1">
+                    <state id="x1">
+                        <transition target="../end">
+                            <raise event="z" />
+                            <script>
+                                print 'raised event in x1'
+                            </script>
+                        </transition>
+                    </state>
+                    <state id="end" />
+                </state>
+                <state id="x2" initial="x2">
+                    <state id="x2">
+                        <transition target="../end">
+                            <raise event="z" />
+                            <script>
+                                print 'raised event in x2'
+                            </script>
+                        </transition>
+                    </state>
+                    <state id="end" />
+                </state>
+                <state id="x3" initial="x3">
+                    <state id="x3">
+                        <transition target="../end">
+                            <raise event="z" />
+                            <script>
+                                print 'raised event in x3'
+                            </script>
+                        </transition>
+                    </state>
+                    <state id="end" />
+                </state>
+                <state id="receiving">
+                    <state id="receiving">
+                        <transition target="." event="z">
+                            <script>
+                                print 'received event...'
+                            </script>
+                        </transition>
+                    </state>
+                </state>
+            </parallel>
+        </scxml>
+    </class>
+</diagram>

@@ -654,7 +654,11 @@ class ThreadsControllerBase(ControllerBase):
                     print '\r' + ' ' * 80,
                     self.behind = False
                 with self.input_condition:
-                    self.input_condition.wait((earliest_event_time - now) / 1000.0)
+                    if earliest_event_time == self.getEarliestEventTime():
+                        self.input_condition.wait((earliest_event_time - now) / 1000.0)
+                    else:
+                        # Something happened that made the queue fill up already, but we were not yet waiting for the Condition...
+                        pass
             else:
                 if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
                     if self.behind_schedule_callback:

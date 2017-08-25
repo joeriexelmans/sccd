@@ -960,7 +960,7 @@ class RuntimeClassBase(object):
         self.__set_stable(True)
         
     def sccd_yield(self):
-        return max(0, (self.accurate_time.get_wct() - self.controller.simulated_time) / 1000.0)
+        return max(0, (self.controller.accurate_time.get_wct() - self.controller.simulated_time) / 1000.0)
         
     def getSimulatedTime(self):
         return self.controller.getSimulatedTime()

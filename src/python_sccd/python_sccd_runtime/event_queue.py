@@ -14,7 +14,7 @@ class EventQueue(object):
         return not [item for item in self.event_list if not item in self.removed]
     
     def getEarliestTime(self):
-        while not self.isEmpty() and (self.event_list[0] in self.removed):
+        while self.event_list and (self.event_list[0] in self.removed):
             item = heappop(self.event_list)
             self.removed.remove(item)
         try:
@@ -32,7 +32,7 @@ class EventQueue(object):
         self.removed.add(event)
         if len(self.removed) > 100:
             self.event_list = [x for x in self.event_list if x not in self.removed]
-        self.removed = set()
+            self.removed = set()
     
     def pop(self):
         while 1:

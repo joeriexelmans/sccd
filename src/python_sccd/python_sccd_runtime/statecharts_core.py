@@ -134,6 +134,8 @@ class ObjectManagerBase(object):
             i.addEvent(new_event, time_offset)
         
     def getEarliestEventTime(self):
+        while self.instance_times and self.instance_times[0][0] < self.instance_times[0][1].earliest_event_time:
+            heappop(self.instance_times)
         return min(INFINITY if not self.instance_times else self.instance_times[0][0], self.events.getEarliestTime())
     
     def stepAll(self):

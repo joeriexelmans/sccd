@@ -17,7 +17,10 @@ class EventQueue(object):
         while not self.isEmpty() and (self.event_list[0] in self.removed):
             item = heappop(self.event_list)
             self.removed.remove(item)
-        return INFINITY if self.isEmpty() else self.event_list[0][0]
+        try:
+            return self.event_list[0][0]
+        except IndexError:
+            return INFINITY
     
     def add(self, event_time, event):
         self.event_time_numbers[event_time] = self.event_time_numbers.setdefault(event_time, 0) + 1

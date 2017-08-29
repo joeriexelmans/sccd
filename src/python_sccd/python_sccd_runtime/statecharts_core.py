@@ -602,7 +602,7 @@ class EventLoopControllerBase(ControllerBase):
                     if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
                         if self.behind_schedule_callback:
                             self.behind_schedule_callback(self, now - earliest_event_time)
-                        print '\rrunning %ims behind schedule' % (now - earliest_event_time),
+                        print_debug('\rrunning %ims behind schedule' % (now - earliest_event_time))
                         self.last_print_time = now
                         self.behind = True
                     elif now - earliest_event_time < 10 and self.behind:
@@ -665,7 +665,7 @@ class ThreadsControllerBase(ControllerBase):
                 if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
                     if self.behind_schedule_callback:
                         self.behind_schedule_callback(self, now - earliest_event_time)
-                    print '\rrunning %ims behind schedule' % (now - earliest_event_time),
+                    print_debug('\rrunning %ims behind schedule' % (now - earliest_event_time))
                     self.last_print_time = now
                     self.behind = True
             with self.input_condition:

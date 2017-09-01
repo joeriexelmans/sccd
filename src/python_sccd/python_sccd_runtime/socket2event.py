@@ -116,7 +116,12 @@ def _poll(controller, socket_out):
             sock = socket.socket()
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             start_socket_threads(controller, sock)
-            controller.addInput(Event("created_socket", "socket_in", [sock, params[0]]))
+            if len(params) == 1:
+                # In case we get an ID to prove which socket it is
+                controller.addInput(Event("created_socket", "socket_in", [sock, params[0]]))
+            else:
+                # Don't care and just send out the socket
+                controller.addInput(Event("created_socket", "socket_in", [sock]))
         elif name == "close_socket":
             _start_on_daemon_thread(_close, [controller, params[0]])
         elif name == "send_socket":

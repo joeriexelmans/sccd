@@ -34,13 +34,17 @@ def start_socket_threads(controller, sock):
     thrd.start()
 
 def receive_from_socket(controller, sock, recv_event):
-    while 1:
-        recv_event.wait()
-        recv_event.clear()
-        if not run_sockets[sock]:
-            break
-        data = sock.recv(2**16)
-        controller.addInput(Event("received_socket", "socket_in", [sock, data]))
+    try:
+        while 1:
+            recv_event.wait()
+            recv_event.clear()
+            if not run_sockets[sock]:
+                break
+            data = sock.recv(2**16)
+            controller.addInput(Event("received_socket", "socket_in", [sock, data]))
+    except socket.error as e:
+        controller.addInput(Event("error_socket", "socket_in", [sock, e]))
+        
 
 def send_to_socket(controller, sock, data_queue, send_event):
     while run_sockets[sock]:

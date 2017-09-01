@@ -606,7 +606,6 @@ class EventLoopControllerBase(ControllerBase):
                         self.last_print_time = now
                         self.behind = True
                     elif now - earliest_event_time < 10 and self.behind:
-                        print '\r' + ' ' * 80,
                         self.behind = False
                     self.simulated_time = earliest_event_time
                     return
@@ -653,7 +652,6 @@ class ThreadsControllerBase(ControllerBase):
             now = self.accurate_time.get_wct()
             if earliest_event_time - now > 0:
                 if self.behind:                
-                    print '\r' + ' ' * 80,
                     self.behind = False
                 with self.input_condition:
                     if earliest_event_time == self.getEarliestEventTime():

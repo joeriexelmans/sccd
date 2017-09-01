@@ -10,8 +10,8 @@ thread, you will need to start the code by running
 "boot_translation_service(controller)" before using the ports.
 """
 
-from sccd.runtime.statecharts_core import Event
 import threading
+from sccd.runtime.statecharts_core import Event
 import socket
 
 send_data_queues = {}
@@ -83,11 +83,12 @@ def _wrapper_func(*args):
     try:
         func(*args[1:])
     except socket.error as e:
-        print("ERROR " + str(e))
+        #print("ERROR " + str(e))
         controller.addInput(Event("error_socket", "socket_in", [sock, e]))
     except Exception as e:
         print("UNKNOWN ERROR " + str(e))
         controller.addInput(Event("unknown_error_socket", "socket_in", [sock, e]))
+        raise
 
 def _start_on_daemon_thread(func, args):
     new_args = [func]
@@ -115,7 +116,7 @@ def _poll(controller, socket_out):
             sock = socket.socket()
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             start_socket_threads(controller, sock)
-            controller.addInput(Event("created_socket", "socket_in", [sock]))
+            controller.addInput(Event("created_socket", "socket_in", [sock, params[0]]))
         elif name == "close_socket":
             _start_on_daemon_thread(_close, [controller, params[0]])
         elif name == "send_socket":

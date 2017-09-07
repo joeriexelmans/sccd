@@ -458,7 +458,7 @@ class ControllerBase(object):
         self.output_ports.append(port_name)
 
     def broadcast(self, new_event, time_offset = 0):
-        self.object_manager.broadcast(new_event, time_offset)
+        self.object_manager.broadcast(None, new_event, time_offset)
         
     def start(self):
         self.accurate_time.set_start_time()

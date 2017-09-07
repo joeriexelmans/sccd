@@ -511,7 +511,7 @@ ControllerBase.prototype.addOutputPort = function(port_name) {
 
 ControllerBase.prototype.broadcast = function(new_event, time_offset) {
     if (time_offset === undefined) time_offset = 0
-	this.object_manager.broadcast(new_event, time_offset);
+	this.object_manager.broadcast(undefined, new_event, time_offset);
 };
 
 ControllerBase.prototype.start = function() {

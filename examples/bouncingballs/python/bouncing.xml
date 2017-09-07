@@ -206,7 +206,7 @@
                 </transition>
             </parallel>
             <state id="stopped">
-                <onentry>                
+                <onentry>
                     <raise event="delete_window" scope="narrow" target="'parent'">
                         <parameter expr="self.association_name" />
                     </raise>

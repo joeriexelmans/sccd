@@ -838,6 +838,7 @@ class GenericGenerator(Visitor):
                     GLC.String("broad_cast"),
                     GLC.NoneExpression(),
                     GLC.ArrayExpression([
+                        GLC.SelfExpression(),
                         new_event_expr])])]))
             
     def visit_Script(self, script):

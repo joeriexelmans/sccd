@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram author="Yentl Van Tendeloo" name="Testing">
+    <description>
+        Testing
+    </description>
+
+    <class name="Testing" default="true">
+        <scxml initial="A">
+            <parallel id="A">
+                <state id="B">
+                    <state id="C">
+                        <onentry>
+                            <raise event="Z"/>
+                        </onentry>
+                    </state>
+                </state>
+
+                <state id="D">
+                    <state id="E">
+                        <transition event="Z" target=".">
+                            <raise event="Z" scope="broad"/>
+                            <script>
+                                print("Transition fired!")
+                            </script>
+                        </transition>
+                    </state>
+                </state>
+            </parallel>
+        </scxml>
+    </class>
+</diagram>

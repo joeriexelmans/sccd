@@ -147,10 +147,10 @@ ObjectManagerBase.prototype.addEvent = function(the_event, time_offset) {
 	this.events.add(new EventQueueEntry(this.controller.simulated_time + time_offset, the_event));
 };
 
-ObjectManagerBase.prototype.broadcast = function(new_event, time_offset) {
+ObjectManagerBase.prototype.broadcast = function(source, new_event, time_offset) {
 	if (time_offset === undefined) time_offset = 0;
 	for (var i in this.instances) {
-		if (!this.instances.hasOwnProperty(i)) continue;
+		if (!this.instances.hasOwnProperty(i) || i == source) continue;
 		this.instances[i].addEvent(new_event, time_offset);
 	}
 };
@@ -246,10 +246,10 @@ ObjectManagerBase.prototype.handleStartInstanceEvent = function(parameters) {
 };
 
 ObjectManagerBase.prototype.handleBroadcastEvent = function(parameters) {
-	if (parameters.length !== 1) {
-		throw new ParameterException("The broadcast event needs 1 parameter.");
+	if (parameters.length !== 2) {
+		throw new ParameterException("The broadcast event needs 2 parameters (source of event and event name).");
 	}
-	this.broadcast(parameters[0]);
+	this.broadcast(parameters[0], parameters[1]);
 };
 
 ObjectManagerBase.prototype.handleCreateEvent = function(parameters) {

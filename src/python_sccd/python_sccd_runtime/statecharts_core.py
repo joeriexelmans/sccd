@@ -129,9 +129,10 @@ class ObjectManagerBase(object):
         self.events.add(self.controller.simulated_time + time_offset, event)
         
     # broadcast an event to all instances
-    def broadcast(self, new_event, time_offset = 0):
+    def broadcast(self, source, new_event, time_offset = 0):
         for i in self.instances:
-            i.addEvent(new_event, time_offset)
+            if i != source:
+                i.addEvent(new_event, time_offset)
         
     def getEarliestEventTime(self):
         while self.instance_times and self.instance_times[0][0] < self.instance_times[0][1].earliest_event_time:
@@ -198,9 +199,9 @@ class ObjectManagerBase(object):
             source.addEvent(Event("instance_started", parameters = [parameters[1]]))
         
     def handleBroadCastEvent(self, parameters):
-        if len(parameters) != 1:
-            raise ParameterException ("The broadcast event needs 1 parameter.")
-        self.broadcast(parameters[0])
+        if len(parameters) != 2:
+            raise ParameterException ("The broadcast event needs 2 parameters (source of event and event name).")
+        self.broadcast(parameters[0], parameters[1])
 
     def handleCreateEvent(self, parameters):
         if len(parameters) < 2:

@@ -907,13 +907,16 @@ class Transition:
         
     def optimize(self):
         # the least-common ancestor can be computed statically
-        self.lca = self.source.parent
-        target = self.targets[0]
-        if self.source.parent != target.parent: # external
-            for a in self.source.ancestors:
-                if a in target.ancestors:
-                    self.lca = a
-                    break
+        if self.source in self.targets[0].ancestors:
+            self.lca = self.source
+        else:
+            self.lca = self.source.parent
+            target = self.targets[0]
+            if self.source.parent != target.parent: # external
+                for a in self.source.ancestors:
+                    if a in target.ancestors:
+                        self.lca = a
+                        break
                     
     def __repr__(self):
         return "Transition(%s, %s)" % (self.source, self.targets[0])

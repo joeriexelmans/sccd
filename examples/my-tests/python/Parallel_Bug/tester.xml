@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram author="Yentl Van Tendeloo" name="Testing">
+    <description>
+        Testing
+    </description>
+
+    <class name="Testing" default="true">
+        <scxml initial="A">
+            <parallel id="A">
+                <state id="B" initial="1">
+                    <onexit>
+                        <script>
+                            raise Exception("Should never leave!")
+                        </script>
+                    </onexit>
+
+                    <state id="1">
+                        <onentry>
+                            <raise event="Z"/>
+                        </onentry>
+                    </state>
+                </state>
+
+                <state id="D" initial="a">
+                    <state id="a"/>
+                    <state id="b"/>
+                    <transition event="Z" target="a"/>
+                </state>
+            </parallel>
+        </scxml>
+    </class>
+</diagram>
+

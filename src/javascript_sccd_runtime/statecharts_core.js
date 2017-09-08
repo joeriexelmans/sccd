@@ -967,13 +967,17 @@ Transition.prototype.setTrigger = function(trigger) {
 
 Transition.prototype.optimize = function() {
     // the least-common ancestor can be computed statically
-    this.lca = this.source.my_parent;
     var target = this.targets[0];
-    if (this.source.my_parent != target.my_parent) { // external
-        for (let a of this.source.ancestors) {
-            if (target.ancestors.indexOf(a) >= 0) {
-                this.lca = a;
-                break;
+    if (target.ancestors.indexOf(this.source) >= 0) {
+        this.lca = this.source
+    } else {
+        this.lca = this.source.my_parent;
+        if (this.source.my_parent != target.my_parent) { // external
+            for (let a of this.source.ancestors) {
+                if (target.ancestors.indexOf(a) >= 0) {
+                    this.lca = a;
+                    break;
+                }
             }
         }
     }

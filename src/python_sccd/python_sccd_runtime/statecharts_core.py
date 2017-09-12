@@ -162,7 +162,8 @@ class ObjectManagerBase(object):
 
     def step(self):
         while self.events.getEarliestTime() <= self.controller.simulated_time:
-            self.handleEvent(self.events.pop())
+            if self.events:
+                self.handleEvent(self.events.pop())
                
     def start(self):
         for i in self.instances:

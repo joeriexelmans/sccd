@@ -295,20 +295,20 @@ class ObjectManagerBase(object):
         else:
             source = parameters[0]
             association_name = parameters[1]
-            
-            traversal_list = self.processAssociationReference(association_name)
-            if (len(traversal_list) != 1):
-                raise RuntimeException("Can only disassociate direct children!")
-            instances = self.getInstances(source, traversal_list)
-            association = source.associations[traversal_list[0][0]]
-            
+            if not isinstance(association_name, list):
+                association_name = [association_name]
             deleted_links = []
-            for i in instances:
-                try:
-                    index = association.removeInstance(i["instance"])
-                    deleted_links.append(association_name +  "[" + str(index) + "]")
-                except AssociationException as exception:
-                    raise RuntimeException("Error disassociating '" + association_name + "': " + str(exception))
+            
+            for a_n in association_name:
+                traversal_list = self.processAssociationReference(a_n)
+                instances = self.getInstances(source, traversal_list)
+                
+                for i in instances:
+                    try:
+                        index = i['ref'].associations[i['assoc_name']].removeInstance(i["instance"])
+                        deleted_links.append(a_n +  "[" + str(index) + "]")
+                    except AssociationException as exception:
+                        raise RuntimeException("Error disassociating '" + a_n + "': " + str(exception))
                 
             source.addEvent(Event("instance_disassociated", parameters = [deleted_links]))
         

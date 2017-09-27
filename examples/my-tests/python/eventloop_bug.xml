@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram name="multiple-raises-parallel">
+    <inport name="input" />
+    <class name="A" default="true">
+        <scxml initial="listening">
+            <state id="listening">
+                <transition target="." event="input" port="input">
+                    <parameter name="value" />
+                    <script>
+                        print(value)
+                    </script>
+                </transition>
+                <transition target="." after="1" />
+            </state>
+        </scxml>
+    </class>
+</diagram>

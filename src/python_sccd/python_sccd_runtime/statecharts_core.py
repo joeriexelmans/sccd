@@ -566,13 +566,15 @@ class EventLoopControllerBase(ControllerBase):
         self.behind_schedule_callback = behind_schedule_callback
         self.last_print_time = 0
         self.running = False
+        self.input_condition = threading.Condition()
 
     def addInput(self, input_event, time_offset = 0, force_internal=False):
-        ControllerBase.addInput(self, input_event, time_offset, force_internal)
-        self.event_loop.clear()
-        self.simulated_time = self.getEarliestEventTime()
-        if not self.running:
-            self.run()
+        with self.input_condition:
+            ControllerBase.addInput(self, input_event, time_offset, force_internal)
+            self.event_loop.clear()
+            self.simulated_time = self.getEarliestEventTime()
+            if not self.running:
+                self.run()
 
     def start(self):
         ControllerBase.start(self)
@@ -587,10 +589,10 @@ class EventLoopControllerBase(ControllerBase):
         try:
             self.running = True
             while 1:
-                # clear existing timeout
-                self.event_loop.clear()
-                # simulate
-                self.handleInput()
+                with self.input_condition:
+                    # clear existing timeout
+                    self.event_loop.clear()
+                    self.handleInput()
                 self.object_manager.stepAll()
                 # schedule next timeout
                 earliest_event_time = self.getEarliestEventTime()

@@ -570,6 +570,7 @@ class EventLoopControllerBase(ControllerBase):
         self.last_print_time = 0
         self.running = False
         self.input_condition = threading.Condition()
+        self.behind = False
 
     def addInput(self, input_event, time_offset = 0, force_internal=False):
         with self.input_condition:
@@ -608,16 +609,15 @@ class EventLoopControllerBase(ControllerBase):
                         self.behind = False
                     with self.input_condition:
                         self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
-                if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
-                    if self.behind_schedule_callback:
-                        self.behind_schedule_callback(self, now - earliest_event_time)
-                    print_debug('\rrunning %ims behind schedule' % (now - earliest_event_time))
-                    self.last_print_time = now
+                else:
+                    if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
+                        if self.behind_schedule_callback:
+                            self.behind_schedule_callback(self, now - earliest_event_time)
+                        print_debug('\rrunning %ims behind schedule' % (now - earliest_event_time))
+                        self.last_print_time = now
                     self.behind = True
                 self.simulated_time = earliest_event_time
-                if self.behind:
-                    continue
-                else:
+                if not self.behind:
                     return
         finally:
             self.running = False

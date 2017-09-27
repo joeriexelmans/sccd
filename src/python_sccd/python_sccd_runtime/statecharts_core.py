@@ -162,7 +162,8 @@ class ObjectManagerBase(object):
 
     def step(self):
         while self.events.getEarliestTime() <= self.controller.simulated_time:
-            self.handleEvent(self.events.pop())
+            if self.events:
+                self.handleEvent(self.events.pop())
                
     def start(self):
         for i in self.instances:
@@ -561,6 +562,8 @@ class EventLoop:
 class EventLoopControllerBase(ControllerBase):
     def __init__(self, object_manager, event_loop, finished_callback = None, behind_schedule_callback = None):
         ControllerBase.__init__(self, object_manager)
+        if not isinstance(event_loop, EventLoop):
+            raise RuntimeException("Event loop argument must be an instance of the EventLoop class!")
         self.event_loop = event_loop
         self.finished_callback = finished_callback
         self.behind_schedule_callback = behind_schedule_callback

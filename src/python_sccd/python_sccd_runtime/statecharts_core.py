@@ -603,20 +603,22 @@ class EventLoopControllerBase(ControllerBase):
                     if self.finished_callback: self.finished_callback() # TODO: This is not necessarily correct (keep_running necessary?)
                     return
                 now = self.accurate_time.get_wct()
-                if now - start_time > 10 or earliest_event_time - now > 0:
-                    self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
-                    if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
-                        if self.behind_schedule_callback:
-                            self.behind_schedule_callback(self, now - earliest_event_time)
-                        print_debug('\rrunning %ims behind schedule' % (now - earliest_event_time))
-                        self.last_print_time = now
-                        self.behind = True
-                    elif now - earliest_event_time < 10 and self.behind:
+                if earliest_event_time - now > 0:
+                    if self.behind:
                         self.behind = False
-                    self.simulated_time = earliest_event_time
-                    return
+                    with self.input_condition:
+                        self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
+                if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
+                    if self.behind_schedule_callback:
+                        self.behind_schedule_callback(self, now - earliest_event_time)
+                    print_debug('\rrunning %ims behind schedule' % (now - earliest_event_time))
+                    self.last_print_time = now
+                    self.behind = True
+                self.simulated_time = earliest_event_time
+                if self.behind:
+                    continue
                 else:
-                    self.simulated_time = earliest_event_time
+                    return
         finally:
             self.running = False
         

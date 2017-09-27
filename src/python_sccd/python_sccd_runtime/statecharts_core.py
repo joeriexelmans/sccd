@@ -576,8 +576,8 @@ class EventLoopControllerBase(ControllerBase):
             ControllerBase.addInput(self, input_event, time_offset, force_internal)
             self.event_loop.clear()
             self.simulated_time = self.getEarliestEventTime()
-            if not self.running:
-                self.run()
+        if not self.running:
+            self.run()
 
     def start(self):
         ControllerBase.start(self)

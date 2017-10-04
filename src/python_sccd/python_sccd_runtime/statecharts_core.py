@@ -392,6 +392,8 @@ class Event(object):
     
 class OutputListener(object):
     def __init__(self, port_names):
+        if not isinstance(port_names, list):
+            port_names = [port_names]
         self.port_names = port_names
         self.queue = Queue()
 

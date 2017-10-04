@@ -1093,7 +1093,7 @@ class RuntimeClassBase(object):
             elif y.source in x.source.ancestors:
                 return -1
             else:
-                raise Exception('These items have no relation with each other.')
+                return 0
                 
         if self.small_step.has_stepped:
             self.small_step.next()

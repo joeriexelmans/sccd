@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram author="Yentl Van Tendeloo" name="Testing">
+    <description>
+        Testing
+    </description>
+
+    <top>
+        import time
+    </top>
+
+    <inport name="input"/>
+
+    <class name="Testing" default="true">
+        <scxml initial="A">
+            <state id="A">
+                <transition after="0.01" target=".">
+                    <script>
+                        print(time.time())
+                    </script>
+                </transition>
+            </state>
+        </scxml>
+    </class>
+</diagram>
+

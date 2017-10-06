@@ -124,6 +124,7 @@ class ObjectManagerBase(object):
                          "disassociate_instance": self.handleDisassociateEvent,
                          "start_instance": self.handleStartInstanceEvent,
                          "delete_instance": self.handleDeleteInstanceEvent}
+        self.lock = threading.Condition()
         
     def addEvent(self, event, time_offset = 0):
         self.events.add(self.controller.simulated_time + time_offset, event)
@@ -135,9 +136,10 @@ class ObjectManagerBase(object):
                 i.addEvent(new_event, time_offset)
         
     def getEarliestEventTime(self):
-        while self.instance_times and self.instance_times[0][0] < self.instance_times[0][1].earliest_event_time:
-            heappop(self.instance_times)
-        return min(INFINITY if not self.instance_times else self.instance_times[0][0], self.events.getEarliestTime())
+        with self.lock:
+            while self.instance_times and self.instance_times[0][0] < self.instance_times[0][1].earliest_event_time:
+                heappop(self.instance_times)
+            return min(INFINITY if not self.instance_times else self.instance_times[0][0], self.events.getEarliestTime())
     
     def stepAll(self):
         self.step()

@@ -27,9 +27,7 @@ class TkEventLoop(EventLoop):
             if self.main_thread != thread.get_ident():
                 # Use events, as Tk operations are far from thread safe...
                 # Should there be a timeout, event_generate will automatically schedule this for real from inside the main loop
-                print("GEN1")
                 tk.event_generate("<<TriggerSCCDEvent>>", when="tail")
-                print("OK1")
             else:
                 # As usual, use Tk after events
                 if behind:
@@ -40,14 +38,11 @@ class TkEventLoop(EventLoop):
             if self.main_thread != thread.get_ident():
                 # This will also remove the pending events, while also triggering a run first
                 # That initial run, however, will not execute anything
-                print("GEN2")
                 tk.event_generate("<<TriggerSCCDEvent>>", when="tail")
-                print("OK2")
             else:
                 tk.after_cancel(evt)
 
         EventLoop.__init__(self, schedule, cancel)
 
     def bind_controller(self, controller):
-        print("BIND")
         self.tk.bind("<<TriggerSCCDEvent>>", controller.run)

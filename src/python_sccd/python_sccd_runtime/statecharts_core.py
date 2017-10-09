@@ -563,6 +563,9 @@ class EventLoop:
             self.clear_callback(self.scheduled_id)
             self.scheduled_id = None
 
+    def bind_controller(self, controller):
+        pass
+
 class EventLoopControllerBase(ControllerBase):
     def __init__(self, object_manager, event_loop, finished_callback = None, behind_schedule_callback = None):
         ControllerBase.__init__(self, object_manager)
@@ -576,13 +579,19 @@ class EventLoopControllerBase(ControllerBase):
         self.input_condition = threading.Condition()
         self.behind = False
 
+        self.event_loop.bind_controller(self)
+
     def addInput(self, input_event, time_offset = 0, force_internal=False):
         with self.input_condition:
+            print("1")
             ControllerBase.addInput(self, input_event, time_offset, force_internal)
+            print("2")
             self.event_loop.clear()
+            print("3")
             self.simulated_time = self.getEarliestEventTime()
-        if not self.running:
-            self.run()
+            print("4")
+            self.event_loop.schedule(self.run, 0, True)
+            print("5")
 
     def start(self):
         ControllerBase.start(self)
@@ -592,7 +601,8 @@ class EventLoopControllerBase(ControllerBase):
         self.event_loop.clear()
         ControllerBase.stop(self)
 
-    def run(self):
+    def run(self, tkinter_event=None):
+        print("RUN")
         start_time = self.accurate_time.get_wct()
         try:
             self.running = True
@@ -625,6 +635,7 @@ class EventLoopControllerBase(ControllerBase):
                     return
         finally:
             self.running = False
+            print("FINISHED")
         
 class ThreadsControllerBase(ControllerBase):
     def __init__(self, object_manager, keep_running, behind_schedule_callback = None):

@@ -212,7 +212,7 @@ class SubAction(Visitable):
             tag = xml_element.tag.lower()
             if subcls.check(tag):
                 return subcls(xml_element)
-        raise CompilerException("Invalid subaction.")
+        raise CompilerException("Invalid subaction: " + str(xml_element.tag.lower()))
     
 ##################################
 """

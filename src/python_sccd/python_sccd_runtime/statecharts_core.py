@@ -5,6 +5,7 @@ The classes and functions needed to run (compiled) SCCD models.
 import abc
 import re
 import threading
+import thread
 import traceback
 import math
 from heapq import heappush, heappop, heapify
@@ -563,6 +564,9 @@ class EventLoop:
             self.clear_callback(self.scheduled_id)
             self.scheduled_id = None
 
+    def bind_controller(self, controller):
+        pass
+
 class EventLoopControllerBase(ControllerBase):
     def __init__(self, object_manager, event_loop, finished_callback = None, behind_schedule_callback = None):
         ControllerBase.__init__(self, object_manager)
@@ -576,13 +580,21 @@ class EventLoopControllerBase(ControllerBase):
         self.input_condition = threading.Condition()
         self.behind = False
 
+        self.event_loop.bind_controller(self)
+        self.event_queue = []
+        self.main_thread = thread.get_ident()
+
     def addInput(self, input_event, time_offset = 0, force_internal=False):
-        with self.input_condition:
+        if self.main_thread == thread.get_ident():
+            # Running on the main thread, so just execute what we want
+            self.simulated_time = self.accurate_time.get_wct()
             ControllerBase.addInput(self, input_event, time_offset, force_internal)
-            self.event_loop.clear()
-            self.simulated_time = self.getEarliestEventTime()
-        if not self.running:
-            self.run()
+        else:
+            # Not on the main thread, so we have to queue these events for the main thread instead
+            self.event_queue.append((input_event, time_offset, force_internal))
+
+        self.event_loop.clear()
+        self.event_loop.schedule(self.run, 0, True)
 
     def start(self):
         ControllerBase.start(self)
@@ -592,15 +604,23 @@ class EventLoopControllerBase(ControllerBase):
         self.event_loop.clear()
         ControllerBase.stop(self)
 
-    def run(self):
+    def run(self, tkinter_event=None):
         start_time = self.accurate_time.get_wct()
         try:
             self.running = True
+            # Process external events first
             while 1:
-                with self.input_condition:
-                    # clear existing timeout
-                    self.event_loop.clear()
-                    self.handleInput()
+                while self.event_queue:
+                    self.addInput(*self.event_queue.pop(0))
+
+                if self.accurate_time.get_wct() >= self.getEarliestEventTime():
+                    self.simulated_time = self.getEarliestEventTime()
+                else:
+                    return
+
+                # clear existing timeout
+                self.event_loop.clear()
+                self.handleInput()
                 self.object_manager.stepAll()
                 # schedule next timeout
                 earliest_event_time = self.getEarliestEventTime()
@@ -611,8 +631,7 @@ class EventLoopControllerBase(ControllerBase):
                 if earliest_event_time - now > 0:
                     if self.behind:
                         self.behind = False
-                    with self.input_condition:
-                        self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
+                    self.event_loop.schedule(self.run, earliest_event_time - now, now - start_time > 10)
                 else:
                     if now - earliest_event_time > 10 and now - self.last_print_time >= 1000:
                         if self.behind_schedule_callback:
@@ -620,11 +639,13 @@ class EventLoopControllerBase(ControllerBase):
                         print_debug('\rrunning %ims behind schedule' % (now - earliest_event_time))
                         self.last_print_time = now
                     self.behind = True
-                self.simulated_time = earliest_event_time
                 if not self.behind:
                     return
         finally:
             self.running = False
+            if self.event_queue:
+                self.event_loop.clear()
+                self.event_loop.schedule(self.run, 0, True)
         
 class ThreadsControllerBase(ControllerBase):
     def __init__(self, object_manager, keep_running, behind_schedule_callback = None):

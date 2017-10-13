@@ -863,7 +863,8 @@ class Transition:
         if self.action:
             self.action(self.enabled_event.parameters if self.enabled_event else [])
             
-        # enter states...
+        # enter states... (recompute because history might have been saved)
+        targets = self.__getEffectiveTargetStates()
         enter_set = self.__enterSet(targets)
         for s in enter_set:
             print_debug('ENTER: %s::%s' % (self.obj.__class__.__name__, s.name))

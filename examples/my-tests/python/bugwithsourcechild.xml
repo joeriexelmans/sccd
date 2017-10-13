@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram name="sourcechildbug">
+    <inport name="input" />
+    <class name="A" default="true">
+        <constructor>
+            <body>
+                self.a = 5
+            </body>
+        </constructor>
+        <scxml initial="running" priority="source_child">
+            <state id="running" initial="child1">
+                <transition target="child3" cond="self.a == 5">
+                    <script>
+                        print('taking outer transition')
+                        self.a = -1
+                    </script>
+                </transition>
+                <state id="child1">  
+                    <transition target="../child2" cond="self.a == 5">
+                        <script>
+                            print('taking second inner transition')
+                            self.a = -1
+                        </script>
+                    </transition>
+                    <transition target="../child2" cond="self.a == 3">
+                        <script>
+                            print('taking third inner transition')
+                            self.a = -1
+                        </script>
+                    </transition>
+                    <transition target="../child2" cond="self.a == 1">
+                        <script>
+                            print('taking fourth inner transition')
+                            self.a = -1
+                        </script>
+                    </transition>
+                </state>
+                <state id="child2">
+                </state>
+                <state id="child3" />
+            </state>
+        </scxml>
+    </class>
+</diagram>

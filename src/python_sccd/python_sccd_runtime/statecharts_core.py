@@ -859,8 +859,7 @@ class Transition:
     # @profile
     def fire(self):
         # exit states...
-        targets = self.__getEffectiveTargetStates()
-        exit_set = self.__exitSet(targets)
+        exit_set = self.__exitSet()
         for s in exit_set:
             # remember which state(s) we were in if a history state is present
             for h in s.history:
@@ -884,7 +883,7 @@ class Transition:
         if self.action:
             self.action(self.enabled_event.parameters if self.enabled_event else [])
             
-        # enter states... (recompute because history might have been saved)
+        # enter states...
         targets = self.__getEffectiveTargetStates()
         enter_set = self.__enterSet(targets)
         for s in enter_set:
@@ -914,7 +913,7 @@ class Transition:
                     targets.append(e_t)
         return targets
     
-    def __exitSet(self, targets):
+    def __exitSet(self):
         return [s for s in reversed(self.lca.descendants) if (s in self.obj.configuration)]
     
     def __enterSet(self, targets):

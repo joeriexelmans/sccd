@@ -320,11 +320,18 @@ class ObjectManagerBase(object):
         if len(parameters) != 3:
             raise ParameterException ("The narrow_cast event needs 3 parameters.")
         source = parameters[0]
-        traversal_list = self.processAssociationReference(parameters[1])
-        cast_event = parameters[2]
-        for i in self.getInstances(source, traversal_list):
-            to_send_event = Event(cast_event.name, i["instance"].narrow_cast_port, cast_event.parameters)
-            i["instance"].controller.addInput(to_send_event, force_internal=True)
+        
+        if not isinstance(parameters[1], list):
+            targets = [parameters[1]]
+        else:
+            targets = parameters[1]
+
+        for target in targets:
+            traversal_list = self.processAssociationReference(target)
+            cast_event = parameters[2]
+            for i in self.getInstances(source, traversal_list):
+                to_send_event = Event(cast_event.name, i["instance"].narrow_cast_port, cast_event.parameters)
+                i["instance"].controller.addInput(to_send_event, force_internal=True)
         
     def getInstances(self, source, traversal_list):
         currents = [{

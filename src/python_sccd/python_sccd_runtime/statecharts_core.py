@@ -347,13 +347,17 @@ class ObjectManagerBase(object):
             for current in currents:
                 association = current["instance"].associations[name]
                 if (index >= 0 ):
-                    nexts.append({
-                        "instance": association.instances[index],
-                        "ref": current["instance"],
-                        "assoc_name": name,
-                        "assoc_index": index,
-                        "path": current["path"] + ("" if current["path"] == "" else "/") + name + "[" + str(index) + "]"
-                    })
+                    try:
+                        nexts.append({
+                            "instance": association.instances[index],
+                            "ref": current["instance"],
+                            "assoc_name": name,
+                            "assoc_index": index,
+                            "path": current["path"] + ("" if current["path"] == "" else "/") + name + "[" + str(index) + "]"
+                        })
+                    except KeyError:
+                        # Entry was removed, so ignore this request
+                        pass
                 elif (index == -1):
                     for i in association.instances:
                         nexts.append({

@@ -19,7 +19,7 @@ DEBUG = False
 
 def print_debug(msg):
     if DEBUG:
-        print msg
+        print(msg)
 
 class RuntimeException(Exception):
     """

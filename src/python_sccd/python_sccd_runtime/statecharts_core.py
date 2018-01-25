@@ -1071,7 +1071,7 @@ class RuntimeClassBase(object):
                 due = [self.events.pop()]
             is_stable = not self.bigStep(due)
             self.processBigStepOutput()
-        for index, entry in self.timers_to_add.iteritems():
+        for index, entry in self.timers_to_add.items():
             self.timers[index] = self.events.add(*entry)
         self.timers_to_add = {}
         self.__set_stable(True)

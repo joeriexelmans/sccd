@@ -864,7 +864,11 @@ class Class(Visitable):
         for i in inheritances :
             self.super_classes.append((i.get("class",""),i.get("priority",1)))
 
-        self.super_classes.sort(lambda a, b: cmp(b[1], a[1])) # sort from high priority to low priority
+        try:
+            self.super_classes.sort(lambda a, b: cmp(b[1], a[1])) # sort from high priority to low priority
+        except TypeError:
+            self.super_classes = sorted(self.super_classes, key=lambda x: x[1], reverse = True)
+
         priorityChecker = {}
         for super_class, priority in self.super_classes:
             if priority in priorityChecker:
@@ -874,7 +878,8 @@ class Class(Visitable):
             if super_class not in checkIt:
                 checkIt.append(super_class)
             priorityChecker[priority] = checkIt
-        for priority, checkIt in priorityChecker.iteritems():
+
+        for priority, checkIt in priorityChecker.items():
             if len(checkIt) > 1:
                 Logger.showWarning("Class <" + self.name + "> inherits from classes <" + ", ".join(checkIt) + "> with same priority <" + str(priority) + ">. Document inheritance order is used.")
 
@@ -999,6 +1004,7 @@ class ClassDiagram(Visitable):
         # unique class names
         self.class_names = []
         substituted_xml_classes = []
+        default_substituted_xml_classes = []
         for xml_class in xml_classes :
             class_src = xml_class.get("src", "")
             class_default = xml_class.get("default", "")
@@ -1008,7 +1014,10 @@ class ClassDiagram(Visitable):
                 substituted_xml_class = ET.parse(class_src).getroot()
             else:
                 substituted_xml_class = xml_class
-            substituted_xml_class.is_default = (class_default.lower() == "true")
+
+            if class_default.lower() == "true":
+                default_substituted_xml_classes.append(substituted_xml_class)
+
             name = substituted_xml_class.get("name", "")
             if name == "" :
                 raise CompilerException("Missing or emtpy class name.")
@@ -1062,7 +1071,8 @@ class ClassDiagram(Visitable):
             # let user know this class was successfully loaded
             Logger.showInfo("Class <" + processed_class.name + "> has been successfully loaded.")
             self.classes.append(processed_class)
-            if xml_class.is_default :
+
+            if xml_class in default_substituted_xml_classes:
                 default_classes.append(processed_class)
             
         if not default_classes or len(default_classes) > 1:

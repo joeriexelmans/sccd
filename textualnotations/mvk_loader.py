@@ -101,15 +101,15 @@ class ClassRepresenter(object):
 	def store(self, context, target):
 
 		location = context.location + '.' + self.name
- 		self.create(context.mvk, MappingValue({CreateConstants.TYPE_KEY: LocationValue(location),
- 			CreateConstants.LOCATION_KEY: LocationValue(target),
- 			CreateConstants.ATTRS_KEY: MappingValue(
- 				self.buildDict(context.mvk, target, location, self.body)
- 			)}))
+		self.create(context.mvk, MappingValue({CreateConstants.TYPE_KEY: LocationValue(location),
+			CreateConstants.LOCATION_KEY: LocationValue(target),
+			CreateConstants.ATTRS_KEY: MappingValue(
+				self.buildDict(context.mvk, target, location, self.body)
+			)}))
 
- 		key = self.getIdField(context, target, location)
- 		element = target + '.' + str(self.body[key])
- 		self.classname = element
+		key = self.getIdField(context, target, location)
+		element = target + '.' + str(self.body[key])
+		self.classname = element
 
 	def getNthOfType(self, context, index, typename):
 		searchid = 0
@@ -304,14 +304,14 @@ class ModelRepresenter(ClassRepresenter):
 
 	def store(self, context, target):
 		location = context.location
- 		self.create(context.mvk, MappingValue({CreateConstants.TYPE_KEY: LocationValue(location),
- 			CreateConstants.LOCATION_KEY: LocationValue(target),
- 			CreateConstants.ATTRS_KEY: MappingValue(
- 				self.buildDict(context.mvk, target, location, self.body)
- 			)}))
+		self.create(context.mvk, MappingValue({CreateConstants.TYPE_KEY: LocationValue(location),
+			CreateConstants.LOCATION_KEY: LocationValue(target),
+			CreateConstants.ATTRS_KEY: MappingValue(
+				self.buildDict(context.mvk, target, location, self.body)
+			)}))
 
- 		key = self.getIdField(context, target, location)
- 		self.modelname = str(self.body[key])
+		key = self.getIdField(context, target, location)
+		self.modelname = str(self.body[key])
 
 class AssociationRepresenter(ClassRepresenter):
 	def __init__(self, name, body, fromid, toid):
@@ -355,9 +355,9 @@ class AssociationRepresenter(ClassRepresenter):
 					})
 
 
- 		self.create(context.mvk, MappingValue({CreateConstants.TYPE_KEY: LocationValue(location),
- 			CreateConstants.LOCATION_KEY: LocationValue(target),
- 			CreateConstants.ATTRS_KEY: MappingValue(values)}))
+		self.create(context.mvk, MappingValue({CreateConstants.TYPE_KEY: LocationValue(location),
+			CreateConstants.LOCATION_KEY: LocationValue(target),
+			CreateConstants.ATTRS_KEY: MappingValue(values)}))
 
 
 

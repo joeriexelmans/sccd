@@ -5,15 +5,29 @@ The classes and functions needed to run (compiled) SCCD models.
 import abc
 import re
 import threading
-import thread
+import sys
+
+try:
+    import _thread as thread
+except ImportError:
+    import thread
 import traceback
 import math
 from heapq import heappush, heappop, heapify
-from infinity import INFINITY
-from Queue import Queue, Empty 
+try:
+    from sccd.runtime.infinity import INFINITY
+except ImportError:
+    from infinity import INFINITY
+
+try:
+    from queue import Queue, Empty
+except ImportError:
+    from Queue import Queue, Empty
 
 from sccd.runtime.event_queue import EventQueue
 from sccd.runtime.accurate_time import AccurateTime
+
+from time import time
 
 DEBUG = False
 
@@ -913,7 +927,7 @@ class Transition:
         try:
             self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap]
         except:
-            self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap] = sorted([s for s in self.obj.states.itervalues() if 2**s.state_id & self.obj.configuration_bitmap], key=lambda s: s.state_id)
+            self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap] = sorted([s for s in self.obj.states.values() if 2**s.state_id & self.obj.configuration_bitmap], key=lambda s: s.state_id)
         self.enabled_event = None
     
     def __getEffectiveTargetStates(self):
@@ -1142,7 +1156,13 @@ class RuntimeClassBase(object):
                         if c2.source in c1.source.ancestors or c1.source in c2.source.ancestors:
                             conflict.append(c2)
                             to_skip.add(c2)
-                    conflicting.append(sorted(conflict, cmp=__younger_than))
+
+                    if sys.version_info[0] < 3:
+                        conflicting.append(sorted(conflict, cmp=__younger_than))
+                    else:
+                        import functools
+                        conflicting.append(sorted(conflict, key=functools.cmp_to_key(__younger_than)))
+
             if self.semantics.concurrency == StatechartSemantics.Single:
                 candidate = conflicting[0]
                 if self.semantics.priority == StatechartSemantics.SourceParent:

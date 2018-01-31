@@ -1001,6 +1001,11 @@ class RuntimeClassBase(object):
 
         self.semantics = StatechartSemantics()
 
+    #to break ties in the heap,
+    #compare by number of events in the list
+    def __lt__(self, other):
+        return len(self.events.event_list) < len(other.events.event_list)
+
     def start(self):
         self.configuration = []
         
@@ -1051,7 +1056,9 @@ class RuntimeClassBase(object):
         
     def addEvent(self, event_list, time_offset = 0):
         event_time = self.controller.simulated_time + time_offset
+
         heappush(self.controller.object_manager.instance_times, (event_time, self))
+
         if event_time < self.earliest_event_time:
             self.earliest_event_time = event_time
         if not isinstance(event_list, list):

@@ -13,6 +13,7 @@ thread, you will need to start the code by running
 import threading
 from sccd.runtime.statecharts_core import Event
 import socket
+import sys
 
 send_data_queues = {}
 send_events = {}
@@ -51,7 +52,12 @@ def send_to_socket(controller, sock, data_queue, send_event):
         send_event.wait()
         send_event.clear()
         while data_queue:
-            send = sock.send(data_queue.pop(0))
+            data = data_queue.pop(0)
+            if sys.version_info[0] > 2:
+                if isinstance(data, str):
+                    data = data.encode()
+            send = sock.send(data)
+
             controller.addInput(Event("sent_socket", "socket_in", [sock, send]))
         if not run_sockets[sock]:
             break

@@ -402,6 +402,11 @@ class Event(object):
         self.parameters = parameters
         self.port = port
 
+    #for comparisons in heaps
+    def __lt__(self, other):
+        s = str(self.name) + str(self.parameters) + str(self.port)
+        return len(s)
+
     def getName(self):
         return self.name
 

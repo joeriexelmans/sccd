@@ -712,7 +712,7 @@ class ThreadsControllerBase(ControllerBase):
                 if self.behind:                
                     self.behind = False
                 with self.input_condition:
-                    if earliest_event_time == self.getEarliestEventTime():
+                    if earliest_event_time == self.getEarliestEventTime() and not earliest_event_time == INFINITY:
                         self.input_condition.wait((earliest_event_time - now) / 1000.0)
                     else:
                         # Something happened that made the queue fill up already, but we were not yet waiting for the Condition...

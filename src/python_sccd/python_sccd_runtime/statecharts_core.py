@@ -891,7 +891,7 @@ class Transition:
                 f = lambda s0: s0.ancestors and s0.parent == s
                 if isinstance(h, DeepHistoryState):
                     f = lambda s0: not s0.descendants and s0 in s.descendants
-                self.obj.history_values[h.state_id] = filter(f, self.obj.configuration)
+                self.obj.history_values[h.state_id] = list(filter(f, self.obj.configuration))
         for s in exit_set:
             print_debug('EXIT: %s::%s' % (self.obj.__class__.__name__, s.name))
             self.obj.eventless_states -= s.has_eventless_transitions

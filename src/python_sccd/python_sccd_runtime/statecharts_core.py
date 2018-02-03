@@ -932,7 +932,7 @@ class Transition:
         try:
             self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap]
         except:
-            self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap] = sorted([s for s in self.obj.states.values() if 2**s.state_id & self.obj.configuration_bitmap], key=lambda s: s.state_id)
+            self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap] = sorted([s for s in list(self.obj.states.values()) if 2**s.state_id & self.obj.configuration_bitmap], key=lambda s: s.state_id)
         self.enabled_event = None
     
     def __getEffectiveTargetStates(self):
@@ -1097,7 +1097,7 @@ class RuntimeClassBase(object):
                 due = [self.events.pop()]
             is_stable = not self.bigStep(due)
             self.processBigStepOutput()
-        for index, entry in self.timers_to_add.items():
+        for index, entry in list(self.timers_to_add.items()):
             self.timers[index] = self.events.add(*entry)
         self.timers_to_add = {}
         self.__set_stable(True)

@@ -201,7 +201,7 @@ class PythonWriter(GenericWriterBase):
 	def visit_MapExpression(self, m):
 		elements = m.getElements()
 		self.out.extendWrite("{")
-		keys = elements.keys()
+		keys = list(elements.keys())
 		for i in range(len(keys)):
 			if i != 0:
 				self.out.extendWrite(", ")			

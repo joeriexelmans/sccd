@@ -27,7 +27,7 @@ class SuperClassLinker(Visitor):
 		c.abstract_method_names = getClassAbstractMethodNames(c)
 
 		# check if <super> tags exist for all inherited classes
-		for name,obj in c.super_class_objs.items():
+		for name,obj in list(c.super_class_objs.items()):
 			if obj:
 				if name not in c.constructors[0].super_class_parameters:
 					num_params = len(obj.constructors[0].parameters)

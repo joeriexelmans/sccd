@@ -7,9 +7,14 @@
  Date: 2014/08/21
 """
 
-import Tkinter as tk
-from drawing import drawing
-from utils import utils
+
+try:
+    import Tkinter as tk
+except ImportError:
+    import tkinter as tk
+
+from src.python_sccd.python_sccd_runtime.libs.drawing import drawing
+from src.python_sccd.python_sccd_runtime.libs.utils import utils
 
 from sccd.runtime.statecharts_core import Event
 

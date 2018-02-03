@@ -879,7 +879,7 @@ class Class(Visitable):
                 checkIt.append(super_class)
             priorityChecker[priority] = checkIt
 
-        for priority, checkIt in priorityChecker.items():
+        for priority, checkIt in list(priorityChecker.items()):
             if len(checkIt) > 1:
                 Logger.showWarning("Class <" + self.name + "> inherits from classes <" + ", ".join(checkIt) + "> with same priority <" + str(priority) + ">. Document inheritance order is used.")
 

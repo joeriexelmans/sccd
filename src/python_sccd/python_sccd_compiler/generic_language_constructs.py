@@ -752,7 +752,7 @@ def MakeExpressionList(l):
 def MakeExpressionMap(m):
 	if not isinstance(m, dict):
 		raise Exception("Expected argument of type 'dict'.")
-	for key in m.keys():
+	for key in list(m.keys()):
 		m[key] = MakeExpression(m[key])
 	return m
 

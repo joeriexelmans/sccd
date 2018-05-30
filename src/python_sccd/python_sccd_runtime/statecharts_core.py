@@ -16,6 +16,7 @@ from sccd.runtime.event_queue import EventQueue
 from sccd.runtime.accurate_time import AccurateTime
 
 DEBUG = False
+ELSE_GUARD = "ELSE_GUARD"
 
 def print_debug(msg):
     if DEBUG:
@@ -857,13 +858,13 @@ class Transition:
         self.enabled_event = None # the event that enabled this transition
         self.optimize()
     
-    def isEnabled(self, events):
+    def isEnabled(self, events, enabled_transitions):
         if self.trigger is None:
             self.enabled_event = None
-            return (self.guard is None) or self.guard([])
+            return (self.guard is None) or (self.guard == ELSE_GUARD and not enabled_transitions) or self.guard([])
         else:
             for event in events:
-                if (self.trigger.name == event.name and (not self.trigger.port or self.trigger.port == event.port)) and ((self.guard is None) or self.guard(event.parameters)):
+                if (self.trigger.name == event.name and (not self.trigger.port or self.trigger.port == event.port)) and ((self.guard is None) or (self.guard == ELSE_GUARD and not enabled_transitions) or self.guard(event.parameters)):
                     self.enabled_event = event
                     return True
     
@@ -1115,8 +1116,8 @@ class RuntimeClassBase(object):
         enabledEvents = self.getEnabledEvents()
         enabledTransitions = []
         for t in transitions:
-            if t.isEnabled(enabledEvents):
-                enabledTransitions.append(t)
+            if t.isEnabled(enabledEvents, enabledTransitions):
+				enabledTransitions.append(t)
         return enabledTransitions
 
     # @profile

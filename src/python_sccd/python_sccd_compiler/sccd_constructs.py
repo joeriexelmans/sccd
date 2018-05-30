@@ -18,6 +18,7 @@ reserved = ["__init__", "__del__", "init", "transition", "microstep", "step", "i
 
 SELF_REFERENCE_SEQ = 'SELF'
 INSTATE_SEQ = 'INSTATE'
+ELSE_SEQ = 'ELSE'
 
 ##################################
 
@@ -41,6 +42,9 @@ class ExpressionPartString(ExpressionPart):
         self.string = string
     
 class SelfReference(ExpressionPart):        
+    pass
+
+class ElseGuard(ExpressionPart):
     pass
     
 class InStateCall(ExpressionPart):
@@ -72,6 +76,8 @@ class Expression(Visitable):
                     raise CompilerException("Macro \"" + token.val + "\" not allowed here.")
                 elif token.val == SELF_REFERENCE_SEQ :
                     created_object = SelfReference()
+                elif token.val == ELSE_SEQ :
+                    created_object = ElseGuard()
                 elif token.val == INSTATE_SEQ :
                     created_object = self.parseInStateCall()
                     if created_object is None :
@@ -412,7 +418,7 @@ class StateChartTransition(Visitable):
         return self.guard is not None
     
     def getAction(self):
-        return self.action        
+        return self.action
 
 ##################################  
 
@@ -481,12 +487,17 @@ class StateChartNode(Visitable):
         
         #transitions
         self.transitions = []
+        self.else_transitions = []
         for transition_xml in xml_element.findall("transition"):
             transition = StateChartTransition(transition_xml, self)
-            self.transitions.append(transition)
+            if isinstance(transition.guard, ElseGuard):
+                self.else_transitions.append(transition)
+            else:
+                self.transitions.append(transition)
             if transition.trigger.isAfter():
                 self.has_timers = True
-            
+        
+        #TODO: Remove this...
         self.optimizeTransitions()
         self.generateChildren(xml_element)    
         self.calculateDefaults(xml_element)

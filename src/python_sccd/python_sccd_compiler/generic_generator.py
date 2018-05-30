@@ -515,7 +515,7 @@ class GenericGenerator(Visitor):
             if s.transitions:
                 self.writer.addVSpace()
                 self.writer.addComment("transition %s" % s.new_full_name)
-            for (i, t) in enumerate(s.transitions):
+            for (i, t) in enumerate(s.transitions + s.else_transitions):
                 # instantiate new Transition instance
                 self.writer.addAssignment(
                     GLC.LocalVariableDeclaration(
@@ -772,6 +772,11 @@ class GenericGenerator(Visitor):
                     )
                 ]
             )
+        )
+        
+    def visit_ElseGuard(self, else_guard):
+        self.writer.add(
+            GLC.String("ELSE_GUARD")
         )
 
     def visit_Expression(self, expression):

@@ -125,7 +125,8 @@ class ObjectManagerBase(object):
                          "associate_instance": self.handleAssociateEvent,
                          "disassociate_instance": self.handleDisassociateEvent,
                          "start_instance": self.handleStartInstanceEvent,
-                         "delete_instance": self.handleDeleteInstanceEvent}
+                         "delete_instance": self.handleDeleteInstanceEvent,
+                         "create_and_start_instance": self.handleCreateAndStartEvent}
         self.lock = threading.Condition()
         
     def addEvent(self, event, time_offset = 0):
@@ -235,8 +236,15 @@ class ObjectManagerBase(object):
             if p:
                 p.addInstance(source)
             source.addEvent(Event("instance_created", None, [association_name+"["+str(index)+"]"]))
+            return [source, association_name+"["+str(index)+"]"]
         else:
             source.addEvent(Event("instance_creation_error", None, [association_name]))
+            return []
+
+    def handleCreateAndStartEvent(self, parameters):
+        params = self.handleCreateEvent(parameters)
+        if params:
+            self.handleStartInstanceEvent(params)
 
     def handleDeleteInstanceEvent(self, parameters):
         if len(parameters) < 2:

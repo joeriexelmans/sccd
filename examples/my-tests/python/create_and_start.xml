@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram name="sourcechildbug">
+    <inport name="input" />
+    <class name="A" default="true">
+        <relationships>
+            <association name="to_B" class="B" min="0" max="1" />
+        </relationships>
+        <scxml initial="running">
+            <state id="running">
+                <onentry>
+                    <raise event="create_and_start_instance" scope="cd">                        
+                        <parameter expr="'to_B'"/>
+                    </raise>
+                </onentry>
+                <transition target="../created" event="instance_created">
+                    <parameter name="association_name" />
+                    <script>
+                        print 'A got instance_created [%s]' % association_name
+                    </script>
+                </transition>
+            </state>
+            <state id="created">
+                <transition target="../stopped" event="instance_started">
+                    <parameter name="association_name" />
+                    <script>
+                        print 'A got instance_started [%s]' % association_name
+                    </script>
+                </transition>
+            </state>
+            <state id="stopped" />
+        </scxml>
+    </class>
+    <class name="B">
+        <scxml initial="running">
+            <state id="running">
+                <onentry>
+                    <script>
+                        print 'B instance created!'
+                    </script>
+                </onentry>
+            </state>
+        </scxml>
+    </class>
+</diagram>

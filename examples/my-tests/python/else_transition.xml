@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram name="else_transition_test">
+    <class name="A" default="true">
+        <constructor>
+            <body>
+                self.x = 3
+            </body>
+        </constructor>
+        <scxml initial="main">
+            <parallel id="main">
+                <state id="one" initial="A">
+                    <state id="A">
+                        <transition target="../B" event="a" cond="self.x == 5" />
+                        <transition target="../C" event="a" cond="ELSE" />
+                    </state>
+                    <state id="B">
+                        <onentry>
+                            <script>
+                                print "in B"
+                            </script>
+                        </onentry>
+                        <transition target="../A" after="0.05" />
+                    </state>
+                    <state id="C">
+                        <onentry>
+                            <script>
+                                print "in C"
+                            </script>
+                        </onentry>
+                        <transition target="../A" after="0.05" />
+                    </state>
+                    <state id="D">
+                        <onentry>
+                            <script>
+                                print "in D"
+                            </script>
+                        </onentry>
+                    </state>
+                </state>
+                <state id="two" initial="A">
+                    <state id="A">
+                        <transition target="../B">
+                            <raise event="a" />
+                        </transition>
+                    </state>
+                    <state id="B" />
+                </state>
+            </parallel>
+        </scxml>
+    </class>
+</diagram>

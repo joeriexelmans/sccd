@@ -1136,7 +1136,7 @@ class RuntimeClassBase(object):
         while self.smallStep():
             self.combo_step.has_stepped = True
         return self.combo_step.has_stepped
-	
+
     # generate transition candidates for current small step
     # @profile
     def generateCandidates(self):
@@ -1151,7 +1151,7 @@ class RuntimeClassBase(object):
         enabledTransitions = []
         for t in transitions:
             if t.isEnabled(enabledEvents, enabledTransitions):
-				enabledTransitions.append(t)
+                enabledTransitions.append(t)
         return enabledTransitions
 
     # @profile

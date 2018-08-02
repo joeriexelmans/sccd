@@ -8,9 +8,10 @@ import threading
 import sys
 
 try:
-    import _thread as thread
-except ImportError:
     import thread
+except ImportError:
+    import threading as thread
+
 import traceback
 import math
 from heapq import heappush, heappop, heapify

@@ -1,6 +1,6 @@
 from random import choice
 import heapq
-from mymath import D60, D105, D360
+from examples.tanks.mymath import D60, D105, D360
 import math
 
 FREE, OBSTACLE = range(2)    
@@ -14,7 +14,7 @@ class AIMap():
         obstacleMap = level.structure
         self.cellsX = self.totalWidth // self.cellSize
         self.cellsY = self.totalHeight // self.cellSize
-        self.structure = [[ OBSTACLE if obstacleMap[x][y] else FREE for y in xrange(self.cellsY)] for x in xrange(self.cellsX)]     
+        self.structure = [[ OBSTACLE if obstacleMap[x][y] else FREE for y in range(self.cellsY)] for x in range(self.cellsX)]
         
     def getNewExplore(self, position, tankAngle):
         cell = self.calculateCell(position)
@@ -44,8 +44,9 @@ class AIMap():
         return self.calculateCoords(choice(result))
         
         
-    def getSuccessors(self, (xpos,ypos)):
+    def getSuccessors(self, pos):
         successors = []
+        (xpos, ypos) = pos
         i = 0
         for y in range(ypos-1,ypos+2):
             for x in range(xpos-1,xpos+2):
@@ -66,13 +67,16 @@ class AIMap():
                             if self.structure[x-1][y] == FREE and self.structure[x][y-1] == FREE : successors.append(((x,y),1.4))
         return successors
 
-    def calculateCell(self, (xp,yp)):
+    def calculateCell(self, p):
+        (xp, yp) = p
         return ( int(xp / self.cellSize) , int(yp / self.cellSize) )
         
     def calculateCoords(self,cell):
         return (self.cellSize * (cell[0]+0.5),self.cellSize * (cell[1]+0.5))
     
-    def getAngleToDest(self,(xpos,ypos),(xdes,ydes)):        
+    def getAngleToDest(self,pos, des):
+        (xpos, ypos) = pos
+        (xdes, ydes) = des
         return math.atan2(ypos-ydes, xdes-xpos) % D360
     
     #------PathFinding----#

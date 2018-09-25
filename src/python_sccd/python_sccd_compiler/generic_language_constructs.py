@@ -727,10 +727,16 @@ class NoneExpression(SimpleExpression):
 # helpers
 
 def MakeExpression(expr):
+
+	try:
+		if isinstance(expr, basestring):
+			return Literal(expr)
+	except NameError:
+		if isinstance(expr, str):
+			return Literal(expr)
+
 	if isinstance(expr, Expression):
 		return expr
-	elif isinstance(expr, basestring):
-		return Literal(expr)
 	elif expr is None:
 		return None
 	else:
@@ -746,7 +752,7 @@ def MakeExpressionList(l):
 def MakeExpressionMap(m):
 	if not isinstance(m, dict):
 		raise Exception("Expected argument of type 'dict'.")
-	for key in m.keys():
+	for key in list(m.keys()):
 		m[key] = MakeExpression(m[key])
 	return m
 
@@ -764,7 +770,7 @@ def MakeDeclaration(obj):
 	if isinstance(obj, DeclarationBase):
 		return obj
 	else:
-		raise Exception("Can't turn argument of type '" + str(type(stmt)) + "' into DeclarationBase.")
+		raise Exception("Can't turn argument of type '" + str(type(obj)) + "' into DeclarationBase.")
 
 def MakeActualParameters(obj):
 	if isinstance(obj, ActualParameters):

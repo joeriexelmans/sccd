@@ -55,7 +55,7 @@ class PyTestCase(unittest.TestCase):
                     compare_parameters = output_event.getParameters()
                     if len(entry.parameters) != len(compare_parameters) :
                         matches = False
-                    for index in xrange(len(entry.parameters)) :
+                    for index in range(len(entry.parameters)) :
                         if entry.parameters[index] !=  compare_parameters[index]:
                             matches = False
 

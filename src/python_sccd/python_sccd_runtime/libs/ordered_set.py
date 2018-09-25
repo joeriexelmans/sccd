@@ -163,7 +163,7 @@ class OrderedSet(collections.MutableSet):
             i = self.items.index(key)
             del self.items[i]
             del self.map[key]
-            for k, v in self.map.items():
+            for k, v in list(self.map.items()):
                 if v >= i:
                     self.map[k] = v - 1
 

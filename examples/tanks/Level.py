@@ -9,7 +9,7 @@ class Level():
         self.canvas = field.canvas
         self.cellsX = self.totalWidth // self.cellSize
         self.cellsY = self.totalHeight // self.cellSize
-        self.structure = [[0 for x in xrange(self.cellsY)] for x in xrange(self.cellsX)] 
+        self.structure = [[0 for x in range(self.cellsY)] for x in range(self.cellsX)]
         self.obstacles = []
         
     def addObstacles(self, obstacle_list):

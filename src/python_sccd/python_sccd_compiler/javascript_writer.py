@@ -158,7 +158,7 @@ class JavascriptWriter(CLikeWriterBase):
             self.out.extendWrite("new Object()")
         else:
             self.out.extendWrite("{")
-            keys = elements.keys()
+            keys = list(elements.keys())
             for i in range(len(keys)):
                 if i != 0:
                     self.out.extendWrite(", ")            

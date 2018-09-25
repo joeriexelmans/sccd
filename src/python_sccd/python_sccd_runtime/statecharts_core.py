@@ -5,22 +5,37 @@ The classes and functions needed to run (compiled) SCCD models.
 import abc
 import re
 import threading
-import thread
+import sys
+
+try:
+    import thread
+except ImportError:
+    import threading as thread
+
 import traceback
 import math
 from heapq import heappush, heappop, heapify
-from infinity import INFINITY
-from Queue import Queue, Empty 
+try:
+    from sccd.runtime.infinity import INFINITY
+except ImportError:
+    from infinity import INFINITY
+
+try:
+    from queue import Queue, Empty
+except ImportError:
+    from Queue import Queue, Empty
 
 from sccd.runtime.event_queue import EventQueue
 from sccd.runtime.accurate_time import AccurateTime
+
+from time import time
 
 DEBUG = False
 ELSE_GUARD = "ELSE_GUARD"
 
 def print_debug(msg):
     if DEBUG:
-        print msg
+        print(msg)
 
 class RuntimeException(Exception):
     """
@@ -393,6 +408,11 @@ class Event(object):
         self.parameters = parameters
         self.port = port
 
+    #for comparisons in heaps
+    def __lt__(self, other):
+        s = str(self.name) + str(self.parameters) + str(self.port)
+        return len(s)
+
     def getName(self):
         return self.name
 
@@ -703,7 +723,7 @@ class ThreadsControllerBase(ControllerBase):
                 if self.behind:                
                     self.behind = False
                 with self.input_condition:
-                    if earliest_event_time == self.getEarliestEventTime():
+                    if earliest_event_time == self.getEarliestEventTime() and not earliest_event_time == INFINITY:
                         self.input_condition.wait((earliest_event_time - now) / 1000.0)
                     else:
                         # Something happened that made the queue fill up already, but we were not yet waiting for the Condition...
@@ -882,7 +902,7 @@ class Transition:
                 f = lambda s0: s0.ancestors and s0.parent == s
                 if isinstance(h, DeepHistoryState):
                     f = lambda s0: not s0.descendants and s0 in s.descendants
-                self.obj.history_values[h.state_id] = filter(f, self.obj.configuration)
+                self.obj.history_values[h.state_id] = list(filter(f, self.obj.configuration))
         for s in exit_set:
             print_debug('EXIT: %s::%s' % (self.obj.__class__.__name__, s.name))
             self.obj.eventless_states -= s.has_eventless_transitions
@@ -918,7 +938,7 @@ class Transition:
         try:
             self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap]
         except:
-            self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap] = sorted([s for s in self.obj.states.itervalues() if 2**s.state_id & self.obj.configuration_bitmap], key=lambda s: s.state_id)
+            self.obj.configuration = self.obj.config_mem[self.obj.configuration_bitmap] = sorted([s for s in list(self.obj.states.values()) if 2**s.state_id & self.obj.configuration_bitmap], key=lambda s: s.state_id)
         self.enabled_event = None
     
     def __getEffectiveTargetStates(self):
@@ -990,6 +1010,11 @@ class RuntimeClassBase(object):
         self.narrow_cast_port = self.controller.addInputPort("<narrow_cast>", self)
 
         self.semantics = StatechartSemantics()
+
+    #to break ties in the heap,
+    #compare by number of events in the list
+    def __lt__(self, other):
+        return len(self.events.event_list) < len(other.events.event_list)
 
     def start(self):
         self.configuration = []
@@ -1076,7 +1101,7 @@ class RuntimeClassBase(object):
                 due = [self.events.pop()]
             is_stable = not self.bigStep(due)
             self.processBigStepOutput()
-        for index, entry in self.timers_to_add.iteritems():
+        for index, entry in list(self.timers_to_add.items()):
             self.timers[index] = self.events.add(*entry)
         self.timers_to_add = {}
         self.__set_stable(True)
@@ -1106,7 +1131,7 @@ class RuntimeClassBase(object):
         while self.smallStep():
             self.combo_step.has_stepped = True
         return self.combo_step.has_stepped
-	
+
     # generate transition candidates for current small step
     # @profile
     def generateCandidates(self):
@@ -1121,7 +1146,7 @@ class RuntimeClassBase(object):
         enabledTransitions = []
         for t in transitions:
             if t.isEnabled(enabledEvents, enabledTransitions):
-				enabledTransitions.append(t)
+                enabledTransitions.append(t)
         return enabledTransitions
 
     # @profile
@@ -1147,7 +1172,13 @@ class RuntimeClassBase(object):
                         if c2.source in c1.source.ancestors or c1.source in c2.source.ancestors:
                             conflict.append(c2)
                             to_skip.add(c2)
-                    conflicting.append(sorted(conflict, cmp=__younger_than))
+
+                    if sys.version_info[0] < 3:
+                        conflicting.append(sorted(conflict, cmp=__younger_than))
+                    else:
+                        import functools
+                        conflicting.append(sorted(conflict, key=functools.cmp_to_key(__younger_than)))
+
             if self.semantics.concurrency == StatechartSemantics.Single:
                 candidate = conflicting[0]
                 if self.semantics.priority == StatechartSemantics.SourceParent:

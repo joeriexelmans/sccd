@@ -150,13 +150,9 @@ class ObjectManagerBase(object):
         to_step = set()
         if len(self.instance_times) > (4 * len(self.instances)):
             new_instance_times = []
-            for it in self.instance_times:
-                if it[0] not in it[1].removed_timers:
-                    new_instance_times.append(it)
-                else:
-                    it[1].removed_timers.discard(it[0])
-            for i in self.instances:
-                i.removed_timers = set()
+            for it in self.instances:
+                if it.earliest_event_time != INFINITY:
+                    new_instance_times.append((it.earliest_event_time, it))
             self.instance_times = new_instance_times
             heapify(self.instance_times)
         while self.instance_times and self.instance_times[0][0] <= simulated_time:
@@ -990,7 +986,6 @@ class RuntimeClassBase(object):
         self.configuration_bitmap = 0
         self.transition_mem = {}
         self.config_mem = {}
-        self.removed_timers = set()
         
         self.narrow_cast_port = self.controller.addInputPort("<narrow_cast>", self)
 
@@ -1039,7 +1034,6 @@ class RuntimeClassBase(object):
         if index in self.timers_to_add:
             del self.timers_to_add[index]
         if index in self.timers:
-            self.removed_timers.add(self.timers[index])
             self.events.remove(self.timers[index])
             del self.timers[index]
         self.earliest_event_time = self.events.getEarliestTime()

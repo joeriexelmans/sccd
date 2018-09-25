@@ -1046,7 +1046,8 @@ class RuntimeClassBase(object):
         
     def addEvent(self, event_list, time_offset = 0):
         event_time = self.controller.simulated_time + time_offset
-        heappush(self.controller.object_manager.instance_times, (event_time, self))
+        if not (event_time, self) in self.controller.object_manager.instance_times:
+            heappush(self.controller.object_manager.instance_times, (event_time, self))
         if event_time < self.earliest_event_time:
             self.earliest_event_time = event_time
         if not isinstance(event_list, list):
@@ -1064,13 +1065,14 @@ class RuntimeClassBase(object):
         self.is_stable = is_stable
         # self.earliest_event_time keeps track of the earliest time this instance will execute a transition
         if not is_stable:
-            self.earliest_event_time = 0
+            self.earliest_event_time = self.controller.simulated_time
         elif not self.active:
             self.earliest_event_time = INFINITY
         else:
             self.earliest_event_time = self.events.getEarliestTime()
         if self.earliest_event_time != INFINITY:
-            heappush(self.controller.object_manager.instance_times, (self.earliest_event_time, self))
+            if not (self.earliest_event_time, self) in self.controller.object_manager.instance_times:
+                heappush(self.controller.object_manager.instance_times, (self.earliest_event_time, self))
 
     def step(self):
         is_stable = False

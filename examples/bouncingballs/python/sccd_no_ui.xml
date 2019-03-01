@@ -1,0 +1,361 @@
+<?xml version="1.1" ?>
+<diagram author="Simon Van Mierlo" name="Bouncing_Balls_Python_Version">
+    <description>
+        Bouncing Balls - no UI code.
+    </description>
+    <inport name="ui_in"/>
+    <outport name="ui_out"/>
+    <class name="MainApp" default="true">
+        <relationships>
+            <association name="windows" class="Window" />
+        </relationships>
+        <constructor>
+            <body>
+                <![CDATA[
+                self.nr_of_windows = 0
+                self.WINDOW_SIZE_W = 800
+                self.WINDOW_SIZE_H = 600
+                ]]>
+            </body>
+        </constructor>
+        <scxml initial="main">
+            <parallel id="main">
+                <state id="main_behaviour" initial="initializing">
+                    <state id="initializing">
+                        <onentry>
+                            <raise event="create_window" scope="local" />
+                        </onentry>
+                        <transition target="../running" />
+                    </state>
+                    <state id="running">
+                        <transition event="window_created" target=".">
+                            <script>
+                                self.nr_of_windows += 1
+                            </script>
+                        </transition>
+                        <transition event="window_deleted" target="." cond="self.nr_of_windows > 1">
+                            <script>
+                                self.nr_of_windows -= 1
+                            </script>
+                        </transition>
+                        <transition event="window_deleted" target="." cond="self.nr_of_windows == 1">
+                            <raise event="stop" scope="local" />
+                        </transition>
+                    </state>
+                </state>
+                <state id="creating_behaviour" initial="waiting">
+                    <state id="waiting">
+                        <transition event="create_window" target="../creating">
+                            <raise event="create_instance" scope="cd">
+                                <parameter expr="'windows'" />
+                                <parameter expr="'Window'" />
+                                <parameter expr="self.WINDOW_SIZE_H" />
+                                <parameter expr="self.WINDOW_SIZE_W" />
+                            </raise>
+                        </transition>
+                    </state>
+                    <state id="creating">
+                        <transition event="instance_created" target="../waiting">
+                            <parameter name="association_name" />
+                            <raise event="start_instance" scope="cd">
+                                <parameter expr="association_name" />
+                            </raise>
+                            <raise event="set_association_name" scope="narrow" target="association_name">
+                                <parameter expr="association_name" />
+                            </raise>
+                            <raise event="window_created" scope="local" />
+                        </transition>
+                    </state>
+                </state>
+                <state id="deleting_behaviour" initial="waiting">
+                    <state id="waiting">
+                        <transition event="delete_window" target="../deleting">
+                            <parameter name="association_name" />
+                            <raise event="delete_instance" scope="cd">
+                                <parameter expr="association_name" />
+                            </raise>
+                        </transition>
+                    </state>
+                    <state id="deleting">
+                        <transition event="instance_deleted" target="../waiting">
+                            <raise event="window_deleted" scope="local" />
+                        </transition>
+                    </state>
+                </state>
+                <transition event="stop" target="../stopped" />
+            </parallel>
+            <state id="stopped">
+                <onentry>
+                    <raise event="stop_ui" port="ui_out" />
+                </onentry>
+            </state>
+        </scxml>
+    </class>
+
+    <class name="Window">
+        <inport name="window_ui_in" />
+        <outport name="window_ui_out" />
+        <relationships>
+            <association name="balls" class="Ball" />
+            <association name="buttons" class="Button" />
+            <association name="parent" class="MainApp" min="1" max="1" />
+        </relationships>
+        <constructor>
+            <parameter name="height" />
+            <parameter name="width" />
+            <body>
+                self.height = height
+                self.width = width
+            </body>
+        </constructor>
+        <scxml initial="main">
+            <parallel id="main">
+                <state id="main_behaviour" initial="initializing">
+                    <state id="initializing">
+                        <transition event="set_association_name" target="../creating_button">
+                            <parameter name="association_name" />
+                            <script>
+                                self.association_name = association_name
+                            </script>
+                            <raise scope="cd" event="create_instance">
+                                <parameter expr='"buttons"' />
+                                <parameter expr='"Button"' />
+                                <parameter expr="'create_window'" />
+                            </raise>
+                        </transition>
+                    </state>
+                    <state id="creating_button">
+                        <transition event="instance_created" target="../running">
+                            <parameter name="association_name" type="string"/>
+                            <raise event="create_new_button" port="window_ui_out">
+                                <parameter expr="self.association_name" />
+                                <parameter expr="association_name" />
+                            </raise>
+                            <raise scope="cd" event="start_instance">
+                                <parameter expr="association_name" />
+                            </raise>
+                        </transition>
+                    </state>
+                    <state id="running">
+                        <transition event="button_pressed" target="." cond="event_name == 'create_window'">
+                            <parameter name="event_name" type="string" />
+                            <raise event="create_window" scope="narrow" target="'parent'" />
+                        </transition>
+                        <transition event="close_window" port="window_ui_in" target=".">
+                            <raise event="stop" scope="local" />
+                        </transition>
+                        <transition event="create_ball" port="window_ui_in" target="../creating_ball">
+                            <parameter name="x" />
+                            <parameter name="y" />
+                            <raise scope="cd" event="create_instance">
+                                <parameter expr='"balls"' />
+                                <parameter expr='"Ball"' />
+                            </raise>
+                        </transition>
+                        <transition event="delete_ball" target=".">
+                            <parameter name="association_name" type="string" />
+                            <raise event="delete_instance" scope="cd">
+                                <parameter expr="association_name" />
+                            </raise>
+                            <raise event="delete_ball" port="window_ui_out">
+                                <parameter expr="self.association_name" />
+                                <parameter expr="association_name" />
+                            </raise>
+                        </transition>
+                    </state>
+                    <state id="creating_ball">
+                        <transition event="instance_created" target="../running">
+                            <parameter name="association_name" type="string"/>
+                            <raise event="create_new_ball" port="window_ui_out">
+                                <parameter expr="self.association_name" />
+                                <parameter expr="association_name" />
+                            </raise>
+                            <raise event="start_instance" scope="cd">
+                                <parameter expr="association_name" />
+                            </raise>
+                            <raise event="set_association_name" scope="narrow" target="association_name">
+                                <parameter expr="association_name" />
+                            </raise>
+                        </transition>
+                    </state>
+                </state>
+                <state id="size_change_listener" initial="listening">
+                    <state id="listening">
+                        <transition target="." event="size_changed" port="window_ui_in">
+                            <parameter name="new_height" />
+                            <parameter name="new_width" />
+                            <script>
+                                self.height = height
+                                self.width = width
+                            </script>
+                            <raise event="window_size_changed" scope="narrow" target="balls">
+                                <parameter expr="new_height" />
+                                <parameter expr="new_width" />
+                            </raise>
+                        </transition>
+                    </state>
+                </state>
+                <transition event="stop" target="../stopped">
+                    <raise event="delete_instance" scope="cd">
+                        <parameter expr="'buttons'" />
+                    </raise>
+                    <raise event="delete_instance" scope="cd">
+                        <parameter expr="'balls'" />
+                    </raise>
+                </transition>
+            </parallel>
+            <state id="stopped">
+                <onentry>
+                    <raise event="delete_window" scope="narrow" target="'parent'">
+                        <parameter expr="self.association_name" />
+                    </raise>
+                </onentry>
+            </state>
+        </scxml>
+    </class>
+    <class name="Button">
+        <inport name="button_ui_in" />
+        <relationships>
+            <association name="parent" class="Field" min="1" max="1" />
+        </relationships>
+        <constructor>
+            <parameter name="event_name" type="str" />
+            <body>
+                self.event_name = event_name
+            </body>
+        </constructor>
+        <scxml initial="initializing">
+            <state id="initializing">
+                <onentry>                
+                    <raise event="button_created" scope="narrow" target="'parent'">
+                        <parameter expr="self" />
+                    </raise>
+                </onentry>
+                <transition target="../running" />
+            </state>
+            <state id="running">
+                <transition event="clicked" port="button_ui_in" target=".">
+                    <raise event="button_pressed" scope="narrow" target="'parent'">
+                        <parameter expr="self.event_name" />
+                    </raise>
+                </transition>
+            </state>
+        </scxml>
+    </class>
+    <class name="Ball">
+        <inport name="ball_ui_in" />
+        <inport name="ball_ui_out" />
+        <relationships>
+            <association name="parent" class="Window" min="1" max="1" />
+        </relationships>
+        <constructor>
+            <parameter name="x" />
+            <parameter name="y" />
+            <parameter name="window_height" />
+            <parameter name="window_width" />
+            <body>
+                self.x = x
+                self.y = y
+                self.window_height = window_height
+                self.window_width = window_width
+                self.r = 20.0;
+                self.vel = {'x': random.uniform(-5.0, 5.0), 'y': random.uniform(-5.0, 5.0)};
+                self.smooth = 0.4 # value between 0 and 1
+            </body>
+        </constructor>
+        <scxml initial="main">
+            <parallel id="main">
+                <state id="main_behaviour" initial="initializing">
+                    <state id="initializing">
+                        <transition event="set_association_name" target="../bouncing">
+                            <parameter name="association_name" type="str" />
+                            <script>
+                                self.association_name = association_name
+                            </script>
+                        </transition>
+                    </state>
+                    <state id="bouncing">
+                        <transition after="(20 - self.getSimulatedTime() % 20) / 1000.0" target=".">
+                            <script>
+                            <![CDATA[
+                                if x <= 0 or x + (self.r * 2) >= self.window_width:
+                                    self.vel['x'] = -self.vel['x']
+                                if y <= 0 or y + (self.r * 2) >= self.window_height:
+                                    self.vel['y'] = -self.vel['y']
+                                self.x += self.vel['x']
+                                self.y += self.vel['y']
+                            ]]>
+                            </script>
+                            <raise event="change_position" port="ball_ui_out">
+                                <parameter expr="self.x" />
+                                <parameter expr="self.y" />
+                            </raise>
+                        </transition>
+                        <transition port="ball_ui_in" event="select_ball" target="../selected">
+                            <raise event="change_color" port="ball_ui_out">
+                                <parameter expr="yellow" />
+                            </raise>
+                        </transition>
+                    </state>
+                    <state id="dragging">
+                        <transition port="ball_ui_in" event="motion" target=".">
+                            <parameter name="dx" />
+                            <parameter name="dy" />
+                            <script>
+                            <![CDATA[
+                                self.x += dx
+                                self.y += dy
+                                if self.x - self.r <= 0:
+                                    self.x = 1;
+                                elif self.x + self.r >= self.window_width:
+                                    self.x = self.window_width - (2 * self.r) - 1
+                                if self.y - self.r <= 0:
+                                    self.y = 1
+                                elif self.y + self.r >= self.window_height:
+                                    self.y = self.window_height - (2 * self.r) - 1;
+                                self.vel = {
+                                    'x': (1 - self.smooth) * dx + self.smooth * self.vel['x'],
+                                    'y': (1 - self.smooth) * dy + self.smooth * self.vel['y']
+                                }
+                            ]]>
+                            </script>
+                            <raise event="change_position" port="ball_ui_out">
+                                <parameter expr="self.x" />
+                                <parameter expr="self.y" />
+                            </raise>
+                        </transition>
+                        <transition port="input" event="left-release" target="../bouncing">
+                            <parameter name="tagorid" type="int" default="None" />
+                            <script>
+                                self.canvas.itemconfig(self.id, fill="red")
+                            </script>
+                        </transition>
+                    </state>
+                    <state id="selected">
+                        <transition port="ball_ui_in" event="clicked" target="../dragging" />
+                        <transition port="ball_ui_in" event="delete" target=".">
+                            <raise event="delete_ball" scope="narrow" target="'parent'">
+                                <parameter expr="self.association_name" />
+                            </raise>
+                            <raise event="delete_local" />
+                        </transition>
+                    </state>
+                </state>
+                <state id="size_change_listener" initial="listening">
+                    <state id="listening">
+                        <transition target="." event="window_size_changed">
+                            <parameter name="new_height" />
+                            <parameter name="new_width" />
+                            <script>
+                                self.window_height = new_height
+                                self.window_width = new_width
+                            </script>
+                        </transition>
+                    </state>
+                </state>
+                <transition target="../deleted" event="delete_local" />
+            </parallel>
+            <state id="deleted" />
+        </scxml>
+    </class>
+</diagram>

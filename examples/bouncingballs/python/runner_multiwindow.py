@@ -5,7 +5,7 @@ Created on 27-jul.-2014
 '''
 
 import Tkinter as tk
-import target_py.bouncing as target
+import target_py.multiwindow as target
 from sccd.runtime.statecharts_core import Event
 from sccd.runtime.tkinter_eventloop import *
 from widget import Widget

@@ -1,13 +1,13 @@
 """
  *REALLY* Small framework for creating/manipulating/deleting gui elements in Tkinter.
- 
+
  NOTE: keep this synced with ui.js
- 
+
  Author: Raphael Mannadiar
  Date: 2014/08/21
 """
 
-
+import sys
 try:
     import Tkinter as tk
 except ImportError:
@@ -29,13 +29,19 @@ class ui:
         MOUSE_MOVE =             '<Motion>',
         MOUSE_PRESS =            '<ButtonPress>',
         MOUSE_RELEASE =        '<ButtonRelease>',
-        MOUSE_RIGHT_CLICK =    '<Button-3>',
+        MOUSE_RIGHT_CLICK =    '<Button-2>' if sys.platform == "darwin" else '<Button-3>',
         WINDOW_CLOSE =         'WM_DELETE_WINDOW');
 
-    MOUSE_BUTTONS = utils._bunch(
-        LEFT        = 1,
-        MIDDLE    = 2,
-        RIGHT        = 3);
+    if sys.platform == "darwin":
+        MOUSE_BUTTONS = utils._bunch(
+            LEFT        = 1,
+            MIDDLE    = 3,
+            RIGHT        = 2);
+    else:
+        MOUSE_BUTTONS = utils._bunch(
+            LEFT        = 1,
+            MIDDLE    = 2,
+            RIGHT        = 3);
 
     KEYCODES    = utils._bunch(
         DELETE    = 46);
@@ -74,7 +80,7 @@ class ui:
 
             else :
                 raise Exception('Unsupported event');
-    
+
         if event == ui.EVENTS.WINDOW_CLOSE :
             source.protocol(event, __handle_event)
 

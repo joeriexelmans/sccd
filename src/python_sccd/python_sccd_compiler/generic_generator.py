@@ -284,6 +284,18 @@ class GenericGenerator(Visitor):
             self.writer.endSuperClassConstructorCall()
 
             self.writer.addVSpace()
+            
+            for p in constructor.parent_class.inports:
+                self.writer.addAssignment(
+                    GLC.MapIndexedExpression(GLC.SelfProperty("inports"), GLC.String(p)),
+                    GLC.FunctionCall(GLC.Property("controller", "addInputPort"), [GLC.String(p), GLC.SelfExpression()]))
+
+            for p in constructor.parent_class.outports:
+                self.writer.addAssignment(
+                    GLC.MapIndexedExpression(GLC.SelfProperty("outports"), GLC.String(p)),
+                    GLC.FunctionCall(GLC.Property("controller", "addOutputPort"), [GLC.String(p), GLC.SelfExpression()]))
+
+            self.writer.addVSpace()
 
             if constructor.parent_class.statechart.big_step_maximality == "take_one":
                 self.writer.addAssignment(GLC.Property(GLC.SelfProperty("semantics"), "big_step_maximality"), GLC.Property("StatechartSemantics", "TakeOne"))
@@ -318,11 +330,6 @@ class GenericGenerator(Visitor):
             self.writer.addVSpace()
             self.writer.addComment("build Statechart structure")
             self.writer.add(GLC.FunctionCall(GLC.SelfProperty("build_statechart_structure"), []))
-
-        for p in constructor.parent_class.inports:
-            self.writer.addAssignment(
-                GLC.MapIndexedExpression(GLC.SelfProperty("inports"), GLC.String(p)),
-                GLC.FunctionCall(GLC.Property("controller", "addInputPort"), [GLC.String(p), GLC.SelfExpression()]))
 
         if constructor.parent_class.attributes:
             self.writer.addVSpace()
@@ -555,7 +562,15 @@ class GenericGenerator(Visitor):
                 if t.trigger.is_after:
                     trigger = GLC.NewExpression("Event", [GLC.String("_%iafter" % (t.trigger.getAfterIndex()))])
                 elif t.trigger.event:
-                    trigger = GLC.NewExpression("Event", [GLC.String(t.trigger.event), GLC.NoneExpression() if t.trigger.port is None else GLC.String(t.trigger.port)])
+                    trigger = GLC.NewExpression("Event",
+                                                    [
+                                                        GLC.String(t.trigger.event),
+                                                        GLC.NoneExpression() if t.trigger.port is None else GLC.FunctionCall(
+                                                                                                                GLC.SelfProperty("getInPortName"),
+                                                                                                                [GLC.String(t.trigger.port)]
+                                                                                                            )
+                                                    ]
+                                                )
                 else:
                     trigger = GLC.NoneExpression()
                 if trigger:
@@ -795,7 +810,12 @@ class GenericGenerator(Visitor):
 
         self.writer.addActualParameter(GLC.String(raise_event.getEventName()))
         if raise_event.isOutput():
-            self.writer.addActualParameter(GLC.String(raise_event.getPort()))
+            self.writer.addActualParameter(
+                                            GLC.FunctionCall(
+                                                                GLC.SelfProperty("getOutPortName"),
+                                                                [GLC.String(raise_event.getPort())]
+                                                            )
+                                            )
         else:
             self.writer.addActualParameter(GLC.NoneExpression())
 

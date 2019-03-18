@@ -8,12 +8,14 @@ Bouncing Balls - no UI code.
 """
 
 from sccd.runtime.statecharts_core import *
+from ui_classes import *
 
 # package "Bouncing_Balls_Python_Version"
 
 class MainApp(RuntimeClassBase):
     def __init__(self, controller):
         RuntimeClassBase.__init__(self, controller)
+        
         
         self.semantics.big_step_maximality = StatechartSemantics.TakeMany
         self.semantics.internal_event_lifeline = StatechartSemantics.Queue
@@ -29,8 +31,6 @@ class MainApp(RuntimeClassBase):
     
     def user_defined_constructor(self):
         self.nr_of_windows = 0
-        self.WINDOW_SIZE_W = 800
-        self.WINDOW_SIZE_H = 600
     
     def user_defined_destructor(self):
         pass
@@ -149,7 +149,7 @@ class MainApp(RuntimeClassBase):
         self.raiseInternalEvent(Event("create_window", None, []))
     
     def _stopped_enter(self):
-        self.big_step.outputEvent(Event("stop_ui", "ui_out", []))
+        self.big_step.outputEvent(Event("stop_ui", self.getOutPortName("ui_out"), []))
     
     def _main_main_behaviour_running_0_exec(self, parameters):
         self.nr_of_windows += 1
@@ -167,16 +167,18 @@ class MainApp(RuntimeClassBase):
         return self.nr_of_windows == 1
     
     def _main_creating_behaviour_waiting_0_exec(self, parameters):
-        self.big_step.outputEventOM(Event("create_instance", None, [self, 'windows', 'Window', self.WINDOW_SIZE_H, self.WINDOW_SIZE_W]))
+        self.big_step.outputEventOM(Event("create_instance", None, [self, 'windows', 'Window']))
     
     def _main_creating_behaviour_creating_0_exec(self, parameters):
         association_name = parameters[0]
+        self.big_step.outputEvent(Event("create_new_window", self.getOutPortName("ui_out"), [association_name, self.getSingleChild(association_name)]))
         self.big_step.outputEventOM(Event("start_instance", None, [self, association_name]))
         self.big_step.outputEventOM(Event("narrow_cast", None, [self, association_name, Event("set_association_name", None, [association_name])]))
         self.raiseInternalEvent(Event("window_created", None, []))
     
     def _main_deleting_behaviour_waiting_0_exec(self, parameters):
         association_name = parameters[0]
+        self.big_step.outputEvent(Event("delete_window", self.getOutPortName("ui_out"), [association_name]))
         self.big_step.outputEventOM(Event("delete_instance", None, [self, association_name]))
     
     def _main_deleting_behaviour_deleting_0_exec(self, parameters):
@@ -188,8 +190,11 @@ class MainApp(RuntimeClassBase):
         RuntimeClassBase.initializeStatechart(self)
 
 class Window(RuntimeClassBase):
-    def __init__(self, controller, height, width):
+    def __init__(self, controller):
         RuntimeClassBase.__init__(self, controller)
+        
+        self.inports["window_ui_in"] = controller.addInputPort("window_ui_in", self)
+        self.outports["window_ui_out"] = controller.addOutputPort("window_ui_out", self)
         
         self.semantics.big_step_maximality = StatechartSemantics.TakeMany
         self.semantics.internal_event_lifeline = StatechartSemantics.Queue
@@ -199,14 +204,12 @@ class Window(RuntimeClassBase):
         
         # build Statechart structure
         self.build_statechart_structure()
-        self.inports["window_ui_in"] = controller.addInputPort("window_ui_in", self)
         
         # call user defined constructor
-        Window.user_defined_constructor(self, height, width)
+        Window.user_defined_constructor(self)
     
-    def user_defined_constructor(self, height, width):
-        self.height = height
-        self.width = width
+    def user_defined_constructor(self):
+        pass
     
     def user_defined_destructor(self):
         pass
@@ -227,23 +230,32 @@ class Window(RuntimeClassBase):
         # state /main/main_behaviour/initializing
         self.states["/main/main_behaviour/initializing"] = State(3, "/main/main_behaviour/initializing", self)
         
+        # state /main/main_behaviour/waiting_for_ui
+        self.states["/main/main_behaviour/waiting_for_ui"] = State(4, "/main/main_behaviour/waiting_for_ui", self)
+        
         # state /main/main_behaviour/creating_button
-        self.states["/main/main_behaviour/creating_button"] = State(4, "/main/main_behaviour/creating_button", self)
+        self.states["/main/main_behaviour/creating_button"] = State(5, "/main/main_behaviour/creating_button", self)
         
         # state /main/main_behaviour/running
-        self.states["/main/main_behaviour/running"] = State(5, "/main/main_behaviour/running", self)
+        self.states["/main/main_behaviour/running"] = State(6, "/main/main_behaviour/running", self)
         
         # state /main/main_behaviour/creating_ball
-        self.states["/main/main_behaviour/creating_ball"] = State(6, "/main/main_behaviour/creating_ball", self)
+        self.states["/main/main_behaviour/creating_ball"] = State(7, "/main/main_behaviour/creating_ball", self)
         
         # state /main/size_change_listener
-        self.states["/main/size_change_listener"] = State(7, "/main/size_change_listener", self)
+        self.states["/main/size_change_listener"] = State(8, "/main/size_change_listener", self)
         
         # state /main/size_change_listener/listening
-        self.states["/main/size_change_listener/listening"] = State(8, "/main/size_change_listener/listening", self)
+        self.states["/main/size_change_listener/listening"] = State(9, "/main/size_change_listener/listening", self)
+        
+        # state /main/delete_listener
+        self.states["/main/delete_listener"] = State(10, "/main/delete_listener", self)
+        
+        # state /main/delete_listener/listening
+        self.states["/main/delete_listener/listening"] = State(11, "/main/delete_listener/listening", self)
         
         # state /stopped
-        self.states["/stopped"] = State(9, "/stopped", self)
+        self.states["/stopped"] = State(12, "/stopped", self)
         self.states["/stopped"].setEnter(self._stopped_enter)
         
         # add children
@@ -251,21 +263,31 @@ class Window(RuntimeClassBase):
         self.states[""].addChild(self.states["/stopped"])
         self.states["/main"].addChild(self.states["/main/main_behaviour"])
         self.states["/main"].addChild(self.states["/main/size_change_listener"])
+        self.states["/main"].addChild(self.states["/main/delete_listener"])
         self.states["/main/main_behaviour"].addChild(self.states["/main/main_behaviour/initializing"])
+        self.states["/main/main_behaviour"].addChild(self.states["/main/main_behaviour/waiting_for_ui"])
         self.states["/main/main_behaviour"].addChild(self.states["/main/main_behaviour/creating_button"])
         self.states["/main/main_behaviour"].addChild(self.states["/main/main_behaviour/running"])
         self.states["/main/main_behaviour"].addChild(self.states["/main/main_behaviour/creating_ball"])
         self.states["/main/size_change_listener"].addChild(self.states["/main/size_change_listener/listening"])
+        self.states["/main/delete_listener"].addChild(self.states["/main/delete_listener/listening"])
         self.states[""].fixTree()
         self.states[""].default_state = self.states["/main"]
         self.states["/main/main_behaviour"].default_state = self.states["/main/main_behaviour/initializing"]
         self.states["/main/size_change_listener"].default_state = self.states["/main/size_change_listener/listening"]
+        self.states["/main/delete_listener"].default_state = self.states["/main/delete_listener/listening"]
         
         # transition /main/main_behaviour/initializing
-        _main_main_behaviour_initializing_0 = Transition(self, self.states["/main/main_behaviour/initializing"], [self.states["/main/main_behaviour/creating_button"]])
+        _main_main_behaviour_initializing_0 = Transition(self, self.states["/main/main_behaviour/initializing"], [self.states["/main/main_behaviour/waiting_for_ui"]])
         _main_main_behaviour_initializing_0.setAction(self._main_main_behaviour_initializing_0_exec)
         _main_main_behaviour_initializing_0.setTrigger(Event("set_association_name", None))
         self.states["/main/main_behaviour/initializing"].addTransition(_main_main_behaviour_initializing_0)
+        
+        # transition /main/main_behaviour/waiting_for_ui
+        _main_main_behaviour_waiting_for_ui_0 = Transition(self, self.states["/main/main_behaviour/waiting_for_ui"], [self.states["/main/main_behaviour/creating_button"]])
+        _main_main_behaviour_waiting_for_ui_0.setAction(self._main_main_behaviour_waiting_for_ui_0_exec)
+        _main_main_behaviour_waiting_for_ui_0.setTrigger(Event("ui_initialized", self.getInPortName("window_ui_in")))
+        self.states["/main/main_behaviour/waiting_for_ui"].addTransition(_main_main_behaviour_waiting_for_ui_0)
         
         # transition /main/main_behaviour/creating_button
         _main_main_behaviour_creating_button_0 = Transition(self, self.states["/main/main_behaviour/creating_button"], [self.states["/main/main_behaviour/running"]])
@@ -281,11 +303,11 @@ class Window(RuntimeClassBase):
         self.states["/main/main_behaviour/running"].addTransition(_main_main_behaviour_running_0)
         _main_main_behaviour_running_1 = Transition(self, self.states["/main/main_behaviour/running"], [self.states["/main/main_behaviour/running"]])
         _main_main_behaviour_running_1.setAction(self._main_main_behaviour_running_1_exec)
-        _main_main_behaviour_running_1.setTrigger(Event("close_window", "window_ui_in"))
+        _main_main_behaviour_running_1.setTrigger(Event("close_window", self.getInPortName("window_ui_in")))
         self.states["/main/main_behaviour/running"].addTransition(_main_main_behaviour_running_1)
         _main_main_behaviour_running_2 = Transition(self, self.states["/main/main_behaviour/running"], [self.states["/main/main_behaviour/creating_ball"]])
         _main_main_behaviour_running_2.setAction(self._main_main_behaviour_running_2_exec)
-        _main_main_behaviour_running_2.setTrigger(Event("create_ball", "window_ui_in"))
+        _main_main_behaviour_running_2.setTrigger(Event("create_ball", self.getInPortName("window_ui_in")))
         self.states["/main/main_behaviour/running"].addTransition(_main_main_behaviour_running_2)
         _main_main_behaviour_running_3 = Transition(self, self.states["/main/main_behaviour/running"], [self.states["/main/main_behaviour/running"]])
         _main_main_behaviour_running_3.setAction(self._main_main_behaviour_running_3_exec)
@@ -301,8 +323,14 @@ class Window(RuntimeClassBase):
         # transition /main/size_change_listener/listening
         _main_size_change_listener_listening_0 = Transition(self, self.states["/main/size_change_listener/listening"], [self.states["/main/size_change_listener/listening"]])
         _main_size_change_listener_listening_0.setAction(self._main_size_change_listener_listening_0_exec)
-        _main_size_change_listener_listening_0.setTrigger(Event("size_changed", "window_ui_in"))
+        _main_size_change_listener_listening_0.setTrigger(Event("size_changed", self.getInPortName("window_ui_in")))
         self.states["/main/size_change_listener/listening"].addTransition(_main_size_change_listener_listening_0)
+        
+        # transition /main/delete_listener/listening
+        _main_delete_listener_listening_0 = Transition(self, self.states["/main/delete_listener/listening"], [self.states["/main/delete_listener/listening"]])
+        _main_delete_listener_listening_0.setAction(self._main_delete_listener_listening_0_exec)
+        _main_delete_listener_listening_0.setTrigger(Event("delete", self.getInPortName("window_ui_in")))
+        self.states["/main/delete_listener/listening"].addTransition(_main_delete_listener_listening_0)
         
         # transition /main
         _main_0 = Transition(self, self.states["/main"], [self.states["/stopped"]])
@@ -320,11 +348,17 @@ class Window(RuntimeClassBase):
     def _main_main_behaviour_initializing_0_exec(self, parameters):
         association_name = parameters[0]
         self.association_name = association_name
+    
+    def _main_main_behaviour_waiting_for_ui_0_exec(self, parameters):
+        width = parameters[0]
+        height = parameters[1]
+        self.width = width
+        self.height = height
         self.big_step.outputEventOM(Event("create_instance", None, [self, "buttons", "Button", 'create_window']))
     
     def _main_main_behaviour_creating_button_0_exec(self, parameters):
         association_name = parameters[0]
-        self.big_step.outputEvent(Event("create_new_button", "window_ui_out", [self.association_name, association_name]))
+        self.big_step.outputEvent(Event("create_new_button", self.getOutPortName("window_ui_out"), [association_name, self.getSingleChild(association_name)]))
         self.big_step.outputEventOM(Event("start_instance", None, [self, association_name]))
     
     def _main_main_behaviour_running_0_exec(self, parameters):
@@ -341,25 +375,28 @@ class Window(RuntimeClassBase):
     def _main_main_behaviour_running_2_exec(self, parameters):
         x = parameters[0]
         y = parameters[1]
-        self.big_step.outputEventOM(Event("create_instance", None, [self, "balls", "Ball"]))
+        self.big_step.outputEventOM(Event("create_instance", None, [self, "balls", "Ball", x, y, self.width, self.height]))
     
     def _main_main_behaviour_running_3_exec(self, parameters):
         association_name = parameters[0]
         self.big_step.outputEventOM(Event("delete_instance", None, [self, association_name]))
-        self.big_step.outputEvent(Event("delete_ball", "window_ui_out", [self.association_name, association_name]))
+        self.big_step.outputEvent(Event("delete_ball", self.getOutPortName("window_ui_out"), [association_name]))
     
     def _main_main_behaviour_creating_ball_0_exec(self, parameters):
         association_name = parameters[0]
-        self.big_step.outputEvent(Event("create_new_ball", "window_ui_out", [self.association_name, association_name]))
+        self.big_step.outputEvent(Event("create_new_ball", self.getOutPortName("window_ui_out"), [association_name, self.getSingleChild(association_name)]))
         self.big_step.outputEventOM(Event("start_instance", None, [self, association_name]))
         self.big_step.outputEventOM(Event("narrow_cast", None, [self, association_name, Event("set_association_name", None, [association_name])]))
     
     def _main_size_change_listener_listening_0_exec(self, parameters):
-        new_height = parameters[0]
-        new_width = parameters[1]
-        self.height = height
-        self.width = width
-        self.big_step.outputEventOM(Event("narrow_cast", None, [self, balls, Event("window_size_changed", None, [new_height, new_width])]))
+        new_width = parameters[0]
+        new_height = parameters[1]
+        self.width = new_width
+        self.height = new_height
+        self.big_step.outputEventOM(Event("narrow_cast", None, [self, 'balls', Event("window_size_changed", None, [new_width, new_height])]))
+    
+    def _main_delete_listener_listening_0_exec(self, parameters):
+        self.big_step.outputEventOM(Event("narrow_cast", None, [self, 'balls', Event("delete", None, [])]))
     
     def initializeStatechart(self):
         # enter default state
@@ -370,6 +407,9 @@ class Button(RuntimeClassBase):
     def __init__(self, controller, event_name):
         RuntimeClassBase.__init__(self, controller)
         
+        self.inports["button_ui_in"] = controller.addInputPort("button_ui_in", self)
+        self.outports["button_ui_out"] = controller.addOutputPort("button_ui_out", self)
+        
         self.semantics.big_step_maximality = StatechartSemantics.TakeMany
         self.semantics.internal_event_lifeline = StatechartSemantics.Queue
         self.semantics.input_event_lifeline = StatechartSemantics.FirstComboStep
@@ -378,7 +418,6 @@ class Button(RuntimeClassBase):
         
         # build Statechart structure
         self.build_statechart_structure()
-        self.inports["button_ui_in"] = controller.addInputPort("button_ui_in", self)
         
         # call user defined constructor
         Button.user_defined_constructor(self, event_name)
@@ -396,44 +435,47 @@ class Button(RuntimeClassBase):
         # state <root>
         self.states[""] = State(0, "", self)
         
-        # state /initializing
-        self.states["/initializing"] = State(1, "/initializing", self)
-        self.states["/initializing"].setEnter(self._initializing_enter)
+        # state /waiting
+        self.states["/waiting"] = State(1, "/waiting", self)
         
         # state /running
         self.states["/running"] = State(2, "/running", self)
         
         # add children
-        self.states[""].addChild(self.states["/initializing"])
+        self.states[""].addChild(self.states["/waiting"])
         self.states[""].addChild(self.states["/running"])
         self.states[""].fixTree()
-        self.states[""].default_state = self.states["/initializing"]
+        self.states[""].default_state = self.states["/waiting"]
         
-        # transition /initializing
-        _initializing_0 = Transition(self, self.states["/initializing"], [self.states["/running"]])
-        _initializing_0.setTrigger(None)
-        self.states["/initializing"].addTransition(_initializing_0)
+        # transition /waiting
+        _waiting_0 = Transition(self, self.states["/waiting"], [self.states["/running"]])
+        _waiting_0.setAction(self._waiting_0_exec)
+        _waiting_0.setTrigger(Event("ui_initialized", self.getInPortName("button_ui_in")))
+        self.states["/waiting"].addTransition(_waiting_0)
         
         # transition /running
         _running_0 = Transition(self, self.states["/running"], [self.states["/running"]])
         _running_0.setAction(self._running_0_exec)
-        _running_0.setTrigger(Event("clicked", "button_ui_in"))
+        _running_0.setTrigger(Event("clicked", self.getInPortName("button_ui_in")))
         self.states["/running"].addTransition(_running_0)
     
-    def _initializing_enter(self):
-        self.big_step.outputEventOM(Event("narrow_cast", None, [self, 'parent', Event("button_created", None, [self])]))
+    def _waiting_0_exec(self, parameters):
+        self.big_step.outputEvent(Event("set_text", self.getOutPortName("button_ui_out"), [self.event_name]))
     
     def _running_0_exec(self, parameters):
         self.big_step.outputEventOM(Event("narrow_cast", None, [self, 'parent', Event("button_pressed", None, [self.event_name])]))
     
     def initializeStatechart(self):
         # enter default state
-        self.default_targets = self.states["/initializing"].getEffectiveTargetStates()
+        self.default_targets = self.states["/waiting"].getEffectiveTargetStates()
         RuntimeClassBase.initializeStatechart(self)
 
 class Ball(RuntimeClassBase):
-    def __init__(self, controller, x, y, window_height, window_width):
+    def __init__(self, controller, x, y, window_width, window_height):
         RuntimeClassBase.__init__(self, controller)
+        
+        self.inports["ball_ui_in"] = controller.addInputPort("ball_ui_in", self)
+        self.outports["ball_ui_out"] = controller.addOutputPort("ball_ui_out", self)
         
         self.semantics.big_step_maximality = StatechartSemantics.TakeMany
         self.semantics.internal_event_lifeline = StatechartSemantics.Queue
@@ -443,17 +485,15 @@ class Ball(RuntimeClassBase):
         
         # build Statechart structure
         self.build_statechart_structure()
-        self.inports["ball_ui_in"] = controller.addInputPort("ball_ui_in", self)
-        self.inports["ball_ui_out"] = controller.addInputPort("ball_ui_out", self)
         
         # call user defined constructor
-        Ball.user_defined_constructor(self, x, y, window_height, window_width)
+        Ball.user_defined_constructor(self, x, y, window_width, window_height)
     
-    def user_defined_constructor(self, x, y, window_height, window_width):
+    def user_defined_constructor(self, x, y, window_width, window_height):
         self.x = x
         self.y = y
-        self.window_height = window_height
         self.window_width = window_width
+        self.window_height = window_height
         self.r = 20.0;
         self.vel = {'x': random.uniform(-5.0, 5.0), 'y': random.uniform(-5.0, 5.0)};
         self.smooth = 0.4 # value between 0 and 1
@@ -477,25 +517,28 @@ class Ball(RuntimeClassBase):
         # state /main/main_behaviour/initializing
         self.states["/main/main_behaviour/initializing"] = State(3, "/main/main_behaviour/initializing", self)
         
+        # state /main/main_behaviour/waiting_for_ui
+        self.states["/main/main_behaviour/waiting_for_ui"] = State(4, "/main/main_behaviour/waiting_for_ui", self)
+        
         # state /main/main_behaviour/bouncing
-        self.states["/main/main_behaviour/bouncing"] = State(4, "/main/main_behaviour/bouncing", self)
+        self.states["/main/main_behaviour/bouncing"] = State(5, "/main/main_behaviour/bouncing", self)
         self.states["/main/main_behaviour/bouncing"].setEnter(self._main_main_behaviour_bouncing_enter)
         self.states["/main/main_behaviour/bouncing"].setExit(self._main_main_behaviour_bouncing_exit)
         
         # state /main/main_behaviour/dragging
-        self.states["/main/main_behaviour/dragging"] = State(5, "/main/main_behaviour/dragging", self)
+        self.states["/main/main_behaviour/dragging"] = State(6, "/main/main_behaviour/dragging", self)
         
         # state /main/main_behaviour/selected
-        self.states["/main/main_behaviour/selected"] = State(6, "/main/main_behaviour/selected", self)
+        self.states["/main/main_behaviour/selected"] = State(7, "/main/main_behaviour/selected", self)
         
         # state /main/size_change_listener
-        self.states["/main/size_change_listener"] = State(7, "/main/size_change_listener", self)
+        self.states["/main/size_change_listener"] = State(8, "/main/size_change_listener", self)
         
         # state /main/size_change_listener/listening
-        self.states["/main/size_change_listener/listening"] = State(8, "/main/size_change_listener/listening", self)
+        self.states["/main/size_change_listener/listening"] = State(9, "/main/size_change_listener/listening", self)
         
         # state /deleted
-        self.states["/deleted"] = State(9, "/deleted", self)
+        self.states["/deleted"] = State(10, "/deleted", self)
         
         # add children
         self.states[""].addChild(self.states["/main"])
@@ -503,6 +546,7 @@ class Ball(RuntimeClassBase):
         self.states["/main"].addChild(self.states["/main/main_behaviour"])
         self.states["/main"].addChild(self.states["/main/size_change_listener"])
         self.states["/main/main_behaviour"].addChild(self.states["/main/main_behaviour/initializing"])
+        self.states["/main/main_behaviour"].addChild(self.states["/main/main_behaviour/waiting_for_ui"])
         self.states["/main/main_behaviour"].addChild(self.states["/main/main_behaviour/bouncing"])
         self.states["/main/main_behaviour"].addChild(self.states["/main/main_behaviour/dragging"])
         self.states["/main/main_behaviour"].addChild(self.states["/main/main_behaviour/selected"])
@@ -513,10 +557,16 @@ class Ball(RuntimeClassBase):
         self.states["/main/size_change_listener"].default_state = self.states["/main/size_change_listener/listening"]
         
         # transition /main/main_behaviour/initializing
-        _main_main_behaviour_initializing_0 = Transition(self, self.states["/main/main_behaviour/initializing"], [self.states["/main/main_behaviour/bouncing"]])
+        _main_main_behaviour_initializing_0 = Transition(self, self.states["/main/main_behaviour/initializing"], [self.states["/main/main_behaviour/waiting_for_ui"]])
         _main_main_behaviour_initializing_0.setAction(self._main_main_behaviour_initializing_0_exec)
         _main_main_behaviour_initializing_0.setTrigger(Event("set_association_name", None))
         self.states["/main/main_behaviour/initializing"].addTransition(_main_main_behaviour_initializing_0)
+        
+        # transition /main/main_behaviour/waiting_for_ui
+        _main_main_behaviour_waiting_for_ui_0 = Transition(self, self.states["/main/main_behaviour/waiting_for_ui"], [self.states["/main/main_behaviour/bouncing"]])
+        _main_main_behaviour_waiting_for_ui_0.setAction(self._main_main_behaviour_waiting_for_ui_0_exec)
+        _main_main_behaviour_waiting_for_ui_0.setTrigger(Event("ui_initialized", self.getInPortName("ball_ui_in")))
+        self.states["/main/main_behaviour/waiting_for_ui"].addTransition(_main_main_behaviour_waiting_for_ui_0)
         
         # transition /main/main_behaviour/bouncing
         _main_main_behaviour_bouncing_0 = Transition(self, self.states["/main/main_behaviour/bouncing"], [self.states["/main/main_behaviour/bouncing"]])
@@ -525,26 +575,26 @@ class Ball(RuntimeClassBase):
         self.states["/main/main_behaviour/bouncing"].addTransition(_main_main_behaviour_bouncing_0)
         _main_main_behaviour_bouncing_1 = Transition(self, self.states["/main/main_behaviour/bouncing"], [self.states["/main/main_behaviour/selected"]])
         _main_main_behaviour_bouncing_1.setAction(self._main_main_behaviour_bouncing_1_exec)
-        _main_main_behaviour_bouncing_1.setTrigger(Event("select_ball", "ball_ui_in"))
+        _main_main_behaviour_bouncing_1.setTrigger(Event("select_ball", self.getInPortName("ball_ui_in")))
         self.states["/main/main_behaviour/bouncing"].addTransition(_main_main_behaviour_bouncing_1)
         
         # transition /main/main_behaviour/dragging
         _main_main_behaviour_dragging_0 = Transition(self, self.states["/main/main_behaviour/dragging"], [self.states["/main/main_behaviour/dragging"]])
         _main_main_behaviour_dragging_0.setAction(self._main_main_behaviour_dragging_0_exec)
-        _main_main_behaviour_dragging_0.setTrigger(Event("motion", "ball_ui_in"))
+        _main_main_behaviour_dragging_0.setTrigger(Event("motion", self.getInPortName("ball_ui_in")))
         self.states["/main/main_behaviour/dragging"].addTransition(_main_main_behaviour_dragging_0)
         _main_main_behaviour_dragging_1 = Transition(self, self.states["/main/main_behaviour/dragging"], [self.states["/main/main_behaviour/bouncing"]])
         _main_main_behaviour_dragging_1.setAction(self._main_main_behaviour_dragging_1_exec)
-        _main_main_behaviour_dragging_1.setTrigger(Event("left-release", "input"))
+        _main_main_behaviour_dragging_1.setTrigger(Event("unselect_ball", self.getInPortName("ball_ui_in")))
         self.states["/main/main_behaviour/dragging"].addTransition(_main_main_behaviour_dragging_1)
         
         # transition /main/main_behaviour/selected
         _main_main_behaviour_selected_0 = Transition(self, self.states["/main/main_behaviour/selected"], [self.states["/main/main_behaviour/dragging"]])
-        _main_main_behaviour_selected_0.setTrigger(Event("clicked", "ball_ui_in"))
+        _main_main_behaviour_selected_0.setTrigger(Event("select_ball", self.getInPortName("ball_ui_in")))
         self.states["/main/main_behaviour/selected"].addTransition(_main_main_behaviour_selected_0)
         _main_main_behaviour_selected_1 = Transition(self, self.states["/main/main_behaviour/selected"], [self.states["/main/main_behaviour/selected"]])
         _main_main_behaviour_selected_1.setAction(self._main_main_behaviour_selected_1_exec)
-        _main_main_behaviour_selected_1.setTrigger(Event("delete", "ball_ui_in"))
+        _main_main_behaviour_selected_1.setTrigger(Event("delete", None))
         self.states["/main/main_behaviour/selected"].addTransition(_main_main_behaviour_selected_1)
         
         # transition /main/size_change_listener/listening
@@ -568,17 +618,20 @@ class Ball(RuntimeClassBase):
         association_name = parameters[0]
         self.association_name = association_name
     
+    def _main_main_behaviour_waiting_for_ui_0_exec(self, parameters):
+        self.big_step.outputEvent(Event("set_initial_params", self.getOutPortName("ball_ui_out"), [self.x, self.y, self.r]))
+    
     def _main_main_behaviour_bouncing_0_exec(self, parameters):
-        if x <= 0 or x + (self.r * 2) >= self.window_width:
+        if self.x <= 0 or self.x + (self.r * 2) >= self.window_width:
             self.vel['x'] = -self.vel['x']
-        if y <= 0 or y + (self.r * 2) >= self.window_height:
+        if self.y <= 0 or self.y + (self.r * 2) >= self.window_height:
             self.vel['y'] = -self.vel['y']
         self.x += self.vel['x']
         self.y += self.vel['y']
-        self.big_step.outputEvent(Event("change_position", "ball_ui_out", [self.x, self.y]))
+        self.big_step.outputEvent(Event("change_position", self.getOutPortName("ball_ui_out"), [self.x, self.y]))
     
     def _main_main_behaviour_bouncing_1_exec(self, parameters):
-        self.big_step.outputEvent(Event("change_color", "ball_ui_out", [yellow]))
+        self.big_step.outputEvent(Event("change_color", self.getOutPortName("ball_ui_out"), ['yellow']))
     
     def _main_main_behaviour_dragging_0_exec(self, parameters):
         dx = parameters[0]
@@ -597,21 +650,20 @@ class Ball(RuntimeClassBase):
             'x': (1 - self.smooth) * dx + self.smooth * self.vel['x'],
             'y': (1 - self.smooth) * dy + self.smooth * self.vel['y']
         }
-        self.big_step.outputEvent(Event("change_position", "ball_ui_out", [self.x, self.y]))
+        self.big_step.outputEvent(Event("change_position", self.getOutPortName("ball_ui_out"), [self.x, self.y]))
     
     def _main_main_behaviour_dragging_1_exec(self, parameters):
-        tagorid = parameters[0]
-        self.canvas.itemconfig(self.id, fill="red")
+        self.big_step.outputEvent(Event("change_color", self.getOutPortName("ball_ui_out"), ['red']))
     
     def _main_main_behaviour_selected_1_exec(self, parameters):
         self.big_step.outputEventOM(Event("narrow_cast", None, [self, 'parent', Event("delete_ball", None, [self.association_name])]))
         self.raiseInternalEvent(Event("delete_local", None, []))
     
     def _main_size_change_listener_listening_0_exec(self, parameters):
-        new_height = parameters[0]
-        new_width = parameters[1]
-        self.window_height = new_height
+        new_width = parameters[0]
+        new_height = parameters[1]
         self.window_width = new_width
+        self.window_height = new_height
     
     def initializeStatechart(self):
         # enter default state
@@ -628,7 +680,7 @@ class ObjectManager(ObjectManagerBase):
             instance.associations = {}
             instance.associations["windows"] = Association("Window", 0, -1)
         elif class_name == "Window":
-            instance = Window(self.controller, construct_params[0], construct_params[1])
+            instance = Window(self.controller)
             instance.associations = {}
             instance.associations["balls"] = Association("Ball", 0, -1)
             instance.associations["buttons"] = Association("Button", 0, -1)

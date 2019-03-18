@@ -13,8 +13,8 @@ try:
 except ImportError:
     import tkinter as tk
 
-from src.python_sccd.python_sccd_runtime.libs.drawing import drawing
-from src.python_sccd.python_sccd_runtime.libs.utils import utils
+from sccd.runtime.libs.drawing import drawing
+from sccd.runtime.libs.utils import utils
 
 from sccd.runtime.statecharts_core import Event
 

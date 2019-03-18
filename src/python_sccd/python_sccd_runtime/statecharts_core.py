@@ -433,7 +433,7 @@ class OutputListener(object):
     def __init__(self, port_names):
         if not isinstance(port_names, list):
             port_names = [port_names]
-        self.port_names = port_names
+        self.port_names = [port_name.port_name if isinstance(port_name, OutputPortEntry) else port_name for port_name in port_names]
         self.queue = Queue()
 
     def add(self, event):
@@ -459,6 +459,12 @@ class InputPortEntry(object):
     def __init__(self, virtual_name, instance):
         self.virtual_name = virtual_name
         self.instance = instance
+
+class OutputPortEntry(object):
+    def __init__(self, port_name, virtual_name, instance):
+        self.port_name = port_name
+        self.virtual_name = virtual_name
+        self.instance = instance
         
 class ControllerBase(object):
     def __init__(self, object_manager):
@@ -472,7 +478,7 @@ class ControllerBase(object):
         self.input_queue = EventQueue()
 
         # keep track of output ports
-        self.output_ports = []
+        self.output_ports = {}
         self.output_listeners = []
         
         self.simulated_time = None
@@ -496,8 +502,14 @@ class ControllerBase(object):
         self.input_ports[port_name] = InputPortEntry(virtual_name, instance)
         return port_name
         
-    def addOutputPort(self, port_name):
-        self.output_ports.append(port_name)
+    def addOutputPort(self, virtual_name, instance = None):
+        if instance == None:
+            port_name = virtual_name
+        else:
+            port_name = "private_" + str(self.private_port_counter) + "_" + virtual_name
+            self.private_port_counter += 1
+        self.output_ports[port_name] = OutputPortEntry(port_name, virtual_name, instance)
+        return port_name
 
     def broadcast(self, new_event, time_offset = 0):
         self.object_manager.broadcast(None, new_event, time_offset)
@@ -535,7 +547,7 @@ class ControllerBase(object):
             event_time = self.input_queue.getEarliestTime()
             e = self.input_queue.pop()
             input_port = self.input_ports[e.getPort()]
-            e.port = input_port.virtual_name
+            # e.port = input_port.virtual_name
             target_instance = input_port.instance
             if target_instance == None:
                 self.broadcast(e, event_time - self.simulated_time)
@@ -621,6 +633,7 @@ class EventLoopControllerBase(ControllerBase):
         self.main_thread = thread.get_ident()
 
     def addInput(self, input_event, time_offset = 0, force_internal=False):
+        # import pdb; pdb.set_trace()
         if self.main_thread == thread.get_ident():
             # Running on the main thread, so just execute what we want
             self.simulated_time = self.accurate_time.get_wct()
@@ -1000,6 +1013,7 @@ class RuntimeClassBase(object):
         self.controller = controller
         self.__set_stable(True)
         self.inports = {}
+        self.outports = {}
         self.timers = {}
         self.states = {}
         self.eventless_states = 0
@@ -1015,6 +1029,19 @@ class RuntimeClassBase(object):
     #compare by number of events in the list
     def __lt__(self, other):
         return len(self.events.event_list) < len(other.events.event_list)
+
+    def getChildren(self, link_name):
+        traversal_list = self.controller.object_manager.processAssociationReference(link_name)
+        return [i["instance"] for i in self.controller.object_manager.getInstances(self, traversal_list)]
+
+    def getSingleChild(self, link_name):
+        return self.getChildren(link_name)[0] # assume this will return a single child...
+
+    def getOutPortName(self, port_name):
+        return self.outports[port_name] if port_name in self.outports else port_name
+
+    def getInPortName(self, port_name):
+        return self.inports[port_name] if port_name in self.inports else port_name            
 
     def start(self):
         self.configuration = []

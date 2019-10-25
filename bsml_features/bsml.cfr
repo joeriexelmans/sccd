@@ -1,0 +1,174 @@
+abstract xor EventOptions
+	PresentInWhole
+	PresentInRemainder
+	PresentInNextComboStep
+	PresentInNextSmallStep
+	PresentInSame
+		[BSML.Semantics.ConcurrencyAndConsistency.Concurrency.Many]
+
+abstract BSML
+	Syntax
+		Events?
+			[Semantics.EventLifeLine]
+			EventTriggers?
+				EnvironmentalInputEvents?
+					[Semantics.EventLifeLine.ExternalEvents.ExternalInputEvents.ExternalInputEventOptions.SyntacticInputEvents]
+					NegatedEnvironmentalnputEvents?
+						[Semantics.Priority.NegationOfTriggers]
+				InterfaceEvents?
+					[Syntax.Events.GeneratedEvents.GeneratedInterfaceEvents]
+					[Semantics.EventLifeLine.InterfaceEvents]
+					NegatedInterfaceEvents?
+						[Semantics.Priority.NegationOfTriggers]
+				NegatedEvents?
+					[Semantics.Priority.NegationOfTriggers]
+			GeneratedEvents?
+				EnvironmentalOutputEvents?
+					[Semantics.EventLifeLine.ExternalEvents.ExternalOutputEvents.ExternalOutputEventOptions.SyntacticOutputEvents]
+				GeneratedInterfaceEvents?
+					[Syntax.Events.EventTriggers.InterfaceEvents]
+
+		Variables?
+			VariableOperators?
+				new?
+					[Semantics.OrderOfSmallSteps.Dataflow]
+					[Semantics.EnablednessMemoryProtocol.InternalVariablesInGC.GCBigStep ||
+					 Semantics.EnablednessMemoryProtocol.InternalVariablesInGC.GCSmallStep ||
+					 Semantics.AssignmentMemoryProtocol.InternalVariablesInRHS.RHSBigStep ||
+					 Semantics.AssignmentMemoryProtocol.InternalVariablesInRHS.RHSSmallStep]
+				new_small?
+					[Semantics.EnablednessMemoryProtocol.InternalVariablesInGC.GCSmallStep ||
+					 Semantics.AssignmentMemoryProtocol.InternalVariablesInRHS.RHSSmallStep]
+				cur?
+					[Semantics.EnablednessMemoryProtocol.InternalVariablesInGC.GCBigStep ||
+					 Semantics.AssignmentMemoryProtocol.InternalVariablesInRHS.RHSBigStep]
+				pre?
+					[Semantics.EnablednessMemoryProtocol.InternalVariablesInGC.GCSmallStep ||
+					 Semantics.AssignmentMemoryProtocol.InternalVariablesInRHS.RHSSmallStep]
+			VariableAssignments?
+				[Semantics.AssignmentMemoryProtocol]
+				EnvironmentalOutputVariablesInLHS?
+				InterfaceVariablesInRHS?
+					[Semantics.AssignmentMemoryProtocol.InterfaceVariablesInRHS]
+				EnvironmentalInputVariablesInRHS?
+			GuardConditions?
+				[Semantics.EnablednessMemoryProtocol]
+				InterfaceVariablesInGC?
+					[Semantics.EnablednessMemoryProtocol.InterfaceVariablesInGC]
+				EnvironmentalInputVariablesInGC?
+
+		ControlStates?
+			Hierarchical?
+				And?
+					[Semantics.ConcurrencyAndConsistency]
+			Stable?
+				[Semantics.BigStepMaximality.Syntactic]
+			ComboStable?
+				[Semantics.ComboStepMaximality.ComboSyntactic]
+
+	Semantics
+		xor BigStepMaximality
+			Syntactic
+				[Syntax.ControlStates.Stable]
+			TakeOne
+			TakeMany
+
+		xor ComboStepMaximality ?
+			// Need any other combo-step semantic option for this to have meaning:
+			[Semantics.EventLifeLine.InternalEvents.PresentInNextComboStep ||
+			 Semantics.EventLifeLine.ExternalEvents.ExternalInputEvents.EventOptions.PresentInNextComboStep ||
+			 Semantics.EventLifeLine.ExternalEvents.ExternalOutputEvents.EventOptions.PresentInNextComboStep ||
+			 Semantics.EnablednessMemoryProtocol.InternalVariablesInGC.GCComboStep ||
+			 Semantics.AssignmentMemoryProtocol.InternalVariablesInRHS.RHSComboStep]
+			// Options:
+			ComboSyntactic
+				[Syntax.ControlStates.ComboStable]
+			ComboTakeOne
+			ComboTakeMany
+				[not Semantics.BigStepMaximality.TakeOne]
+
+		ConcurrencyAndConsistency ?
+			[Syntax.ControlStates.Hierarchical.And]
+			xor Concurrency
+				Single
+				Many
+					xor SmallStepConsistency
+						SourceDestinationOrthogonal
+						ArenaOrthogonal
+					xor Preemption
+						NonPreemptive
+						Preemptive
+
+		EventLifeLine ?
+			[Syntax.Events]
+			InternalEvents : EventOptions
+			ExternalEvents ?
+				ExternalInputEvents ?
+					EventOptions : EventOptions
+					xor ExternalInputEventOptions
+						SyntacticInputEvents
+							[Syntax.Events.EventTriggers.EnvironmentalInputEvents]
+						ReceivedEventsAsEnvironmental
+						HybridInputEvents
+				ExternalOutputEvents ?
+					EventOptions : EventOptions
+					xor ExternalOutputEventOptions
+						SyntacticOutputEvents
+							[Syntax.Events.GeneratedEvents.EnvironmentalOutputEvents]
+						LastComboStepGeneratedEvents
+						LastSmallStepGeneratedEvents
+						HybridOutputEvents
+			xor InterfaceEvents ?
+				[Syntax.Events.EventTriggers.InterfaceEvents]
+				StrongSynchronousEvent
+				WeakSynchronousEvent
+				AsynchronousEvent
+
+		EnablednessMemoryProtocol ?
+			[Syntax.Variables.GuardConditions]
+			xor InternalVariablesInGC
+				GCBigStep
+				GCSmallStep
+				GCComboStep
+			xor InterfaceVariablesInGC ?
+				[Syntax.Variables.GuardConditions.InterfaceVariablesInGC]
+				GCStrongSynchronousVariable
+				GCWeakSynchronousVariable
+				GCAsynchronousVariable
+
+		AssignmentMemoryProtocol ?
+			[Syntax.Variables.VariableAssignments]
+			xor InternalVariablesInRHS
+				RHSBigStep
+				RHSSmallStep
+				RHSComboStep
+			xor InterfaceVariablesInRHS ?
+				[Syntax.Variables.VariableAssignments.InterfaceVariablesInRHS]
+				RHSStrongSynchronousVariable
+				RHSWeakSynchronousVariable
+				RHSAsynchronousVariable
+
+		xor OrderOfSmallSteps ?
+			None
+			ExplicitOrdering
+			Dataflow
+				[Syntax.Variables.VariableOperators.new]
+
+		Priority ?
+			Hierarchical?
+				[Syntax.ControlStates.Hierarchical]
+			ExplicitPriority?
+			NegationOfTriggers?
+				[Syntax.Events.EventTriggers.NegatedEvents ||
+				 Syntax.Events.EventTriggers.InterfaceEvents.NegatedInterfaceEvents ||
+				 Syntax.Events.EventTriggers.EnvironmentalInputEvents.NegatedEnvironmentalnputEvents]
+
+aBSML : BSML
+
+// validConfiguration : BSML
+// 	[PresentInSame]
+// 	[ComboTakeMany]
+
+// invalidConfiguration : BSML
+// 	[PresentInSame]
+// 	[not Concurrency]

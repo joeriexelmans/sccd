@@ -15,6 +15,7 @@ from sccd.compiler.javascript_writer import JavascriptWriter
 from sccd.compiler.python_writer import PythonWriter
 
 def generate(input_file, output_file, target_language, platform):
+
 	sccd = xmlToSccd(input_file)
 
 	if not target_language:
@@ -23,8 +24,7 @@ def generate(input_file, output_file, target_language, platform):
 		else:
 			target_language = "python" # default
 	elif sccd.language and target_language != sccd.language:
-		Logger.showError("Diagram specifies target language as \"" + sccd.language + "\", but language option of compiler has been set to \"" + target_language + "\". No output has been generated.")
-		return
+		raise CompilerException("Diagram specifies target language as \"" + sccd.language + "\", but language option of compiler has been set to \"" + target_language + "\". No output has been generated.")
 
 	if target_language == "python" and not output_file.endswith(".py") :
 		output_file += ".py"
@@ -51,8 +51,8 @@ def sccdToGeneric(sccd, platform):
 	return generic
 
 def genericToTarget(generic, target_language, output_file):
+	f = FileWriter(output_file)
 	try:
-		f = FileWriter(output_file)
 		if target_language == "javascript":
 			writer = JavascriptWriter(f)
 		elif target_language == "python":

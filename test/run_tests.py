@@ -5,6 +5,8 @@ import unittest
 
 from sccd.runtime.statecharts_core import *
 
+BUILD_DIR = "build"
+
 class PyTestCase(unittest.TestCase):
     def __init__(self, file_name):
         unittest.TestCase.__init__(self)
@@ -71,12 +73,16 @@ class PyTestCase(unittest.TestCase):
 if __name__ == '__main__':
     suite = unittest.TestSuite()
 
-    for d in os.listdir("target_py"):
-        subdir = os.path.join("target_py", d)
-        if not os.path.isdir(subdir):
-            continue
-        for f in os.listdir(subdir):
-            if f.endswith(".py") and not f.startswith("_"):
-                suite.addTest(PyTestCase(os.path.join(subdir, f)))
+    for r, dirs, files in os.walk(BUILD_DIR):
+        for file in files:
+            if file.endswith(".py") and not file.startswith("_"):
+                suite.addTest(PyTestCase(os.path.join(r, file)))
+    # for d in os.listdir("target_py"):
+    #     subdir = os.path.join("target_py", d)
+    #     if not os.path.isdir(subdir):
+    #         continue
+    #     for f in os.listdir(subdir):
+    #         if f.endswith(".py") and not f.startswith("_"):
+    #             suite.addTest(PyTestCase(os.path.join(subdir, f)))
 
     unittest.TextTestRunner(verbosity=2).run(suite)

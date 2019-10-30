@@ -11,6 +11,7 @@ csharp_tests/test-results
 csharp_tests/bin
 src/build
 **/*target*
+test/build/
 **/*.lprof
 doc/_build
 .project

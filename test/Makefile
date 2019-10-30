@@ -37,8 +37,8 @@ test_javascript: all_javascript run_tests.html
 	$(BROWSER) run_tests.html &
 
 test_python:      ## Run Python tests.
-test_python: all_python run_tests.py
-	$(PYTHON) run_tests.py
+test_python:
+	$(PYTHON) test.py $(SRC_DIRS)
 
 $(BUILD_DIR)/%.py : %.xml
 	mkdir -p $(dir $@)

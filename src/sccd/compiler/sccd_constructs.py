@@ -1,12 +1,13 @@
 import abc
 import re
-import xml.etree.ElementTree as ET
 import os.path
 
 from sccd.compiler.utils import Logger
 from sccd.compiler.visitor import Visitable
 from sccd.compiler.compiler_exceptions import CompilerException, TransitionException, UnprocessedException
 from sccd.compiler.lexer import Lexer, Token, TokenType
+
+import lxml.etree as ET
 
 # http://docs.python.org/2/library/xml.etree.elementtree.html
 
@@ -171,7 +172,7 @@ class TriggerEvent:
             return
             
         self.params = []
-        parameters = xml_element.findall('parameter')    
+        parameters = xml_element.findall('parameter', xml_element.nsmap)
         for p in parameters :
             name = p.get("name","")
             if not name :
@@ -215,10 +216,10 @@ class SubAction(Visitable):
     @classmethod
     def create(cls, xml_element):
         for subcls in cls.__subclasses__():
-            tag = xml_element.tag.lower()
-            if subcls.check(tag):
+            tag = ET.QName(xml_element)
+            if subcls.check(tag.localname):
                 return subcls(xml_element)
-        raise CompilerException("Invalid subaction: " + str(xml_element.tag.lower()))
+        raise CompilerException("Line " + str(xml_element.sourceline) + ": Invalid subaction: " + str(tag.localname))
     
 ##################################
 """
@@ -279,7 +280,7 @@ class RaiseEvent(SubAction):
             self.target = ""
                 
         self.params = []
-        parameters = xml_element.findall('parameter')    
+        parameters = xml_element.findall('parameter', xml_element.nsmap)    
         for p in parameters :
             value = p.get("expr","")
             if not value :
@@ -356,9 +357,11 @@ class Assign(SubAction):
 class Action(Visitable):
     def __init__(self, xml_element):
         self.sub_actions = []
-        for subaction in list(xml_element) :
-            if subaction.tag not in ["parameter"] :      
-                self.sub_actions.append(SubAction.create(subaction))
+        for subaction in xml_element:
+            if isinstance(subaction.tag, str):
+                # subaction.tag
+                if ET.QName(subaction).localname not in ["parameter"] :      
+                    self.sub_actions.append(SubAction.create(subaction))
             
     def accept(self, visitor):
         for subaction in self.sub_actions :
@@ -455,22 +458,24 @@ class StateChartNode(Visitable):
         self.save_state_on_exit = False
         self.has_timers = False
         self.initial = None
+
+        tag = ET.QName(xml_element)
             
-        if xml_element.tag == "scxml" : 
+        if tag.localname == "scxml" : 
             self.is_root = True
             self.is_composite = True
-        elif xml_element.tag == "parallel" : 
+        elif tag.localname == "parallel" : 
             self.is_composite = True
             self.is_parallel_state = True
-        elif xml_element.tag == "state" :
-            if len(xml_element.findall("state")) > 0 or (len(xml_element.findall("parallel")) > 0) :
+        elif tag.localname == "state" :
+            if len(xml_element.findall("state", xml_element.nsmap)) > 0 or (len(xml_element.findall("parallel", xml_element.nsmap)) > 0) :
                 self.is_composite = True
             else :
                 self.is_basic = True
             if  self.parent.is_parallel_state :
                 if (self.is_basic) :
                     raise CompilerException("Orthogonal nodes (nodes that are immediate children of parallel nodes) can't be basic.")
-        elif xml_element.tag == "history" :
+        elif tag.localname == "history" :
             history_type = xml_element.get("type","shallow")
             if history_type == "deep" :
                 self.is_history_deep = True
@@ -484,11 +489,11 @@ class StateChartNode(Visitable):
         #self.parseConflictAttribute(xml_element)
         self.parseEnterActions(xml_element)
         self.parseExitActions(xml_element)
-        
+
         #transitions
         self.transitions = []
         self.else_transitions = []
-        for transition_xml in xml_element.findall("transition"):
+        for transition_xml in xml_element.findall("transition", xml_element.nsmap):
             transition = StateChartTransition(transition_xml, self)
             if isinstance(transition.guard, ElseGuard):
                 self.else_transitions.append(transition)
@@ -534,7 +539,7 @@ class StateChartNode(Visitable):
     """
                 
     def parseEnterActions(self, xml):
-        on_entries = xml.findall("onentry")
+        on_entries = xml.findall("onentry", xml.nsmap)
         if on_entries :
             if len(on_entries) > 1:
                 raise CompilerException("Multiple <onentry> tags detected for "+ self.full_name + ", only 1 allowed.")
@@ -543,7 +548,7 @@ class StateChartNode(Visitable):
             self.enter_action = EnterAction(self)
             
     def parseExitActions(self, xml):
-        on_exits = xml.findall("onexit")
+        on_exits = xml.findall("onexit", xml.nsmap)
         if on_exits :
             if len(on_exits) > 1:
                 raise CompilerException("Multiple <onexit> tags detected for "+ self.full_name + ", only 1 allowed.")
@@ -747,11 +752,11 @@ class Method(Visitable):
     def __init__(self, xml, parent_class):
         self.name = xml.get("name", "")
         self.access = xml.get("access", "public")
-        parameters = xml.findall("parameter")
+        parameters = xml.findall("parameter", xml.nsmap)
         self.parameters = []
         for p in parameters:
             self.parameters.append(XMLFormalParameter(p))
-        bodies = xml.findall("body")
+        bodies = xml.findall("body", xml.nsmap)
         if len(bodies) > 1 : 
             raise CompilerException("Method can have at most one body.")
         elif len(bodies) == 1:
@@ -781,11 +786,11 @@ class Constructor(Method):
             self.parameters = []
         else :
             Method.__init__(self, xml, parent_class)      
-            super_class_parameters = xml.findall("super")
+            super_class_parameters = xml.findall("super", xml.nsmap)
             for s in super_class_parameters:
                 class_name = s.get("class")
                 self.super_class_parameters[class_name] = []
-                params = s.findall("parameter")
+                params = s.findall("parameter", s.nsmap)
                 for p in params:
                     self.super_class_parameters[class_name].append(p.get("expr"))
         
@@ -931,14 +936,14 @@ class Class(Visitable):
     
 
     def process(self):
-        inports = self.xml.findall("inport")
+        inports = self.xml.findall("inport", self.xml.nsmap)
         for i in inports:
             name = i.get("name")
             if name in self.inports:
                 raise CompilerException("Found 2 inports with the same name : " + name + ".")
             self.inports.append(name)
 
-        outports = self.xml.findall("outport")
+        outports = self.xml.findall("outport", self.xml.nsmap)
         for i in outports:
             name = i.get("name")
             if name in self.outports:
@@ -947,27 +952,27 @@ class Class(Visitable):
 
         associations = []
         inheritances = []
-        relationships = self.xml.findall("relationships")
+        relationships = self.xml.findall("relationships", self.xml.nsmap)
         for relationship_wrapper in relationships :
-            associations.extend(relationship_wrapper.findall("association"))
-            inheritances.extend(relationship_wrapper.findall("inheritance"))
+            associations.extend(relationship_wrapper.findall("association", relationship_wrapper.nsmap))
+            inheritances.extend(relationship_wrapper.findall("inheritance", relationship_wrapper.nsmap))
             
         self.processAssociations(associations)
         self.processInheritances(inheritances)
 
-        attributes = self.xml.findall("attribute")
+        attributes = self.xml.findall("attribute", self.xml.nsmap)
         for a in attributes:
             self.processAttribute(a)
 
-        methods = self.xml.findall("method")
+        methods = self.xml.findall("method", self.xml.nsmap)
         for m in methods:
             self.processMethod(m)
 
-        constructors = self.xml.findall("constructor")
+        constructors = self.xml.findall("constructor", self.xml.nsmap)
         for c in constructors:
             self.constructors.append(Constructor(c, self))
 
-        destructors = self.xml.findall("destructor")
+        destructors = self.xml.findall("destructor", self.xml.nsmap)
         for d in destructors:
             self.destructors.append(Destructor(d, self))
         
@@ -985,7 +990,7 @@ class Class(Visitable):
             # add a default destructor
             self.destructors.append(Destructor(None,self))
 
-        statecharts = self.xml.findall("scxml")
+        statecharts = self.xml.findall("scxml", self.xml.nsmap)
         if len(statecharts) > 1 :
             raise CompilerException("Multiple statecharts found in class <" + self.name + ">.")
         if len(statecharts) == 1 :
@@ -993,20 +998,20 @@ class Class(Visitable):
             
 ###################################
 class ClassDiagram(Visitable):
-    def __init__(self, input_file):
-        diagram_dir = os.path.dirname(input_file)
-        tree = ET.parse(input_file)
+    def __init__(self, tree):
+        # diagram_dir = os.path.dirname(input_file)
+        # tree = ET.parse(input_file)
         self.root = tree.getroot()
         self.name = self.root.get("name", "")
         self.author = self.root.get("author", "")
-        descriptions = self.root.findall("description")
+        descriptions = self.root.findall("description", self.root.nsmap)
         self.language = self.root.get("language", "")
         if descriptions : 
             self.description = descriptions[0].text
         else :
             self.description = ""
 
-        xml_classes = self.root.findall("class")
+        xml_classes = self.root.findall("class", self.root.nsmap)
         # make sure at least one class is given
         if not xml_classes :
             raise CompilerException("Found no classes to compile.")
@@ -1020,9 +1025,10 @@ class ClassDiagram(Visitable):
             class_src = xml_class.get("src", "")
             class_default = xml_class.get("default", "")
             if class_src != "":
-                if not os.path.isabs(class_src):
-                    class_src = os.path.join(diagram_dir, class_src)
-                substituted_xml_class = ET.parse(class_src).getroot()
+                # if not os.path.isabs(class_src):
+                #     class_src = os.path.join(diagram_dir, class_src)
+                # substituted_xml_class = ET.parse(class_src).getroot()
+                raise CompilerException("class_src currently not supported")
             else:
                 substituted_xml_class = xml_class
 
@@ -1038,7 +1044,7 @@ class ClassDiagram(Visitable):
             substituted_xml_classes.append(substituted_xml_class)
     
         # process in and output ports
-        inports = self.root.findall("inport")
+        inports = self.root.findall("inport", self.root.nsmap)
         names = []
         for xml_inport in inports :
             name = xml_inport.get("name", "")
@@ -1047,7 +1053,7 @@ class ClassDiagram(Visitable):
             names.append(name)
         self.inports = names
         
-        outports = self.root.findall("outport")
+        outports = self.root.findall("outport", self.root.nsmap)
         names = []
         for xml_outport in outports :
             name = xml_outport.get("name", "")
@@ -1058,7 +1064,7 @@ class ClassDiagram(Visitable):
             
         
         # any inital import code that has to come at the top of the generate file
-        tops = self.root.findall("top")
+        tops = self.root.findall("top", self.root.nsmap)
         self.includes = []
         if len(tops) == 1 :
             self.top = tops[0].text
@@ -1096,18 +1102,18 @@ class ClassDiagram(Visitable):
 
         # check if there's a test
         self.test = None
-        test_nodes = self.root.findall("test")
+        test_nodes = self.root.findall("test", self.root.nsmap)
         if test_nodes:
             test_node = test_nodes[0]
 
-            input_nodes = test_node.findall("input")
+            input_nodes = test_node.findall("input", test_node.nsmap)
             if input_nodes:
                 input_node = input_nodes[0]
                 test_input = DiagramTestInput(input_node)
             else:
                 test_input = None
 
-            expected_nodes = test_node.findall("expected")
+            expected_nodes = test_node.findall("expected", test_node.nsmap)
             if expected_nodes:
                 expected_node = expected_nodes[0]
                 test_expected = DiagramTestExpected(expected_node)
@@ -1127,7 +1133,7 @@ class DiagramTestEvent(Visitable):
         self.name = xml.get("name")
         self.port = xml.get("port")
         self.parameters = []
-        parameter_nodes = xml.findall("parameter")
+        parameter_nodes = xml.findall("parameter", xml.nsmap)
         for parameter_node in parameter_nodes:
             val = parameter_node.get("value")
             expr = parameter_node.get("expr")
@@ -1146,7 +1152,7 @@ class DiagramTestInputEvent(DiagramTestEvent):
 class DiagramTestInput(Visitable):
     def __init__(self, xml):
         self.input_events = []
-        event_nodes = xml.findall("event")
+        event_nodes = xml.findall("event", xml.nsmap)
         for event_node in event_nodes:
             e = DiagramTestInputEvent(event_node)
             self.input_events.append(e)
@@ -1154,7 +1160,7 @@ class DiagramTestInput(Visitable):
 class DiagramTestExpectedSlot(Visitable):
     def __init__(self, xml):
         self.expected_events = []
-        event_nodes = xml.findall("event")
+        event_nodes = xml.findall("event", xml.nsmap)
         for event_node in event_nodes:
             e = DiagramTestEvent(event_node)
             self.expected_events.append(e)
@@ -1162,7 +1168,7 @@ class DiagramTestExpectedSlot(Visitable):
 class DiagramTestExpected(Visitable):
     def __init__(self, xml):
         self.slots = []
-        slot_nodes = xml.findall("slot")
+        slot_nodes = xml.findall("slot", xml.nsmap)
         for slot_node in slot_nodes:
             s = DiagramTestExpectedSlot(slot_node)
             self.slots.append(s)

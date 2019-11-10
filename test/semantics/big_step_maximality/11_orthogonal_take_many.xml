@@ -1,5 +1,8 @@
 <?xml version="1.0" ?>
-<diagram author="Herr Joeri Exelmans" name="orthogonal_take_many">
+<diagram
+	xmlns="msdl.uantwerpen.be/sccd"
+	author="Joeri Exelmans"
+	name="take_one">
 	<description>
 		Take Many-semantics: In both components, transitions keep firing until there are no more enabled transitions.
 	</description>

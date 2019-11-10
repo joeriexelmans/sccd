@@ -3,18 +3,18 @@
 
 
 <scxml  conf:datamodel=""  version="1.0" xmlns="http://www.w3.org/2005/07/scxml" xmlns:conf="http://www.w3.org/2005/scxml-conformance">
-       
-<state id="s0">
-  <onentry>
-    <raise event="foo"/>
+
+  <state id="s0">
+    <onentry>
+      <raise event="foo"/>
     </onentry>
 
-    
-  <transition  event="foo" conf:eventNameVal="foo" conf:targetpass=""/>
-  <transition  event="foo" conf:targetfail=""/>
 
-</state>
- 
-<conf:pass/>
-<conf:fail/>
+    <transition  event="foo" conf:eventNameVal="foo" conf:targetpass=""/>
+    <transition  event="foo" conf:targetfail=""/>
+
+  </state>
+
+  <conf:pass/>
+  <conf:fail/>
 </scxml>

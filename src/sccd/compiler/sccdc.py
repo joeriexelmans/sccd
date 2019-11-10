@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import lxml.etree as ET
 
 from sccd.compiler.generic_generator import GenericGenerator, Platforms
 from sccd.compiler.utils import Enum, Logger, FileWriter
@@ -9,33 +10,39 @@ from sccd.compiler.state_linker import StateLinker
 from sccd.compiler.path_calculator import PathCalculator
 from sccd.compiler.sccd_constructs import ClassDiagram
 from sccd.compiler.generic_language_constructs import GenericConstruct
-from sccd.compiler.compiler_exceptions import CompilerException
+from sccd.compiler.compiler_exceptions import CompilerException, TargetLanguageException
 
 from sccd.compiler.javascript_writer import JavascriptWriter
 from sccd.compiler.python_writer import PythonWriter
 
+COMPILER_SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+
 def generate(input_file, output_file, target_language, platform):
 
-	sccd = xmlToSccd(input_file)
-
+	schema = ET.XMLSchema(ET.parse(os.path.join(COMPILER_SRC_DIR, "sccd.xsd")))
+	tree = ET.parse(input_file)
+	schema.assertValid(tree)
+	
+	language = tree.getroot().get("language")
 	if not target_language:
-		if sccd.language:
-			target_language = sccd.language
+		if language:
+			target_language = language
 		else:
 			target_language = "python" # default
-	elif sccd.language and target_language != sccd.language:
-		raise CompilerException("Diagram specifies target language as \"" + sccd.language + "\", but language option of compiler has been set to \"" + target_language + "\". No output has been generated.")
+	elif language and target_language != language:
+		raise TargetLanguageException("Diagram specifies target language as \"" + language + "\", but language option of compiler has been set to \"" + target_language + "\". No output has been generated.")
 
 	if target_language == "python" and not output_file.endswith(".py") :
 		output_file += ".py"
 	elif target_language == "javascript" and not output_file.endswith(".js") :
 		output_file += ".js"
 
+	sccd = xmlToSccd(tree)
 	generic = sccdToGeneric(sccd, platform)
 	genericToTarget(generic, target_language, output_file)
 
-def xmlToSccd(xml_file):
-	cd = ClassDiagram(xml_file) # create AST
+def xmlToSccd(tree):
+	cd = ClassDiagram(tree) # create AST
 	cd.accept(SuperClassLinker())
 	# SuperClassLinker().visit(cd) # visitor linking super classs references
 	StateLinker().visit(cd) # visitor fixing state references

@@ -1,5 +1,8 @@
 <?xml version="1.0" ?>
-<diagram author="Glenn De Jonghe" name="TestAssociateEvent">
+<diagram
+	xmlns="msdl.uantwerpen.be/sccd"
+	author="Glenn De Jonghe"
+	name="TestAssociateEvent">
     <description>
         Testing the object manager
     </description>
@@ -40,7 +43,9 @@
     <class name="Class2" default="false">
         <scxml>
             <state id="start">
-            	<log>started</log>
+                <onentry>
+                	<log>started</log>
+                </onentry>
                 <transition event="hello" target=".">
                     <raise port="test_output" event="second_working" />
                 </transition>

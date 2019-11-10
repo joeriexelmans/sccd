@@ -1,5 +1,8 @@
 <?xml version="1.0" ?>
-<diagram author="Herr Joeri Exelmans" name="orthogonal_take_one_next_small_step">
+<diagram
+	xmlns="msdl.uantwerpen.be/sccd"
+	author="Joeri Exelmans"
+	name="orthogonal_take_one_next_small_step">
 	<description>
 		Internal event lifeline - Next Small Step-semantics: Events raised in a small step are present only in the next small step of the same big step. It is possible for internally raised events to be "lost": For instance, if in the current big step it is no longer possible for another transition to be executed (due to big-step maximality semantics), there can't be another small step in which internally raised events of the last small step become present; all events raised in the last small step of a big step will never have any effect.
 

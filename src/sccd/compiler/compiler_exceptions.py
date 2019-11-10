@@ -12,3 +12,6 @@ class UnprocessedException(CompilerException):
 
 class CodeBlockException(CompilerException):
 	pass
+
+class TargetLanguageException(CompilerException):
+  pass

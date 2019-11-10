@@ -29,7 +29,7 @@ abstract BSML
 					[Syntax.Events.EventTriggers.InterfaceEvents]
 
 		Variables?
-			VariableOperators?
+			VariableOperators // in Day & Atlee, this is an optional feature, but it may not have to be optional because all its nested clafers are optional too.
 				new?
 					[Semantics.OrderOfSmallSteps.Dataflow]
 					[Semantics.EnablednessMemoryProtocol.InternalVariablesInGC.GCBigStep ||
@@ -163,7 +163,18 @@ abstract BSML
 				 Syntax.Events.EventTriggers.InterfaceEvents.NegatedInterfaceEvents ||
 				 Syntax.Events.EventTriggers.EnvironmentalInputEvents.NegatedEnvironmentalnputEvents]
 
-aBSML : BSML
+
+// Let's say in SCCD, we always have a minimum of syntactic features
+SCCD : BSML
+	[Syntax.Events]
+	[Syntax.ControlStates.Hierarchical.And]
+	[Syntax.Variables.VariableAssignments]
+	[Syntax.Variables.GuardConditions]
+
+currentlySupported : SCCD
+	[PresentInNextSmallStep || PresentInNextComboStep]
+	[SyntacticInputEvents]
+	[SyntacticOutputEvents]
 
 // validConfiguration : BSML
 // 	[PresentInSame]

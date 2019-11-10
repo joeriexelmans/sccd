@@ -196,7 +196,7 @@ class PythonWriter(GenericWriterBase):
 			init_value.accept(self)
 
 	def visit_LogStatement(self, l):
-		self.out.write("print \"" + l.getMessage() + "\"")
+		self.out.write("print(\"" + l.getMessage() + "\")")
 
 	def visit_MapExpression(self, m):
 		elements = m.getElements()

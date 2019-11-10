@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<diagram author="Yentl Van Tendeloo" name="after_0">
+<diagram
+  xmlns="msdl.uantwerpen.be/sccd"
+  author="Yentl Van Tendeloo"
+  name="after_0">
     <description>
         Used for testing the AFTER(0) event---which should not block the deletion of the B instance.
     </description>

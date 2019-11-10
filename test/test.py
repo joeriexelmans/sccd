@@ -1,13 +1,13 @@
-import sys
 import os
 import importlib
 import unittest
 import argparse
 
-from sccd.runtime.statecharts_core import *
 from sccd.compiler.sccdc import generate
 from sccd.compiler.generic_generator import Platforms
-from sccd.compiler.compiler_exceptions import CompilerException
+from sccd.compiler.compiler_exceptions import *
+
+from sccd.runtime.statecharts_core import *
 
 BUILD_DIR = "build"
 
@@ -17,7 +17,6 @@ class PyTestCase(unittest.TestCase):
         self.src_file = src_file
         self.name = os.path.splitext(self.src_file)[0]
         self.target_file = os.path.join(BUILD_DIR, self.name+".py")
-        # print("module=", os.path.join(BUILD_DIR, name).replace(os.path.sep, "."))
 
     def __str__(self):
         return self.name
@@ -33,11 +32,10 @@ class PyTestCase(unittest.TestCase):
 
         if src_file_mtime > target_file_mtime:
             os.makedirs(os.path.dirname(self.target_file), exist_ok=True)
-            print("Compiling %s" % src_file)
             try:
                 generate(self.src_file, self.target_file, "python", Platforms.Threads)
-            except CompilerException:
-                self.skipTest("Compilation failed.")
+            except TargetLanguageException :
+                self.skipTest("meant for different target language.")
                 return
 
         module = importlib.import_module(os.path.join(BUILD_DIR, self.name).replace(os.path.sep, "."))
@@ -122,14 +120,14 @@ if __name__ == '__main__':
     for f in args.test:
         add_file_or_dir(f)
 
-    if len(src_files) == 0:
-        print("Note: no test files specified.")
-        print()
-        parser.print_usage()
-
     # src_files should now contain a list of XML files that need to be compiled an ran
 
     for src_file in src_files:
         suite.addTest(PyTestCase(src_file))
 
     unittest.TextTestRunner(verbosity=2).run(suite)
+
+    if len(src_files) == 0:
+        print("Note: no test files specified.")
+        print()
+        parser.print_usage()

@@ -1,11 +1,14 @@
 <?xml version="1.0" ?>
-<diagram author="Glenn De Jonghe" name="TestGuard">
+<diagram
+	xmlns="msdl.uantwerpen.be/sccd"
+	author="Glenn De Jonghe"
+	name="TestGuard">
     <description>
         Testing the guard.
     </description>
     <outport name="test_output" />
     <class name="Class1" default="true">
-        <attribute name="member1" type="int" visibility="private" init-value="0" />
+        <attribute name="member1" type="int" init-value="0" />
         <scxml initial="state_1">
             <state id="state_1">
                 <onentry>

@@ -1,5 +1,8 @@
 <?xml version="1.0" ?>
-<diagram author="Herr Joeri Exelmans" name="source_child">
+<diagram
+	xmlns="msdl.uantwerpen.be/sccd"
+	author="Joeri Exelmans"
+	name="source_child">
 	<description>
 		'Source Child' priority-semantics: If 2 transitions are enabled, and the source state of the first is an ancestor of the second, only the second is executed.
 	</description>

@@ -1,12 +1,15 @@
 <?xml version="1.0" ?>
-<diagram author="Glenn De Jonghe" name="TestAfter">
+<diagram
+	xmlns="msdl.uantwerpen.be/sccd"
+	author="Glenn De Jonghe"
+	name="TestAfter">
     <description>
         Used for testing the AFTER event.
     </description>
     <inport name="test_input" />
     <outport name="test_output" />
     <class name="Class1" default="true">
-        <scxml name="Test1" initial="composite">
+        <scxml initial="composite">
             <state id="composite" initial="state_1">
                 <state id="state_1">
                     <transition after="0.1" target="../state_2"/>

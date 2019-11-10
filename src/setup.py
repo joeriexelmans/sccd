@@ -7,5 +7,5 @@ setup(name="sccd",
       author_email="Simon.VanMierlo@uantwerpen.be",
       url="http://msdl.cs.mcgill.ca/people/simonvm",
       packages=['sccd', 'sccd.runtime', 'sccd.runtime.libs', 'sccd.compiler'],
-      package_dir={'sccd': 'python_sccd', 'sccd.runtime': 'python_sccd/runtime', 'sccd.runtime.libs': 'python_sccd/runtime/libs', 'sccd.compiler': 'python_sccd/compiler'}
+      package_dir={'sccd': 'sccd', 'sccd.runtime': 'sccd/runtime', 'sccd.runtime.libs': 'sccd/runtime/libs', 'sccd.compiler': 'sccd/compiler'}
 )

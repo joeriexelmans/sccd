@@ -13,7 +13,10 @@ from sccd.compiler.sccd_constructs import FormalParameter
 from sccd.compiler.stateful_writer import StatefulWriter
 import sccd.compiler.generic_language_constructs as GLC
 
-Platforms = Enum("Threads","GameLoop","EventLoop") 
+Platforms = Enum("Threads","GameLoop","EventLoop")
+
+def compiled_class_name(sccd_class_name):
+    return "SCCDClass_"+sccd_class_name
 
 class GenericGenerator(Visitor):
     
@@ -73,7 +76,7 @@ class GenericGenerator(Visitor):
                 # cannot instantiate abstract class
                 self.writer.add(GLC.ThrowExceptionStatement(GLC.String("Cannot instantiate abstract class \"" + c.name + "\" with unimplemented methods \"" + "\", \"".join(c.abstract_method_names) + "\".")))
             else:
-                new_expr = GLC.NewExpression(c.name, [GLC.SelfProperty("controller")])
+                new_expr = GLC.NewExpression(compiled_class_name(c.name), [GLC.SelfProperty("controller")])
                 param_count = 0
                 for p in c.constructors[0].parameters:
                     new_expr.getActualParameters().add(GLC.ArrayIndexedExpression("construct_params", str(param_count)))
@@ -224,7 +227,7 @@ class GenericGenerator(Visitor):
             for super_class in class_node.super_classes:
                 super_classes.append(super_class)
 
-        self.writer.beginClass(class_node.name, super_classes)
+        self.writer.beginClass(compiled_class_name(class_node.name), super_classes)
 
         # visit constructor
         class_node.constructors[0].accept(self)
@@ -342,7 +345,7 @@ class GenericGenerator(Visitor):
 
         self.writer.addVSpace()
         self.writer.addComment("call user defined constructor")
-        self.writer.beginSuperClassMethodCall(constructor.parent_class.name, "user_defined_constructor")
+        self.writer.beginSuperClassMethodCall(compiled_class_name( constructor.parent_class.name ), "user_defined_constructor")
         for p in constructor.getParams():
             # we can't do p.accept(self) here because 'p' is a FormalParameter
             # and we want to write it as an actual parameter

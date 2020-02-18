@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:sccd="msdl.uantwerpen.be/sccd"
+  targetNamespace="msdl.uantwerpen.be/sccd"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified">
+
+  <xsd:include schemaLocation="sccd-core.xsd"/>
+
+  <!-- First, some type declarations... -->
+
+  <xsd:simpleType name="identifier">
+    <xsd:restriction base="xsd:string">
+      <xsd:pattern value="([A-Za-z0-9]|_)+"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="stateId">
+    <xsd:restriction base="sccd:identifier"/>
+    <!-- <xsd:restriction base="xsd:ID"/> -->
+  </xsd:simpleType>
+
+  <xsd:simpleType name="portName">
+    <xsd:restriction base="sccd:identifier"/>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="className">
+    <xsd:restriction base="sccd:identifier"/>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="eventName">
+    <xsd:restriction base="sccd:identifier"/>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="type">
+    <xsd:restriction base="xsd:string">
+      <xsd:enumeration value="string"/>
+      <xsd:enumeration value="int"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="expression">
+    <xsd:restriction base="xsd:string">
+      <!-- todo -->
+    </xsd:restriction>
+  </xsd:simpleType>
+
+  <!-- maybe use xsd:duration or some other type that supports units in the future -->
+  <xsd:simpleType name="duration">
+    <xsd:restriction base="xsd:float"/>
+  </xsd:simpleType>
+
+  <xsd:complexType name="method">
+    <xsd:sequence>
+      <xsd:element name="parameter" minOccurs="0" maxOccurs="unbounded">
+        <xsd:complexType>
+          <xsd:attribute name="name" type="sccd:identifier"/>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="body" type="xsd:string"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <!-- Used for 'onentry', 'onexit' and 'transition' -->
+  <xsd:group name="action">
+    <xsd:choice>
+      <xsd:element name="raise">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="parameter" minOccurs="0" maxOccurs="unbounded">
+              <xsd:complexType>
+                <xsd:attribute name="expr" type="sccd:expression"/>
+              </xsd:complexType>
+            </xsd:element>
+          </xsd:sequence>
+          <xsd:attribute name="event" type="sccd:eventName" use="required"/>
+          <xsd:attribute name="target" type="sccd:expression"/>
+          <xsd:attribute name="port" type="sccd:portName"/>
+          <xsd:attribute name="scope">
+            <xsd:simpleType>
+              <xsd:restriction base="xsd:string">
+                <xsd:enumeration value="cd"/>
+                <xsd:enumeration value="narrow"/>
+                <xsd:enumeration value="broad"/>
+              </xsd:restriction>
+            </xsd:simpleType>
+          </xsd:attribute>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="assign">
+        <xsd:complexType>
+          <xsd:attribute name="ident" type="sccd:expression"/>
+          <xsd:attribute name="expr" type="sccd:expression"/>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="script" type="xsd:string"/>
+      <xsd:element name="log" type="xsd:string"/>
+    </xsd:choice>
+  </xsd:group>
+
+  <xsd:complexType name="actionSequence">
+    <xsd:group ref="sccd:action" maxOccurs="unbounded"/>
+  </xsd:complexType>
+
+  <xsd:complexType name="pseudoState" abstract="true">
+    <xsd:attribute name="id" type="sccd:stateId"/>
+  </xsd:complexType>
+
+  <xsd:complexType name="commonState">
+    <xsd:complexContent>
+      <xsd:extension base="sccd:pseudoState">
+        <xsd:sequence>
+          <xsd:element name="onentry" minOccurs="0" type="sccd:actionSequence"/>
+          <xsd:element name="onexit" minOccurs="0" type="sccd:actionSequence"/>
+          <xsd:choice minOccurs="0" maxOccurs="unbounded">
+            <xsd:element name="state" type="sccd:orState">
+              <xsd:unique name="uniqueOrStateChildren">
+                <xsd:selector xpath="state|parallel|history"/>
+                <xsd:field xpath="@id"/>
+              </xsd:unique>
+            </xsd:element>
+            <xsd:element name="parallel" type="sccd:commonState">
+              <xsd:unique name="uniqueAndStateChildren">
+                <xsd:selector xpath="state|parallel|history"/>
+                <xsd:field xpath="@id"/>
+              </xsd:unique>
+            </xsd:element>
+            <xsd:element name="history">
+              <xsd:complexType>
+                <xsd:complexContent>
+                  <xsd:extension base="sccd:pseudoState">
+                    <xsd:sequence>
+                      <!-- history pseudostate can have 1 <transition> element to indicate default history state -->
+                      <!-- this is not an actual transition -->
+                      <xsd:element name="transition" minOccurs="0">
+                        <xsd:complexType>
+                          <xsd:attribute name="target" type="xsd:string"/>
+                        </xsd:complexType>
+                      </xsd:element>
+                    </xsd:sequence>
+                    <!-- <xsd:attribute name="id" type="sccd:stateId" use="required"/> -->
+                    <xsd:attribute name="type">
+                      <xsd:simpleType>
+                        <xsd:restriction base="xsd:string">
+                          <xsd:enumeration value="shallow"/>
+                          <xsd:enumeration value="deep"/>
+                        </xsd:restriction>
+                      </xsd:simpleType>
+                    </xsd:attribute>
+                  </xsd:extension>
+                </xsd:complexContent>
+              </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="transition">
+              <xsd:complexType>
+                <xsd:sequence>
+                  <xsd:element name="parameter" minOccurs="0" maxOccurs="unbounded">
+                    <xsd:complexType>
+                      <xsd:attribute name="name" type="sccd:identifier"/>
+                      <xsd:attribute name="type" type="sccd:type"/>
+                    </xsd:complexType>
+                  </xsd:element>
+                  <xsd:group ref="sccd:action" minOccurs="0" maxOccurs="unbounded"/>
+                </xsd:sequence>
+                <xsd:attribute name="target" type="xsd:string" use="required"/>
+                <xsd:attribute name="event" type="sccd:eventName"/>
+                <xsd:attribute name="after" type="sccd:duration"/>
+                <xsd:attribute name="cond" type="sccd:expression"/>
+                <xsd:attribute name="port" type="sccd:portName"/>
+              </xsd:complexType>
+            </xsd:element>
+          </xsd:choice>
+        </xsd:sequence>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+
+  <xsd:complexType name="orState">
+    <xsd:complexContent>
+      <xsd:extension base="sccd:commonState">
+        <xsd:attribute name="initial" type="sccd:stateId"/>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+
+  <xsd:attributeGroup name="semanticOptions">
+    <xsd:attribute name="big_step_maximality">
+      <xsd:simpleType>
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="take_one"/>
+          <xsd:enumeration value="take_many"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+    </xsd:attribute>
+    <xsd:attribute name="priority">
+      <xsd:simpleType>
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="source_parent"/>
+          <xsd:enumeration value="source_child"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+    </xsd:attribute>
+    <xsd:attribute name="internal_event_lifeline">
+      <xsd:simpleType>
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="next_small_step"/>
+          <xsd:enumeration value="next_combo_step"/>
+          <xsd:enumeration value="queue"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+    </xsd:attribute>
+    <xsd:attribute name="input_event_lifeline">
+      <xsd:simpleType>
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="whole"/>
+          <xsd:enumeration value="first_small_step"/>
+          <xsd:enumeration value="first_combo_step"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+    </xsd:attribute>
+    <xsd:attribute name="concurrency">
+      <xsd:simpleType>
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="single"/>
+          <xsd:enumeration value="many"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+    </xsd:attribute>
+  </xsd:attributeGroup>
+
+  <xsd:complexType name="portDecl">
+    <xsd:attribute name="name" type="sccd:portName"/>
+  </xsd:complexType>
+
+  <!-- Root element -->
+  <xsd:element name="diagram">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="description" type="xsd:string" minOccurs="0"/>
+        <xsd:element name="inport" minOccurs="0" maxOccurs="unbounded" type="sccd:portDecl"/>
+        <xsd:element name="outport" minOccurs="0" maxOccurs="unbounded" type="sccd:portDecl"/>
+
+        <xsd:element name="class" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="relationships" minOccurs="0">
+                <xsd:complexType>
+                  <xsd:choice maxOccurs="unbounded">
+                    <xsd:element name="inheritance">
+                      <xsd:complexType>
+                        <xsd:attribute name="class" type="sccd:className" use="required"/>
+                      </xsd:complexType>
+                    </xsd:element>
+                    <xsd:element name="association">
+                      <xsd:complexType>
+                        <xsd:attribute name="class" type="sccd:className" use="required"/>
+                        <xsd:attribute name="name" type="sccd:identifier" use="required"/>
+                        <xsd:attribute name="min" type="xsd:integer"/>
+                        <xsd:attribute name="max" type="xsd:integer"/>
+                      </xsd:complexType>
+                    </xsd:element>
+                  </xsd:choice>
+                </xsd:complexType>
+              </xsd:element>
+              <xsd:element name="attribute" minOccurs="0" maxOccurs="unbounded">
+                <xsd:complexType>
+                  <xsd:attribute name="name" type="sccd:identifier" use="required"/>
+                  <xsd:attribute name="type" type="sccd:type"/>
+                  <xsd:attribute name="init-value" type="sccd:expression"/>
+                </xsd:complexType>
+              </xsd:element>
+              <xsd:element name="constructor" minOccurs="0" type="sccd:method"/>
+              <xsd:element ref="sccd:scxml" minOccurs="0">
+              </xsd:element>
+            </xsd:sequence>
+            <xsd:attribute name="name" type="sccd:className" use="required"/>
+            <xsd:attribute name="default" type="xsd:boolean"/>
+          </xsd:complexType>
+        </xsd:element>
+
+        <xsd:element name="test" minOccurs="0">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:element name="input" minOccurs="0">
+                <xsd:complexType>
+                  <xsd:sequence>
+                    <xsd:element name="event" minOccurs="0" maxOccurs="unbounded">
+                      <xsd:complexType>
+                        <xsd:attribute name="name" type="sccd:eventName"/>
+                        <xsd:attribute name="port" type="sccd:portName"/>
+                        <xsd:attribute name="time" type="sccd:duration"/>
+                      </xsd:complexType>
+                    </xsd:element>
+                  </xsd:sequence>
+                </xsd:complexType>
+              </xsd:element>
+              <xsd:element name="expected" minOccurs="0">
+                <xsd:complexType>
+                  <xsd:sequence>
+                    <xsd:element name="slot" minOccurs="0" maxOccurs="unbounded">
+                      <xsd:complexType>
+                        <xsd:sequence>
+                          <xsd:element name="event" minOccurs="0" maxOccurs="unbounded">
+                            <xsd:complexType>
+                              <xsd:sequence>
+                                <xsd:element name="parameter" minOccurs="0" maxOccurs="unbounded">
+                                  <xsd:complexType>
+                                    <xsd:attribute name="value" type="sccd:expression"/>
+                                  </xsd:complexType>
+                                </xsd:element>
+                              </xsd:sequence>
+                              <xsd:attribute name="name" type="sccd:eventName"/>
+                              <xsd:attribute name="port" type="sccd:portName"/>
+                            </xsd:complexType>
+                          </xsd:element>
+                        </xsd:sequence>
+                      </xsd:complexType>
+                    </xsd:element>
+                  </xsd:sequence>
+                </xsd:complexType>
+              </xsd:element>
+            </xsd:sequence>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:sequence>
+
+      <xsd:attribute name="author" type="xsd:string"/>
+      <xsd:attribute name="name" type="xsd:string"/>
+      <xsd:attribute name="language">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="python"/>
+            <xsd:enumeration value="javascript"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+    </xsd:complexType>
+  </xsd:element>
+
+</xsd:schema>

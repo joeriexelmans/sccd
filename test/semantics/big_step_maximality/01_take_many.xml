@@ -6,10 +6,11 @@
 	<description>
 		Take Many-semantics: A big step doesn't end until there are no more enabled transitions.
 	</description>
-	<inport name="in"/>
 	<outport name="out"/>
 	<class name="c" default="true">
-		<scxml initial="a" big_step_maximality="take_many">
+		<scxml initial="a"
+			big_step_maximality="take_many"
+			internal_event_lifeline="queue">
 			<state id="a">
 				<onentry>
 					<raise event="entered_a" port="out"/>

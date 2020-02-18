@@ -76,8 +76,6 @@
            </slot>
            <slot>
                <event name="exit_one" port="test_output"/>
-           </slot>
-           <slot>
                <event name="enter_two" port="test_output"/>
            </slot>
         </expected>

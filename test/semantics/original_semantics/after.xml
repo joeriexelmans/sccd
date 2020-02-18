@@ -1,8 +1,8 @@
 <?xml version="1.0" ?>
 <diagram
-	xmlns="msdl.uantwerpen.be/sccd"
-	author="Glenn De Jonghe"
-	name="TestAfter">
+    xmlns="msdl.uantwerpen.be/sccd"
+    author="Glenn De Jonghe"
+    name="TestAfter">
     <description>
         Used for testing the AFTER event.
     </description>
@@ -17,7 +17,7 @@
                 </state>
                 <state id="state_2">
                     <onentry>
-	                   <raise event="in_state_2" port="test_output" />
+                       <raise event="in_state_2" port="test_output" />
                     </onentry>
                 </state>
                 <state id="state_3">
@@ -29,10 +29,10 @@
         </scxml>
     </class>
     <test>
-       <expected>
-           <slot>
-               <event name="in_state_2" port="test_output"/>
-           </slot>
+        <expected>
+            <slot>
+                <event name="in_state_2" port="test_output"/>
+            </slot>
         </expected>
     </test>
 </diagram>

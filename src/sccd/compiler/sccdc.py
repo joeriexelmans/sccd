@@ -19,7 +19,7 @@ COMPILER_SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def generate(input_file, output_file, target_language, platform):
 
-	schema = ET.XMLSchema(ET.parse(os.path.join(COMPILER_SRC_DIR, "sccd.xsd")))
+	schema = ET.XMLSchema(ET.parse(os.path.join(COMPILER_SRC_DIR, "schema", "sccd.xsd")))
 	tree = ET.parse(input_file)
 	schema.assertValid(tree)
 	

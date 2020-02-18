@@ -6,86 +6,82 @@
     <description>
         Testing event consuming.
     </description>
-    <inport name="test_input" />
-    <outport name="test_output" />
+    <inport name="in"/>
+    <outport name="out"/>
     <class name="Class1" default="true">
         <relationships>
-            <association class="Class2" name="to_Class2" />
+            <association class="Class2" name="to_Class2"/>
         </relationships>
         <scxml initial="initial">
             <state id="initial">
                 <onentry>
                     <raise event="create_instance" scope="cd">
-                        <parameter expr="'to_Class2'" />
+                        <parameter expr="'to_Class2'"/>
                     </raise>
                 </onentry>
                 <transition event="instance_created" target="../one">
-                    <parameter name="link_name" />
+                    <parameter name="link_name"/>
                     <raise event="start_instance" scope="cd">
-                        <parameter expr="link_name" />
+                        <parameter expr="link_name"/>
                     </raise>
                 </transition>
             </state>
             <state id="one">
                 <onentry>
-                    <raise event="enter_one" port="test_output" />
+                    <raise event="enter_one" port="out"/>
                 </onentry>
                 <onexit>
-                    <raise event="exit_one" port="test_output" />
+                    <raise event="exit_one" port="out"/>
                 </onexit>
-                <transition event="A" target="../two" cond="0" />
-                <transition event="B" target="../two" />
+                <transition event="A" target="../two" cond="0"/>
+                <transition event="B" target="../two"/>
             </state>
             <state id="two">
                 <onentry>
-                    <raise event="enter_two" port="test_output" />
+                    <raise event="enter_two" port="out"/>
                 </onentry>
                 <onexit>
-                    <raise event="exit_two" port="test_output" />
+                    <raise event="exit_two" port="out"/>
                 </onexit>
-                <transition event="A" target="../three" />
+                <transition event="A" target="../three"/>
             </state>
             <state id="three">
                 <onentry>
-                    <raise event="enter_three" port="test_output" />
+                    <raise event="enter_three" port="out"/>
                 </onentry>
                 <onexit>
-                    <raise event="exit_three" port="test_output" />
+                    <raise event="exit_three" port="out"/>
                 </onexit>
             </state>
         </scxml>
     </class>
     <class name="Class2">
         <relationships>
-            <association class="Class1" name="parent" />
+            <association class="Class1" name="parent"/>
         </relationships>
         <scxml initial="initial">
             <state id="initial">
                 <transition target="../final">
-                    <raise event="B" target="'parent'" />
-                    <raise event="A" target="'parent'" />
+                    <raise event="B" target="'parent'"/>
+                    <raise event="A" target="'parent'"/>
                 </transition>
             </state>
-            <state id="final" />
+            <state id="final"/>
         </scxml>
     </class>
     <test>
-       <expected>
-           <slot>
-               <event name="enter_one" port="test_output"/>
-           </slot>
-           <slot>
-               <event name="exit_one" port="test_output"/>
-           </slot>
-           <slot>
-               <event name="enter_two" port="test_output"/>
-           </slot>
-           <slot>
-               <event name="exit_two" port="test_output"/>
-           </slot>
-           <slot>
-               <event name="enter_three" port="test_output"/>
-           </slot>
+        <expected>
+            <slot>
+                <event name="enter_one" port="out"/>
+            </slot>
+            <slot>
+                <event name="exit_one" port="out"/>
+                <event name="enter_two" port="out"/>
+            </slot>
+            <slot>
+                <event name="exit_two" port="out"/>
+                <event name="enter_three" port="out"/>
+            </slot>
         </expected>
     </test>
 </diagram>

@@ -1,58 +1,60 @@
 <?xml version="1.0" ?>
 <diagram
-	xmlns="msdl.uantwerpen.be/sccd"
-	author="Glenn De Jonghe"
-	name="TestHistory">
+    xmlns="msdl.uantwerpen.be/sccd"
+    author="Glenn De Jonghe"
+    name="TestHistory">
     <description>
         Testing the History state.
     </description>
-    <inport name="test_input" />
-    <outport name="test_output" />
+    <inport name="in"/>
+    <outport name="out"/>
     <class name="Class1" default="true">
-        <scxml initial="composite_1">
+        <scxml initial="composite_1"
+            big_step_maximality="take_many">
             <state id="composite_1" initial="state_1">
                 <state id="state_1">
                     <onentry>
-                       <raise port="test_output" event="in_state_1" />
+                        <raise port="out" event="in_state_1"/>
                     </onentry>
-                    <transition port="test_input" event="to_state_2" target="../state_2"/>
+                    <transition port="in" event="to_state_2" target="../state_2"/>
                 </state>
                 <state id="state_2">
                     <onentry>
-	                   <raise port="test_output" event="in_state_2" />
+                        <raise port="out" event="in_state_2"/>
                     </onentry>
                 </state>
                 <history id="composite_history">
                     <transition target="../state_1"/>
                 </history>
-                <transition port="test_input" event="to_state_3" target="../state_3"/>
+                <transition port="in" event="to_state_3" target="../state_3"/>
             </state>
             <state id="state_3">
                 <onentry>
-                   <raise port="test_output" event="in_state_3" />
+                    <raise port="out" event="in_state_3"/>
                 </onentry>
                 <transition target="/composite_1/composite_history"/>
             </state>
         </scxml>
     </class>
     <test>
-    	<input>
-    		<event name="to_state_2" port="test_input" time="0.0"/>
-    		<event name="to_state_3" port="test_input" time="0.0"/>
-    	</input>
-	   <expected>
-	       <slot>
-	           <event name="in_state_1" port="test_output"/>
-	       </slot>
-           <slot>
-               <event name="in_state_2" port="test_output"/>
-           </slot>
-           <slot>
-               <event name="in_state_3" port="test_output"/>
-           </slot>
-           <slot>
-               <event name="in_state_2" port="test_output"/>
-           </slot>
-	    </expected>
-	</test>
+        <input>
+            <event name="to_state_2" port="in" time="0.0"/>
+            <event name="to_state_3" port="in" time="0.0"/>
+        </input>
+        <expected>
+            <slot>
+                <!-- initialization -->
+                <event name="in_state_1" port="out"/>
+            </slot>
+            <slot>
+                <!-- big step with input 'to_state_2' -->
+                <event name="in_state_2" port="out"/>
+            </slot>
+            <slot>
+                <!-- big step with input 'to_state_3' -->
+                <event name="in_state_3" port="out"/>
+                <event name="in_state_2" port="out"/>
+            </slot>
+        </expected>
+    </test>
 </diagram>

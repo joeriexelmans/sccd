@@ -40,7 +40,7 @@ class PyTestCase(unittest.TestCase):
 
         module = importlib.import_module(os.path.join(BUILD_DIR, self.name).replace(os.path.sep, "."))
         inputs = module.Test.input_events
-        expected = module.Test.expected_events
+        expected = module.Test.expected_events # list of lists of Event objects
 
         controller = module.Controller(False)
 
@@ -48,12 +48,8 @@ class PyTestCase(unittest.TestCase):
             for i in inputs:
                 controller.addInput(Event(i.name, i.port, i.parameters), int(i.time_offset * 1000))
 
-        if not expected:
-            controller.start()
-            return
-
         output_ports = set()
-        expected_result = []
+        expected_result = [] # what happens here is basically a deep-copy of the list-of-lists, why?
         for s in expected:
             slot = []
             for event in s:
@@ -62,27 +58,33 @@ class PyTestCase(unittest.TestCase):
             if slot:
                 expected_result.append(slot)
 
-        output_listener = controller.addOutputListener(list(output_ports))
+        output_listener = controller.createOutputListener(list(output_ports))
 
         def check_output():
             # check output
-            for (slot_index, slot) in enumerate(expected_result, start=1) : 
-                for entry in slot:
-                    output_event = output_listener.fetch(0)
-                    self.assertNotEqual(output_event, None, "Not enough output events on selected ports while checking for event %s" % entry)
+            for (slot_index, slot) in enumerate(expected_result) : 
+                output_events = output_listener.fetch(0)
+                # print("slot:", slot_index, ", events: ", output_events)
+                # sort both expected and actual lists of events before comparing,
+                # in theory the set of events at the end of a big step is unordered
+                sort_events = lambda e: "%s.%s"%(e.port, e.name)
+                slot.sort(key=sort_events)
+                output_events.sort(key=sort_events)
+                self.assertEqual(len(slot), len(output_events), "Expected %d output events, instead got: %d" % (len(slot), len(output_events)))
+                for (expected, actual) in zip(slot, output_events):
                     matches = True
-                    if output_event.name != entry.name :
+                    if expected.name != actual.name :
                         matches = False
-                    if output_event.port != entry.port :
+                    if expected.port != actual.port :
                         matches = False
-                    compare_parameters = output_event.getParameters()
-                    if len(entry.parameters) != len(compare_parameters) :
+                    actual_parameters = actual.getParameters()
+                    if len(expected.parameters) != len(actual_parameters) :
                         matches = False
-                    for index in range(len(entry.parameters)) :
-                        if entry.parameters[index] !=  compare_parameters[index]:
+                    for index in range(len(expected.parameters)) :
+                        if expected.parameters[index] !=  actual_parameters[index]:
                             matches = False
 
-                    self.assertTrue(matches, self.src_file + ", expected results slot " + str(slot_index) + " mismatch. Expected " + str(entry) + ", but got " + str(output_event) +  " instead.") # no match found in the options
+                    self.assertTrue(matches, self.src_file + ", expected results slot " + str(slot_index) + " mismatch. Expected " + str(expected) + ", but got " + str(actual) +  " instead.") # no match found in the options
 
             # check if there are no extra events
             next_event = output_listener.fetch(0)
@@ -106,19 +108,18 @@ if __name__ == '__main__':
             already_have.add(path)
             src_files.append(path)
 
-    def add_file_or_dir(path):
-        if os.path.isdir(path):
+    for p in args.test:
+        if os.path.isdir(p):
             # recursively scan directories
-            for r, dirs, files in os.walk(path):
+            for r, dirs, files in os.walk(p):
+                files.sort()
                 for f in files:
                     if f.endswith('.xml'):
                         add_file(os.path.join(r,f))
-        elif os.path.isfile(path):
-            add_file(path)
-
-
-    for f in args.test:
-        add_file_or_dir(f)
+        elif os.path.isfile(p):
+            add_file(p)
+        else:
+            print("%s: not a file or a directory, skipped." % p)
 
     # src_files should now contain a list of XML files that need to be compiled an ran
 

@@ -430,15 +430,24 @@ class Event(object):
         return representation
     
 class OutputListener(object):
-    def __init__(self, port_names):
-        if not isinstance(port_names, list):
-            port_names = [port_names]
-        self.port_names = [port_name.port_name if isinstance(port_name, OutputPortEntry) else port_name for port_name in port_names]
-        self.queue = Queue()
+    def __init__(self):
+        # if not isinstance(port_names, list):
+            # port_names = [port_names]
+        # self.port_names = [port_name.port_name if isinstance(port_name, OutputPortEntry) else port_name for port_name in port_names]
+        self.queue = Queue() # queue of lists of event objects
 
-    def add(self, event):
-        if len(self.port_names) == 0 or event.getPort() in self.port_names:
-            self.queue.put_nowait(event)
+    # replaced by addBigStepOutput
+    # def add(self, event):
+    #     if len(self.port_names) == 0 or event.getPort() in self.port_names:
+    #         self.queue.put_nowait(event)
+
+    """
+    Parameters
+    ----------
+    events: list of Event objects
+    """
+    def addBigStepOutput(self, events):
+        self.queue.put_nowait(events)
             
     """ Tries for timeout seconds to fetch an event, returns None if failed.
         0 as timeout means no waiting (blocking), returns None if queue is empty.
@@ -479,7 +488,7 @@ class ControllerBase(object):
 
         # keep track of output ports
         self.output_ports = {}
-        self.output_listeners = []
+        self.output_listeners = {} # dictionary from port name to list of OutputListener objects
         
         self.simulated_time = None
         self.behind = False
@@ -509,6 +518,7 @@ class ControllerBase(object):
             port_name = "private_" + str(self.private_port_counter) + "_" + virtual_name
             self.private_port_counter += 1
         self.output_ports[port_name] = OutputPortEntry(port_name, virtual_name, instance)
+        self.output_listeners[port_name] = []
         return port_name
 
     def broadcast(self, new_event, time_offset = 0):
@@ -554,17 +564,31 @@ class ControllerBase(object):
             else:
                 target_instance.addEvent(e, event_time - self.simulated_time)
 
-    def outputEvent(self, event):
-        for listener in self.output_listeners:
-            listener.add(event)
+    """
+    Called at the end of every big step.
 
-    def addOutputListener(self, ports):
-        listener = OutputListener(ports)
-        self.output_listeners.append(listener)
+    Parameters
+    ----------
+    events: dictionary from port name to list of event objects
+    """
+    def outputBigStep(self, events):
+        for port, event_list in events.items():
+            for listener in self.output_listeners[port]:
+                listener.addBigStepOutput(event_list)
+
+    def createOutputListener(self, ports):
+        listener = OutputListener()
+        self.addOutputListener(ports, listener)
         return listener
 
-    def addMyOwnOutputListener(self, listener):
-        self.output_listeners.append(listener)
+    def addOutputListener(self, ports, listener):
+        if len(ports) == 0:
+            # add to all the ports
+            for ls in self.output_listeners.values():
+                ls.append(listener)
+        else:
+            for port in ports:
+                self.output_listeners[port].append(listener)
             
     def getObjectManager(self):
         return self.object_manager
@@ -1102,8 +1126,10 @@ class RuntimeClassBase(object):
             self.events.add(event_time, e)
 
     def processBigStepOutput(self):
-        for e in self.big_step.output_events_port:
-            self.controller.outputEvent(e)
+        # print("processBigStepOutput:", self.big_step.output_events_port)
+        self.controller.outputBigStep(self.big_step.output_events_port)
+        # for e in self.big_step.output_events_port:
+            # self.controller.outputEvent(e)
         for e in self.big_step.output_events_om:
             self.controller.object_manager.addEvent(e)
             
@@ -1249,18 +1275,21 @@ class RuntimeClassBase(object):
 class BigStepState(object):
     def __init__(self):
         self.input_events = [] # input events received from environment before beginning of big step (e.g. from object manager, from input port)
-        self.output_events_port = [] # output events to be sent to output port after big step ends.
+        self.output_events_port = {} # output events to be sent to output port after big step ends. dictionary from port name to list of event objects
         self.output_events_om = [] # output events to be sent to object manager after big step ends.
         self.has_stepped = True
 
     def next(self, input_events):
         self.input_events = input_events
-        self.output_events_port = []
+        self.output_events_port = {}
         self.output_events_om = []
         self.has_stepped = False
 
     def outputEvent(self, event):
-        self.output_events_port.append(event)
+        if event.port in self.output_events_port:
+            self.output_events_port[event.port].append(event)
+        else:
+            self.output_events_port[event.port] = [event]
 
     def outputEventOM(self, event):
         self.output_events_om.append(event)

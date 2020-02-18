@@ -6,10 +6,11 @@
 	<description>
 		Take One-semantics: Each big step, a transition in each orthogonal component is made.
 	</description>
-	<inport name="in"/>
 	<outport name="out"/>
 	<class name="c" default="true">
-		<scxml big_step_maximality="take_one">
+		<scxml
+			big_step_maximality="take_one"
+			internal_event_lifeline="queue">
 			<parallel id="p">
 				<state id="o0" initial="sa">
 					<state id="sa">

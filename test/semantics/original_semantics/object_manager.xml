@@ -38,9 +38,6 @@
     <class name="Class2" default="false">
         <scxml>
             <state id="start">
-                <onentry>
-                	<log>started</log>
-                </onentry>
                 <transition event="hello" target=".">
                     <raise port="test_output" event="second_working" />
                 </transition>

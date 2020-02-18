@@ -6,10 +6,11 @@
 	<description>
 		Take One-semantics: Each big step, only one transition can be made (per orthogonal component).
 	</description>
-	<inport name="in"/>
 	<outport name="out"/>
 	<class name="c" default="true">
-		<scxml big_step_maximality="take_one" initial="a">
+		<scxml initial="a"
+			big_step_maximality="take_one"
+			internal_event_lifeline="queue">
 			<state id="a">
 				<onentry>
 					<raise event="entered_a" port="out"/>

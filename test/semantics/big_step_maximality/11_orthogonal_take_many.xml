@@ -5,11 +5,13 @@
 	name="take_one">
 	<description>
 		Take Many-semantics: In both components, transitions keep firing until there are no more enabled transitions.
+		Updated Feb 2020: order of expected events in a slot shouldn't matter
 	</description>
-	<inport name="in"/>
 	<outport name="out"/>
 	<class name="c" default="true">
-		<scxml big_step_maximality="take_many">
+		<scxml
+			big_step_maximality="take_many"
+			internal_event_lifeline="queue">
 			<parallel id="p">
 				<state id="o0" initial="sa">
 					<state id="sa">
@@ -61,10 +63,10 @@
 			</slot>
 			<slot>
 				<!-- big step -->
-				<event name="entered_sb" port="out"/>
-				<event name="entered_se" port="out"/>
-				<event name="entered_sc" port="out"/>
 				<event name="entered_sf" port="out"/>
+				<event name="entered_sb" port="out"/>
+				<event name="entered_sc" port="out"/>
+				<event name="entered_se" port="out"/>
 			</slot>
 		</expected>
 	</test>

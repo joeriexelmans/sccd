@@ -14,38 +14,35 @@ except ImportError:
 
 class OutputListener(object):
     def __init__(self):
-        # if not isinstance(port_names, list):
-            # port_names = [port_names]
-        # self.port_names = [port_name.port_name if isinstance(port_name, OutputPortEntry) else port_name for port_name in port_names]
         self.queue = Queue() # queue of lists of event objects
 
-    # replaced by addBigStepOutput
-    # def add(self, event):
-    #     if len(self.port_names) == 0 or event.getPort() in self.port_names:
-    #         self.queue.put_nowait(event)
+    """ Called at the end of a big step with a list of events.
 
-    """
-    Parameters
-    ----------
-    events: list of Event objects
-    """
-    def addBigStepOutput(self, events):
+        Parameters
+        ----------
+        events: list of Event objects """
+    def add_bigstep(self, events):
         self.queue.put_nowait(events)
-            
-    """ Tries for timeout seconds to fetch an event, returns None if failed.
-        0 as timeout means no waiting (blocking), returns None if queue is empty.
-        -1 as timeout means blocking until an event can be fetched. """
-    def fetch(self, timeout = 0):
-        if timeout < 0:
-            timeout = INFINITY
-        while timeout >= 0:
-            try:
-                # wait in chunks of 100ms because we
-                # can't receive (keyboard)interrupts while waiting
-                return self.queue.get(True, 0.1 if timeout > 0.1 else timeout)
-            except Empty:
-                timeout -= 0.1
-        return None        
+
+    """ Fetch next element without blocking.
+        If no element is available, None is returned. """
+    def fetch_nonblocking(self):
+        try:
+            return self.queue.get_nowait()
+        except Empty:
+            return None
+
+    """ Fetch next element from listener, blocking until an element is available.
+        If the given timeout is exceeded, None is returned.
+
+        Parameters
+        ----------
+        timeout: Max time to block (in millisecs). None if allowed to block forever. """
+    def fetch_blocking(self, timeout=None):
+        try:
+            return self.queue.get(True, timeout);
+        except Empty:
+            return None
 
 
 class InputPortEntry(object):
@@ -159,7 +156,7 @@ class ControllerBase(object):
     def outputBigStep(self, events):
         for port, event_list in events.items():
             for listener in self.output_listeners[port]:
-                listener.addBigStepOutput(event_list)
+                listener.add_bigstep(event_list)
 
     def createOutputListener(self, ports):
         listener = OutputListener()

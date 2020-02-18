@@ -2,6 +2,7 @@ import os
 import importlib
 import unittest
 import argparse
+import threading
 
 from sccd.compiler.sccdc import generate
 from sccd.compiler.generic_generator import Platforms
@@ -44,10 +45,6 @@ class PyTestCase(unittest.TestCase):
 
         controller = module.Controller(False)
 
-        if inputs:
-            for i in inputs:
-                controller.addInput(Event(i.name, i.port, i.parameters), int(i.time_offset * 1000))
-
         output_ports = set()
         expected_result = [] # what happens here is basically a deep-copy of the list-of-lists, why?
         for s in expected:
@@ -60,38 +57,47 @@ class PyTestCase(unittest.TestCase):
 
         output_listener = controller.createOutputListener(list(output_ports))
 
-        def check_output():
-            # check output
-            for (slot_index, slot) in enumerate(expected_result) : 
-                output_events = output_listener.fetch(0)
-                # print("slot:", slot_index, ", events: ", output_events)
-                # sort both expected and actual lists of events before comparing,
-                # in theory the set of events at the end of a big step is unordered
-                sort_events = lambda e: "%s.%s"%(e.port, e.name)
-                slot.sort(key=sort_events)
-                output_events.sort(key=sort_events)
-                self.assertEqual(len(slot), len(output_events), "Expected %d output events, instead got: %d" % (len(slot), len(output_events)))
-                for (expected, actual) in zip(slot, output_events):
-                    matches = True
-                    if expected.name != actual.name :
-                        matches = False
-                    if expected.port != actual.port :
-                        matches = False
-                    actual_parameters = actual.getParameters()
-                    if len(expected.parameters) != len(actual_parameters) :
-                        matches = False
-                    for index in range(len(expected.parameters)) :
-                        if expected.parameters[index] !=  actual_parameters[index]:
-                            matches = False
+        # generate input
+        if inputs:
+            for i in inputs:
+                controller.addInput(Event(i.name, i.port, i.parameters), int(i.time_offset * 1000))
 
-                    self.assertTrue(matches, self.src_file + ", expected results slot " + str(slot_index) + " mismatch. Expected " + str(expected) + ", but got " + str(actual) +  " instead.") # no match found in the options
+        # start the controller
+        thread = threading.Thread(target=controller.start())
+        thread.start()
 
-            # check if there are no extra events
-            next_event = output_listener.fetch(0)
-            self.assertEqual(next_event, None, "More output events than expected on selected ports: " + str(next_event))
-            
-        controller.start()
-        check_output()
+        # check output
+        for (slot_index, slot) in enumerate(expected_result) : 
+            output_events = output_listener.fetch_blocking()
+            # print("slot:", slot_index, ", events: ", output_events)
+
+            # sort both expected and actual lists of events before comparing,
+            # in theory the set of events at the end of a big step is unordered
+            sort_events = lambda e: "%s.%s"%(e.port, e.name)
+            slot.sort(key=sort_events)
+            output_events.sort(key=sort_events)
+            self.assertEqual(len(slot), len(output_events), "Expected %d output events, instead got: %d" % (len(slot), len(output_events)))
+            for (expected, actual) in zip(slot, output_events):
+                matches = True
+                if expected.name != actual.name :
+                    matches = False
+                if expected.port != actual.port :
+                    matches = False
+                actual_parameters = actual.getParameters()
+                if len(expected.parameters) != len(actual_parameters) :
+                    matches = False
+                for index in range(len(expected.parameters)) :
+                    if expected.parameters[index] !=  actual_parameters[index]:
+                        matches = False
+
+                self.assertTrue(matches, self.src_file + ", expected results slot " + str(slot_index) + " mismatch. Expected " + str(expected) + ", but got " + str(actual) +  " instead.") # no match found in the options
+
+        # wait for controller to finish
+        thread.join()
+
+        # check if there are no extra events
+        next_event = output_listener.fetch_nonblocking()
+        self.assertEqual(next_event, None, "More output events than expected on selected ports: " + str(next_event))
         
 if __name__ == '__main__':
     suite = unittest.TestSuite()

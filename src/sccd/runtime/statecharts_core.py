@@ -177,7 +177,7 @@ class ObjectManagerBase(object):
                
     def start(self):
         for i in self.instances:
-            i.start()          
+            i.start()
                
     def handleEvent(self, e):
         self.handlers[e.getName()](e.getParameters())
@@ -386,13 +386,14 @@ class ObjectManagerBase(object):
                     raise AssociationReferenceException("Incorrect index in association reference.")
             currents = nexts
         return currents
-            
+
+    """ Implemented by compiled class ObjectManager """
     @abc.abstractmethod
     def instantiate(self, class_name, construct_params):
         pass
         
-    def createInstance(self, to_class, construct_params = []):
-        instance = self.instantiate(to_class, construct_params)
+    def createInstance(self, class_name, construct_params = []):
+        instance = self.instantiate(class_name, construct_params)
         self.instances.add(instance)
         return instance
     
@@ -685,7 +686,7 @@ class RuntimeClassBase(object):
         self.transition_mem = {}
         self.config_mem = {}
         
-        self.narrow_cast_port = self.controller.addInputPort("<narrow_cast>", self)
+        self.narrow_cast_port = self.controller.createInputPort("<narrow_cast>", self)
 
         self.semantics = StatechartSemantics()
 
@@ -835,7 +836,7 @@ class RuntimeClassBase(object):
         except:
             self.transition_mem[key] = transitions = [t for s in self.configuration if not (2**s.state_id & changed_bitmap) for t in s.transitions]
         
-        enabledEvents = self.getEnabledEvents()
+        enabledEvents = self._getEnabledEvents()
         enabledTransitions = []
         for t in transitions:
             if t.isEnabled(enabledEvents, enabledTransitions):
@@ -884,7 +885,7 @@ class RuntimeClassBase(object):
         return self.small_step.has_stepped
 
     # @profile
-    def getEnabledEvents(self):
+    def _getEnabledEvents(self):
         result = self.small_step.current_events + self.combo_step.current_events
         if self.semantics.input_event_lifeline == StatechartSemantics.Whole or (
             not self.big_step.has_stepped and
@@ -894,7 +895,7 @@ class RuntimeClassBase(object):
             result += self.big_step.input_events
         return result
 
-    def raiseInternalEvent(self, event):
+    def _raiseInternalEvent(self, event):
         if self.semantics.internal_event_lifeline == StatechartSemantics.NextSmallStep:
             self.small_step.addNextEvent(event)
         elif self.semantics.internal_event_lifeline == StatechartSemantics.NextComboStep:
@@ -902,6 +903,7 @@ class RuntimeClassBase(object):
         elif self.semantics.internal_event_lifeline == StatechartSemantics.Queue:
             self.addEvent(event)
 
+    # overridden by compiled classes to set 'self.default_targets'. called when instance is started.
     def initializeStatechart(self):
         self.updateConfiguration(self.default_targets)
         for state in self.default_targets:

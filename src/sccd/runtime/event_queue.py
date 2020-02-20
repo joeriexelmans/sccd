@@ -1,5 +1,6 @@
 from sccd.runtime.infinity import INFINITY
 from heapq import heappush, heappop
+import traceback
 
 class EventQueue(object):
     def __init__(self):

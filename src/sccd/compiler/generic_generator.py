@@ -135,9 +135,9 @@ class GenericGenerator(Visitor):
             self.writer.addActualParameter("behind_schedule_callback")
         self.writer.endSuperClassConstructorCall()
         for i in class_diagram.inports:
-            self.writer.add(GLC.FunctionCall(GLC.SelfProperty("addInputPort"), [GLC.String(i)]))
+            self.writer.add(GLC.FunctionCall(GLC.SelfProperty("createInputPort"), [GLC.String(i)]))
         for o in class_diagram.outports:
-            self.writer.add(GLC.FunctionCall(GLC.SelfProperty("addOutputPort"), [GLC.String(o)]))
+            self.writer.add(GLC.FunctionCall(GLC.SelfProperty("createOutputPort"), [GLC.String(o)]))
         actual_parameters = [p.getIdent() for p in class_diagram.default_class.constructors[0].parameters]
         self.writer.add(GLC.FunctionCall(GLC.Property(GLC.SelfProperty("object_manager"), "createInstance"), [GLC.String(class_diagram.default_class.name), GLC.ArrayExpression(actual_parameters)]))
         self.writer.endMethodBody()
@@ -291,12 +291,12 @@ class GenericGenerator(Visitor):
             for p in constructor.parent_class.inports:
                 self.writer.addAssignment(
                     GLC.MapIndexedExpression(GLC.SelfProperty("inports"), GLC.String(p)),
-                    GLC.FunctionCall(GLC.Property("controller", "addInputPort"), [GLC.String(p), GLC.SelfExpression()]))
+                    GLC.FunctionCall(GLC.Property("controller", "createInputPort"), [GLC.String(p), GLC.SelfExpression()]))
 
             for p in constructor.parent_class.outports:
                 self.writer.addAssignment(
                     GLC.MapIndexedExpression(GLC.SelfProperty("outports"), GLC.String(p)),
-                    GLC.FunctionCall(GLC.Property("controller", "addOutputPort"), [GLC.String(p), GLC.SelfExpression()]))
+                    GLC.FunctionCall(GLC.Property("controller", "createOutputPort"), [GLC.String(p), GLC.SelfExpression()]))
 
             self.writer.addVSpace()
 
@@ -847,7 +847,7 @@ class GenericGenerator(Visitor):
                             new_event_expr])])]))
         elif raise_event.isLocal():
             self.writer.add(GLC.FunctionCall(
-                GLC.SelfProperty("raiseInternalEvent"),
+                GLC.SelfProperty("_raiseInternalEvent"),
                 [new_event_expr]))
         elif raise_event.isOutput():
             self.writer.add(GLC.FunctionCall(

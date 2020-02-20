@@ -45,17 +45,18 @@ class OutputListener(object):
             return None
 
 
+# Data class
 class InputPortEntry(object):
     def __init__(self, virtual_name, instance):
         self.virtual_name = virtual_name
         self.instance = instance
 
+# Data class
 class OutputPortEntry(object):
     def __init__(self, port_name, virtual_name, instance):
         self.port_name = port_name
         self.virtual_name = virtual_name
         self.instance = instance
-
 
 class ControllerBase(object):
     def __init__(self, object_manager):
@@ -84,7 +85,7 @@ class ControllerBase(object):
     def getWallClockTime(self):
         return self.accurate_time.get_wct()
             
-    def addInputPort(self, virtual_name, instance = None):
+    def createInputPort(self, virtual_name, instance = None):
         if instance == None:
             port_name = virtual_name
         else:
@@ -93,7 +94,7 @@ class ControllerBase(object):
         self.input_ports[port_name] = InputPortEntry(virtual_name, instance)
         return port_name
         
-    def addOutputPort(self, virtual_name, instance = None):
+    def createOutputPort(self, virtual_name, instance = None):
         if instance == None:
             port_name = virtual_name
         else:
@@ -311,6 +312,7 @@ class ThreadsControllerBase(ControllerBase):
         self.stop_thread = False
         self.last_print_time = 0
 
+    # may be called from another thread than run
     def addInput(self, input_event, time_offset = 0, force_internal=False):
         with self.input_condition:
             ControllerBase.addInput(self, input_event, time_offset, force_internal)
@@ -318,7 +320,8 @@ class ThreadsControllerBase(ControllerBase):
         
     def start(self):
         self.run()
-        
+    
+    # may be called from another thread than run
     def stop(self):
         with self.input_condition:
             self.stop_thread = True

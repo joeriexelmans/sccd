@@ -69,13 +69,13 @@ class PyTestCase(unittest.TestCase):
         # check output
         for (slot_index, slot) in enumerate(expected_result) : 
             output_events = output_listener.fetch_blocking()
-            # print("slot:", slot_index, ", events: ", output_events)
+            print("slot:", slot_index, ", events: ", output_events)
 
             # sort both expected and actual lists of events before comparing,
             # in theory the set of events at the end of a big step is unordered
-            sort_events = lambda e: "%s.%s"%(e.port, e.name)
-            slot.sort(key=sort_events)
-            output_events.sort(key=sort_events)
+            sortkey_f = lambda e: "%s.%s"%(e.port, e.name)
+            slot.sort(key=sortkey_f)
+            output_events.sort(key=sortkey_f)
             self.assertEqual(len(slot), len(output_events), "Expected %d output events, instead got: %d" % (len(slot), len(output_events)))
             for (expected, actual) in zip(slot, output_events):
                 matches = True

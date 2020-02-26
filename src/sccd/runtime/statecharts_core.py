@@ -8,6 +8,7 @@ from typing import List
 from sccd.runtime.infinity import INFINITY
 from sccd.runtime.event_queue import Timestamp
 from sccd.runtime.event import Event, OutputEvent, Instance, InstancesTarget
+from collections import Counter
 
 DEBUG = False
 ELSE_GUARD = "ELSE_GUARD"
@@ -357,6 +358,8 @@ class StatechartInstance(Instance):
         self._combo_step = ComboStepState()
         self._small_step = SmallStepState()
 
+        self.ignore_events = Counter() # Mapping from event name to future times to ignore such event. Used for canceling timers.
+
     # whether the statechart MAY still perform at least one transition, even in the absense of an event
     def is_stable(self) -> bool:
         return self.stable
@@ -374,7 +377,13 @@ class StatechartInstance(Instance):
 
     # perform a big step. returns a set of output events
     def big_step(self, now: Timestamp, input_events: List[Event]) -> List[OutputEvent]:
-        self._big_step.next(input_events)
+        my_input_events = []
+        for e in input_events:
+            if e.name in self.ignore_events:
+                self.ignore_events[e.name] -= 1
+            else:
+                my_input_events.append(e)
+        self._big_step.next(my_input_events)
         self._combo_step.reset()
         self._small_step.reset()
 
@@ -384,7 +393,7 @@ class StatechartInstance(Instance):
                 break # Take One -> only one combo step allowed
 
         # can the next big step still contain transitions, even if there are no input events?
-        self.stable = not self.eventless_states or (not input_events and not self._big_step.has_stepped)
+        self.stable = not self.eventless_states or (not my_input_events and not self._big_step.has_stepped)
         return self._big_step.output_events
 
     def combo_step(self):

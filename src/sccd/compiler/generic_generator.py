@@ -316,7 +316,7 @@ class GenericGenerator(Visitor):
                 # if any trigger associated with transition: instantiate correct Event instance
                 trigger = None
                 if t.trigger.is_after:
-                    trigger = GLC.NewExpression("Event", [GLC.String("_%iafter" % (t.trigger.getAfterIndex()))])
+                    trigger = GLC.NewExpression("Event", [GLC.String("_after_%i" % (t.trigger.getAfterIndex()))])
                 elif t.trigger.event:
                     trigger = GLC.NewExpression("Event",
                                                     [
@@ -395,12 +395,19 @@ class GenericGenerator(Visitor):
                 self.writer.startRecordingExpression()
                 trigger.after.accept(self)
                 after = self.writer.stopRecordingExpression()
-                print("---------------")
-                print(after)
-                print(trigger)
-                print(trigger.after.expression_parts)
-                # self.writer.add(GLC.FunctionCall(GLC.Property("instance", GLC.Property("_big_step", "addOutputEvent")), [GLC.NewExpression("OutputEvent", [GLC.NewExpression("Event", ["__after_"+str(trigger.getAfterIndex())]), GLC.NewExpression("InstancesTarget", [GLC.Identifier("instance")]), (trigger.after)])]))
-                self.writer.add(GLC.FunctionCall(GLC.SelfProperty("addTimer"), [str(trigger.getAfterIndex()), after]))
+                self.writer.addComment("schedule timer")
+                # self.writer.add(GLC.AssignmentExpression(GLC.Identifier("timer_event"), GLC.NewExpression("Event", [GLC.FunctionCall(GLC.Property("instance", "next_timer_id"))])))
+                # self.writer.add(GLC.FunctionCall())
+                self.writer.add(GLC.FunctionCall(GLC.Property(GLC.Property("instance", "_big_step"), "addOutputEvent"),
+                    # function call parameter:
+                    [
+                        GLC.NewExpression("OutputEvent", [
+                            GLC.NewExpression("Event", [GLC.String("_after_"+str(trigger.getAfterIndex()))]),
+                            GLC.NewExpression("InstancesTarget", [GLC.ArrayExpression([GLC.Identifier("instance")])]),
+                            after
+                        ])
+                    ]))
+                # self.writer.add(GLC.FunctionCall(GLC.SelfProperty("addTimer"), [str(trigger.getAfterIndex()), after]))
                 
         self.writer.endMethodBody()
         self.writer.endMethod()
@@ -415,7 +422,8 @@ class GenericGenerator(Visitor):
         for transition in parent_node.transitions:
             trigger = transition.getTrigger()
             if trigger.isAfter():
-                self.writer.add(GLC.FunctionCall(GLC.SelfProperty("removeTimer"), [str(trigger.getAfterIndex())]))
+                self.writer.add(GLC.IncrementExpression(GLC.MapIndexedExpression(GLC.Property("instance", "ignore_events"), GLC.String("_after_"+str(trigger.getAfterIndex()))), GLC.Literal("1")))
+                # self.writer.add(GLC.FunctionCall(GLC.SelfProperty("removeTimer"), [str(trigger.getAfterIndex())]))
                 
         # execute user-defined exit action if present
         if exit_method.action:

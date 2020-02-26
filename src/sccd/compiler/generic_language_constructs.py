@@ -566,6 +566,9 @@ class EqualsOperator(Operator):
 class AssignmentOperator(Operator):
 	pass
 
+class IncrementOperator(Operator):
+	pass
+
 class ProductOperator(Operator):
 	pass
 
@@ -628,6 +631,10 @@ class EqualsExpression(BinaryExpression):
 class AssignmentExpression(BinaryExpression):
 	def __init__(self, lexpr = None, rexpr = None):
 		BinaryExpression.__init__(self, lexpr, AssignmentOperator(), rexpr)
+
+class IncrementExpression(BinaryExpression):
+	def __init__(self, lexpr = None, rexpr = None):
+		BinaryExpression.__init__(self, lexpr, IncrementOperator(), rexpr)
 
 class ProductExpression(BinaryExpression):
 	def __init__(self, lexpr = None, rexpr = None):
@@ -853,6 +860,9 @@ class GenericWriterBase(Visitor):
 
 	def visit_AssignmentOperator(self, assign):
 		self.out.extendWrite(" = ")
+
+	def visit_IncrementOperator(self, inc):
+		self.out.extendWrite(" += ")
 
 	def visit_BinaryExpression(self, b):
 		lhs = b.getLhsExpression()

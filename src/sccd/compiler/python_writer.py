@@ -162,6 +162,9 @@ class PythonWriter(GenericWriterBase):
 		self.out.extendWrite(".itervalues():")
 		body.accept(self)
 
+	def visit_Identifier(self, identifier):
+		self.out.extendWrite(identifier.identifier)
+
 	def visit_IfStatement(self, if_stmt):
 		condition = if_stmt.getCondition()
 		body = if_stmt.getBody()
@@ -204,9 +207,10 @@ class PythonWriter(GenericWriterBase):
 		keys = list(elements.keys())
 		for i in range(len(keys)):
 			if i != 0:
-				self.out.extendWrite(", ")			
-			self.out.extendWrite(keys[i] + " : ")
+				self.out.extendWrite(", ")
+			keys[i].accept(self)
 			self.out.extendWrite(" : ")
+			# self.out.extendWrite(" : ")
 			elements[keys[i]].accept(self)
 		self.out.extendWrite("}")
 

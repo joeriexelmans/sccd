@@ -509,14 +509,14 @@ class StateChartNode(Visitable):
             
     def resolveName(self, xml):
         if self.is_root :
-            self.new_name = ""
-            self.new_full_name = ""
+            self.new_name = "/"
+            self.new_full_name = "/"
             # TODO: remove old names
             self.name = "Root"
             self.full_name = "Root"
         else :
             self.new_name = xml.get("id", "")
-            self.new_full_name = self.parent.new_full_name + "/" + self.new_name
+            self.new_full_name = ("/" if self.parent.new_full_name is "/" else self.parent.new_full_name + "/") + self.new_name
             self.friendly_name = self.new_full_name.replace("/", "_")
             self.name = xml.get("id","")
             self.full_name = self.parent.full_name + "_" + self.name

@@ -386,6 +386,10 @@ class CompoundExpression(Expression):
 class RuntimeModuleIdentifier(SimpleExpression):
 	pass
 
+class Identifier(SimpleExpression):
+	def __init__(self, identifier):
+		self.identifier = identifier
+
 # Not a real language construct, simply 'glues' expressions together.
 class Glue(SimpleExpression, AbstractList):
 	def __init__(self):

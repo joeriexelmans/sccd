@@ -6,9 +6,10 @@ import threading
 
 from sccd.compiler.sccdc import generate
 from sccd.compiler.generic_generator import Platforms
+from sccd.runtime.infinity import INFINITY
+from sccd.runtime.event import Event
 from sccd.compiler.compiler_exceptions import *
-
-from sccd.runtime.statecharts_core import *
+from sccd.runtime.controller import Controller
 
 BUILD_DIR = "build"
 
@@ -23,6 +24,7 @@ class PyTestCase(unittest.TestCase):
         return self.name
 
     def runTest(self):
+        print()
         # Get src_file and target_file modification times
         src_file_mtime = os.path.getmtime(self.src_file)
         target_file_mtime = 0
@@ -43,7 +45,8 @@ class PyTestCase(unittest.TestCase):
         inputs = module.Test.input_events
         expected = module.Test.expected_events # list of lists of Event objects
 
-        controller = module.Controller(False)
+        model = module.Model()
+        controller = Controller(model)
 
         output_ports = set()
         expected_result = [] # what happens here is basically a deep-copy of the list-of-lists, why?
@@ -60,45 +63,59 @@ class PyTestCase(unittest.TestCase):
         # generate input
         if inputs:
             for i in inputs:
-                controller.addInput(Event(i.name, i.port, i.parameters), int(i.time_offset * 1000))
+                controller.addInput(Event(i.name, i.port, i.parameters), int(i.time_offset* 1000))
+
+        def run_model():
+            try:
+                # run as-fast-as-possible, always advancing time to the next item in event queue, no sleeping
+                # the call returns when the event queue is empty
+                controller.run_until(INFINITY)
+            except Exception as e:
+                output_listener.signal_exception(e)
+                return
+            output_listener.signal_done()
 
         # start the controller
-        thread = threading.Thread(target=controller.start())
+        thread = threading.Thread(target=run_model)
         thread.start()
 
         # check output
-        for (slot_index, slot) in enumerate(expected_result) : 
-            output_events = output_listener.fetch_blocking()
-            print("slot:", slot_index, ", events: ", output_events)
+        slot_index = 0
+        while True:
+            what, arg = output_listener.fetch_blocking()
+            if what == "exception":
+                thread.join()
+                raise arg
+            elif what == "done":
+                thread.join()
+                return
+            elif what == "output":
+                output_events = arg
+                slot = expected_result[slot_index]
+                print("slot:", slot_index, ", events: ", output_events)
 
-            # sort both expected and actual lists of events before comparing,
-            # in theory the set of events at the end of a big step is unordered
-            sortkey_f = lambda e: "%s.%s"%(e.port, e.name)
-            slot.sort(key=sortkey_f)
-            output_events.sort(key=sortkey_f)
-            self.assertEqual(len(slot), len(output_events), "Expected %d output events, instead got: %d" % (len(slot), len(output_events)))
-            for (expected, actual) in zip(slot, output_events):
-                matches = True
-                if expected.name != actual.name :
-                    matches = False
-                if expected.port != actual.port :
-                    matches = False
-                actual_parameters = actual.getParameters()
-                if len(expected.parameters) != len(actual_parameters) :
-                    matches = False
-                for index in range(len(expected.parameters)) :
-                    if expected.parameters[index] !=  actual_parameters[index]:
+                # sort both expected and actual lists of events before comparing,
+                # in theory the set of events at the end of a big step is unordered
+                key_f = lambda e: "%s.%s"%(e.port, e.name)
+                slot.sort(key=key_f)
+                output_events.sort(key=key_f)
+
+                self.assertEqual(len(slot), len(output_events), "Slot %d: Expected output events: %s, instead got: %s" % (slot_index, str(slot), str(output_events)))
+                for (expected, actual) in zip(slot, output_events):
+                    matches = True
+                    if expected.name != actual.name :
                         matches = False
+                    if expected.port != actual.port :
+                        matches = False
+                    if len(expected.parameters) != len(actual.parameters) :
+                        matches = False
+                    for index in range(len(expected.parameters)) :
+                        if expected.parameters[index] !=  actual.parameters[index]:
+                            matches = False
 
                 self.assertTrue(matches, self.src_file + ", expected results slot " + str(slot_index) + " mismatch. Expected " + str(expected) + ", but got " + str(actual) +  " instead.") # no match found in the options
+                slot_index += 1
 
-        # wait for controller to finish
-        thread.join()
-
-        # check if there are no extra events
-        next_event = output_listener.fetch_nonblocking()
-        self.assertEqual(next_event, None, "More output events than expected on selected ports: " + str(next_event))
-        
 if __name__ == '__main__':
     suite = unittest.TestSuite()
 

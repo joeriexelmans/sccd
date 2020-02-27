@@ -4,19 +4,14 @@ The classes and functions needed to run (compiled) SCCD models.
 
 import os
 import termcolor
-from typing import List
+from typing import List, Tuple
 from sccd.runtime.infinity import INFINITY
 from sccd.runtime.event_queue import Timestamp
 from sccd.runtime.event import Event, OutputEvent, Instance, InstancesTarget
+from sccd.runtime.debug import print_debug
 from collections import Counter
 
-DEBUG = os.environ['SCCDDEBUG']
 ELSE_GUARD = "ELSE_GUARD"
-
-def print_debug(msg):
-    if DEBUG:
-        print(msg)
-
 
 class RuntimeException(Exception):
     """
@@ -103,6 +98,9 @@ class StatechartSemantics:
     # Big Step Maximality
     TakeOne = 0
     TakeMany = 1
+    # Combo Step Maximality
+    ComboTakeOne = 0
+    ComboTakeMany = 1
     # Concurrency - not implemented yet
     Single = 0
     Many = 1
@@ -125,6 +123,7 @@ class StatechartSemantics:
     def __init__(self):
         # default semantics:
         self._big_step_maximality = self.TakeMany
+        self.combo_step_maximality = self.TakeOne
         self.internal_event_lifeline = self.Queue
         self.input_event_lifeline = self.FirstComboStep
         self.priority = self.SourceParent
@@ -346,11 +345,6 @@ class StatechartInstance(Instance):
         self.configuration_bitmap = 0
         self.eventless_states = 0 # number of states in current configuration that have at least one eventless outgoing transition.
 
-        # after creation, an instance is never stable, because it must enter its default configuration.
-        # entering the default configuration always makes up the first 'big step' of an instance.
-        # in each round, unstable instances are scheduled by the controller even if there are no events for them.
-        self.stable = False
-
         self.transition_mem = {}
         self.config_mem = {}
 
@@ -362,11 +356,8 @@ class StatechartInstance(Instance):
 
         self.ignore_events = Counter() # Mapping from event name to future times to ignore such event. Used for canceling timers.
 
-    # whether the statechart MAY still perform at least one transition, even in the absense of an event
-    def is_stable(self) -> bool:
-        return self.stable
-
-    def initialize(self, now: Timestamp) -> List[OutputEvent]:
+    # enter default states, generating a set of output events
+    def initialize(self, now: Timestamp) -> Tuple[bool, List[OutputEvent]]:
         states = self.model.root.getEffectiveTargetStates(self)
         self.configuration.extend(states)
         self.configuration_bitmap = sum([2**s.state_id for s in states])
@@ -374,11 +365,11 @@ class StatechartInstance(Instance):
             self.eventless_states += state.has_eventless_transitions
             if state.enter:
                 state.enter(self)
-        self.stable = not self.eventless_states
-        return self._big_step.output_events
+        stable = not self.eventless_states
+        return (stable, self._big_step.output_events)
 
-    # perform a big step. returns a set of output events
-    def big_step(self, now: Timestamp, input_events: List[Event]) -> List[OutputEvent]:
+    # perform a big step. generating a set of output events
+    def big_step(self, now: Timestamp, input_events: List[Event]) -> Tuple[bool, List[OutputEvent]]:
         filtered = []
         for e in input_events:
             if e.name in self.ignore_events:
@@ -400,8 +391,8 @@ class StatechartInstance(Instance):
             print_debug(termcolor.colored('completed big step', 'red'))
 
         # can the next big step still contain transitions, even if there are no input events?
-        self.stable = not self.eventless_states or (not filtered and not self._big_step.has_stepped)
-        return self._big_step.output_events
+        stable = not self.eventless_states or (not filtered and not self._big_step.has_stepped)
+        return (stable, self._big_step.output_events)
 
     def combo_step(self):
         self._combo_step.next()
@@ -469,7 +460,9 @@ class StatechartInstance(Instance):
                 if s.state_id == state_id:
                     break
             else:
+                print_debug("not in state"+str(state_strings))
                 return False
+        print_debug("in state"+str(state_strings))
         return True
 
 

@@ -6,9 +6,12 @@
     <description>
         Testing history deep.
     </description>
-    <outport name="test_output" />
+    <outport name="out" />
     <class name="Class1" default="true">
-        <scxml>
+        <scxml
+            big_step_maximality="take_many"
+            combo_step_maximality="take_many"
+            internal_event_lifeline="next_combo_step">
             <parallel id="parallel">
                 <state id="orthogonal" initial="wrapper">
                     <state id="wrapper" initial="state_1">
@@ -47,19 +50,19 @@
                     </state>
                     <state id="step1">
                         <transition cond="INSTATE('/parallel/orthogonal/wrapper/state_2/inner_4')" target="../step2">
-                            <raise port="test_output" event="check1" />
+                            <raise port="out" event="check1" />
                             <raise event="to_outer" />
                         </transition>
                     </state>
                     <state id="step2">
                         <transition cond="INSTATE('/parallel/orthogonal/outer')" target="../step3">
-                            <raise port="test_output" event="check2" />
+                            <raise port="out" event="check2" />
                             <raise event="to_history" />
                         </transition>
                     </state>
                     <state id="step3">
                         <transition cond="INSTATE('/parallel/orthogonal/wrapper/state_2/inner_4')" target="../end">
-                            <raise port="test_output" event="check3" />
+                            <raise port="out" event="check3" />
                         </transition>
                     </state>
                     <state id="end"/>
@@ -70,13 +73,13 @@
     <test>
        <expected>
            <slot>
-               <event name="check1" port="test_output"/>
+               <event name="check1" port="out"/>
            </slot>
            <slot>
-               <event name="check2" port="test_output"/>
+               <event name="check2" port="out"/>
            </slot>
            <slot>
-               <event name="check3" port="test_output"/>
+               <event name="check3" port="out"/>
            </slot>
         </expected>
     </test>

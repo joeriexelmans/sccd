@@ -164,6 +164,10 @@ class GenericGenerator(Visitor):
             self.writer.addAssignment(GLC.Property(GLC.SelfProperty("semantics"), "big_step_maximality"), GLC.Property("StatechartSemantics", "TakeOne"))
         elif statechart.big_step_maximality == "take_many":
             self.writer.addAssignment(GLC.Property(GLC.SelfProperty("semantics"), "big_step_maximality"), GLC.Property("StatechartSemantics", "TakeMany"))
+        if statechart.combo_step_maximality == "take_one":
+            self.writer.addAssignment(GLC.Property(GLC.SelfProperty("semantics"), "combo_step_maximality"), GLC.Property("StatechartSemantics", "ComboTakeOne"))
+        elif statechart.combo_step_maximality == "take_many":
+            self.writer.addAssignment(GLC.Property(GLC.SelfProperty("semantics"), "combo_step_maximality"), GLC.Property("StatechartSemantics", "ComboTakeMany"))
         if statechart.internal_event_lifeline == "queue":
             self.writer.addAssignment(GLC.Property(GLC.SelfProperty("semantics"), "internal_event_lifeline"), GLC.Property("StatechartSemantics", "Queue"))
         elif statechart.internal_event_lifeline == "next_small_step":

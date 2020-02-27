@@ -193,6 +193,14 @@
         </xsd:restriction>
       </xsd:simpleType>
     </xsd:attribute>
+    <xsd:attribute name="combo_step_maximality">
+      <xsd:simpleType>
+        <xsd:restriction base="xsd:string">
+          <xsd:enumeration value="take_one"/>
+          <xsd:enumeration value="take_many"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+    </xsd:attribute>
     <xsd:attribute name="priority">
       <xsd:simpleType>
         <xsd:restriction base="xsd:string">

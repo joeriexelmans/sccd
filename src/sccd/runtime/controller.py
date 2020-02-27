@@ -5,6 +5,7 @@ from sccd.runtime.event_queue import EventQueue, EventQueueDeque, Timestamp
 from sccd.runtime.event import *
 from sccd.runtime.object_manager import ObjectManager
 from sccd.runtime.infinity import INFINITY
+from sccd.runtime.debug import print_debug
 
 # The Controller class is a primitive that can be used to build backends of any kind:
 # Threads, integration with existing event loop, game loop, test framework, ...
@@ -73,12 +74,12 @@ class Controller:
                 had_unstable = True
                 for i in reversed(range(len(unstable))):
                     instance = unstable[i]
-                    output = instance.big_step(self.simulated_time, [])
+                    stable, output = instance.big_step(self.simulated_time, [])
                     process_big_step_output(output)
-                    if instance.is_stable():
+                    if stable:
                         del unstable[i]
             if had_unstable:
-                # print("all stabilized.")
+                print_debug("all instances stabilized.")
                 pass
 
         if now < self.simulated_time:
@@ -90,9 +91,9 @@ class Controller:
             # initialize the object manager, in turn initializing our default class
             # and add the generated events to the queue
             for i in self.object_manager.instances:
-                events = i.initialize(self.simulated_time)
+                stable, events = i.initialize(self.simulated_time)
                 process_big_step_output(events)
-                if not i.is_stable():
+                if not stable:
                     unstable.append(i)
 
         # Actual "event loop"
@@ -105,9 +106,9 @@ class Controller:
                 self.simulated_time = timestamp
             # run all instances for whom there are events
             for instance in entry.targets:
-                output = instance.big_step(timestamp, [entry.event])
+                stable, output = instance.big_step(timestamp, [entry.event])
                 process_big_step_output(output)
-                if not instance.is_stable():
+                if not stable:
                     unstable.append(instance)
 
         # continue to run instances until all are stable

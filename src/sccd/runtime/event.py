@@ -1,6 +1,6 @@
 import dataclasses
 from abc import ABC, abstractmethod
-from typing import List, Any
+from typing import List, Any, Tuple
 from sccd.runtime.event_queue import Timestamp
 
 @dataclasses.dataclass(frozen=True)
@@ -25,13 +25,12 @@ class OutputEvent:
 # Interface for all instances and also the Object Manager
 class Instance(ABC):
     @abstractmethod
-    def big_step(self, timestamp: Timestamp, input_events: List[Event]) -> List[OutputEvent]:
+    def initialize(self, timestamp: Timestamp) -> Tuple[bool, List[OutputEvent]]:
         pass
 
     @abstractmethod
-    def is_stable(self) -> bool:
+    def big_step(self, timestamp: Timestamp, input_events: List[Event]) -> Tuple[bool, List[OutputEvent]]:
         pass
-
 
 class OutputPortTarget(EventTarget):
     def __init__(self, outport: str):

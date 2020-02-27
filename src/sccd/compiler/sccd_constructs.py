@@ -654,6 +654,7 @@ class StateChart(Visitable):
             return result
 
         self.big_step_maximality = getSemanticOption("big_step_maximality", ["take_one", "take_many"], "take_many")
+        self.combo_step_maximality = getSemanticOption("combo_step_maximality", ["take_one", "take_many"], "take_one")
         self.internal_event_lifeline = getSemanticOption("internal_event_lifeline", ["next_small_step", "next_combo_step", "queue"], "queue")
         self.input_event_lifeline = getSemanticOption("input_event_lifeline", ["first_small_step", "first_combo_step", "whole"], "first_combo_step")
         self.priority = getSemanticOption("priority", ["source_parent", "source_child"], "source_parent")

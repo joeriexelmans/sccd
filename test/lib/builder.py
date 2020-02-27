@@ -1,18 +1,19 @@
 import os
 import importlib
-from sccd.compiler.sccdc import generate
+from sccd.compiler.sccdc import generate, Platforms
 
 def dropext(file):
-  return os.path.splitext(src_file)[0]
+  return os.path.splitext(file)[0]
+
+def make_dirs(file):
+  os.makedirs(os.path.dirname(file), exist_ok=True)
 
 class Builder:
   def __init__(self, build_dir: str):
     self.build_dir = build_dir
 
-  def dropext(self, src_file: str) -> str:
-
-  def target_file(self, src_file: str) -> str:
-    return os.path.join(self.build_dir, dropext(src_file)+".py")
+  def target_file(self, src_file: str, ext='.py') -> str:
+    return os.path.join(self.build_dir, dropext(src_file)+ext)
 
   def module_name(self, src_file: str) -> str:
     return os.path.join(self.build_dir, dropext(src_file)).replace(os.path.sep, ".")
@@ -30,7 +31,7 @@ class Builder:
 
     if src_file_mtime > target_file_mtime:
         # (Re-)Compile test
-        os.makedirs(os.path.dirname(target_file), exist_ok=True)
+        make_dirs(target_file)
         generate(src_file, target_file, "python", Platforms.Threads)
 
   def build_and_load(self, src_file: str):

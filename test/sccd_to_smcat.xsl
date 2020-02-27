@@ -13,11 +13,11 @@
 
   <xsl:template match="sccd:scxml">
     <xsl:if test="@initial">
-      initial_<xsl:value-of select="count(ancestor::*)*100+count(preceding-sibling::*)"/>,
+      initial_<xsl:value-of select="concat(string(count(ancestor::*)),'_',string(count(preceding-sibling::*)))"/>,
     </xsl:if>
     <xsl:apply-templates select="(sccd:state|sccd:parallel|sccd:history)[1]"/>
     <xsl:if test="@initial">
-      initial_<xsl:value-of select="count(ancestor::*)*100+count(preceding-sibling::*)"/>
+      initial_<xsl:value-of select="concat(string(count(ancestor::*)),'_',string(count(preceding-sibling::*)))"/>
       -> <xsl:value-of select="@initial"/>;
     </xsl:if>
   </xsl:template>
@@ -26,10 +26,22 @@
     <!-- [BEGIN-TEMPLATE-<xsl:value-of select="@id"/>] -->
     <xsl:value-of select="@id"/>
 
+    <xsl:if test="self::sccd:parallel">
+      [type=parallel]
+    </xsl:if>
+    <xsl:if test="(self::sccd:history)">
+      <xsl:if test="@type = 'deep'">
+        [type=deephistory]
+      </xsl:if>
+      <xsl:if test="not(@type = 'deep')">
+        [type=history]
+      </xsl:if>
+    </xsl:if>
+
     <xsl:if test="sccd:state|sccd:parallel|sccd:history">
       {
         <xsl:if test="@initial">
-          initial_<xsl:value-of select="count(ancestor::*)*100+count(preceding-sibling::*)"/>,
+          initial_<xsl:value-of select="concat(string(count(ancestor::*)),'_',string(count(preceding-sibling::*)))"/>,
         </xsl:if>
         <xsl:apply-templates select="(sccd:state|sccd:parallel|sccd:history)[1]"/>
       }
@@ -47,7 +59,7 @@
     </xsl:choose>
 
     <xsl:if test="@initial">
-      initial_<xsl:value-of select="count(ancestor::*)*100+count(preceding-sibling::*)"/>
+      initial_<xsl:value-of select="concat(string(count(ancestor::*)),'_',string(count(preceding-sibling::*)))"/>
       -> <xsl:value-of select="@initial"/>;
     </xsl:if>
 

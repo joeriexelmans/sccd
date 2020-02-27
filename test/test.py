@@ -1,49 +1,26 @@
 import os
-import importlib
 import unittest
 import argparse
 import threading
 import queue
-
-from sccd.compiler.sccdc import generate
-from sccd.compiler.generic_generator import Platforms
 from sccd.runtime.infinity import INFINITY
 from sccd.runtime.event import Event
-from sccd.compiler.compiler_exceptions import *
 from sccd.runtime.controller import Controller
-
-BUILD_DIR = "build"
+from lib.builder import Builder
+from lib.os_tools import *
 
 class PyTestCase(unittest.TestCase):
-    def __init__(self, src_file):
+    def __init__(self, src_file, builder):
         unittest.TestCase.__init__(self)
         self.src_file = src_file
-        self.name = os.path.splitext(self.src_file)[0]
-        self.target_file = os.path.join(BUILD_DIR, self.name+".py")
+        self.builder = builder
 
     def __str__(self):
-        return self.name
+        return self.src_file
 
     def runTest(self):
-        # Get src_file and target_file modification times
-        src_file_mtime = os.path.getmtime(self.src_file)
-        target_file_mtime = 0
-        try:
-            target_file_mtime = os.path.getmtime(self.target_file)
-        except FileNotFoundError:
-            pass
-
-        if src_file_mtime > target_file_mtime:
-            # (Re-)Compile test
-            os.makedirs(os.path.dirname(self.target_file), exist_ok=True)
-            try:
-                generate(self.src_file, self.target_file, "python", Platforms.Threads)
-            except TargetLanguageException :
-                self.skipTest("meant for different target language.")
-                return
-
-        # Load compiled test
-        module = importlib.import_module(os.path.join(BUILD_DIR, self.name).replace(os.path.sep, "."))
+        # Build & load
+        module = self.builder.build_and_load(self.src_file)
         inputs = module.Test.input_events
         expected = module.Test.expected_events # list of lists of Event objects
         model = module.Model()
@@ -110,42 +87,25 @@ class PyTestCase(unittest.TestCase):
                 self.assertTrue(matches, "Slot %d entry differs: Expected %s, but got %s instead." % (slot_index, exp_slot, output))
                 slot_index += 1
 
-if __name__ == '__main__':
-    suite = unittest.TestSuite()
 
-    parser = argparse.ArgumentParser(description="Run SCCD tests.")
-    parser.add_argument('test', metavar='test_path', type=str, nargs='*', help="Test to run. Can be a XML file or a directory. If a directory, it will be recursively scanned for XML files.")
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description="Run SCCD tests.",
+        epilog="Set environment variable SCCDDEBUG=1 to display debug information about the inner workings of state machines.")
+    parser.add_argument('path', metavar='PATH', type=str, nargs='*', help="Tests to run. Can be a XML file or a directory. If a directory, it will be recursively scanned for XML files.")
+    parser.add_argument('--build-dir', metavar='BUILD_DIR', type=str, default='build', help="Directory for built tests. Defaults to 'build'")
     args = parser.parse_args()
 
-    already_have = set()
-    src_files = []
+    src_files = get_files(args.path, filter=xml_filter)
 
-    def add_file(path):
-        if path not in already_have:
-            already_have.add(path)
-            src_files.append(path)
-
-    for p in args.test:
-        if os.path.isdir(p):
-            # recursively scan directories
-            for r, dirs, files in os.walk(p):
-                files.sort()
-                for f in files:
-                    if f.endswith('.xml'):
-                        add_file(os.path.join(r,f))
-        elif os.path.isfile(p):
-            add_file(p)
-        else:
-            print("%s: not a file or a directory, skipped." % p)
-
-    # src_files should now contain a list of XML files that need to be compiled an ran
-
+    builder = Builder(args.build_dir)
+    suite = unittest.TestSuite()
     for src_file in src_files:
-        suite.addTest(PyTestCase(src_file))
-
-    unittest.TextTestRunner(verbosity=2).run(suite)
+        suite.addTest(PyTestCase(src_file, builder))
 
     if len(src_files) == 0:
         print("Note: no test files specified.")
         print()
         parser.print_usage()
+
+    unittest.TextTestRunner(verbosity=2).run(suite)

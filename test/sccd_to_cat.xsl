@@ -12,11 +12,18 @@
   </xsl:template>
 
   <xsl:template match="sccd:scxml">
-    <xsl:apply-templates/>
+    <xsl:if test="@initial">
+      initial_<xsl:value-of select="count(ancestor::*)*100+count(preceding-sibling::*)"/>,
+    </xsl:if>
+    <xsl:apply-templates select="(sccd:state|sccd:parallel|sccd:history)[1]"/>
+    <xsl:if test="@initial">
+      initial_<xsl:value-of select="count(ancestor::*)*100+count(preceding-sibling::*)"/>
+      -> <xsl:value-of select="@initial"/>;
+    </xsl:if>
   </xsl:template>
 
   <xsl:template match="sccd:state|sccd:parallel|sccd:history">
-
+    <!-- [BEGIN-TEMPLATE-<xsl:value-of select="@id"/>] -->
     <xsl:value-of select="@id"/>
 
     <xsl:if test="sccd:state|sccd:parallel|sccd:history">
@@ -31,6 +38,7 @@
     <xsl:choose>
       <xsl:when test="following-sibling::sccd:state | following-sibling::sccd:parallel | following-sibling::sccd:history">
         ,
+        <!-- [NEXT-SIBLING] -->
         <xsl:apply-templates select="(following-sibling::sccd:state | following-sibling::sccd:parallel | following-sibling::sccd:history)[1]"/>
       </xsl:when>
       <xsl:otherwise>
@@ -43,6 +51,7 @@
       -> <xsl:value-of select="@initial"/>;
     </xsl:if>
 
+    <!-- [BEGIN-TRANSITIONS-<xsl:value-of select="@id"/>] -->
     <xsl:for-each select="sccd:transition">
       <xsl:value-of select="../@id"/> -> <xsl:value-of select="tokenize(@target,'/')[last()]"/>
       <xsl:if test="@event">
@@ -50,6 +59,9 @@
       </xsl:if>
       ;
     </xsl:for-each>
+    <!-- [END-TRANSITIONS-<xsl:value-of select="@id"/>] -->
+
+    <!-- [END-TEMPLATE-<xsl:value-of select="@id"/>] -->
   </xsl:template>
 
 </xsl:stylesheet>

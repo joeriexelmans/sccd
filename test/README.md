@@ -6,7 +6,7 @@ For example, to run the "semantics" tests:
 ```
 python3 test.py semantics
 ```
-This will create a 'build' directory with compiled statechart models. It is safe to remove this directory after testing, but this directory serves as a 'cache' for build artifacts.
+This will create a 'build' directory with compiled statechart models. It is always safe to remove this directory, it merely serves as a 'cache' for build artifacts.
 
 ## render.py
 

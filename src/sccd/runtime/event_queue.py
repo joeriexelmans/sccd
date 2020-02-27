@@ -10,9 +10,9 @@ Item = TypeVar('Item')
 
 class EventQueue(Generic[Item]):
     def __init__(self):
-        self.queue = []
+        self.queue: List[Tuple[Timestamp, int, Item]] = []
         self.counters = {} # mapping from timestamp to number of items at timestamp
-        self.removed = set()
+        self.removed: Set[Item] = set()
     
     def __str__(self):
         return str([entry for entry in self.queue if entry[2] not in self.removed])
@@ -49,7 +49,7 @@ class EventQueue(Generic[Item]):
             self.counters[timestamp] -= 1
             if not self.counters[timestamp]:
                 del self.counters[timestamp]
-            if item not in self.removed:
+            if item[2] not in self.removed:
                 return (timestamp, item[2])
 
     # Safe to call on empty queue

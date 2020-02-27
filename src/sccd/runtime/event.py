@@ -1,32 +1,13 @@
+import dataclasses
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Any
 from sccd.runtime.event_queue import Timestamp
 
-# Data class.
+@dataclasses.dataclass(frozen=True)
 class Event:
-    def __init__(self, name, port = "", parameters = []):
-        self._name = name
-        self._port = port
-        self._parameters = parameters
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def port(self):
-        return self._port
-
-    @property
-    def parameters(self):
-        return self._parameters
-    
-    def __repr__(self):
-        s = "Event (name: " + str(self._name) + "; port: " + str(self._port)
-        if self._parameters:
-            s += "; parameters: " + str(self._parameters)
-        s += ")"
-        return s
+    name: str
+    port: str = ""
+    parameters: List[Any] = dataclasses.field(default_factory=list)
 
 # Abstract class.
 class EventTarget(ABC):
@@ -59,4 +40,3 @@ class OutputPortTarget(EventTarget):
 class InstancesTarget(EventTarget):
     def __init__(self, instances: List[Instance]):
         self.instances = instances
-

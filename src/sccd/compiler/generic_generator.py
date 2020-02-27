@@ -143,8 +143,9 @@ class GenericGenerator(Visitor):
         self.writer.beginClass(compiled_class_name(class_node.name))
         self.writer.beginConstructor()
         self.writer.beginMethodBody()
+        self.writer.addAssignment(GLC.SelfProperty("name"), GLC.String(class_node.name))
         if class_node.statechart:
-            self.writer.addAssignment(GLC.SelfProperty("statechart"), GLC.NewExpression("Statechart_"+class_node.name))
+            self.writer.addAssignment(GLC.SelfProperty("statechart"), GLC.NewExpression("Statechart_"+class_node.name, [GLC.SelfExpression()]))
         self.writer.endMethodBody()
         self.writer.endConstructor()
         self.writer.endClass()
@@ -152,7 +153,11 @@ class GenericGenerator(Visitor):
     def visit_StateChart(self, statechart):
         # We are in the Statechart_ClassName class here:
         self.writer.beginConstructor()
+        self.writer.addFormalParameter("_class")
         self.writer.beginMethodBody()
+
+        self.writer.addAssignment(GLC.SelfProperty("_class"), GLC.Identifier("_class"))
+        self.writer.addVSpace()
 
         self.writer.addAssignment(GLC.SelfProperty("semantics"), GLC.NewExpression("StatechartSemantics"))
         if statechart.big_step_maximality == "take_one":

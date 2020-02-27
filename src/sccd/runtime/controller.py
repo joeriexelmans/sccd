@@ -1,5 +1,5 @@
-import threading
 import queue
+import dataclasses
 from typing import Dict, List
 from sccd.runtime.event_queue import EventQueue, EventQueueDeque, Timestamp
 from sccd.runtime.event import *
@@ -10,17 +10,11 @@ from sccd.runtime.infinity import INFINITY
 # Threads, integration with existing event loop, game loop, test framework, ...
 # The Controller class itself is NOT thread-safe.
 class Controller:
-    # Data class
+
+    @dataclasses.dataclass(eq=False, frozen=True)
     class EventQueueEntry:
-        def __init__(self, event: Event, targets: List[Instance]):
-            self.event = event
-            self.targets = targets
-
-        def __str__(self):
-            return "(event:"+str(self.event)+",targets:"+str(self.targets)+")"
-
-        def __repr__(self):
-            return self.__str__()
+        event: Event
+        targets: List[Instance]
 
     def __init__(self, model):
         self.model = model
@@ -53,7 +47,7 @@ class Controller:
 
     # Run until given timestamp.
     # Simulation continues until there are no more due events wrt timestamp and until all instances are stable.
-    # Output generated while running is written to 'pipe'.
+    # Output generated while running is written to 'pipe' so it can be heard by another thread.
     def run_until(self, now: Timestamp, pipe: queue.Queue):
 
         unstable = []

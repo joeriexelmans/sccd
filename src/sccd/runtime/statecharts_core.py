@@ -2,15 +2,15 @@
 The classes and functions needed to run (compiled) SCCD models.
 """
 
-# import traceback
-# import math
+import os
+import termcolor
 from typing import List
 from sccd.runtime.infinity import INFINITY
 from sccd.runtime.event_queue import Timestamp
 from sccd.runtime.event import Event, OutputEvent, Instance, InstancesTarget
 from collections import Counter
 
-DEBUG = False
+DEBUG = os.environ['SCCDDEBUG']
 ELSE_GUARD = "ELSE_GUARD"
 
 def print_debug(msg):
@@ -276,8 +276,10 @@ class Transition:
                 if isinstance(h, DeepHistoryState):
                     f = lambda s0: not s0.descendants and s0 in s.descendants
                 instance.history_values[h.state_id] = list(filter(f, instance.configuration))
+        print_debug('')
+        print_debug(termcolor.colored('transition %s:  %s 🡪 %s'%(instance.model._class.name, self.source.name, self.targets[0].name), 'green'))
         for s in exit_set:
-            print_debug('EXIT: %s::%s' % (instance.__class__.__name__, s.name))
+            print_debug(termcolor.colored('  EXIT %s' % s.name, 'green'))
             instance.eventless_states -= s.has_eventless_transitions
             # execute exit action(s)
             if s.exit:
@@ -296,7 +298,7 @@ class Transition:
         targets = __getEffectiveTargetStates()
         enter_set = __enterSet(targets)
         for s in enter_set:
-            print_debug('ENTER: %s::%s' % (instance.__class__.__name__, s.name))
+            print_debug(termcolor.colored('  ENTER %s' % s.name, 'green'))
             instance.eventless_states += s.has_eventless_transitions
             instance.configuration_bitmap |= 2**s.state_id
             # execute enter action(s)
@@ -389,9 +391,13 @@ class StatechartInstance(Instance):
         self._small_step.reset()
 
         while self.combo_step():
+            print_debug(termcolor.colored('completed combo step', 'yellow'))
             self._big_step.has_stepped = True
             if self.model.semantics.big_step_maximality == StatechartSemantics.TakeOne:
                 break # Take One -> only one combo step allowed
+
+        if self._big_step.has_stepped:
+            print_debug(termcolor.colored('completed big step', 'red'))
 
         # can the next big step still contain transitions, even if there are no input events?
         self.stable = not self.eventless_states or (not filtered and not self._big_step.has_stepped)
@@ -400,6 +406,7 @@ class StatechartInstance(Instance):
     def combo_step(self):
         self._combo_step.next()
         while self.small_step():
+            print_debug(termcolor.colored("completed small step", "blue"))
             self._combo_step.has_stepped = True
         return self._combo_step.has_stepped
 

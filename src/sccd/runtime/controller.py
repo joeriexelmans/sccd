@@ -1,18 +1,10 @@
 import threading
 from typing import Dict, List
-from sccd.runtime.event_queue import EventQueue, Timestamp
+from sccd.runtime.event_queue import EventQueue, EventQueueDeque, Timestamp
+from queue import Queue, Empty
 from sccd.runtime.event import *
 from sccd.runtime.object_manager import ObjectManager
 from sccd.runtime.infinity import INFINITY
-
-# try:
-from queue import Queue, Empty
-# except ImportError:
-#     from Queue import Queue, Empty
-
-# try:
-# except ImportError:
-# from infinity import INFINITY
 
 class OutputListener:
     def __init__(self):
@@ -56,20 +48,6 @@ class OutputListener:
             return self.queue.get(True, timeout);
         except Empty:
             return None
-
-# Data class
-class InputPortEntry(object):
-    def __init__(self, virtual_name, instance):
-        self.virtual_name = virtual_name
-        self.instance = instance
-
-# Data class
-class OutputPortEntry(object):
-    def __init__(self, port_name, virtual_name, instance):
-        self.port_name = port_name
-        self.virtual_name = virtual_name
-        self.instance = instance
-
 
 class Controller:
     # Data class
@@ -134,6 +112,7 @@ class Controller:
 
         unstable = []
 
+        # Helper. Put big step output events in the event queue or add them to the right output listeners.
         def process_big_step_output(events: List[OutputEvent]):
             listener_events = {}
             for e in events:
@@ -148,6 +127,7 @@ class Controller:
             for listener, events in listener_events.items():
                 listener.signal_output(events)
 
+        # Helper. Let all unstable instances execute big steps until they are stable
         def run_unstable():
             had_unstable = False
             while unstable:
@@ -175,16 +155,15 @@ class Controller:
                 if not i.is_stable():
                     unstable.append(i)
 
-        run_unstable()
-
+        # Actual "event loop"
         for timestamp, entry in self.queue.due(now):
-            # run instances
+            # check if there's a time leap
             if timestamp is not self.simulated_time:
-                # before every "time leap" (and also when run_until is called for the first time ever)
-                # continue to run instances until they are stable.
+                # before every "time leap", continue to run instances until they are stable.
                 run_unstable()
                 # make time leap
                 self.simulated_time = timestamp
+            # run all instances for whom there are events
             for instance in entry.targets:
                 output = instance.big_step(timestamp, [entry.event])
                 process_big_step_output(output)

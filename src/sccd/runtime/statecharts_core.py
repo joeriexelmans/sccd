@@ -377,13 +377,14 @@ class StatechartInstance(Instance):
 
     # perform a big step. returns a set of output events
     def big_step(self, now: Timestamp, input_events: List[Event]) -> List[OutputEvent]:
-        my_input_events = []
+        filtered = []
         for e in input_events:
             if e.name in self.ignore_events:
                 self.ignore_events[e.name] -= 1
             else:
-                my_input_events.append(e)
-        self._big_step.next(my_input_events)
+                filtered.append(e)
+
+        self._big_step.next(filtered)
         self._combo_step.reset()
         self._small_step.reset()
 
@@ -393,7 +394,7 @@ class StatechartInstance(Instance):
                 break # Take One -> only one combo step allowed
 
         # can the next big step still contain transitions, even if there are no input events?
-        self.stable = not self.eventless_states or (not my_input_events and not self._big_step.has_stepped)
+        self.stable = not self.eventless_states or (not filtered and not self._big_step.has_stepped)
         return self._big_step.output_events
 
     def combo_step(self):

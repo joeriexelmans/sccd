@@ -87,9 +87,11 @@ class PyTestCase(unittest.TestCase):
                 thread.join()
                 raise arg
             elif what == "done":
+                self.assertEqual(slot_index, len(expected_result), "Less output was received than expected.")
                 thread.join()
                 return
             elif what == "output":
+                self.assertLess(slot_index, len(expected_result), "More output was received than expected.")
                 output_events = arg
                 slot = expected_result[slot_index]
                 print("slot:", slot_index, ", events: ", output_events)

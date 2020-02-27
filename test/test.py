@@ -3,6 +3,7 @@ import importlib
 import unittest
 import argparse
 import threading
+import queue
 
 from sccd.compiler.sccdc import generate
 from sccd.compiler.generic_generator import Platforms
@@ -24,7 +25,6 @@ class PyTestCase(unittest.TestCase):
         return self.name
 
     def runTest(self):
-        print()
         # Get src_file and target_file modification times
         src_file_mtime = os.path.getmtime(self.src_file)
         target_file_mtime = 0
@@ -34,6 +34,7 @@ class PyTestCase(unittest.TestCase):
             pass
 
         if src_file_mtime > target_file_mtime:
+            # (Re-)Compile test
             os.makedirs(os.path.dirname(self.target_file), exist_ok=True)
             try:
                 generate(self.src_file, self.target_file, "python", Platforms.Threads)
@@ -41,81 +42,72 @@ class PyTestCase(unittest.TestCase):
                 self.skipTest("meant for different target language.")
                 return
 
+        # Load compiled test
         module = importlib.import_module(os.path.join(BUILD_DIR, self.name).replace(os.path.sep, "."))
         inputs = module.Test.input_events
         expected = module.Test.expected_events # list of lists of Event objects
-
         model = module.Model()
+
         controller = Controller(model)
-
-        output_ports = set()
-        expected_result = [] # what happens here is basically a deep-copy of the list-of-lists, why?
-        for s in expected:
-            slot = []
-            for event in s:
-                slot.append(event)
-                output_ports.add(event.port)
-            if slot:
-                expected_result.append(slot)
-
-        output_listener = controller.createOutputListener(list(output_ports))
 
         # generate input
         if inputs:
             for i in inputs:
-                controller.addInput(Event(i.name, i.port, i.parameters), int(i.time_offset* 1000))
+                controller.add_input(Event(i.name, i.port, i.parameters), int(i.time_offset))
 
-        def run_model():
+        pipe = queue.Queue()
+
+        def model_thread():
             try:
-                # run as-fast-as-possible, always advancing time to the next item in event queue, no sleeping
-                # the call returns when the event queue is empty
-                controller.run_until(INFINITY)
+                # Run as-fast-as-possible, always advancing time to the next item in event queue, no sleeping.
+                # The call returns when the event queue is empty and therefore the simulation is finished.
+                controller.run_until(INFINITY, pipe)
             except Exception as e:
-                output_listener.signal_exception(e)
+                pipe.put(e, block=True, timeout=None)
                 return
-            output_listener.signal_done()
+            pipe.put(None, block=True, timeout=None)
 
         # start the controller
-        thread = threading.Thread(target=run_model)
+        thread = threading.Thread(target=model_thread)
         thread.start()
 
         # check output
         slot_index = 0
         while True:
-            what, arg = output_listener.fetch_blocking()
-            if what == "exception":
+            output = pipe.get(block=True, timeout=None)
+            if isinstance(output, Exception):
                 thread.join()
-                raise arg
-            elif what == "done":
-                self.assertEqual(slot_index, len(expected_result), "Less output was received than expected.")
+                raise output # Exception was caught in Controller thread, throw it here instead.
+            elif output is None:
+                self.assertEqual(slot_index, len(expected), "Less output was received than expected.")
                 thread.join()
                 return
-            elif what == "output":
-                self.assertLess(slot_index, len(expected_result), "More output was received than expected.")
-                output_events = arg
-                slot = expected_result[slot_index]
-                print("slot:", slot_index, ", events: ", output_events)
+            else:
+                self.assertLess(slot_index, len(expected), "More output was received than expected.")
+                exp_slot = expected[slot_index]
+                # print("slot:", slot_index, ", events: ", output)
+
+                self.assertEqual(len(exp_slot), len(output), "Slot %d length differs: Expected %s, but got %s instead." % (slot_index, exp_slot, output))
 
                 # sort both expected and actual lists of events before comparing,
                 # in theory the set of events at the end of a big step is unordered
                 key_f = lambda e: "%s.%s"%(e.port, e.name)
-                slot.sort(key=key_f)
-                output_events.sort(key=key_f)
+                exp_slot.sort(key=key_f)
+                output.sort(key=key_f)
 
-                self.assertEqual(len(slot), len(output_events), "Slot %d: Expected output events: %s, instead got: %s" % (slot_index, str(slot), str(output_events)))
-                for (expected, actual) in zip(slot, output_events):
+                for (exp_event, event) in zip(exp_slot, output):
                     matches = True
-                    if expected.name != actual.name :
+                    if exp_event.name != event.name :
                         matches = False
-                    if expected.port != actual.port :
+                    if exp_event.port != event.port :
                         matches = False
-                    if len(expected.parameters) != len(actual.parameters) :
+                    if len(exp_event.parameters) != len(event.parameters) :
                         matches = False
-                    for index in range(len(expected.parameters)) :
-                        if expected.parameters[index] !=  actual.parameters[index]:
+                    for index in range(len(exp_event.parameters)) :
+                        if exp_event.parameters[index] !=  event.parameters[index]:
                             matches = False
 
-                self.assertTrue(matches, self.src_file + ", expected results slot " + str(slot_index) + " mismatch. Expected " + str(expected) + ", but got " + str(actual) +  " instead.") # no match found in the options
+                self.assertTrue(matches, "Slot %d entry differs: Expected %s, but got %s instead." % (slot_index, exp_slot, output))
                 slot_index += 1
 
 if __name__ == '__main__':

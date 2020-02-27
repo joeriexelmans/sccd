@@ -1,54 +1,14 @@
 import threading
+import queue
 from typing import Dict, List
 from sccd.runtime.event_queue import EventQueue, EventQueueDeque, Timestamp
-from queue import Queue, Empty
 from sccd.runtime.event import *
 from sccd.runtime.object_manager import ObjectManager
 from sccd.runtime.infinity import INFINITY
 
-class OutputListener:
-    def __init__(self):
-        self.queue = Queue() # queue of lists of event objects
-        self.done = False
-
-    """ Called at the end of a big step with a list of events.
-
-        Parameters
-        ----------
-        events: list of Event objects """
-    def signal_output(self, events):
-        assert not self.done
-        self.queue.put_nowait(("output", events))
-
-    def signal_exception(self, exception):
-        assert not self.done
-        self.queue.put_nowait(("exception", exception))
-
-    def signal_done(self):
-        assert not self.done
-        self.done = True
-        self.queue.put_nowait(("done", None))
-
-    """ Fetch next element without blocking.
-        If no element is available, None is returned. """
-    def fetch_nonblocking(self):
-        try:
-            return self.queue.get_nowait()
-        except Empty:
-            return None
-
-    """ Fetch next element from listener, blocking until an element is available.
-        If the given timeout is exceeded, None is returned.
-
-        Parameters
-        ----------
-        timeout: Max time to block (in seconds). None if allowed to block forever. """
-    def fetch_blocking(self, timeout=None):
-        try:
-            return self.queue.get(True, timeout);
-        except Empty:
-            return None
-
+# The Controller class is a primitive that can be used to build backends of any kind:
+# Threads, integration with existing event loop, game loop, test framework, ...
+# The Controller class itself is NOT thread-safe.
 class Controller:
     # Data class
     class EventQueueEntry:
@@ -67,13 +27,12 @@ class Controller:
         self.object_manager = ObjectManager(model)
         self.queue: EventQueue[EventQueueEntry] = EventQueue()
 
-        # keep track of input ports
-        self.output_listeners: Dict[str, List[OutputListener]] = {} # dictionary from port name to list of OutputListener objects
-
         self.simulated_time = 0 # integer
         self.initialized = False
 
-    def addInput(self, event: Event, time_offset = 0):
+    # time_offset: the offset relative to the current simulated time
+    # (the timestamp given in the last call to run_until)
+    def add_input(self, event: Event, time_offset = 0):
             if event.name == "":
                 raise Exception("Input event can't have an empty name.")
         
@@ -85,22 +44,8 @@ class Controller:
             # potentially responding to the event
             self.queue.add(self.simulated_time+time_offset, Controller.EventQueueEntry(event, self.object_manager.instances))
 
-    def createOutputListener(self, ports):
-        listener = OutputListener()
-        self.addOutputListener(ports, listener)
-        return listener
-
-    def addOutputListener(self, ports, listener):
-        if len(ports) == 0:
-            # add to all the ports
-            if self.model.outports:
-                self.addOutputListener(self.model.outports, listener)
-        else:
-            for port in ports:
-                self.output_listeners.setdefault(port, []).append(listener)
-
     # The following 2 methods are the basis of any kind of event loop,
-    # regardless of the platform (Threads, integration with existing event loop, game loop, test framework, ...)
+    # regardless of the platform ()
 
     # Get timestamp of next entry in event queue
     def next_wakeup(self) -> Timestamp:
@@ -108,24 +53,24 @@ class Controller:
 
     # Run until given timestamp.
     # Simulation continues until there are no more due events wrt timestamp and until all instances are stable.
-    def run_until(self, now: Timestamp):
+    # Output generated while running is written to 'pipe'.
+    def run_until(self, now: Timestamp, pipe: queue.Queue):
 
         unstable = []
 
         # Helper. Put big step output events in the event queue or add them to the right output listeners.
         def process_big_step_output(events: List[OutputEvent]):
-            listener_events = {}
+            pipe_events = []
             for e in events:
                 if isinstance(e.target, InstancesTarget):
                     self.queue.add(self.simulated_time+e.time_offset, Controller.EventQueueEntry(e.event, e.target.instances))
                 elif isinstance(e.target, OutputPortTarget):
                     assert (e.time_offset == 0) # cannot combine 'after' with 'output port'
-                    for listener in self.output_listeners[e.target.outport]:
-                        listener_events.setdefault(listener, []).append(e.event)
+                    pipe_events.append(e.event)
                 else:
                     raise Exception("Unexpected type:", e.target)
-            for listener, events in listener_events.items():
-                listener.signal_output(events)
+            if pipe_events:
+                pipe.put(pipe_events, block=True, timeout=None)
 
         # Helper. Let all unstable instances execute big steps until they are stable
         def run_unstable():
@@ -139,7 +84,8 @@ class Controller:
                     if instance.is_stable():
                         del unstable[i]
             if had_unstable:
-                print("all stabilized.")
+                # print("all stabilized.")
+                pass
 
         if now < self.simulated_time:
             raise Exception("Simulated time can only increase!")

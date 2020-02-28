@@ -1,6 +1,6 @@
 import queue
 import dataclasses
-from typing import Dict, List
+from typing import Dict, List, Optional
 from sccd.runtime.event_queue import EventQueue, EventQueueDeque, Timestamp
 from sccd.runtime.event import *
 from sccd.runtime.object_manager import ObjectManager
@@ -43,7 +43,7 @@ class Controller:
     # regardless of the platform ()
 
     # Get timestamp of next entry in event queue
-    def next_wakeup(self) -> Timestamp:
+    def next_wakeup(self) -> Optional[Timestamp]:
         return self.queue.earliest_timestamp()
 
     # Run until given timestamp.
@@ -51,7 +51,7 @@ class Controller:
     # Output generated while running is written to 'pipe' so it can be heard by another thread.
     def run_until(self, now: Timestamp, pipe: queue.Queue):
 
-        unstable = []
+        unstable: List[Instance] = []
 
         # Helper. Put big step output events in the event queue or add them to the right output listeners.
         def process_big_step_output(events: List[OutputEvent]):

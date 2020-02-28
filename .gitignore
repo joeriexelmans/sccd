@@ -18,3 +18,5 @@ doc/_build
 .pydevproject
 src/MANIFEST
 __pycache__/
+.mypy_cache/
+*.smcat

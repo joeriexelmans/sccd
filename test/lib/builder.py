@@ -23,7 +23,7 @@ class Builder:
 
     # Get src_file and target_file modification times
     src_file_mtime = os.path.getmtime(src_file)
-    target_file_mtime = 0
+    target_file_mtime = 0.0
     try:
         target_file_mtime = os.path.getmtime(target_file)
     except FileNotFoundError:

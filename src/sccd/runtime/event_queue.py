@@ -1,7 +1,6 @@
-from sccd.runtime.infinity import INFINITY
 from heapq import heappush, heappop, heapify
 from abc import ABC
-from typing import List, Set, Tuple, Deque, Any, TypeVar, Generic, Generator
+from typing import List, Set, Tuple, Deque, Any, TypeVar, Generic, Generator, Optional
 from collections import deque
 
 Timestamp = int
@@ -20,14 +19,14 @@ class EventQueue(Generic[Item]):
     def is_empty(self) -> bool:
         return not [item for item in self.queue if not item[2] in self.removed]
     
-    def earliest_timestamp(self) -> Timestamp:
+    def earliest_timestamp(self) -> Optional[Timestamp]:
         while self.queue and (self.queue[0] in self.removed):
             item = heappop(self.queue)
-            self.removed.remove(item)
+            self.removed.remove(item[2])
         try:
             return self.queue[0][0]
         except IndexError:
-            return INFINITY
+            return None
     
     def add(self, timestamp: Timestamp, item: Item):
         self.counters[timestamp] = self.counters.setdefault(timestamp, 0) + 1
@@ -60,10 +59,9 @@ class EventQueue(Generic[Item]):
 
 # Alternative implementation: A heapq with unique entries for each timestamp, and a deque with items for each timestamp.
 class EventQueueDeque(Generic[Item]):
-    Entry = Tuple[Timestamp, Deque[Item]]
 
     def __init__(self):
-        self.queue: List[Entry] = []
+        self.queue: List[Tuple[Timestamp, Deque[Item]]] = []
         self.entries: Dict[Timestamp, Deque[Item]] = {}
 
         # performance optimization:
@@ -78,12 +76,12 @@ class EventQueueDeque(Generic[Item]):
                     return False
         return True
 
-    def earliest_timestamp(self) -> Timestamp:
+    def earliest_timestamp(self) -> Optional[Timestamp]:
         try:
             earliest, _ = self.queue[0]
             return earliest
         except IndexError:
-            return INFINITY
+            return None
 
     def add(self, timestamp: Timestamp, item: Item):
         try:
@@ -103,7 +101,7 @@ class EventQueueDeque(Generic[Item]):
             for i in range(len(self.queue)-1, -1, -1):
                 queue_entry = self.queue[i]
                 timestamp, old_deque = queue_entry
-                new_deque = deque([])
+                new_deque: Deque[Item] = deque([])
                 for item in old_deque:
                     if item not in self.removed:
                         new_deque.append(item)

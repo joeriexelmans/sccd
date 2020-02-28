@@ -104,8 +104,8 @@ if __name__ == '__main__':
         suite.addTest(PyTestCase(src_file, builder))
 
     if len(src_files) == 0:
-        print("Note: no test files specified.")
+        print("No input files specified.")
         print()
         parser.print_usage()
-
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    else:
+        unittest.TextTestRunner(verbosity=2).run(suite)

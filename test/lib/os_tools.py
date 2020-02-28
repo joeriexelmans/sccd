@@ -1,9 +1,9 @@
 import os
-from typing import List, Callable
+from typing import List, Callable, Set
 
 # For a given list of files and or directories, get all the 
 def get_files(paths: List[str], filter: Callable[[str], bool]) -> List[str]:
-  already_have = set()
+  already_have: Set[str] = set()
   src_files = []
 
   def add_file(path):

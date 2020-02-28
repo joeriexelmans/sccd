@@ -5,6 +5,7 @@ The classes and functions needed to run (compiled) SCCD models.
 import os
 import termcolor
 from typing import List, Tuple
+from enum import Enum
 from sccd.runtime.infinity import INFINITY
 from sccd.runtime.event_queue import Timestamp
 from sccd.runtime.event import Event, OutputEvent, Instance, InstancesTarget
@@ -13,32 +14,6 @@ from collections import Counter
 
 ELSE_GUARD = "ELSE_GUARD"
 
-class RuntimeException(Exception):
-    """
-    Base class for runtime exceptions.
-    """
-    def __init__(self, message):
-        self.message = message
-    def __str__(self):
-        return repr(self.message)
-
-class AssociationException(RuntimeException):
-    """
-    Exception class thrown when an error occurs in a CRUD operation on associations.
-    """
-    pass
-
-class AssociationReferenceException(RuntimeException):
-    """
-    Exception class thrown when an error occurs when resolving an association reference.
-    """
-    pass
-
-class ParameterException(RuntimeException):
-    """
-    Exception class thrown when an error occurs when passing parameters.
-    """
-    pass
 
 class Association(object):
     """
@@ -537,7 +512,6 @@ class SmallStepState(object):
     def __init__(self):
         self.current_events = [] # set of enabled events during small step
         self.next_events = [] # events to become 'current' in the next small step
-        self.candidates = [] # document-ordered(!) list of transitions that can potentially be executed concurrently, or preempt each other, depending on concurrency semantics. If no concurrency is used and there are multiple candidates, the first one is chosen. Source states of candidates are *always* orthogonal to each other.
         self.has_stepped = True
 
     def reset(self):
@@ -547,15 +521,19 @@ class SmallStepState(object):
     def next(self):
         self.current_events = self.next_events # raised events from previous small step
         self.next_events = []
-        self.candidates = []
         self.has_stepped = False
 
     def addNextEvent(self, event):
         self.next_events.append(event)
 
-    def addCandidate(self, t, p):
-        self.candidates.append((t, p))
+class Maximality(Enum):
+    TAKE_ONE = 0
+    TAKE_MANY = 2
 
-    def hasCandidates(self):
-        return len(self.candidates) > 0
+class Round:
+    def __init__(self, maximality: Maximality):
+        self.current_events: List[Event] = []
+        self.next_events: List[Event] = []
+        self.has_stepped: bool = True
+        self.maximality: Maximality
 

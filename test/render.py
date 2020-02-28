@@ -1,6 +1,7 @@
 import argparse
 import sys
 import subprocess
+import multiprocessing
 from lib.os_tools import *
 from lib.builder import *
 from sccd.compiler.utils import FormattedWriter
@@ -10,31 +11,43 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Render statecharts as SVG images.")
     parser.add_argument('path', metavar='PATH', type=str, nargs='*', help="Models to render. Can be a XML file or a directory. If a directory, it will be recursively scanned for XML files.")
-    parser.add_argument('--build-dir', metavar='DIR', type=str, default='build', help="Directory for built tests. Defaults to 'build'")
-    parser.add_argument('--render-dir', metavar='DIR', type=str, default='.', help="Directory for SVG rendered output. Defaults to '.' (putting the SVG files with the XML source files)")
+    parser.add_argument('--build-dir', metavar='DIR', type=str, default='build', help="As a first step, input XML files first must be compiled to python files. Directory to store these files. Defaults to 'build'")
+    parser.add_argument('--output-dir', metavar='DIR', type=str, default='', help="Directory for SVG rendered output. Defaults to '.' (putting the SVG files with the XML source files)")
+    parser.add_argument('--keep-smcat', action='store_true', help="Whether to NOT delete intermediary SMCAT files after producing SVG output. Default = off (delete files)")
+    parser.add_argument('--no-svg', action='store_true', help="Don't produce SVG output. This option only makes sense in combination with the --keep-smcat option. Default = off")
+    parser.add_argument('--pool-size', metavar='INT', type=int, default=multiprocessing.cpu_count()+1, help="Number of worker processes. Default = CPU count + 1.")
     args = parser.parse_args()
 
-    try:
-      subprocess.run(["state-machine-cat", "-h"], capture_output=True)
-    except:
-        print("Failed to run 'state-machine-cat'. Make sure this application is installed on your system.")
-        exit()
 
-    builder = Builder(args.build_dir)
-    render_builder = Builder(args.render_dir)
+    py_builder = Builder(args.build_dir)
+    svg_builder = Builder(args.output_dir)
     srcs = get_files(args.path, filter=xml_filter)
 
-    for src in srcs:
-      module = builder.build_and_load(src)
+    if len(srcs):
+      if not args.no_svg:
+        try:
+          subprocess.run(["state-machine-cat", "-h"], capture_output=True)
+        except:
+            print("Failed to run 'state-machine-cat'. Make sure this application is installed on your system.")
+            exit()
+    else:
+      print("No input files specified.")      
+      print()
+      parser.print_usage()
+
+
+    def process(src):
+      module = py_builder.build_and_load(src)
       model = module.Model()
 
+      # Produce an output file for each class in the src file
       for class_name, _class in model.classes.items():
-        target = render_builder.target_file(src, '_'+class_name+'.smcat')
-        svg_target = render_builder.target_file(src, '_'+class_name+'.svg')
+        smcat_target = svg_builder.target_file(src, '_'+class_name+'.smcat')
+        svg_target = svg_builder.target_file(src, '_'+class_name+'.svg')
         
-        make_dirs(target)
+        make_dirs(smcat_target)
 
-        f = open(target, 'w')
+        f = open(smcat_target, 'w')
         w = FormattedWriter(f)
         sc = _class().statechart
 
@@ -108,6 +121,14 @@ if __name__ == '__main__':
             ctr += 1
 
         f.close()
-        subprocess.run(["state-machine-cat", target, "-o", svg_target])
-        os.remove(target)
-        print("Rendered "+svg_target)
+        if args.keep_smcat:
+          print("Wrote "+smcat_target)
+        if not args.no_svg:
+          subprocess.run(["state-machine-cat", smcat_target, "-o", svg_target])
+          print("Wrote "+svg_target)
+        if not args.keep_smcat:
+          os.remove(smcat_target)
+
+    with multiprocessing.Pool(processes=args.pool_size) as pool:
+      print("Created a pool of %d processes."%args.pool_size)
+      pool.map(process, srcs)

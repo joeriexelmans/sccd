@@ -96,7 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('--build-dir', metavar='BUILD_DIR', type=str, default='build', help="Directory for built tests. Defaults to 'build'")
     args = parser.parse_args()
 
-    src_files = get_files(args.path, filter=xml_filter)
+    src_files = get_files(args.path, filter=filter_xml)
 
     builder = Builder(args.build_dir)
     suite = unittest.TestSuite()

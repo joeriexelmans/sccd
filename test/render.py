@@ -19,9 +19,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 
-    py_builder = Builder(args.build_dir)
-    svg_builder = Builder(args.output_dir)
-    srcs = get_files(args.path, filter=xml_filter)
+    builder = Builder(args.build_dir)
+    srcs = get_files(args.path, filter=filter_xml)
 
     if len(srcs):
       if not args.no_svg:
@@ -37,13 +36,14 @@ if __name__ == '__main__':
 
 
     def process(src):
-      module = py_builder.build_and_load(src)
+      module = builder.build_and_load(src)
       model = module.Model()
 
       # Produce an output file for each class in the src file
       for class_name, _class in model.classes.items():
-        smcat_target = svg_builder.target_file(src, '_'+class_name+'.smcat')
-        svg_target = svg_builder.target_file(src, '_'+class_name+'.svg')
+        target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+'_'+class_name+ext)
+        smcat_target = target_path('.smcat')
+        svg_target = target_path('.svg')
         
         make_dirs(smcat_target)
 

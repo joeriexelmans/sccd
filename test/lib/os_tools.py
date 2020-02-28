@@ -1,8 +1,13 @@
 import os
 from typing import List, Callable, Set
 
-# For a given list of files and or directories, get all the 
-def get_files(paths: List[str], filter: Callable[[str], bool]) -> List[str]:
+filter_any = lambda x: True
+filter_xml = lambda x: x.endswith('.xml')
+
+# For a given list of files and or directories,
+# recursively find all the files that adhere to an optional filename filter,
+# merge the results while eliminating duplicates.
+def get_files(paths: List[str], filter: Callable[[str], bool] = filter_any) -> List[str]:
   already_have: Set[str] = set()
   src_files = []
 
@@ -26,4 +31,10 @@ def get_files(paths: List[str], filter: Callable[[str], bool]) -> List[str]:
 
   return src_files
 
-xml_filter = lambda x: x.endswith('.xml')
+# Drop file extension
+def dropext(file):
+  return os.path.splitext(file)[0]
+
+# Ensure path of directories exists
+def make_dirs(file):
+  os.makedirs(os.path.dirname(file), exist_ok=True)

@@ -10,7 +10,7 @@ This will create a 'build' directory with compiled statechart models. It is alwa
 
 ## render.py
 
-The Python program `render.py` renders SVG graphs for test files. Rendered SVG files are already checked in to this repository. If you wish to re-render them, you need the NPM (NodeJS) package [state-machine-cat](https://github.com/sverweij/state-machine-cat/). Install NodeJS and NPM, and then install the NPM package 'state-machine-cat':
+The Python program `render.py` renders the test file state machines as SVG images. Rendered SVG files are already checked in to this repository. If you wish to re-render them, you need the NPM (NodeJS) package [state-machine-cat](https://github.com/sverweij/state-machine-cat/). Install NodeJS and NPM, and then install the NPM package 'state-machine-cat':
 ```
 npm i -g state-machine-cat
 ```

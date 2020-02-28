@@ -4,6 +4,7 @@ The classes and functions needed to run (compiled) SCCD models.
 
 import os
 import termcolor
+import functools
 from typing import List, Tuple
 from enum import Enum
 from sccd.runtime.infinity import INFINITY
@@ -316,11 +317,15 @@ class StatechartInstance(Instance):
         self.model = model
         self.object_manager = object_manager
 
+        # these 2 fields have the same information
         self.configuration = []
         self.configuration_bitmap = 0
+
         self.eventless_states = 0 # number of states in current configuration that have at least one eventless outgoing transition.
 
+        # mapping from configuration + changed_bitmap to list of possibly allowed transitions
         self.transition_mem = {}
+        # mapping from configuration_bitmap (=int) to configuration (=List[State])
         self.config_mem = {}
 
         self.history_values = {}
@@ -429,17 +434,13 @@ class StatechartInstance(Instance):
 
             
     def inState(self, state_strings):
-        state_ids = [self.model.states[state_string].state_id for state_string in state_strings]
-        for state_id in state_ids:
-            for s in self.configuration:
-                if s.state_id == state_id:
-                    break
-            else:
-                print_debug("not in state"+str(state_strings))
-                return False
-        print_debug("in state"+str(state_strings))
-        return True
-
+        state_ids = functools.reduce(lambda x,y: x&y, [2**self.model.states[state_string].state_id for state_string in state_strings])
+        in_state = (self.configuration_bitmap | state_ids) == self.configuration_bitmap
+        if in_state:
+            print_debug("in state"+str(state_strings))
+        else:
+            print_debug("not in state"+str(state_strings))
+        return in_state
 
     # generate transition candidates for current small step
     # @profile
@@ -532,6 +533,7 @@ class Maximality(Enum):
 
 class Round:
     def __init__(self, maximality: Maximality):
+        self.changed_bitmap
         self.current_events: List[Event] = []
         self.next_events: List[Event] = []
         self.has_stepped: bool = True

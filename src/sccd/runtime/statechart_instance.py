@@ -1,8 +1,3 @@
-"""
-The classes and functions needed to run (compiled) SCCD models.
-"""
-
-import os
 import termcolor
 import functools
 from typing import List, Tuple
@@ -82,10 +77,12 @@ class StatechartInstance(Instance):
         self.configuration.extend(states)
         self.configuration_bitmap = sum([2**s.state_id for s in states])
         for state in states:
+            print_debug(termcolor.colored('  ENTER %s'%state.name, 'green'))
             self.eventless_states += state.has_eventless_transitions
             if state.enter:
                 state.enter(self)
         stable = not self.eventless_states
+        print_debug(termcolor.colored('completed initialization', 'red'))
         return (stable, self._big_step.output_events)
 
     # perform a big step. generating a set of output events
@@ -135,6 +132,12 @@ class StatechartInstance(Instance):
 
         candidates = self._transition_candidates()
         if candidates:
+            # print_debug(termcolor.colored("small step candidates: "+
+            #     str(list(map(
+            #         lambda t: "("+str(list(map(
+            #             lambda s: "to "+s.name,
+            #             t.targets))),
+            #         candidates))), 'blue'))
             to_skip = set()
             conflicting = []
             for c1 in candidates:
@@ -152,10 +155,8 @@ class StatechartInstance(Instance):
                 candidate = conflicting[0]
                 if self.model.semantics.priority == StatechartSemantics.SourceParent:
                     self._fire_transition(candidate[-1])
-                    # candidate[-1].fire(self)
                 else:
                     self._fire_transition(candidate[0])
-                    # candidate[0].fire(self)
             elif self.model.semantics.concurrency == StatechartSemantics.Many:
                 pass # TODO: implement
             self._small_step.has_stepped = True
@@ -238,8 +239,8 @@ class StatechartInstance(Instance):
 
     # Return whether the current configuration includes ALL the states given.
     def inState(self, state_strings: List[str]) -> bool:
-        state_ids = functools.reduce(lambda x,y: x&y, [2**self.model.states[state_string].state_id for state_string in state_strings])
-        in_state = (self.configuration_bitmap | state_ids) == self.configuration_bitmap
+        state_ids_bitmap = functools.reduce(lambda x,y: x|y, [2**self.model.states[state_string].state_id for state_string in state_strings])
+        in_state = (self.configuration_bitmap | state_ids_bitmap) == self.configuration_bitmap
         if in_state:
             print_debug("in state"+str(state_strings))
         else:
@@ -263,6 +264,7 @@ class StatechartInstance(Instance):
                 not self._combo_step.has_stepped and
                     self.model.semantics.input_event_lifeline == StatechartSemantics.FirstSmallStep))):
             enabled_events += self._big_step.input_events
+        # print_debug(termcolor.colored("small step enabled events: "+str(list(map(lambda e: e.name, enabled_events))), 'blue'))
         enabled_transitions = []
         for t in transitions:
             if self._is_transition_enabled(t, enabled_events, enabled_transitions):

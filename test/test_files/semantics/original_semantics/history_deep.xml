@@ -11,7 +11,7 @@
         <scxml
             big_step_maximality="take_many"
             combo_step_maximality="take_many"
-            internal_event_lifeline="next_combo_step">
+            internal_event_lifeline="queue">
             <parallel id="parallel">
                 <state id="orthogonal" initial="wrapper">
                     <state id="wrapper" initial="state_1">
@@ -26,9 +26,7 @@
                             <state id="inner_3">
                                 <transition event="to_inner_4" target="../inner_4"/>
                             </state>
-                            <state id="inner_4">
-                            
-                            </state>
+                            <state id="inner_4"/>
                         </state>
                         
                         <history id="history" type="deep">
@@ -70,6 +68,7 @@
             </parallel>
         </scxml>
     </class>
+
     <test>
        <expected>
            <slot>

@@ -38,7 +38,7 @@ class PyTestCase(unittest.TestCase):
             try:
                 # Run as-fast-as-possible, always advancing time to the next item in event queue, no sleeping.
                 # The call returns when the event queue is empty and therefore the simulation is finished.
-                controller.run_until(INFINITY, pipe)
+                controller.run_until(None, pipe)
             except Exception as e:
                 pipe.put(e, block=True, timeout=None)
                 return

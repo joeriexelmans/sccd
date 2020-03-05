@@ -44,8 +44,9 @@ class GenericGenerator(Visitor):
 
         self.writer.addMultiLineComment(header)
         self.writer.addVSpace()
-        self.writer.addInclude(([GLC.RuntimeModuleIdentifier(), "statecharts_core"]))
         self.writer.addInclude(([GLC.RuntimeModuleIdentifier(), "event"]))
+        self.writer.addInclude(([GLC.RuntimeModuleIdentifier(), "statechart_syntax"]))
+        self.writer.addInclude(([GLC.RuntimeModuleIdentifier(), "statechart_instance"]))
         if class_diagram.top.strip():
             self.writer.addRawCode(class_diagram.top)
         self.writer.addVSpace()
@@ -256,7 +257,7 @@ class GenericGenerator(Visitor):
             GLC.FunctionCall(
                 GLC.Property(
                     GLC.SelfProperty("root"),
-                    "fixTree"
+                    "optimize"
                 )
             )
         )

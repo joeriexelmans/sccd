@@ -503,7 +503,6 @@ class StateChartNode(Visitable):
                 self.has_timers = True
         
         #TODO: Remove this...
-        self.optimizeTransitions()
         self.generateChildren(xml_element)    
         self.calculateDefaults(xml_element)
             
@@ -555,14 +554,7 @@ class StateChartNode(Visitable):
             self.exit_action = ExitAction(self, on_exits[0])    
         else :
             self.exit_action = ExitAction(self)
-            
-    def optimizeTransitions(self):
-        """If a transition with no trigger and no guard is found then it is considered as the only transition."""
-        try:
-            self.transitions = [next(t for t in self.transitions if (t.isUCTransition() and not t.hasGuard()))]
-        except StopIteration:
-            pass
-    
+
     def generateChildren(self, xml):
         children_names = []
         for child_xml in list(xml) :

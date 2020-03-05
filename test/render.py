@@ -5,7 +5,7 @@ import multiprocessing
 from lib.os_tools import *
 from lib.builder import *
 from sccd.compiler.utils import FormattedWriter
-from sccd.runtime.statecharts_core import *
+from sccd.runtime.statechart_syntax import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -33,6 +33,7 @@ if __name__ == '__main__':
       print("No input files specified.")      
       print()
       parser.print_usage()
+      exit()
 
 
     def process(src):
@@ -129,6 +130,7 @@ if __name__ == '__main__':
         if not args.keep_smcat:
           os.remove(smcat_target)
 
-    with multiprocessing.Pool(processes=args.pool_size) as pool:
-      print("Created a pool of %d processes."%args.pool_size)
+    pool_size = min(args.pool_size, len(srcs))
+    with multiprocessing.Pool(processes=pool_size) as pool:
+      print("Created a pool of %d processes."%pool_size)
       pool.map(process, srcs)

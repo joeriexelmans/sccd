@@ -51,10 +51,13 @@ class EventQueue(Generic[Item]):
             if item[2] not in self.removed:
                 return (timestamp, item[2])
 
+    def is_due(self, timestamp: Optional[Timestamp]) -> bool:
+        return len(self.queue) and (timestamp == None or self.queue[0][0] <= timestamp)
+
     # Safe to call on empty queue
     # Safe to call other methods on the queue while the returned generator exists
-    def due(self, timestamp: Timestamp) -> Generator[Tuple[Timestamp, Item], None, None]:
-        while len(self.queue) and self.queue[0][0] <= timestamp:
+    def due(self, timestamp: Optional[Timestamp]) -> Generator[Tuple[Timestamp, Item], None, None]:
+        while self.is_due(timestamp):
             yield self.pop()
 
 # Alternative implementation: A heapq with unique entries for each timestamp, and a deque with items for each timestamp.

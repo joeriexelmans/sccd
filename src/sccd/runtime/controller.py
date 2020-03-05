@@ -39,17 +39,13 @@ class Controller:
             # potentially responding to the event
             self.queue.add(self.simulated_time+time_offset, Controller.EventQueueEntry(event, self.object_manager.instances))
 
-    # The following 2 methods are the basis of any kind of event loop,
-    # regardless of the platform ()
-
     # Get timestamp of next entry in event queue
     def next_wakeup(self) -> Optional[Timestamp]:
         return self.queue.earliest_timestamp()
 
-    # Run until given timestamp.
-    # Simulation continues until there are no more due events wrt timestamp and until all instances are stable.
-    # Output generated while running is written to 'pipe' so it can be heard by another thread.
-    def run_until(self, now: Timestamp, pipe: queue.Queue):
+    # Run until the event queue has no more due events wrt given timestamp and until all instances are stable.
+    # If no timestamp is given (now = None), run until event queue is empty.
+    def run_until(self, now: Optional[Timestamp], pipe: queue.Queue):
 
         unstable: List[Instance] = []
 
@@ -68,28 +64,24 @@ class Controller:
                 pipe.put(pipe_events, block=True, timeout=None)
 
         # Helper. Let all unstable instances execute big steps until they are stable
-        def run_unstable():
-            had_unstable = False
+        def stabilize():
             while unstable:
-                had_unstable = True
                 for i in reversed(range(len(unstable))):
                     instance = unstable[i]
                     stable, output = instance.big_step(self.simulated_time, [])
                     process_big_step_output(output)
                     if stable:
                         del unstable[i]
-            if had_unstable:
-                print_debug("all instances stabilized.")
-                pass
+            else:
+                return
+            print_debug("all instances stabilized.")
 
-        if now < self.simulated_time:
-            raise Exception("Simulated time can only increase!")
 
         if not self.initialized:
             self.initialized = True
             # first run...
             # initialize the object manager, in turn initializing our default class
-            # and add the generated events to the queue
+            # and adding the generated events to the queue
             for i in self.object_manager.instances:
                 stable, events = i.initialize(self.simulated_time)
                 process_big_step_output(events)
@@ -97,21 +89,27 @@ class Controller:
                     unstable.append(i)
 
         # Actual "event loop"
-        for timestamp, entry in self.queue.due(now):
-            # check if there's a time leap
-            if timestamp is not self.simulated_time:
-                # before every "time leap", continue to run instances until they are stable.
-                run_unstable()
-                # make time leap
-                self.simulated_time = timestamp
-            # run all instances for whom there are events
-            for instance in entry.targets:
-                stable, output = instance.big_step(timestamp, [entry.event])
-                process_big_step_output(output)
-                if not stable:
-                    unstable.append(instance)
-
-        # continue to run instances until all are stable
-        run_unstable()
+        # TODO: What is are the right semantics for this loop?
+        # Should we stabilize every object after it has made a big step?
+        # Should we only stabilize when there are no more events?
+        # Should we never stabilize?
+        # Should this be a semantic option?
+        while unstable or self.queue.is_due(now):
+            # 1. Handle events
+            for timestamp, entry in self.queue.due(now):
+                # check if there's a time leap
+                if timestamp is not self.simulated_time:
+                    # before every "time leap", continue to run instances until they are stable.
+                    stabilize()
+                    # make time leap
+                    self.simulated_time = timestamp
+                # run all instances for whom there are events
+                for instance in entry.targets:
+                    stable, output = instance.big_step(timestamp, [entry.event])
+                    process_big_step_output(output)
+                    if not stable:
+                        unstable.append(instance)
+            # 2. No more due events -> stabilize
+            stabilize()
 
         self.simulated_time = now

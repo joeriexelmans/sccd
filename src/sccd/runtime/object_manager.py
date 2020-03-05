@@ -3,34 +3,7 @@ import abc
 from typing import List, Tuple
 from sccd.runtime.event import Instance, Event, OutputEvent, InstancesTarget
 from sccd.runtime.event_queue import Timestamp
-from sccd.runtime.statecharts_core import StatechartInstance
-
-class RuntimeException(Exception):
-    """
-    Base class for runtime exceptions.
-    """
-    def __init__(self, message):
-        self.message = message
-    def __str__(self):
-        return repr(self.message)
-
-class AssociationException(RuntimeException):
-    """
-    Exception class thrown when an error occurs in a CRUD operation on associations.
-    """
-    pass
-
-class AssociationReferenceException(RuntimeException):
-    """
-    Exception class thrown when an error occurs when resolving an association reference.
-    """
-    pass
-
-class ParameterException(RuntimeException):
-    """
-    Exception class thrown when an error occurs when passing parameters.
-    """
-    pass
+from sccd.runtime.statechart_instance import StatechartInstance
 
 # TODO: Clean this mess up. Look at all object management operations and see how they can be improved.
 class ObjectManager(Instance):
@@ -73,22 +46,22 @@ class ObjectManager(Instance):
                 pass
         return True, output
 
-    def _assoc_ref(self, input_string) -> List[Tuple[str,int]]:
-        if len(input_string) == 0:
-            raise AssociationReferenceException("Empty association reference.")
-        path_string =  input_string.split("/")
-        result = []
-        for piece in path_string:
-            match = ObjectManager._regex_pattern.match(piece)
-            if match:
-                name = match.group(1)
-                index = match.group(2)
-                if index is None:
-                    index = -1
-                result.append((name,int(index)))
-            else:
-                raise AssociationReferenceException("Invalid entry in association reference. Input string: " + input_string)
-        return result
+    # def _assoc_ref(self, input_string) -> List[Tuple[str,int]]:
+    #     if len(input_string) == 0:
+    #         raise AssociationReferenceException("Empty association reference.")
+    #     path_string =  input_string.split("/")
+    #     result = []
+    #     for piece in path_string:
+    #         match = ObjectManager._regex_pattern.match(piece)
+    #         if match:
+    #             name = match.group(1)
+    #             index = match.group(2)
+    #             if index is None:
+    #                 index = -1
+    #             result.append((name,int(index)))
+    #         else:
+    #             raise AssociationReferenceException("Invalid entry in association reference. Input string: " + input_string)
+    #     return result
             
     def _handle_broadcast(self, timestamp, parameters) -> OutputEvent:
         if len(parameters) != 2:

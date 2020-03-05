@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
       # Produce an output file for each class in the src file
       for class_name, _class in model.classes.items():
-        target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+'_'+class_name+ext)
+        target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+'+'+class_name+ext)
         smcat_target = target_path('.smcat')
         svg_target = target_path('.svg')
         

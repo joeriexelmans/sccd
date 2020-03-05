@@ -1,0 +1,59 @@
+<?xml version="1.0" ?>
+<diagram
+  xmlns="msdl.uantwerpen.be/sccd"
+  author="Joeri Exelmans"
+  name="take_one_next_small_step">
+  <description>
+    Order Of Small Steps: Explicit (Document order).
+  </description>
+  <outport name="out"/>
+  <class name="c" default="true">
+    <scxml initial="a" big_step_maximality="take_one">
+      <state id="a">
+        <onentry>
+          <raise event="entered_a" port="out"/>
+        </onentry>
+        <transition target="../b"/>
+        <transition target="../c"/>
+      </state>
+      <state id="b">
+        <onentry>
+          <raise event="entered_b" port="out"/>
+        </onentry>
+        <transition target="../e"/>
+        <transition target="../d"/>
+      </state>
+      <state id="c">
+        <onentry>
+          <raise event="entered_c" port="out"/>
+        </onentry>
+      </state>
+      <state id="d">
+        <onentry>
+          <raise event="entered_d" port="out"/>
+        </onentry>
+      </state>
+      <state id="e">
+        <onentry>
+          <raise event="entered_e" port="out"/>
+        </onentry>
+      </state>
+    </scxml>
+  </class>
+  <test>
+    <expected>
+      <slot>
+        <!-- initialization -->
+        <event name="entered_a" port="out"/>
+      </slot>
+      <slot>
+        <!-- big step -->
+        <event name="entered_b" port="out"/>
+      </slot>
+      <slot>
+        <!-- big step -->
+        <event name="entered_e" port="out"/>
+      </slot>
+    </expected>
+  </test>
+</diagram>

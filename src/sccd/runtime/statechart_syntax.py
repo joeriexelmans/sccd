@@ -1,6 +1,5 @@
 class State:
-    def __init__(self, state_id, name, obj):
-        self.state_id = state_id
+    def __init__(self, name, obj):
         self.name = name
         self.obj = obj
         
@@ -13,6 +12,7 @@ class State:
         self.history = [] # list of history states that are children
 
         # optimization stuff
+        self.state_id = -1
         self.ancestors = []
         self.descendants = []
         self.descendant_bitmap = 0
@@ -23,20 +23,27 @@ class State:
         if self.default_state:
             targets.extend(self.default_state.getEffectiveTargetStates(instance))
         return targets
-        
-    def optimize(self):
-        for c in self.children:
+
+    # Recursively assigns unique state_id to each state in the tree,
+    # as well as some other optimization stuff
+    # Should only be called once for the root of the state tree,
+    # after the tree has been built.
+    def init_tree(self, root_state_id: int = 0) -> int:
+        self.state_id = root_state_id
+        next_id = root_state_id + 1
+        for i, c in enumerate(self.children):
             if isinstance(c, HistoryState):
                 self.history.append(c)
             c.parent = self
             c.ancestors.append(self)
             c.ancestors.extend(self.ancestors)
-            c.optimize()
+            next_id += c.init_tree(next_id)
         self.descendants.extend(self.children)
         for c in self.children:
             self.descendants.extend(c.descendants)
         for d in self.descendants:
             self.descendant_bitmap |= 2**d.state_id
+        return 1 + len(self.descendants)
             
     def addChild(self, child):
         self.children.append(child)
@@ -54,12 +61,12 @@ class State:
         return "State(%s)" % (self.state_id)
         
 class HistoryState(State):
-    def __init__(self, state_id, name, obj):
-        State.__init__(self, state_id, name, obj)
+    def __init__(self, name, obj):
+        State.__init__(self, name, obj)
         
 class ShallowHistoryState(HistoryState):
-    def __init__(self, state_id, name, obj):
-        HistoryState.__init__(self, state_id, name, obj)
+    def __init__(self, name, obj):
+        HistoryState.__init__(self, name, obj)
         
     def getEffectiveTargetStates(self, instance):
         if self.state_id in instance.history_values:
@@ -72,8 +79,8 @@ class ShallowHistoryState(HistoryState):
             return self.parent.getEffectiveTargetStates(instance)
         
 class DeepHistoryState(HistoryState):
-    def __init__(self, state_id, name, obj):
-        HistoryState.__init__(self, state_id, name, obj)
+    def __init__(self, name, obj):
+        HistoryState.__init__(self, name, obj)
         
     def getEffectiveTargetStates(self, instance):
         if self.state_id in instance.history_values:
@@ -83,8 +90,8 @@ class DeepHistoryState(HistoryState):
             return self.parent.getEffectiveTargetStates(instance)
         
 class ParallelState(State):
-    def __init__(self, state_id, name, obj):
-        State.__init__(self, state_id, name, obj)
+    def __init__(self, name, obj):
+        State.__init__(self, name, obj)
         
     def getEffectiveTargetStates(self, instance):
         targets = [self]

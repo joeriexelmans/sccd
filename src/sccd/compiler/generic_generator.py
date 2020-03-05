@@ -192,7 +192,7 @@ class GenericGenerator(Visitor):
 
         self.writer.addVSpace()
 
-        def writeState(s, i):
+        def writeState(s):
             # self.writer.addComment("state %s" % ("<root>" if s.is_root else s.new_full_name))
             index_expr = GLC.MapIndexedExpression(GLC.SelfProperty("states"), GLC.String(s.new_full_name))
             clazz = "State"
@@ -205,7 +205,7 @@ class GenericGenerator(Visitor):
                     clazz = "ShallowHistoryState"
             self.writer.addAssignment(
                 index_expr,
-                GLC.NewExpression(clazz, [str(i), GLC.String(s.new_full_name), GLC.SelfExpression()])
+                GLC.NewExpression(clazz, [GLC.String(s.new_full_name), GLC.SelfExpression()])
             )
             if not s.is_root:
                 if s.enter_action.action or s.has_timers:
@@ -231,8 +231,8 @@ class GenericGenerator(Visitor):
         
         # write all states
         self.writer.addAssignment(GLC.SelfProperty("states"), GLC.MapExpression())
-        for (i, s) in enumerate(statechart.states):
-            writeState(s, i)
+        for s in statechart.states:
+            writeState(s)
 
         # statechart structure
         self.writer.addVSpace()
@@ -257,7 +257,7 @@ class GenericGenerator(Visitor):
             GLC.FunctionCall(
                 GLC.Property(
                     GLC.SelfProperty("root"),
-                    "optimize"
+                    "init_tree"
                 )
             )
         )

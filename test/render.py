@@ -76,7 +76,7 @@ if __name__ == '__main__':
             w.extendWrite('"')
             if isinstance(s, ParallelState):
               w.extendWrite(' type=parallel')
-            elif isinstance(s, HistoryState):
+            elif isinstance(s, ShallowHistoryState):
               w.extendWrite(' type=history')
             elif isinstance(s, DeepHistoryState):
               w.extendWrite(' type=deephistory')

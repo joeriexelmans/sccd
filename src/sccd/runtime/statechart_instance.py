@@ -5,7 +5,7 @@ from enum import Enum
 from sccd.runtime.infinity import INFINITY
 from sccd.runtime.event_queue import Timestamp
 from sccd.runtime.statechart_syntax import *
-from sccd.runtime.event import Event, OutputEvent, Instance, InstancesTarget
+from sccd.runtime.event import *
 from sccd.runtime.semantic_options import *
 from sccd.runtime.debug import print_debug
 from collections import Counter
@@ -44,8 +44,7 @@ class StatechartInstance(Instance):
         for state in states:
             print_debug(termcolor.colored('  ENTER %s'%state.name, 'green'))
             self.eventless_states += state.has_eventless_transitions
-            if state.enter:
-                state.enter(self)
+            self._perform_actions(state.enter)
         stable = not self.eventless_states
         print_debug(termcolor.colored('completed initialization', 'red'))
         return (stable, self._big_step.output_events)
@@ -166,8 +165,7 @@ class StatechartInstance(Instance):
             print_debug(termcolor.colored('  EXIT %s' % s.name, 'green'))
             self.eventless_states -= s.has_eventless_transitions
             # execute exit action(s)
-            if s.exit:
-                s.exit(self)
+            self._perform_actions(s.exit)
             self.configuration_bitmap &= ~2**s.state_id
         
         # combo state changed area
@@ -175,8 +173,7 @@ class StatechartInstance(Instance):
         self._combo_step.changed_bitmap |= t.lca.descendant_bitmap
         
         # execute transition action(s)
-        if t.action:
-            t.action(self, t.enabled_event.parameters if t.enabled_event else [])
+        self._perform_actions(t.actions)
             
         # enter states...
         targets = __getEffectiveTargetStates()
@@ -186,8 +183,7 @@ class StatechartInstance(Instance):
             self.eventless_states += s.has_eventless_transitions
             self.configuration_bitmap |= 2**s.state_id
             # execute enter action(s)
-            if s.enter:
-                s.enter(self)
+            self._perform_actions(s.enter)
         try:
             self.configuration = self.config_mem[self.configuration_bitmap]
         except:
@@ -246,6 +242,16 @@ class StatechartInstance(Instance):
                 if (t.trigger.name == event.name and (not t.trigger.port or t.trigger.port == event.port)) and ((t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard(event.parameters)):
                     t.enabled_event = event
                     return True
+
+    def _perform_actions(self, actions: List[Action]):
+        for a in actions:
+            if isinstance(a, RaiseInternalEvent):
+                self._raiseInternalEvent(Event(name=a.name, port="", parameters=[]))
+            elif isinstance(a, RaiseOutputEvent):
+                self._big_step.addOutputEvent(
+                    OutputEvent(Event(name=a.name, port=a.outport, parameters=[]),
+                    OutputPortTarget(a.outport),
+                    a.time_offset))
 
     def _raiseInternalEvent(self, event):
         if self.model.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_SMALL_STEP:

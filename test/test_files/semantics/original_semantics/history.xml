@@ -38,8 +38,8 @@
     </class>
     <test>
         <input>
-            <event name="to_state_2" port="in" time="0.0"/>
-            <event name="to_state_3" port="in" time="0.0"/>
+            <event name="to_state_2" port="in" time="0"/>
+            <event name="to_state_3" port="in" time="0"/>
         </input>
         <expected>
             <slot>

@@ -10,9 +10,6 @@ PARENT_NODE: ".."
 CURRENT_NODE: "." 
 IDENTIFIER: /[A-Za-z_][A-Za-z_0-9]*/ 
 
-// this rule isn't used but is required
-start : target_expr
-
 // target of a transition
 target_expr: _path | "(" _path ("," _path)+ ")" 
 

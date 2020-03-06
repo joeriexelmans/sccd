@@ -15,13 +15,13 @@
 				<onentry>
 					<raise event="entered_a" port="out"/>
 				</onentry>
-				<transition target="../b"/>
+				<transition target="/b"/>
 			</state>
 			<state id="b">
 				<onentry>
 					<raise event="entered_b" port="out"/>
 				</onentry>
-				<transition target="../c"/>
+				<transition target="/c"/>
 			</state>
 			<state id="c">
 				<onentry>

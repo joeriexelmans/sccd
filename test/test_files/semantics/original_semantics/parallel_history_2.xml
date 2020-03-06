@@ -67,10 +67,10 @@
     </class>
     <test>
         <input>
-            <event name="to_outer_1" port="test_input" time="0.0"/>
-            <event name="to_outer_2" port="test_input" time="0.0"/>
-            <event name="exit" port="test_input" time="0.0"/>
-            <event name="to_history_1" port="test_input" time="0.0"/>
+            <event name="to_outer_1" port="test_input" time="0"/>
+            <event name="to_outer_2" port="test_input" time="0"/>
+            <event name="exit" port="test_input" time="0"/>
+            <event name="to_history_1" port="test_input" time="0"/>
         </input>
        <expected>
            <slot>

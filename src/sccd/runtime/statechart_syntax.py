@@ -3,6 +3,10 @@ from typing import *
 from sccd.runtime.event_queue import Timestamp
 from sccd.compiler.utils import FormattedWriter
 
+@dataclass
+class Action:
+    pass
+
 class State:
     def __init__(self, short_name):
         self.short_name = short_name
@@ -12,8 +16,8 @@ class State:
         self.children = []
         self.default_state = None
         self.transitions = []
-        self.enter = None
-        self.exit = None
+        self.enter: List[Action] = []
+        self.exit: List[Action] = []
         self.history = [] # list of history states that are children
 
         # optimization stuff
@@ -66,10 +70,10 @@ class State:
     def addTransition(self, transition):
         self.transitions.append(transition)
         
-    def setEnter(self, enter):
+    def setEnter(self, enter: List[Action]):
         self.enter = enter
         
-    def setExit(self, exit):
+    def setExit(self, exit: List[Action]):
         self.exit = exit
                     
     def __repr__(self):
@@ -116,25 +120,25 @@ class ParallelState(State):
         return targets
 
 @dataclass
-class Target:
-    expr: str
-    targets: List[State] = field(default_factory=list)
+class Trigger:
+    name: str
+    port: str
 
 class Transition:
-    def __init__(self, source, target: Target):
+    def __init__(self, source, targets: List[State]):
         self.guard = None
-        self.action = None
-        self.trigger = None
+        self.actions: List[Action] = []
+        self.trigger: Optional[Trigger] = None
         self.source = source
-        self.targets = target
+        self.targets = targets
         self.enabled_event = None # the event that enabled this transition
         self.optimize()
                     
     def setGuard(self, guard):
         self.guard = guard
         
-    def setAction(self, action):
-        self.action = action
+    def setActions(self, actions):
+        self.actions = actions
     
     def setTrigger(self, trigger):
         self.trigger = trigger
@@ -162,9 +166,6 @@ class Transition:
 class Expression:
     pass
 
-@dataclass
-class Action:
-    pass
 
 @dataclass
 class RaiseEvent(Action):

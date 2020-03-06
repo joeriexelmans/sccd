@@ -29,7 +29,7 @@ class Concurrency(Enum):
   MANY = 1
 
 @dataclass
-class SemanticOptions:
+class SemanticConfiguration:
   big_step_maximality: BigStepMaximality = BigStepMaximality.TAKE_MANY
   combo_step_maximality: ComboStepMaximality = ComboStepMaximality.COMBO_TAKE_ONE
   internal_event_lifeline: InternalEventLifeline = InternalEventLifeline.NEXT_COMBO_STEP

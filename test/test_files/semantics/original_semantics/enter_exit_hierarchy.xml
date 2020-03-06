@@ -77,12 +77,12 @@
   </class>
   <test>
     <input>
-      <event name="to_composite" port="in" time="0.0"/>
-      <event name="to_inner2" port="in" time="0.0"/>
-      <event name="to_outside" port="in" time="0.0"/>
-      <event name="to_inner3" port="in" time="0.0"/>
-      <event name="to_outside" port="in" time="0.0"/>
-      <event name="to_inner4" port="in" time="0.0"/>
+      <event name="to_composite" port="in" time="0"/>
+      <event name="to_inner2" port="in" time="0"/>
+      <event name="to_outside" port="in" time="0"/>
+      <event name="to_inner3" port="in" time="0"/>
+      <event name="to_outside" port="in" time="0"/>
+      <event name="to_inner4" port="in" time="0"/>
     </input>
     
     <expected>

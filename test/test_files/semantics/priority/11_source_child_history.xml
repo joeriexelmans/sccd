@@ -25,7 +25,7 @@
 	</class>
 	<test>
 		<input>
-			<event name="e" port="in" time="0.0"/>
+			<event name="e" port="in" time="0"/>
 		</input>
 		<expected>
 			<slot>

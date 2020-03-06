@@ -30,7 +30,7 @@
     </class>
     <test>
         <input>
-            <event name="event" port="test_input" time="0.0"/>
+            <event name="event" port="test_input" time="0"/>
         </input>
        <expected>
            <slot>

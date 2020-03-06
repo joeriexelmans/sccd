@@ -3,7 +3,6 @@ import sys
 import subprocess
 import multiprocessing
 from lib.os_tools import *
-from lib.builder import *
 from lib.loader import *
 from sccd.compiler.utils import FormattedWriter
 from sccd.runtime.statechart_syntax import *
@@ -59,14 +58,18 @@ if __name__ == '__main__':
           return label if len(label) else "root"
         def name_to_name(name):
           return name.replace('/','_')
+
+        # Used for drawing initial state
         class PseudoState:
           def __init__(self, name):
             self.name = name
+        # Used for drawing initial state
         class PseudoTransition:
           def __init__(self, source, targets):
             self.source = source
             self.targets = targets
             self.trigger = None
+            self.actions = []
 
         transitions = []
 
@@ -85,6 +88,13 @@ if __name__ == '__main__':
             else:
               w.extendWrite(' type=regular')
             w.extendWrite(']')
+          if s.enter or s.exit:
+            w.extendWrite(' :')
+            for a in s.enter:
+              w.write("onentry/ "+a.render())
+            for a in s.exit:
+              w.write("onexit/ "+a.render())
+            w.write()
           if s.children:
             if not hide:
               w.extendWrite(' {')
@@ -107,6 +117,9 @@ if __name__ == '__main__':
           label = ""
           if t.trigger and t.trigger.name:
               label = (t.trigger.port + '.' if t.trigger.port else '') + t.trigger.name
+          if t.actions:
+            raises = [a for a in t.actions if isinstance(a, RaiseEvent)]
+            label += ','.join([r.render() for r in raises])
 
           if len(t.targets) == 1:
             w.write(name_to_name(t.source.name) + ' -> ' + name_to_name(t.targets[0].name))

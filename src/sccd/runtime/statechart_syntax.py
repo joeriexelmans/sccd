@@ -9,7 +9,9 @@ class Action:
 
 class State:
     def __init__(self, short_name):
+        # 'id' attribute of the state in XML. possibly not unique within the statechart
         self.short_name = short_name
+        # "full name", unique within the statechart
         self.name = ""
         
         self.parent = None
@@ -172,6 +174,10 @@ class RaiseEvent(Action):
     name: str
     parameters: List[Expression]
 
+    # just a simple string representation for rendering a transition label
+    def render(self) -> str:
+        return '^'+self.name
+
 @dataclass
 class RaiseInternalEvent(RaiseEvent):
     pass
@@ -180,3 +186,6 @@ class RaiseInternalEvent(RaiseEvent):
 class RaiseOutputEvent(RaiseEvent):
     outport: str
     time_offset: Timestamp
+
+    def render(self) -> str:
+        return '^'+self.outport + '.' + self.name

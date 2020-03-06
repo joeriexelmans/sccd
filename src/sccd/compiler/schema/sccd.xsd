@@ -196,8 +196,8 @@
     <xsd:attribute name="combo_step_maximality">
       <xsd:simpleType>
         <xsd:restriction base="xsd:string">
-          <xsd:enumeration value="take_one"/>
-          <xsd:enumeration value="take_many"/>
+          <xsd:enumeration value="combo_take_one"/>
+          <xsd:enumeration value="combo_take_many"/>
         </xsd:restriction>
       </xsd:simpleType>
     </xsd:attribute>

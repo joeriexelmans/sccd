@@ -79,7 +79,7 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
     _class.statechart = statechart
 
     model.classes[class_name] = lambda: _class
-    if default:
+    if default or len(classes) == 1:
       model.default_class = class_name
 
   def find_ports(element_path, collection):

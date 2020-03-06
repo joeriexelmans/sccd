@@ -15,7 +15,7 @@ schema_path = os.path.join(
 schema = ET.XMLSchema(ET.parse(schema_path))
 
 grammar = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),"grammar.g"))
-l = Lark(grammar, parser="lalr", start=["target_expr"])
+l = Lark(grammar, parser="earley", start=["state_ref", "expr"])
 
 
 # Some types immitating the types that are produced by the compiler
@@ -74,11 +74,11 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
         value = aspect.type[key.upper()]
         setattr(semantics, aspect.name, value)
 
-    class_ = Class(class_name, None)
-    statechart = Statechart(class_, root_state, states, semantics)
-    class_.statechart = statechart
+    _class = Class(class_name, None)
+    statechart = Statechart(_class=_class, root=root_state, states=states, semantics=semantics)
+    _class.statechart = statechart
 
-    model.classes[class_name] = lambda: class_
+    model.classes[class_name] = lambda: _class
     if default:
       model.default_class = class_name
 
@@ -119,7 +119,7 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
 
   return (model, test)
 
-class InvalidTag(Exception):
+class SkipTag(Exception):
   pass
 
 def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
@@ -144,7 +144,7 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
       else:
         state = ShallowHistoryState(name)
     else:
-      raise InvalidTag()
+      raise SkipTag()
 
     initial = xml_node.get("initial", "")
     for xml_child in xml_node.getchildren():
@@ -153,7 +153,7 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
         state.addChild(child)
         if child.short_name == initial:
           state.default_state = child
-      except InvalidTag:
+      except SkipTag:
         pass # skip non-state tags
 
     if not initial and len(state.children) == 1:
@@ -182,7 +182,7 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
   for xml_t, source in transitions:
     # Parse and find target state
     target_string = xml_t.get("target", "")
-    parse_tree = l.parse(target_string, start="target_expr")
+    parse_tree = l.parse(target_string, start="state_ref")
     def find_state(sequence) -> State:
       if sequence.data == "relative_path":
         el = source
@@ -212,8 +212,14 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
     # Actions
     actions = load_actions(xml_t)
     transition.setActions(actions)
-    # todo: set guard
-
+    # Guard
+    cond = xml_t.get("cond")
+    if cond is not None:
+      parse_tree = l.parse(cond, start="expr")
+      # print(parse_tree)
+      # print(parse_tree.pretty())
+      cond_expr = load_expression(parse_tree)
+      transition.setGuard(cond_expr)
     source.addTransition(transition)
 
   return (root, states)
@@ -228,7 +234,7 @@ def load_action(action_node) -> Optional[Action]:
     else:
       return RaiseOutputEvent(name=event, parameters=[], outport=port, time_offset=0)
   else:
-    raise InvalidTag()
+    raise SkipTag()
 
 # parent_node: XML node containing 0 or more action nodes as direct children
 def load_actions(parent_node) -> List[Action]:
@@ -238,6 +244,23 @@ def load_actions(parent_node) -> List[Action]:
       a = load_action(node)
       if a:
         actions.append(a)
-    except InvalidTag:
+    except SkipTag:
       pass # skip non-action tags
   return actions
+
+class UnknownExpressionType(Exception):
+  pass
+
+def load_expression(parse_node) -> Expression:
+  if parse_node.data == "func_call":
+    function = load_expression(parse_node.children[0])
+    parameters = [load_expression(e) for e in parse_node.children[1].children]
+    return FunctionCall(function, parameters)
+  elif parse_node.data == "string":
+    return StringLiteral(parse_node.children[0].value[1:-1])
+  elif parse_node.data == "identifier":
+    return Identifier(parse_node.children[0].value)
+  elif parse_node.data == "array":
+    elements = [load_expression(e) for e in parse_node.children]
+    return Array(elements)
+  raise UnknownExpressionType()

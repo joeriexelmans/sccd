@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
 from typing import *
 from sccd.runtime.event_queue import Timestamp
+from sccd.runtime.expression import *
 from sccd.compiler.utils import FormattedWriter
+
 
 @dataclass
 class Action:
@@ -139,12 +141,12 @@ class AfterTrigger(Trigger):
 
 class Transition:
     def __init__(self, source, targets: List[State]):
-        self.guard = None
+        self.guard: Optional[Expression] = None
         self.actions: List[Action] = []
         self.trigger: Optional[Trigger] = None
         self.source = source
         self.targets = targets
-        self.enabled_event = None # the event that enabled this transition
+        # self.enabled_event = None # the event that enabled this transition <_ huh?
         self.optimize()
                     
     def setGuard(self, guard):
@@ -173,12 +175,6 @@ class Transition:
                     
     def __repr__(self):
         return "Transition(%s, %s)" % (self.source, self.targets[0])
-
-
-@dataclass
-class Expression:
-    pass
-
 
 @dataclass
 class RaiseEvent(Action):

@@ -17,6 +17,10 @@ class StatechartInstance(Instance):
         self.model = model
         self.object_manager = object_manager
 
+        self.data_model = DataModel(self, {
+            "INSTATE": Variable(self.inState),
+        })
+
         # these 2 fields have the same information
         self.configuration = []
         self.configuration_bitmap = 0
@@ -47,7 +51,7 @@ class StatechartInstance(Instance):
             self._perform_actions(state.enter)
             self._start_timers(state.after_triggers)
         stable = not self.eventless_states
-        print_debug(termcolor.colored('completed initialization (time=%d)'%now, 'red'))
+        print_debug(termcolor.colored('completed initialization (time=%d)'%now+("(stable)" if stable else ""), 'red'))
         return (stable, self._big_step.output_events)
 
     # perform a big step. generating a set of output events
@@ -62,11 +66,14 @@ class StatechartInstance(Instance):
             if self.model.semantics.big_step_maximality == BigStepMaximality.TAKE_ONE:
                 break # Take One -> only one combo step allowed
 
-        if self._big_step.has_stepped:
-            print_debug(termcolor.colored('completed big step (time=%d)'%now, 'red'))
-
         # can the next big step still contain transitions, even if there are no input events?
-        stable = not self.eventless_states or (not filtered and not self._big_step.has_stepped)
+        stable = not self.eventless_states or (not input_events and not self._big_step.has_stepped)
+
+        if self._big_step.has_stepped:
+            print_debug(termcolor.colored('completed big step (time=%d)'%now+(" (stable)" if stable else ""), 'red'))
+        else:
+            print_debug(termcolor.colored("(stable)" if stable else "", 'red'))
+
         return (stable, self._big_step.output_events)
 
     def combo_step(self):
@@ -183,7 +190,7 @@ class StatechartInstance(Instance):
             self.configuration = self.config_mem[self.configuration_bitmap]
         except:
             self.configuration = self.config_mem[self.configuration_bitmap] = sorted([s for s in list(self.model.states.values()) if 2**s.state_id & self.configuration_bitmap], key=lambda s: s.state_id)
-        t.enabled_event = None
+        # t.enabled_event = None
         
 
     # def getChildren(self, link_name):
@@ -224,18 +231,17 @@ class StatechartInstance(Instance):
         enabled_transitions = []
         for t in transitions:
             if self._is_transition_enabled(t, enabled_events, enabled_transitions):
-            # if t.isEnabled(self, enabled_events, enabled_transitions):
                 enabled_transitions.append(t)
         return enabled_transitions
 
     def _is_transition_enabled(self, t, events, enabled_transitions) -> bool:
         if t.trigger is None:
-            t.enabled_event = None
-            return (t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard(self, [])
+            # t.enabled_event = None
+            return (t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(self.data_model)
         else:
             for event in events:
                 if (t.trigger.name == event.name and (not t.trigger.port or t.trigger.port == event.port)) and ((t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard(event.parameters)):
-                    t.enabled_event = event
+                    # t.enabled_event = event
                     return True
 
     def _perform_actions(self, actions: List[Action]):

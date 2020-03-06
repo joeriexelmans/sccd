@@ -10,32 +10,18 @@
   <class name="c" default="true">
     <scxml initial="a" big_step_maximality="take_one">
       <state id="a">
-        <onentry>
-          <raise event="entered_a" port="out"/>
-        </onentry>
         <transition target="../b"/>
         <transition target="../c"/>
       </state>
       <state id="b">
-        <onentry>
-          <raise event="entered_b" port="out"/>
-        </onentry>
         <transition target="../e"/>
         <transition target="../d"/>
       </state>
-      <state id="c">
-        <onentry>
-          <raise event="entered_c" port="out"/>
-        </onentry>
-      </state>
-      <state id="d">
-        <onentry>
-          <raise event="entered_d" port="out"/>
-        </onentry>
-      </state>
+      <state id="c"/>
+      <state id="d"/>
       <state id="e">
         <onentry>
-          <raise event="entered_e" port="out"/>
+          <raise event="bingo" port="out"/>
         </onentry>
       </state>
     </scxml>
@@ -43,16 +29,7 @@
   <test>
     <expected>
       <slot>
-        <!-- initialization -->
-        <event name="entered_a" port="out"/>
-      </slot>
-      <slot>
-        <!-- big step -->
-        <event name="entered_b" port="out"/>
-      </slot>
-      <slot>
-        <!-- big step -->
-        <event name="entered_e" port="out"/>
+        <event name="bingo" port="out"/>
       </slot>
     </expected>
   </test>

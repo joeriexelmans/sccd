@@ -12,7 +12,7 @@
       <parallel id="p">
         <state id="region1" initial="s1">
           <state id="s1">
-            <transition target="../s2" cond="INSTATE('/p/region2/s1')">
+            <transition target="../s2" cond='INSTATE(["/p/region2/s1"])'>
               <raise port="out" event="t1"/>
             </transition>
           </state>
@@ -20,7 +20,7 @@
         </state>
         <state id="region2" initial="s1">
           <state id="s1">
-            <transition target="../s2" cond="INSTATE('/p/region1/s1')">
+            <transition target="../s2" cond='INSTATE(["/p/region1/s1"])'>
               <raise port="out" event="t2"/>
             </transition>
           </state>

@@ -4,6 +4,7 @@ import subprocess
 import multiprocessing
 from lib.os_tools import *
 from lib.builder import *
+from lib.loader import *
 from sccd.compiler.utils import FormattedWriter
 from sccd.runtime.statechart_syntax import *
 
@@ -19,7 +20,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 
-    builder = Builder(args.build_dir)
+    # builder = Builder(args.build_dir)
+    builder = Loader()
     srcs = get_files(args.path, filter=filter_xml)
 
     if len(srcs):

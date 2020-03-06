@@ -34,7 +34,7 @@ class StatechartInstance(Instance):
         self._combo_step = ComboStepState()
         self._small_step = SmallStepState()
 
-        self.ignore_events = Counter() # Mapping from event name to future times to ignore such event. Used for canceling timers.
+        self.next_timer_id = 0 # each time a timer is started, a new unique future event is created for ourselves.
 
     # enter default states, generating a set of output events
     def initialize(self, now: Timestamp) -> Tuple[bool, List[OutputEvent]]:
@@ -45,20 +45,14 @@ class StatechartInstance(Instance):
             print_debug(termcolor.colored('  ENTER %s'%state.name, 'green'))
             self.eventless_states += state.has_eventless_transitions
             self._perform_actions(state.enter)
+            self._start_timers(state.after_triggers)
         stable = not self.eventless_states
-        print_debug(termcolor.colored('completed initialization', 'red'))
+        print_debug(termcolor.colored('completed initialization (time=%d)'%now, 'red'))
         return (stable, self._big_step.output_events)
 
     # perform a big step. generating a set of output events
     def big_step(self, now: Timestamp, input_events: List[Event]) -> Tuple[bool, List[OutputEvent]]:
-        filtered = []
-        for e in input_events:
-            if e.name in self.ignore_events:
-                self.ignore_events[e.name] -= 1
-            else:
-                filtered.append(e)
-
-        self._big_step.next(filtered)
+        self._big_step.next(input_events)
         self._combo_step.reset()
         self._small_step.reset()
 
@@ -69,7 +63,7 @@ class StatechartInstance(Instance):
                 break # Take One -> only one combo step allowed
 
         if self._big_step.has_stepped:
-            print_debug(termcolor.colored('completed big step', 'red'))
+            print_debug(termcolor.colored('completed big step (time=%d)'%now, 'red'))
 
         # can the next big step still contain transitions, even if there are no input events?
         stable = not self.eventless_states or (not filtered and not self._big_step.has_stepped)
@@ -184,6 +178,7 @@ class StatechartInstance(Instance):
             self.configuration_bitmap |= 2**s.state_id
             # execute enter action(s)
             self._perform_actions(s.enter)
+            self._start_timers(s.after_triggers)
         try:
             self.configuration = self.config_mem[self.configuration_bitmap]
         except:
@@ -252,6 +247,16 @@ class StatechartInstance(Instance):
                     OutputEvent(Event(name=a.name, port=a.outport, parameters=[]),
                     OutputPortTarget(a.outport),
                     a.time_offset))
+
+    def _start_timers(self, triggers: List[AfterTrigger]):
+        for after in triggers:
+            event_name = "_after"+str(self.next_timer_id)
+            self.next_timer_id += 1
+            self._big_step.addOutputEvent(OutputEvent(
+                Event(event_name),
+                target=InstancesTarget([self]),
+                time_offset=after.delay))
+            after.name = event_name # update trigger
 
     def _raiseInternalEvent(self, event):
         if self.model.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_SMALL_STEP:

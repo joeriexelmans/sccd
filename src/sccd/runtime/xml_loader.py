@@ -127,7 +127,6 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
   states: Dict[str, State] = {}
   transitions: List[Tuple[Any, State]] = [] # List of (<transition>, State) tuples
 
-
   # Recursively create state hierarchy from XML node
   # Adding <transition> elements to the 'transitions' list as a side effect
   def _get_state_tree(xml_node) -> State:
@@ -204,7 +203,11 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
     # Trigger
     event = xml_t.get("event")
     port = xml_t.get("port")
-    trigger = None if event == None else Trigger(event, port)
+    after = xml_t.get("after")
+    if after is not None:
+      trigger = AfterTrigger(Timestamp(after))
+    else:
+      trigger = None if event == None else Trigger(event, port)
     transition.setTrigger(trigger)
     # Actions
     actions = load_actions(xml_t)

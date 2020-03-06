@@ -7,6 +7,7 @@ from sccd.runtime.infinity import INFINITY
 from sccd.runtime.event import Event
 from sccd.runtime.controller import Controller
 from lib.builder import Builder
+from lib.loader import Loader
 from lib.os_tools import *
 
 class PyTestCase(unittest.TestCase):
@@ -98,7 +99,8 @@ if __name__ == '__main__':
 
     src_files = get_files(args.path, filter=filter_xml)
 
-    builder = Builder(args.build_dir)
+    # builder = Builder(args.build_dir)
+    builder = Loader()
     suite = unittest.TestSuite()
     for src_file in src_files:
         suite.addTest(PyTestCase(src_file, builder))

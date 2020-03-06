@@ -6,46 +6,11 @@ from sccd.runtime.infinity import INFINITY
 from sccd.runtime.event_queue import Timestamp
 from sccd.runtime.statechart_syntax import *
 from sccd.runtime.event import Event, OutputEvent, Instance, InstancesTarget
+from sccd.runtime.semantic_options import *
 from sccd.runtime.debug import print_debug
 from collections import Counter
 
 ELSE_GUARD = "ELSE_GUARD"
-
-class StatechartSemantics:
-    # Big Step Maximality
-    TakeOne = 0
-    TakeMany = 1
-    # Combo Step Maximality
-    ComboTakeOne = 0
-    ComboTakeMany = 1
-    # Concurrency - not implemented yet
-    Single = 0
-    Many = 1
-    # Preemption - not implemented yet
-    NonPreemptive = 0
-    Preemptive = 1
-    # Internal Event Lifeline
-    Queue = 0
-    NextSmallStep = 1
-    NextComboStep = 2
-    # Input Event Lifeline
-    Whole = 0
-    FirstSmallStep = 1
-    FirstComboStep = 2
-    # Priority
-    SourceParent = 0
-    SourceChild = 1
-    # TODO: add Memory Protocol options
-    
-    def __init__(self):
-        # default semantics:
-        self._big_step_maximality = self.TakeMany
-        self.combo_step_maximality = self.TakeOne
-        self.internal_event_lifeline = self.Queue
-        self.input_event_lifeline = self.FirstComboStep
-        self.priority = self.SourceParent
-        self.concurrency = self.Single
-    
         
 class StatechartInstance(Instance):
     def __init__(self, model, object_manager):
@@ -101,7 +66,7 @@ class StatechartInstance(Instance):
         while self.combo_step():
             print_debug(termcolor.colored('completed combo step', 'yellow'))
             self._big_step.has_stepped = True
-            if self.model.semantics.big_step_maximality == StatechartSemantics.TakeOne:
+            if self.model.semantics.big_step_maximality == BigStepMaximality.TAKE_ONE:
                 break # Take One -> only one combo step allowed
 
         if self._big_step.has_stepped:
@@ -151,13 +116,13 @@ class StatechartInstance(Instance):
                     import functools
                     conflicting.append(sorted(conflict, key=functools.cmp_to_key(__younger_than)))
 
-            if self.model.semantics.concurrency == StatechartSemantics.Single:
+            if self.model.semantics.concurrency == Concurrency.SINGLE:
                 candidate = conflicting[0]
-                if self.model.semantics.priority == StatechartSemantics.SourceParent:
+                if self.model.semantics.priority == Priority.SOURCE_PARENT:
                     self._fire_transition(candidate[-1])
                 else:
                     self._fire_transition(candidate[0])
-            elif self.model.semantics.concurrency == StatechartSemantics.Many:
+            elif self.model.semantics.concurrency == Concurrency.MANY:
                 pass # TODO: implement
             self._small_step.has_stepped = True
         return self._small_step.has_stepped
@@ -258,11 +223,11 @@ class StatechartInstance(Instance):
             self.transition_mem[key] = transitions = [t for s in self.configuration if not (2**s.state_id & changed_bitmap) for t in s.transitions]
         
         enabled_events = self._small_step.current_events + self._combo_step.current_events
-        if self.model.semantics.input_event_lifeline == StatechartSemantics.Whole or (
+        if self.model.semantics.input_event_lifeline == InputEventLifeline.WHOLE or (
             not self._big_step.has_stepped and
-                (self.model.semantics.input_event_lifeline == StatechartSemantics.FirstComboStep or (
+                (self.model.semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP or (
                 not self._combo_step.has_stepped and
-                    self.model.semantics.input_event_lifeline == StatechartSemantics.FirstSmallStep))):
+                    self.model.semantics.input_event_lifeline == InputEventLifeline.FIRST_SMALL_STEP))):
             enabled_events += self._big_step.input_events
         # print_debug(termcolor.colored("small step enabled events: "+str(list(map(lambda e: e.name, enabled_events))), 'blue'))
         enabled_transitions = []
@@ -283,11 +248,11 @@ class StatechartInstance(Instance):
                     return True
 
     def _raiseInternalEvent(self, event):
-        if self.model.semantics.internal_event_lifeline == StatechartSemantics.NextSmallStep:
+        if self.model.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_SMALL_STEP:
             self._small_step.addNextEvent(event)
-        elif self.model.semantics.internal_event_lifeline == StatechartSemantics.NextComboStep:
+        elif self.model.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_COMBO_STEP:
             self._combo_step.addNextEvent(event)
-        elif self.model.semantics.internal_event_lifeline == StatechartSemantics.Queue:
+        elif self.model.semantics.internal_event_lifeline == InternalEventLifeline.QUEUE:
             self._big_step.addOutputEvent(OutputEvent(event, InstancesTarget([self])))
 
 

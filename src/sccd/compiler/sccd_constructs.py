@@ -445,6 +445,7 @@ class ExitAction(EnterExitAction):
 
 class StateChartNode(Visitable):
     def __init__(self, statechart, xml_element, parent = None):
+
         self.statechart = statechart
         self.parent = parent
         self.children = []
@@ -508,7 +509,7 @@ class StateChartNode(Visitable):
             
     def resolveName(self, xml):
         if self.is_root :
-            self.new_name = "/"
+            self.new_name = ""
             self.new_full_name = "/"
             # TODO: remove old names
             self.name = "Root"

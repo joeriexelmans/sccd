@@ -1,7 +1,12 @@
+from dataclasses import dataclass, field
+from typing import *
+from sccd.runtime.event_queue import Timestamp
+from sccd.compiler.utils import FormattedWriter
+
 class State:
-    def __init__(self, name, obj):
-        self.name = name
-        self.obj = obj
+    def __init__(self, short_name):
+        self.short_name = short_name
+        self.name = ""
         
         self.parent = None
         self.children = []
@@ -28,22 +33,32 @@ class State:
     # as well as some other optimization stuff
     # Should only be called once for the root of the state tree,
     # after the tree has been built.
-    def init_tree(self, root_state_id: int = 0) -> int:
-        self.state_id = root_state_id
-        next_id = root_state_id + 1
+    # Returns state_id + total number of states in tree
+    def init_tree(self, state_id: int = 0, name_prefix: str = "", states = {}) -> int:
+        self.state_id = state_id
+        next_id = state_id + 1
+        self.name = name_prefix + self.short_name if name_prefix == '/' else name_prefix + '/' + self.short_name
+        states[self.name] = self
         for i, c in enumerate(self.children):
             if isinstance(c, HistoryState):
                 self.history.append(c)
             c.parent = self
             c.ancestors.append(self)
             c.ancestors.extend(self.ancestors)
-            next_id += c.init_tree(next_id)
+            next_id = c.init_tree(next_id, self.name, states)
         self.descendants.extend(self.children)
         for c in self.children:
             self.descendants.extend(c.descendants)
         for d in self.descendants:
             self.descendant_bitmap |= 2**d.state_id
-        return 1 + len(self.descendants)
+        return next_id
+
+    def print(self, w = FormattedWriter()):
+        w.write(self.name)
+        w.indent()
+        for c in self.children:
+            c.print(w)
+        w.dedent()
             
     def addChild(self, child):
         self.children.append(child)
@@ -61,12 +76,12 @@ class State:
         return "State(%s)" % (self.state_id)
         
 class HistoryState(State):
-    def __init__(self, name, obj):
-        State.__init__(self, name, obj)
+    def __init__(self, name):
+        State.__init__(self, name)
         
 class ShallowHistoryState(HistoryState):
-    def __init__(self, name, obj):
-        HistoryState.__init__(self, name, obj)
+    def __init__(self, name):
+        HistoryState.__init__(self, name)
         
     def getEffectiveTargetStates(self, instance):
         if self.state_id in instance.history_values:
@@ -79,8 +94,8 @@ class ShallowHistoryState(HistoryState):
             return self.parent.getEffectiveTargetStates(instance)
         
 class DeepHistoryState(HistoryState):
-    def __init__(self, name, obj):
-        HistoryState.__init__(self, name, obj)
+    def __init__(self, name):
+        HistoryState.__init__(self, name)
         
     def getEffectiveTargetStates(self, instance):
         if self.state_id in instance.history_values:
@@ -90,8 +105,8 @@ class DeepHistoryState(HistoryState):
             return self.parent.getEffectiveTargetStates(instance)
         
 class ParallelState(State):
-    def __init__(self, name, obj):
-        State.__init__(self, name, obj)
+    def __init__(self, name):
+        State.__init__(self, name)
         
     def getEffectiveTargetStates(self, instance):
         targets = [self]
@@ -100,13 +115,18 @@ class ParallelState(State):
                 targets.extend(c.getEffectiveTargetStates(instance))
         return targets
 
+@dataclass
+class Target:
+    expr: str
+    targets: List[State] = field(default_factory=list)
+
 class Transition:
-    def __init__(self, source, targets):
+    def __init__(self, source, target: Target):
         self.guard = None
         self.action = None
         self.trigger = None
         self.source = source
-        self.targets = targets
+        self.targets = target
         self.enabled_event = None # the event that enabled this transition
         self.optimize()
                     
@@ -136,3 +156,26 @@ class Transition:
                     
     def __repr__(self):
         return "Transition(%s, %s)" % (self.source, self.targets[0])
+
+
+@dataclass
+class Expression:
+    pass
+
+@dataclass
+class Action:
+    pass
+
+@dataclass
+class RaiseEvent(Action):
+    name: str
+    parameters: List[Expression]
+
+@dataclass
+class RaiseInternalEvent(RaiseEvent):
+    pass
+
+@dataclass
+class RaiseOutputEvent(RaiseEvent):
+    outport: str
+    time_offset: Timestamp

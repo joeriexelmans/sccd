@@ -3,11 +3,13 @@ from abc import ABC, abstractmethod
 from typing import List, Any, Tuple
 from sccd.runtime.event_queue import Timestamp
 
+# A raised event.
 @dataclasses.dataclass(frozen=True)
 class Event:
     name: str
     port: str = ""
     parameters: List[Any] = dataclasses.field(default_factory=list)
+
 
 # Abstract class.
 class EventTarget(ABC):
@@ -15,7 +17,7 @@ class EventTarget(ABC):
     def __init__(self):
         pass
 
-# An event with a target and a time offset.
+# A raised output event with a target and a time offset.
 class OutputEvent:
     def __init__(self, event: Event, target: EventTarget, time_offset=0):
         self.event = event

@@ -205,7 +205,7 @@ class GenericGenerator(Visitor):
                     clazz = "ShallowHistoryState"
             self.writer.addAssignment(
                 index_expr,
-                GLC.NewExpression(clazz, [GLC.String(s.new_full_name), GLC.SelfExpression()])
+                GLC.NewExpression(clazz, [GLC.String(s.new_name)])
             )
             if not s.is_root:
                 if s.enter_action.action or s.has_timers:

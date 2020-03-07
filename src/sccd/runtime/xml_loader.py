@@ -3,19 +3,21 @@ import dataclasses
 from typing import List, Any, Optional
 import lxml.etree as ET
 from lark import Lark
-import sccd.compiler
+# import sccd.compiler
 from sccd.runtime.statechart_syntax import *
 from sccd.runtime.event import Event
 from sccd.runtime.semantic_options import SemanticConfiguration
+import sccd.schema
 
-schema_path = os.path.join(
-  os.path.dirname(sccd.compiler.__file__),
-  "schema",
-  "sccd.xsd")
+schema_dir = os.path.dirname(sccd.schema.__file__)
+
+# Schema for XML validation
+schema_path = os.path.join(schema_dir, "sccd.xsd")
 schema = ET.XMLSchema(ET.parse(schema_path))
 
-grammar = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),"grammar.g"))
-l = Lark(grammar, parser="earley", start=["state_ref", "expr"])
+# Grammar for parsing state references and expressions
+grammar = open(os.path.join(schema_dir,"grammar.g"))
+parser = Lark(grammar, parser="lalr", start=["state_ref", "expr"])
 
 
 # Some types immitating the types that are produced by the compiler
@@ -182,7 +184,7 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
   for xml_t, source in transitions:
     # Parse and find target state
     target_string = xml_t.get("target", "")
-    parse_tree = l.parse(target_string, start="state_ref")
+    parse_tree = parser.parse(target_string, start="state_ref")
     def find_state(sequence) -> State:
       if sequence.data == "relative_path":
         el = source
@@ -215,7 +217,7 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
     # Guard
     cond = xml_t.get("cond")
     if cond is not None:
-      parse_tree = l.parse(cond, start="expr")
+      parse_tree = parser.parse(cond, start="expr")
       # print(parse_tree)
       # print(parse_tree.pretty())
       cond_expr = load_expression(parse_tree)
@@ -248,8 +250,9 @@ def load_actions(parent_node) -> List[Action]:
       pass # skip non-action tags
   return actions
 
-class UnknownExpressionType(Exception):
-  pass
+class ParseError(Exception):
+  def __init__(self, msg):
+    self.msg = msg
 
 def load_expression(parse_node) -> Expression:
   if parse_node.data == "func_call":
@@ -263,4 +266,5 @@ def load_expression(parse_node) -> Expression:
   elif parse_node.data == "array":
     elements = [load_expression(e) for e in parse_node.children]
     return Array(elements)
-  raise UnknownExpressionType()
+  raise ParseError("Can't handle expression type: "+parse_node.data)
+  

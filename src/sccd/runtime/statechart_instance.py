@@ -11,13 +11,13 @@ from sccd.runtime.debug import print_debug
 from collections import Counter
 
 ELSE_GUARD = "ELSE_GUARD"
-        
+
 class StatechartInstance(Instance):
     def __init__(self, model, object_manager):
         self.model = model
         self.object_manager = object_manager
 
-        self.data_model = DataModel(self, {
+        self.data_model = DataModel({
             "INSTATE": Variable(self.inState),
         })
 
@@ -38,7 +38,14 @@ class StatechartInstance(Instance):
         self._combo_step = ComboStepState()
         self._small_step = SmallStepState()
 
-        self.next_timer_id = 0 # each time a timer is started, a new unique future event is created for ourselves.
+        # Each time a timer is started (i.e. upon entry of a state with an 'after' transition),
+        # a new unique (for this instance) future event is added to the Controller's event queue,
+        # and the event name of the 'after' transition is set to this new event.
+        # To get unique event names, we use an ever-increasing counter, stored in each instance.
+        # This way we never have to cancel future events upon exiting a state: Upon re-entry,
+        # the event name of the after transition is overwritten, so the previous already scheduled
+        # event for the transition will be ignored.
+        self.next_timer_id = 0
 
     # enter default states, generating a set of output events
     def initialize(self, now: Timestamp) -> Tuple[bool, List[OutputEvent]]:

@@ -7,8 +7,7 @@ class Variable:
         self.value = value
 
 class DataModel:
-    def __init__(self, instance, names: Dict[str, Variable]):
-        self.instance = instance
+    def __init__(self, names: Dict[str, Variable]):
         self.names = names
 
 @dataclass

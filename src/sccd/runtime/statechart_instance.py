@@ -158,7 +158,7 @@ class StatechartInstance(Instance):
             return (t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(events, self.data_model)
         else:
             for event in events:
-                if (t.trigger.name == event.name and (not t.trigger.port or t.trigger.port == event.port)) and ((t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(events, self.data_model)):
+                if (t.trigger.id == event.id and (not t.trigger.port or t.trigger.port == event.port)) and ((t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(events, self.data_model)):
                     # t.enabled_event = event
                     return True
 

@@ -116,10 +116,7 @@ if __name__ == '__main__':
         for t in transitions:
           label = ""
           if t.trigger:
-            if t.trigger.name:
-              label = (t.trigger.port + '.' if t.trigger.port else '') + t.trigger.name
-            elif isinstance(t.trigger, AfterTrigger):
-              label = "after("+str(t.trigger.delay)+")"
+            label += t.trigger.render()
           if t.actions:
             raises = [a for a in t.actions if isinstance(a, RaiseEvent)]
             label += ','.join([r.render() for r in raises])

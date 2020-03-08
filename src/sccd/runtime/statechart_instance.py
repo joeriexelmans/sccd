@@ -38,15 +38,6 @@ class StatechartInstance(Instance):
         self._combo_step = ComboStepState()
         self._small_step = SmallStepState()
 
-        # Each time a timer is started (i.e. upon entry of a state with an 'after' transition),
-        # a new unique (for this instance) future event is added to the Controller's event queue,
-        # and the event name of the 'after' transition is set to this new event.
-        # To get unique event names, we use an ever-increasing counter, stored in each instance.
-        # This way we never have to cancel future events upon exiting a state: Upon re-entry,
-        # the event name of the after transition is overwritten, so the previous already scheduled
-        # event for the transition will be ignored.
-        self.next_timer_id = 0
-
     # enter default states, generating a set of output events
     def initialize(self, now: Timestamp) -> Tuple[bool, List[OutputEvent]]:
         states = self.model.root.getEffectiveTargetStates(self)
@@ -142,7 +133,8 @@ class StatechartInstance(Instance):
         key = (self.configuration_bitmap, changed_bitmap)
         try:
             transitions = self.transition_mem[key]
-        except:
+        except KeyError:
+            # outgoing transitions whose arenas don't overlap with already fired transitions
             self.transition_mem[key] = transitions = [t for s in self.configuration if not (2**s.state_id & changed_bitmap) for t in s.transitions]
         
         # 2. Filter those based on guard and event trigger
@@ -163,10 +155,10 @@ class StatechartInstance(Instance):
     def _is_transition_enabled(self, t, events, enabled_transitions) -> bool:
         if t.trigger is None:
             # t.enabled_event = None
-            return (t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(self.data_model)
+            return (t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(events, self.data_model)
         else:
             for event in events:
-                if (t.trigger.name == event.name and (not t.trigger.port or t.trigger.port == event.port)) and ((t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard(event.parameters)):
+                if (t.trigger.name == event.name and (not t.trigger.port or t.trigger.port == event.port)) and ((t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(events, self.data_model)):
                     # t.enabled_event = event
                     return True
 
@@ -235,7 +227,6 @@ class StatechartInstance(Instance):
             self.configuration = self.config_mem[self.configuration_bitmap] = sorted([s for s in list(self.model.states.values()) if 2**s.state_id & self.configuration_bitmap], key=lambda s: s.state_id)
         # t.enabled_event = None
         
-
     # def getChildren(self, link_name):
     #     traversal_list = self.controller.object_manager.processAssociationReference(link_name)
     #     return [i["instance"] for i in self.controller.object_manager.getInstances(self, traversal_list)]
@@ -246,22 +237,19 @@ class StatechartInstance(Instance):
     def _perform_actions(self, actions: List[Action]):
         for a in actions:
             if isinstance(a, RaiseInternalEvent):
-                self._raiseInternalEvent(Event(name=a.name, port="", parameters=[]))
+                self._raiseInternalEvent(Event(id=a.event_id, name=a.name, port="", parameters=[]))
             elif isinstance(a, RaiseOutputEvent):
                 self._big_step.addOutputEvent(
-                    OutputEvent(Event(name=a.name, port=a.outport, parameters=[]),
+                    OutputEvent(Event(id=0, name=a.name, port=a.outport, parameters=[]),
                     OutputPortTarget(a.outport),
                     a.time_offset))
 
     def _start_timers(self, triggers: List[AfterTrigger]):
         for after in triggers:
-            event_name = "_after"+str(self.next_timer_id)
-            self.next_timer_id += 1
             self._big_step.addOutputEvent(OutputEvent(
-                Event(event_name),
+                Event(id=after.id, name=after.name, parameters=[after.nextTimerId()]),
                 target=InstancesTarget([self]),
                 time_offset=after.delay))
-            after.name = event_name # update trigger
 
     def _raiseInternalEvent(self, event):
         if self.model.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_SMALL_STEP:
@@ -335,15 +323,79 @@ class SmallStepState(object):
     def addNextEvent(self, event):
         self.next_events.append(event)
 
-class Maximality(Enum):
-    TAKE_ONE = 0
-    TAKE_MANY = 1
 
-class Round:
-    def __init__(self, maximality: Maximality):
-        self.changed_bitmap: int
-        self.current_events: List[Event] = []
-        self.next_events: List[Event] = []
-        self.has_stepped: bool = True
-        self.maximality: Maximality
+# class TakeOneCandidates:
+#     def __init__(self):
+#         self.mem: Dict[Tuple[int,int], List[Transition]] = {}
 
+#     def get_candidates(configuration_bitmap:int, changed_bitmap:int) -> List[Transition]:
+#         try:
+#             return self.mem[(configuration_bitmap, changed_bitmap)]
+#         except KeyError:
+
+
+# class AbstractRound(ABC):
+#     def __init__(self):
+#         self.filter = None
+
+#     @abstractmethod
+#     def attempt(self) -> int:
+#         pass
+
+# class Round(AbstractRound):
+#     def __init__(self, subround: AbstractRound, f=lambda: True):
+#         super().__init__()
+#         self.subround = subround
+
+#         self.subround.filter = f
+#         # self.subround._parent = self
+#         self.filter = f
+
+#     def attempt(self, f) -> int:
+#         arenas_changed = 0
+#         while True:
+#             changed = self.subround.attempt()
+#             if not changed:
+#                 break
+#             arenas_changed |= changed
+#         return arenas_changed
+
+# class TakeManyRound(Round):
+#     def __init__(self, subround: Round):
+#         super().__init__()
+#         self.subround = subround
+#         self.subround._parent = self
+
+#         # state
+#         self.arenas_changed = 0
+
+#     def run(self) -> int:
+#         self.arenas_changed = 0
+#         while True:
+#             changed = self.subround.run()
+#             if not changed:
+#                 break
+#             self.arenas_changed |= changed
+#         return self.arenas_changed
+
+# class TakeOneRound(TakeManyRound):
+
+#     def is_allowed(self, t: Transition):
+#         # No overlap allowed between consecutive transition's arenas
+#         # and parent round must allow it.
+#         return not (self.arenas_changed & t.arena_bitmap)
+#             and super().is_allowed(t)
+
+# # Small Step - Concurrency: Single
+# class SmallStepSingle(AbstractRound):
+#     def __init__(self, instance: StatechartInstance):
+#         super().__init__()
+#         self.instance = instance
+
+#     def attempt(self) -> int:
+#         candidates = self.instance.get_candidates()
+#         for c in candidates:
+#             if self.is_allowed(c):
+#                 t.fire()
+#                 return t.arena_bitmap # good job, all done!
+#         return 0

@@ -6,6 +6,7 @@ from sccd.runtime.event_queue import Timestamp
 # A raised event.
 @dataclasses.dataclass(frozen=True)
 class Event:
+    id: int
     name: str
     port: str = ""
     parameters: List[Any] = dataclasses.field(default_factory=list)

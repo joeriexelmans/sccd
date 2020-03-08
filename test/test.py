@@ -29,9 +29,8 @@ class PyTestCase(unittest.TestCase):
         controller = Controller(model)
 
         # generate input
-        if inputs:
-            for i in inputs:
-                controller.add_input(Event(i.name, i.port, i.parameters), int(i.time_offset))
+        for i in inputs:
+            controller.add_input(i)
 
         pipe = queue.Queue()
 

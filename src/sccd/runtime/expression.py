@@ -15,14 +15,14 @@ class Expression(ABC):
     pass
 
     @abstractmethod
-    def eval(self, datamodel):
+    def eval(self, events, datamodel):
         pass
 
 @dataclass
 class Identifier(Expression):
     identifier: str
 
-    def eval(self, datamodel):
+    def eval(self, events, datamodel):
         return datamodel.names[self.identifier].value
 
 @dataclass
@@ -30,21 +30,21 @@ class FunctionCall(Expression):
     function: Expression
     parameters: List[Expression]
 
-    def eval(self, datamodel):
-        f = self.function.eval(datamodel)
-        p = [p.eval(datamodel) for p in self.parameters]
+    def eval(self, events, datamodel):
+        f = self.function.eval(events, datamodel)
+        p = [p.eval(events, datamodel) for p in self.parameters]
         return f(*p)
 
 @dataclass
 class StringLiteral(Expression):
     string: str
 
-    def eval(self, datamodel):
+    def eval(self, events, datamodel):
         return self.string
 
 @dataclass
 class Array(Expression):
     elements: List[Any]
 
-    def eval(self, datamodel):
-        return [e.eval(datamodel) for e in self.elements]
+    def eval(self, events, datamodel):
+        return [e.eval(events, datamodel) for e in self.elements]

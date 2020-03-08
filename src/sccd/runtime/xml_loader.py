@@ -3,10 +3,11 @@ import dataclasses
 from typing import List, Any, Optional
 import lxml.etree as ET
 from lark import Lark
-# import sccd.compiler
+
 from sccd.runtime.statechart_syntax import *
 from sccd.runtime.event import Event
 from sccd.runtime.semantic_options import SemanticConfiguration
+from sccd.runtime.controller import InputEvent
 import sccd.schema
 
 schema_dir = os.path.dirname(sccd.schema.__file__)
@@ -19,6 +20,16 @@ schema = ET.XMLSchema(ET.parse(schema_path))
 grammar = open(os.path.join(schema_dir,"grammar.g"))
 parser = Lark(grammar, parser="lalr", start=["state_ref", "expr"])
 
+# Mapping from event name to event ID
+class EventNamespace:
+  def __init__(self):
+    self.mapping: Dict[str, int] = {}
+
+  def assign_id(self, event: str) -> int:
+    return self.mapping.setdefault(event, len(self.mapping))
+
+  def get_id(self, event: str) -> int:
+    return self.mapping[event]
 
 # Some types immitating the types that are produced by the compiler
 @dataclass
@@ -35,17 +46,11 @@ class Class:
 
 @dataclass
 class Model:
+  event_namespace: EventNamespace
   inports: List[str]
   outports: List[str]
   classes: Dict[str, Any]
   default_class: str
-
-@dataclass
-class InputEvent:
-  name: str
-  port: str
-  parameters: List[Any]
-  time_offset: Timestamp
 
 @dataclass
 class Test:
@@ -58,7 +63,8 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
   schema.assertValid(tree)
   root = tree.getroot()
 
-  model = Model([], [], {}, "")
+  model = Model(event_namespace=EventNamespace(),
+    inports=[], outports=[], classes={}, default_class="")
 
   classes = root.findall(".//class", root.nsmap)
   for c in classes:
@@ -66,7 +72,7 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
     default = c.get("default", "")
 
     scxml_node = c.find("scxml", root.nsmap)
-    root_state, states = load_tree(scxml_node)
+    root_state, states = load_tree(scxml_node, model.event_namespace)
 
     # Semantics - We use reflection to find the xml attribute names and values
     semantics = SemanticConfiguration()
@@ -115,23 +121,37 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
         name = e.get("name")
         port = e.get("port")
         params = [] # todo: read params
-        slot.append(Event(name, port, params))
+        slot.append(Event(id=0, name=name, port=port, parameters=params))
       expected_events.append(slot)
     test = Test(input_events, expected_events)
 
   return (model, test)
 
-class SkipTag(Exception):
-  pass
-
-def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
+def load_tree(scxml_node, event_namespace: EventNamespace) -> Tuple[State, Dict[str, State]]:
 
   states: Dict[str, State] = {}
   transitions: List[Tuple[Any, State]] = [] # List of (<transition>, State) tuples
 
+  def load_action(action_node) -> Optional[Action]:
+    tag = ET.QName(action_node).localname
+    if tag == "raise":
+      event = action_node.get("event")
+      port = action_node.get("port")
+      if not port:
+        return RaiseInternalEvent(name=event, parameters=[], event_id=event_namespace.assign_id(event))
+      else:
+        return RaiseOutputEvent(name=event, parameters=[], outport=port, time_offset=0)
+    else:
+      raise None
+
+  # parent_node: XML node containing any number of action nodes as direct children
+  def load_actions(parent_node) -> List[Action]:
+    return list(filter(lambda x: x is not None, map(lambda child: load_action(child), parent_node)))
+
+
   # Recursively create state hierarchy from XML node
   # Adding <transition> elements to the 'transitions' list as a side effect
-  def _get_state_tree(xml_node) -> State:
+  def build_tree(xml_node) -> Optional[State]:
     state = None
     name = xml_node.get("id", "")
     tag = ET.QName(xml_node).localname
@@ -146,17 +166,15 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
       else:
         state = ShallowHistoryState(name)
     else:
-      raise SkipTag()
+      return None
 
     initial = xml_node.get("initial", "")
     for xml_child in xml_node.getchildren():
-      try:
-        child = _get_state_tree(xml_child) # may throw
-        state.addChild(child)
-        if child.short_name == initial:
-          state.default_state = child
-      except SkipTag:
-        pass # skip non-state tags
+        child = build_tree(xml_child) # may throw
+        if child:
+          state.addChild(child)
+          if child.short_name == initial:
+            state.default_state = child
 
     if not initial and len(state.children) == 1:
         state.default_state = state.children[0]
@@ -177,10 +195,11 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
     return state
 
   # First build a state tree
-  root = _get_state_tree(scxml_node)
+  root = build_tree(scxml_node)
   root.init_tree(0, "", states)
 
   # Add transitions
+  next_after_id = 0
   for xml_t, source in transitions:
     # Parse and find target state
     target_string = xml_t.get("target", "")
@@ -207,9 +226,13 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
     port = xml_t.get("port")
     after = xml_t.get("after")
     if after is not None:
-      trigger = AfterTrigger(Timestamp(after))
+      event = "_after%d" % next_after_id # transition gets unique event name
+      next_after_id += 1
+      trigger = AfterTrigger(event_namespace.assign_id(event), event, Timestamp(after))
+    elif event is not None:
+      trigger = Trigger(event_namespace.assign_id(event), event, port)
     else:
-      trigger = None if event == None else Trigger(event, port)
+      trigger = None
     transition.setTrigger(trigger)
     # Actions
     actions = load_actions(xml_t)
@@ -225,30 +248,6 @@ def load_tree(scxml_node) -> Tuple[State, Dict[str, State]]:
     source.addTransition(transition)
 
   return (root, states)
-
-def load_action(action_node) -> Optional[Action]:
-  tag = ET.QName(action_node).localname
-  if tag == "raise":
-    event = action_node.get("event")
-    port = action_node.get("port")
-    if not port:
-      return RaiseInternalEvent(name=event, parameters=[])
-    else:
-      return RaiseOutputEvent(name=event, parameters=[], outport=port, time_offset=0)
-  else:
-    raise SkipTag()
-
-# parent_node: XML node containing 0 or more action nodes as direct children
-def load_actions(parent_node) -> List[Action]:
-  actions = []
-  for node in parent_node:
-    try:
-      a = load_action(node)
-      if a:
-        actions.append(a)
-    except SkipTag:
-      pass # skip non-action tags
-  return actions
 
 class ParseError(Exception):
   def __init__(self, msg):
@@ -267,4 +266,3 @@ def load_expression(parse_node) -> Expression:
     elements = [load_expression(e) for e in parse_node.children]
     return Array(elements)
   raise ParseError("Can't handle expression type: "+parse_node.data)
-  

@@ -7,6 +7,13 @@ from sccd.runtime.object_manager import ObjectManager
 from sccd.runtime.infinity import INFINITY
 from sccd.runtime.debug import print_debug
 
+@dataclasses.dataclass
+class InputEvent:
+  name: str
+  port: str
+  parameters: List[Any]
+  time_offset: Timestamp
+
 # The Controller class is a primitive that can be used to build backends of any kind:
 # Threads, integration with existing event loop, game loop, test framework, ...
 # The Controller class itself is NOT thread-safe.
@@ -27,17 +34,25 @@ class Controller:
 
     # time_offset: the offset relative to the current simulated time
     # (the timestamp given in the last call to run_until)
-    def add_input(self, event: Event, time_offset = 0):
-            if event.name == "":
+    def add_input(self, input: InputEvent):
+            if input.name == "":
                 raise Exception("Input event can't have an empty name.")
         
-            if event.port not in self.model.inports:
-                raise Exception("No such port: '" + event.port + "'")
+            if input.port not in self.model.inports:
+                raise Exception("No such port: '" + input.port + "'")
+
+
+            e = Event(
+                id=self.model.event_namespace.get_id(input.name),
+                name=input.name,
+                port=input.port,
+                parameters=input.parameters)
 
             # For now, add events received on input ports to all instances.
             # In the future, we can optimize this by keeping a mapping from port name to a list of instances
             # potentially responding to the event
-            self.queue.add(self.simulated_time+time_offset, Controller.EventQueueEntry(event, self.object_manager.instances))
+            self.queue.add(self.simulated_time+input.time_offset,
+                Controller.EventQueueEntry(e, self.object_manager.instances))
 
     # Get timestamp of next entry in event queue
     def next_wakeup(self) -> Optional[Timestamp]:

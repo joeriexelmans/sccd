@@ -34,10 +34,13 @@ class EventNamespace:
 # Some types immitating the types that are produced by the compiler
 @dataclass
 class Statechart:
-  _class: Any
   root: State
-  states: Dict[str, State]
-  semantics: SemanticConfiguration
+  states: Dict[str, State] # mapping from state "full name" (e.g. "/parallel/ortho1/a") to state
+  state_list: List[State] # depth-first order
+  transition_list: List[Transition] # source state depth-first order, then document order
+
+  semantics: SemanticConfiguration = SemanticConfiguration()
+  _class: Any = None
 
 @dataclass
 class Class:
@@ -72,19 +75,10 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
     default = c.get("default", "")
 
     scxml_node = c.find("scxml", root.nsmap)
-    root_state, states = load_tree(scxml_node, model.event_namespace)
+    statechart = load_statechart(scxml_node, model.event_namespace)
 
-    # Semantics - We use reflection to find the xml attribute names and values
-    semantics = SemanticConfiguration()
-    for aspect in dataclasses.fields(SemanticConfiguration):
-      key = scxml_node.get(aspect.name)
-      if key is not None:
-        value = aspect.type[key.upper()]
-        setattr(semantics, aspect.name, value)
-
-    _class = Class(class_name, None)
-    statechart = Statechart(_class=_class, root=root_state, states=states, semantics=semantics)
-    _class.statechart = statechart
+    _class = Class(class_name, statechart)
+    statechart._class = _class
 
     model.classes[class_name] = lambda: _class
     if default or len(classes) == 1:
@@ -127,10 +121,7 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
 
   return (model, test)
 
-def load_tree(scxml_node, event_namespace: EventNamespace) -> Tuple[State, Dict[str, State]]:
-
-  states: Dict[str, State] = {}
-  transitions: List[Tuple[Any, State]] = [] # List of (<transition>, State) tuples
+def load_statechart(scxml_node, event_namespace: EventNamespace) -> Statechart:
 
   def load_action(action_node) -> Optional[Action]:
     tag = ET.QName(action_node).localname
@@ -148,6 +139,7 @@ def load_tree(scxml_node, event_namespace: EventNamespace) -> Tuple[State, Dict[
   def load_actions(parent_node) -> List[Action]:
     return list(filter(lambda x: x is not None, map(lambda child: load_action(child), parent_node)))
 
+  transitions: List[Tuple[Any, State]] = [] # List of (<transition>, State) tuples
 
   # Recursively create state hierarchy from XML node
   # Adding <transition> elements to the 'transitions' list as a side effect
@@ -175,7 +167,6 @@ def load_tree(scxml_node, event_namespace: EventNamespace) -> Tuple[State, Dict[
           state.addChild(child)
           if child.short_name == initial:
             state.default_state = child
-
     if not initial and len(state.children) == 1:
         state.default_state = state.children[0]
 
@@ -194,9 +185,8 @@ def load_tree(scxml_node, event_namespace: EventNamespace) -> Tuple[State, Dict[
 
     return state
 
-  # First build a state tree
+  # Get tree from XML
   root = build_tree(scxml_node)
-  root.init_tree(0, "", states)
 
   # Add transitions
   next_after_id = 0
@@ -247,7 +237,27 @@ def load_tree(scxml_node, event_namespace: EventNamespace) -> Tuple[State, Dict[
       transition.setGuard(cond_expr)
     source.addTransition(transition)
 
-  return (root, states)
+  # Calculate stuff like list of ancestors, descendants, etc.
+  # Also get depth-first ordered lists of states and transitions (by source)
+  states: Dict[str, State] = {}
+  state_list: List[State] = []
+  transition_list: List[Transition] = []
+  root.init_tree(0, "", states, state_list, transition_list)
+
+  print(transition_list)
+
+  for t in transition_list:
+    t.optimize()
+
+  # Semantics - We use reflection to find the xml attribute names and values
+  semantics = SemanticConfiguration()
+  for aspect in dataclasses.fields(SemanticConfiguration):
+    key = scxml_node.get(aspect.name)
+    if key is not None:
+      value = aspect.type[key.upper()]
+      setattr(semantics, aspect.name, value)
+
+  return Statechart(root=root, states=states, state_list=state_list, transition_list=transition_list, semantics=semantics)
 
 class ParseError(Exception):
   def __init__(self, msg):

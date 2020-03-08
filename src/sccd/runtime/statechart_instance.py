@@ -1,13 +1,12 @@
 import termcolor
 import functools
-from typing import List, Tuple
-from enum import Enum
-from sccd.runtime.infinity import INFINITY
+from typing import List, Tuple, Iterable
 from sccd.runtime.event_queue import Timestamp
 from sccd.runtime.statechart_syntax import *
 from sccd.runtime.event import *
 from sccd.runtime.semantic_options import *
 from sccd.runtime.debug import print_debug
+from sccd.runtime.bitmap import *
 from collections import Counter
 
 ELSE_GUARD = "ELSE_GUARD"
@@ -23,7 +22,9 @@ class StatechartInstance(Instance):
 
         # these 2 fields have the same information
         self.configuration = []
-        self.configuration_bitmap = 0
+        self.configuration_bitmap = Bitmap()
+
+        self.event_mem: Dict[Bitmap, List[Transition]] = {} # mapping from set of enabled events to document-ordered list of potentially enabled transitions.
 
         self.eventless_states = 0 # number of states in current configuration that have at least one eventless outgoing transition.
 
@@ -42,7 +43,7 @@ class StatechartInstance(Instance):
     def initialize(self, now: Timestamp) -> Tuple[bool, List[OutputEvent]]:
         states = self.model.root.getEffectiveTargetStates(self)
         self.configuration.extend(states)
-        self.configuration_bitmap = sum([2**s.state_id for s in states])
+        self.configuration_bitmap = Bitmap.from_list(s.state_id for s in states)
         for state in states:
             print_debug(termcolor.colored('  ENTER %s'%state.name, 'green'))
             self.eventless_states += state.has_eventless_transitions
@@ -57,6 +58,8 @@ class StatechartInstance(Instance):
         self._big_step.next(input_events)
         self._combo_step.reset()
         self._small_step.reset()
+
+        print_debug(termcolor.colored('attempt big step, input_events='+str(input_events), 'red'))
 
         while self.combo_step():
             print_debug(termcolor.colored('completed combo step', 'yellow'))
@@ -93,41 +96,28 @@ class StatechartInstance(Instance):
         if self._small_step.has_stepped:
             self._small_step.next()
 
-        candidates = self._transition_candidates()
-        if candidates:
-            # print_debug(termcolor.colored("small step candidates: "+
-            #     str(list(map(
-            #         lambda t: "("+str(list(map(
-            #             lambda s: "to "+s.name,
-            #             t.targets))),
-            #         candidates))), 'blue'))
-            to_skip = set()
-            conflicting = []
-            for c1 in candidates:
-                if c1 not in to_skip:
-                    conflict = [c1]
-                    for c2 in candidates[candidates.index(c1):]:
-                        if c2.source in c1.source.ancestors or c1.source in c2.source.ancestors:
-                            conflict.append(c2)
-                            to_skip.add(c2)
+        candidates = self._transition_candidates2()
 
-                    import functools
-                    conflicting.append(sorted(conflict, key=functools.cmp_to_key(__younger_than)))
+        candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up
+        print_debug(termcolor.colored("small step candidates: "+
+            str(list(map(
+                lambda t: reduce(lambda x,y:x+y,list(map(
+                    lambda s: "to "+s.name,
+                    t.targets))),
+                candidates))), 'blue'))
 
+        for c in candidates:
             if self.model.semantics.concurrency == Concurrency.SINGLE:
-                candidate = conflicting[0]
-                if self.model.semantics.priority == Priority.SOURCE_PARENT:
-                    self._fire_transition(candidate[-1])
-                else:
-                    self._fire_transition(candidate[0])
+                self._fire_transition(c)
+                self._small_step.has_stepped = True
+                break
             elif self.model.semantics.concurrency == Concurrency.MANY:
-                pass # TODO: implement
-            self._small_step.has_stepped = True
+                raise Exception("Not implemented!")
         return self._small_step.has_stepped
 
     # generate transition candidates for current small step
     # @profile
-    def _transition_candidates(self) -> List[Transition]:
+    def _transition_candidates(self) -> Iterable[Transition]:
         # 1. Get all transitions possibly enabled looking only at current configuration
         changed_bitmap = self._combo_step.changed_bitmap
         key = (self.configuration_bitmap, changed_bitmap)
@@ -135,32 +125,69 @@ class StatechartInstance(Instance):
             transitions = self.transition_mem[key]
         except KeyError:
             # outgoing transitions whose arenas don't overlap with already fired transitions
-            self.transition_mem[key] = transitions = [t for s in self.configuration if not (2**s.state_id & changed_bitmap) for t in s.transitions]
-        
-        # 2. Filter those based on guard and event trigger
-        enabled_events = self._small_step.current_events + self._combo_step.current_events
+            self.transition_mem[key] = transitions = [t for s in self.configuration if not changed_bitmap.has(s.state_id) for t in s.transitions]
+            if self.model.semantics.priority == Priority.SOURCE_CHILD:
+                # Transitions are already in parent -> child (depth-first) order
+                # Only the first transition of the candidates will be executed.
+                # To get SOURCE-CHILD semantics, we simply reverse the list of candidates:
+                transitions.reverse()
+
+        # 2. Filter based on guard and event trigger
+        enabled_events = self._enabled_events()
+        def filter_f(t):
+            return self._check_trigger(t, enabled_events) and self._check_guard(t, enabled_events)
+        # print_debug(termcolor.colored("small step enabled events: "+str(list(map(lambda e: e.name, enabled_events))), 'blue'))
+        return filter(filter_f, transitions)
+
+
+    # Alternative implementation of candidate generation using mapping from set of enabled events to enabled transitions
+    def _transition_candidates2(self) -> Iterable[Transition]:
+        enabled_events = self._enabled_events()
+        key = Bitmap.from_list(e.id for e in enabled_events)
+        try:
+            transitions = self.event_mem[key]
+        except KeyError:
+            self.event_mem[key] = transitions = [t for t in self.model.transition_list if (not t.trigger or key.has(t.trigger.id))]
+            if self.model.semantics.priority == Priority.SOURCE_CHILD:
+                # Transitions are already in parent -> child (depth-first) order
+                # Only the first transition of the candidates will be executed.
+                # To get SOURCE-CHILD semantics, we simply reverse the list of candidates:
+                transitions.reverse()
+
+        def filter_f(t):
+            return self._check_source(t) and self._check_arena(t) and self._check_guard(t, enabled_events)
+        return filter(filter_f, transitions)
+
+    def _check_trigger(self, t, events) -> bool:
+        if t.trigger is None:
+            return True
+        else:
+            for event in events:
+                if (t.trigger.id == event.id and (not t.trigger.port or t.trigger.port == event.port)):
+                    return True
+
+    def _check_guard(self, t, events) -> bool:
+        if t.guard is None:
+            return True
+        else:
+            return t.guard.eval(events, self.data_model)
+
+    def _check_source(self, t) -> bool:
+        return self.configuration_bitmap.has(t.source.state_id)
+
+    def _check_arena(self, t) -> bool:
+        return not self._combo_step.changed_bitmap.has(t.source.state_id)
+
+    # List of current small step enabled events
+    def _enabled_events(self) -> List[Event]:
+        events = self._small_step.current_events + self._combo_step.current_events
         if self.model.semantics.input_event_lifeline == InputEventLifeline.WHOLE or (
             not self._big_step.has_stepped and
                 (self.model.semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP or (
                 not self._combo_step.has_stepped and
                     self.model.semantics.input_event_lifeline == InputEventLifeline.FIRST_SMALL_STEP))):
-            enabled_events += self._big_step.input_events
-        # print_debug(termcolor.colored("small step enabled events: "+str(list(map(lambda e: e.name, enabled_events))), 'blue'))
-        enabled_transitions = []
-        for t in transitions:
-            if self._is_transition_enabled(t, enabled_events, enabled_transitions):
-                enabled_transitions.append(t)
-        return enabled_transitions
-
-    def _is_transition_enabled(self, t, events, enabled_transitions) -> bool:
-        if t.trigger is None:
-            # t.enabled_event = None
-            return (t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(events, self.data_model)
-        else:
-            for event in events:
-                if (t.trigger.id == event.id and (not t.trigger.port or t.trigger.port == event.port)) and ((t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(events, self.data_model)):
-                    # t.enabled_event = event
-                    return True
+            events += self._big_step.input_events
+        return events
 
     # @profile
     def _fire_transition(self, t: Transition):
@@ -202,10 +229,10 @@ class StatechartInstance(Instance):
             self.eventless_states -= s.has_eventless_transitions
             # execute exit action(s)
             self._perform_actions(s.exit)
-            self.configuration_bitmap &= ~2**s.state_id
+            self.configuration_bitmap &= ~Bit(s.state_id)
         
         # combo state changed area
-        self._combo_step.changed_bitmap |= 2**t.lca.state_id
+        self._combo_step.changed_bitmap |= Bit(t.lca.state_id)
         self._combo_step.changed_bitmap |= t.lca.descendant_bitmap
         
         # execute transition action(s)
@@ -217,14 +244,14 @@ class StatechartInstance(Instance):
         for s in enter_set:
             print_debug(termcolor.colored('  ENTER %s' % s.name, 'green'))
             self.eventless_states += s.has_eventless_transitions
-            self.configuration_bitmap |= 2**s.state_id
+            self.configuration_bitmap |= Bit(s.state_id)
             # execute enter action(s)
             self._perform_actions(s.enter)
             self._start_timers(s.after_triggers)
         try:
             self.configuration = self.config_mem[self.configuration_bitmap]
         except:
-            self.configuration = self.config_mem[self.configuration_bitmap] = sorted([s for s in list(self.model.states.values()) if 2**s.state_id & self.configuration_bitmap], key=lambda s: s.state_id)
+            self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.model.state_list if self.configuration_bitmap.has(s.state_id)]
         # t.enabled_event = None
         
     # def getChildren(self, link_name):
@@ -261,8 +288,8 @@ class StatechartInstance(Instance):
 
     # Return whether the current configuration includes ALL the states given.
     def inState(self, state_strings: List[str]) -> bool:
-        state_ids_bitmap = functools.reduce(lambda x,y: x|y, [2**self.model.states[state_string].state_id for state_string in state_strings])
-        in_state = (self.configuration_bitmap | state_ids_bitmap) == self.configuration_bitmap
+        state_ids_bitmap = Bitmap.from_list((self.model.states[state_string].state_id for state_string in state_strings))
+        in_state = self.configuration_bitmap.has_all(state_ids_bitmap)
         if in_state:
             print_debug("in state"+str(state_strings))
         else:
@@ -288,7 +315,7 @@ class ComboStepState(object):
     def __init__(self):
         self.current_events = [] # set of enabled events during combo step
         self.next_events = [] # internal events that were raised during combo step
-        self.changed_bitmap = 0 # set of all or-states that were the arena of a triggered transition during big step.
+        self.changed_bitmap = Bitmap() # set of all or-states that were the arena of a triggered transition during big step.
         self.has_stepped = True
 
     def reset(self):
@@ -298,7 +325,7 @@ class ComboStepState(object):
     def next(self):
         self.current_events = self.next_events
         self.next_events = []
-        self.changed_bitmap = 0
+        self.changed_bitmap = Bitmap()
         self.has_stepped = False
 
     def addNextEvent(self, event):

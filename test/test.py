@@ -1,12 +1,9 @@
-import os
 import unittest
 import argparse
 import threading
 import queue
-from sccd.runtime.infinity import INFINITY
 from sccd.runtime.event import Event
 from sccd.runtime.controller import Controller
-from lib.builder import Builder
 from lib.loader import Loader
 from lib.os_tools import *
 

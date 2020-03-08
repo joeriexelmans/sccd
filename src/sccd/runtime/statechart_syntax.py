@@ -3,6 +3,7 @@ from typing import *
 from sccd.runtime.event_queue import Timestamp
 from sccd.runtime.expression import *
 from sccd.compiler.utils import FormattedWriter
+from sccd.runtime.bitmap import *
 
 @dataclass
 class Action:
@@ -29,7 +30,7 @@ class State:
         self.state_id = -1
         self.ancestors = []
         self.descendants = []
-        self.descendant_bitmap = 0
+        self.descendant_bitmap = Bitmap()
         self.has_eventless_transitions = False
 
     def getEffectiveTargetStates(self, instance):
@@ -43,23 +44,26 @@ class State:
     # Should only be called once for the root of the state tree,
     # after the tree has been built.
     # Returns state_id + total number of states in tree
-    def init_tree(self, state_id: int = 0, name_prefix: str = "", states = {}) -> int:
+    def init_tree(self, state_id: int = 0, name_prefix: str = "", states = {}, state_list = [], transition_list = []) -> int:
         self.state_id = state_id
         next_id = state_id + 1
         self.name = name_prefix + self.short_name if name_prefix == '/' else name_prefix + '/' + self.short_name
         states[self.name] = self
+        state_list.append(self)
+        for t in self.transitions:
+            transition_list.append(t)
         for i, c in enumerate(self.children):
             if isinstance(c, HistoryState):
                 self.history.append(c)
             c.parent = self
             c.ancestors.append(self)
             c.ancestors.extend(self.ancestors)
-            next_id = c.init_tree(next_id, self.name, states)
+            next_id = c.init_tree(next_id, self.name, states, state_list, transition_list)
         self.descendants.extend(self.children)
         for c in self.children:
             self.descendants.extend(c.descendants)
         for d in self.descendants:
-            self.descendant_bitmap |= 2**d.state_id
+            self.descendant_bitmap |= Bit(d.state_id)
         return next_id
 
     def print(self, w = FormattedWriter()):
@@ -70,6 +74,7 @@ class State:
         w.dedent()
             
     def addChild(self, child):
+        child.parent = self
         self.children.append(child)
     
     def addTransition(self, transition):
@@ -175,7 +180,6 @@ class Transition:
         self.trigger: Optional[Trigger] = None
         self.source: State = source
         self.targets: List[State] = targets
-        self.optimize()
                     
     def setGuard(self, guard):
         self.guard = guard
@@ -202,7 +206,7 @@ class Transition:
                     if a in target.ancestors:
                         self.lca = a
                         break
-        self.arena_bitmap = 2**self.lca.state_id | self.lca.descendant_bitmap
+        self.arena_bitmap = self.lca.descendant_bitmap.set(self.lca.state_id)
                     
     def __repr__(self):
         return "Transition(%s, %s)" % (self.source, self.targets[0])

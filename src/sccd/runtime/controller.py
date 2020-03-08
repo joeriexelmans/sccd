@@ -4,7 +4,6 @@ from typing import Dict, List, Optional
 from sccd.runtime.event_queue import EventQueue, EventQueueDeque, Timestamp
 from sccd.runtime.event import *
 from sccd.runtime.object_manager import ObjectManager
-from sccd.runtime.infinity import INFINITY
 from sccd.runtime.debug import print_debug
 
 @dataclasses.dataclass

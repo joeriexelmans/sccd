@@ -1,9 +1,8 @@
 import unittest
 from event_queue import EventQueue, EventQueueDeque
-from infinity import INFINITY
 
 def add_pop(q, unit):
-  unit.assertEqual(q.earliest_timestamp(), INFINITY)
+  unit.assertEqual(q.earliest_timestamp(), None)
   q.add(10, 'a')
   q.add(11, 'b')
   q.add(11, 'c')
@@ -19,7 +18,7 @@ def add_pop(q, unit):
   unit.assertEqual(q.pop(), (11,'e'))
   unit.assertEqual(q.pop(), (11,'f'))
   unit.assertEqual(q.pop(), (11,'g'))
-  unit.assertEqual(q.earliest_timestamp(), INFINITY)
+  unit.assertEqual(q.earliest_timestamp(), None)
 
 def add_remove(q, unit):
   class X:

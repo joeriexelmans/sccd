@@ -134,6 +134,42 @@ class StatechartInstance(Instance):
             self._small_step.has_stepped = True
         return self._small_step.has_stepped
 
+    # generate transition candidates for current small step
+    # @profile
+    def _transition_candidates(self) -> List[Transition]:
+        # 1. Get all transitions possibly enabled looking only at current configuration
+        changed_bitmap = self._combo_step.changed_bitmap
+        key = (self.configuration_bitmap, changed_bitmap)
+        try:
+            transitions = self.transition_mem[key]
+        except:
+            self.transition_mem[key] = transitions = [t for s in self.configuration if not (2**s.state_id & changed_bitmap) for t in s.transitions]
+        
+        # 2. Filter those based on guard and event trigger
+        enabled_events = self._small_step.current_events + self._combo_step.current_events
+        if self.model.semantics.input_event_lifeline == InputEventLifeline.WHOLE or (
+            not self._big_step.has_stepped and
+                (self.model.semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP or (
+                not self._combo_step.has_stepped and
+                    self.model.semantics.input_event_lifeline == InputEventLifeline.FIRST_SMALL_STEP))):
+            enabled_events += self._big_step.input_events
+        # print_debug(termcolor.colored("small step enabled events: "+str(list(map(lambda e: e.name, enabled_events))), 'blue'))
+        enabled_transitions = []
+        for t in transitions:
+            if self._is_transition_enabled(t, enabled_events, enabled_transitions):
+                enabled_transitions.append(t)
+        return enabled_transitions
+
+    def _is_transition_enabled(self, t, events, enabled_transitions) -> bool:
+        if t.trigger is None:
+            # t.enabled_event = None
+            return (t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(self.data_model)
+        else:
+            for event in events:
+                if (t.trigger.name == event.name and (not t.trigger.port or t.trigger.port == event.port)) and ((t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard(event.parameters)):
+                    # t.enabled_event = event
+                    return True
+
     # @profile
     def _fire_transition(self, t: Transition):
 
@@ -207,50 +243,6 @@ class StatechartInstance(Instance):
     # def getSingleChild(self, link_name):
     #     return self.getChildren(link_nameself.controller)[0] # assume this will return a single child...
 
-    # Return whether the current configuration includes ALL the states given.
-    def inState(self, state_strings: List[str]) -> bool:
-        state_ids_bitmap = functools.reduce(lambda x,y: x|y, [2**self.model.states[state_string].state_id for state_string in state_strings])
-        in_state = (self.configuration_bitmap | state_ids_bitmap) == self.configuration_bitmap
-        if in_state:
-            print_debug("in state"+str(state_strings))
-        else:
-            print_debug("not in state"+str(state_strings))
-        return in_state
-
-    # generate transition candidates for current small step
-    # @profile
-    def _transition_candidates(self) -> List[Transition]:
-        changed_bitmap = self._combo_step.changed_bitmap
-        key = (self.configuration_bitmap, changed_bitmap)
-        try:
-            transitions = self.transition_mem[key]
-        except:
-            self.transition_mem[key] = transitions = [t for s in self.configuration if not (2**s.state_id & changed_bitmap) for t in s.transitions]
-        
-        enabled_events = self._small_step.current_events + self._combo_step.current_events
-        if self.model.semantics.input_event_lifeline == InputEventLifeline.WHOLE or (
-            not self._big_step.has_stepped and
-                (self.model.semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP or (
-                not self._combo_step.has_stepped and
-                    self.model.semantics.input_event_lifeline == InputEventLifeline.FIRST_SMALL_STEP))):
-            enabled_events += self._big_step.input_events
-        # print_debug(termcolor.colored("small step enabled events: "+str(list(map(lambda e: e.name, enabled_events))), 'blue'))
-        enabled_transitions = []
-        for t in transitions:
-            if self._is_transition_enabled(t, enabled_events, enabled_transitions):
-                enabled_transitions.append(t)
-        return enabled_transitions
-
-    def _is_transition_enabled(self, t, events, enabled_transitions) -> bool:
-        if t.trigger is None:
-            # t.enabled_event = None
-            return (t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard.eval(self.data_model)
-        else:
-            for event in events:
-                if (t.trigger.name == event.name and (not t.trigger.port or t.trigger.port == event.port)) and ((t.guard is None) or (t.guard == ELSE_GUARD and not enabled_transitions) or t.guard(event.parameters)):
-                    # t.enabled_event = event
-                    return True
-
     def _perform_actions(self, actions: List[Action]):
         for a in actions:
             if isinstance(a, RaiseInternalEvent):
@@ -278,6 +270,16 @@ class StatechartInstance(Instance):
             self._combo_step.addNextEvent(event)
         elif self.model.semantics.internal_event_lifeline == InternalEventLifeline.QUEUE:
             self._big_step.addOutputEvent(OutputEvent(event, InstancesTarget([self])))
+
+    # Return whether the current configuration includes ALL the states given.
+    def inState(self, state_strings: List[str]) -> bool:
+        state_ids_bitmap = functools.reduce(lambda x,y: x|y, [2**self.model.states[state_string].state_id for state_string in state_strings])
+        in_state = (self.configuration_bitmap | state_ids_bitmap) == self.configuration_bitmap
+        if in_state:
+            print_debug("in state"+str(state_strings))
+        else:
+            print_debug("not in state"+str(state_strings))
+        return in_state
 
 
 class BigStepState(object):

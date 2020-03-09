@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="sequence.statechart.xml">
+    <override-semantics
+      big_step_maximality="take_one"/>
+  </statechart>
+  <scheduler stabilize="false"/>
+  <input/>
+  <output>
+    <big_step>
+      <event name="in_b" port="out"/>
+    </big_step>
+  </output>
+</test>

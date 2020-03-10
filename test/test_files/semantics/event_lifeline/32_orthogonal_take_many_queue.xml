@@ -9,7 +9,9 @@
 	<inport name="in"/>
 	<outport name="out"/>
 	<class name="c" default="true">
-		<scxml big_step_maximality="take_many" internal_event_lifeline="queue">
+		<scxml
+			big_step_maximality="take_many"
+			internal_event_lifeline="queue">
 			<parallel id="p">
 				<state id="o0" initial="sa">
 					<state id="sa">

@@ -1,3 +1,4 @@
+import termcolor
 import dataclasses
 from abc import ABC, abstractmethod
 from typing import List, Any, Tuple
@@ -11,6 +12,18 @@ class Event:
     port: str = ""
     parameters: List[Any] = dataclasses.field(default_factory=list)
 
+    def __str__(self):
+        if self.port:
+            s = "Event("+self.port+"."+self.name
+        else:
+            s = "Event("+self.name
+        if self.parameters:
+            s += ", params="+str(self.parameters)
+        s += ")"
+        return termcolor.colored(s, 'yellow')
+
+    def __repr__(self):
+        return self.__str__()
 
 # Abstract class.
 class EventTarget(ABC):

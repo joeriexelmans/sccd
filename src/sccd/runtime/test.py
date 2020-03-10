@@ -52,7 +52,9 @@ class Test(unittest.TestCase):
       if kill:
         interrupt.put(None)
       thread.join()
-      self.fail(msg + "\nExpected: " + str(expected) + "\nActual: " + str(actual) + ("\n(killed)" if kill else ""))
+      def repr(output):
+        return '\n'.join("%d: %s" % (i, str(big_step)) for i, big_step in enumerate(output))
+      self.fail(msg + "\n\nActual:\n" + repr(actual) + ("\n(killed)" if kill else "") + "\n\nExpected:\n" + repr(expected))
 
     while True:
       data = pipe.get(block=True, timeout=None)

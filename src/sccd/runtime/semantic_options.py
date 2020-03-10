@@ -13,13 +13,13 @@ class ComboStepMaximality(Enum):
 
 class InternalEventLifeline(Enum):
   QUEUE = 0
-  NEXT_SMALL_STEP = 1
-  NEXT_COMBO_STEP = 2
+  NEXT_COMBO_STEP = 1
+  NEXT_SMALL_STEP = 2
 
 class InputEventLifeline(Enum):
   WHOLE = 0
-  FIRST_SMALL_STEP = 1
-  FIRST_COMBO_STEP = 2
+  FIRST_COMBO_STEP = 1
+  FIRST_SMALL_STEP = 2
 
 class Priority(Enum):
   SOURCE_PARENT = 0

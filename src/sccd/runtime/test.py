@@ -10,7 +10,7 @@ TestInput = List[InputEvent]
 TestOutput = List[List[Event]]
 
 class Test(unittest.TestCase):
-  def __init__(self, name: str, model: Model, input: TestInput, output: TestOutput):
+  def __init__(self, name: str, model: AbstractModel, input: TestInput, output: TestOutput):
     super().__init__()
     self.name = name
     self.model = model

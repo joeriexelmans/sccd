@@ -5,6 +5,7 @@ from sccd.runtime.event_queue import EventQueue, EventQueueDeque, Timestamp
 from sccd.runtime.event import *
 from sccd.runtime.object_manager import ObjectManager
 from sccd.runtime.debug import print_debug
+from sccd.runtime.model import *
 
 @dataclasses.dataclass
 class InputEvent:
@@ -23,7 +24,7 @@ class Controller:
         event: Event
         targets: List[Instance]
 
-    def __init__(self, model):
+    def __init__(self, model: AbstractModel):
         self.model = model
         self.object_manager = ObjectManager(model)
         self.queue: EventQueue[EventQueueEntry] = EventQueue()
@@ -37,12 +38,12 @@ class Controller:
             if input.name == "":
                 raise Exception("Input event can't have an empty name.")
         
-            if input.port not in self.model.inports:
+            if input.port not in self.model.namespace.inports:
                 raise Exception("No such port: '" + input.port + "'")
 
 
             e = Event(
-                id=self.model.event_namespace.get_id(input.name),
+                id=self.model.namespace.get_event_id(input.name),
                 name=input.name,
                 port=input.port,
                 parameters=input.parameters)

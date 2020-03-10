@@ -15,7 +15,9 @@ if __name__ == '__main__':
 
     suite = unittest.TestSuite()
     for src_file in src_files:
-        suite.addTest(load_test(src_file))
+        tests = load_test(src_file)
+        for test in tests:
+            suite.addTest(test)
 
     if len(src_files) == 0:
         print("No input files specified.")

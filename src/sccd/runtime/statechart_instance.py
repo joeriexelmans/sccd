@@ -7,13 +7,17 @@ from sccd.runtime.event import *
 from sccd.runtime.semantic_options import *
 from sccd.runtime.debug import print_debug
 from sccd.runtime.bitmap import *
+from sccd.runtime.model import *
 from collections import Counter
 
 ELSE_GUARD = "ELSE_GUARD"
 
 class StatechartInstance(Instance):
-    def __init__(self, model, object_manager):
-        self.model = model
+    def __init__(self, statechart: Statechart, object_manager):
+        if statechart.semantics.has_wildcard():
+            raise Exception("Model semantics has unexpanded wildcard for some fields.")
+
+        self.statechart = statechart
         self.object_manager = object_manager
 
         self.data_model = DataModel({
@@ -41,7 +45,7 @@ class StatechartInstance(Instance):
 
     # enter default states, generating a set of output events
     def initialize(self, now: Timestamp) -> Tuple[bool, List[OutputEvent]]:
-        states = self.model.root.getEffectiveTargetStates(self)
+        states = self.statechart.tree.root.getEffectiveTargetStates(self)
         self.configuration.extend(states)
         self.configuration_bitmap = Bitmap.from_list(s.state_id for s in states)
         for state in states:
@@ -59,12 +63,12 @@ class StatechartInstance(Instance):
         self._combo_step.reset()
         self._small_step.reset()
 
-        print_debug(termcolor.colored('attempt big step, input_events='+str(input_events), 'red'))
+        # print_debug(termcolor.colored('attempt big step, input_events='+str(input_events), 'red'))
 
         while self.combo_step():
             print_debug(termcolor.colored('completed combo step', 'yellow'))
             self._big_step.has_stepped = True
-            if self.model.semantics.big_step_maximality == BigStepMaximality.TAKE_ONE:
+            if self.statechart.semantics.big_step_maximality == BigStepMaximality.TAKE_ONE:
                 break # Take One -> only one combo step allowed
 
         # can the next big step still contain transitions, even if there are no input events?
@@ -98,20 +102,20 @@ class StatechartInstance(Instance):
 
         candidates = self._transition_candidates2()
 
-        candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up
-        print_debug(termcolor.colored("small step candidates: "+
-            str(list(map(
-                lambda t: reduce(lambda x,y:x+y,list(map(
-                    lambda s: "to "+s.name,
-                    t.targets))),
-                candidates))), 'blue'))
+        # candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
+        # print_debug(termcolor.colored("small step candidates: "+
+        #     str(list(map(
+        #         lambda t: reduce(lambda x,y:x+y,list(map(
+        #             lambda s: "to "+s.name,
+        #             t.targets))),
+        #         candidates))), 'blue'))
 
         for c in candidates:
-            if self.model.semantics.concurrency == Concurrency.SINGLE:
+            if self.statechart.semantics.concurrency == Concurrency.SINGLE:
                 self._fire_transition(c)
                 self._small_step.has_stepped = True
                 break
-            elif self.model.semantics.concurrency == Concurrency.MANY:
+            elif self.statechart.semantics.concurrency == Concurrency.MANY:
                 raise Exception("Not implemented!")
         return self._small_step.has_stepped
 
@@ -126,7 +130,7 @@ class StatechartInstance(Instance):
         except KeyError:
             # outgoing transitions whose arenas don't overlap with already fired transitions
             self.transition_mem[key] = transitions = [t for s in self.configuration if not changed_bitmap.has(s.state_id) for t in s.transitions]
-            if self.model.semantics.priority == Priority.SOURCE_CHILD:
+            if self.statechart.semantics.priority == Priority.SOURCE_CHILD:
                 # Transitions are already in parent -> child (depth-first) order
                 # Only the first transition of the candidates will be executed.
                 # To get SOURCE-CHILD semantics, we simply reverse the list of candidates:
@@ -149,8 +153,8 @@ class StatechartInstance(Instance):
         try:
             transitions = self.event_mem[key]
         except KeyError:
-            self.event_mem[key] = transitions = [t for t in self.model.transition_list if (not t.trigger or enabled_events_bitmap.has(t.trigger.id)) and not changed_bitmap.has(t.source.state_id)]
-            if self.model.semantics.priority == Priority.SOURCE_CHILD:
+            self.event_mem[key] = transitions = [t for t in self.statechart.tree.transition_list if (not t.trigger or enabled_events_bitmap.has(t.trigger.id)) and not changed_bitmap.has(t.source.state_id)]
+            if self.statechart.semantics.priority == Priority.SOURCE_CHILD:
                 # Transitions are already in parent -> child (depth-first) order
                 # Only the first transition of the candidates will be executed.
                 # To get SOURCE-CHILD semantics, we simply reverse the list of candidates:
@@ -180,11 +184,11 @@ class StatechartInstance(Instance):
     # List of current small step enabled events
     def _enabled_events(self) -> List[Event]:
         events = self._small_step.current_events + self._combo_step.current_events
-        if self.model.semantics.input_event_lifeline == InputEventLifeline.WHOLE or (
+        if self.statechart.semantics.input_event_lifeline == InputEventLifeline.WHOLE or (
             not self._big_step.has_stepped and
-                (self.model.semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP or (
+                (self.statechart.semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP or (
                 not self._combo_step.has_stepped and
-                    self.model.semantics.input_event_lifeline == InputEventLifeline.FIRST_SMALL_STEP))):
+                    self.statechart.semantics.input_event_lifeline == InputEventLifeline.FIRST_SMALL_STEP))):
             events += self._big_step.input_events
         return events
 
@@ -250,7 +254,7 @@ class StatechartInstance(Instance):
         try:
             self.configuration = self.config_mem[self.configuration_bitmap]
         except:
-            self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.model.state_list if self.configuration_bitmap.has(s.state_id)]
+            self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.statechart.tree.state_list if self.configuration_bitmap.has(s.state_id)]
         # t.enabled_event = None
         
     # def getChildren(self, link_name):
@@ -278,16 +282,16 @@ class StatechartInstance(Instance):
                 time_offset=after.delay))
 
     def _raiseInternalEvent(self, event):
-        if self.model.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_SMALL_STEP:
+        if self.statechart.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_SMALL_STEP:
             self._small_step.addNextEvent(event)
-        elif self.model.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_COMBO_STEP:
+        elif self.statechart.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_COMBO_STEP:
             self._combo_step.addNextEvent(event)
-        elif self.model.semantics.internal_event_lifeline == InternalEventLifeline.QUEUE:
+        elif self.statechart.semantics.internal_event_lifeline == InternalEventLifeline.QUEUE:
             self._big_step.addOutputEvent(OutputEvent(event, InstancesTarget([self])))
 
     # Return whether the current configuration includes ALL the states given.
     def inState(self, state_strings: List[str]) -> bool:
-        state_ids_bitmap = Bitmap.from_list((self.model.states[state_string].state_id for state_string in state_strings))
+        state_ids_bitmap = Bitmap.from_list((self.statechart.tree.states[state_string].state_id for state_string in state_strings))
         in_state = self.configuration_bitmap.has_all(state_ids_bitmap)
         if in_state:
             print_debug("in state"+str(state_strings))

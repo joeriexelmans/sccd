@@ -26,12 +26,13 @@ class Test:
   input_events: List[InputEvent]
   expected_events: List[Event]
 
-def load_model(src_file) -> Tuple[Model, Optional[Test]]:
+def load_model(src_file) -> Tuple[MultiInstanceModel, Optional[Test]]:
   tree = ET.parse(src_file)
   schema.assertValid(tree)
   root = tree.getroot()
 
-  model = Model()
+  namespace = ModelNamespace()
+  model = MultiInstanceModel(namespace, classes={}, default_class=None)
 
   classes = root.findall(".//class", root.nsmap)
   for c in classes:
@@ -39,22 +40,22 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
     default = c.get("default", "")
 
     scxml_node = c.find("scxml", root.nsmap)
-    statechart = load_statechart(scxml_node, model.event_namespace)
+    statechart = load_statechart(scxml_node, model.namespace)
 
     model.classes[class_name] = statechart
     if default or len(classes) == 1:
       model.default_class = class_name
 
-  def find_ports(element_path, collection):
+  def find_ports(element_path, add_function):
     elements = root.findall(element_path, root.nsmap)
     for e in elements:
       port = e.get("port")
-      if port != None and port not in collection:
-        collection.append(port)
+      if port != None:
+        add_function(port)
   # Any 'port' attribute of a <transition> element is an input port
-  find_ports(".//transition", model.inports)
+  find_ports(".//transition", namespace.add_inport)
   # Any 'port' attribute of a <raise> element is an output port
-  find_ports(".//raise", model.outports)
+  find_ports(".//raise", namespace.add_outport)
 
   test = None
   test_node = root.find(".//test", root.nsmap)
@@ -82,7 +83,7 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
 
   return (model, test)
 
-def load_statechart(scxml_node, event_namespace: EventNamespace) -> Statechart:
+def load_statechart(scxml_node, namespace: ModelNamespace) -> Statechart:
 
   def load_action(action_node) -> Optional[Action]:
     tag = ET.QName(action_node).localname
@@ -90,7 +91,7 @@ def load_statechart(scxml_node, event_namespace: EventNamespace) -> Statechart:
       event = action_node.get("event")
       port = action_node.get("port")
       if not port:
-        return RaiseInternalEvent(name=event, parameters=[], event_id=event_namespace.assign_id(event))
+        return RaiseInternalEvent(name=event, parameters=[], event_id=namespace.assign_event_id(event))
       else:
         return RaiseOutputEvent(name=event, parameters=[], outport=port, time_offset=0)
     else:
@@ -179,9 +180,9 @@ def load_statechart(scxml_node, event_namespace: EventNamespace) -> Statechart:
     if after is not None:
       event = "_after%d" % next_after_id # transition gets unique event name
       next_after_id += 1
-      trigger = AfterTrigger(event_namespace.assign_id(event), event, Timestamp(after))
+      trigger = AfterTrigger(namespace.assign_event_id(event), event, Timestamp(after))
     elif event is not None:
-      trigger = Trigger(event_namespace.assign_id(event), event, port)
+      trigger = Trigger(namespace.assign_event_id(event), event, port)
     else:
       trigger = None
     transition.setTrigger(trigger)
@@ -216,7 +217,9 @@ def load_statechart(scxml_node, event_namespace: EventNamespace) -> Statechart:
       value = aspect.type[key.upper()]
       setattr(semantics, aspect.name, value)
 
-  return Statechart(root=root, states=states, state_list=state_list, transition_list=transition_list, semantics=semantics)
+  return Statechart(
+    tree=StateTree(root=root, states=states, state_list=state_list, transition_list=transition_list),
+    semantics=semantics)
 
 class ParseError(Exception):
   def __init__(self, msg):

@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<statechart>
+  <semantics/>
+  <datamodel/>
+  <tree>
+    <state initial="a">
+      <state id="a">
+        <transition target="/b">
+          <raise event="f"/>
+        </transition>
+      </state>
+      <state id="b">
+        <onentry>
+          <raise event="in_b" port="out"/>
+        </onentry>
+        <transition event="f" target="/c"/>
+      </state>
+      <state id="c">
+        <onentry>
+          <raise event="in_c" port="out"/>
+        </onentry>
+      </state>
+    </state>
+  </tree>
+</statechart>

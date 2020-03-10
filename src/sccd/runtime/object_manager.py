@@ -16,7 +16,8 @@ class ObjectManager(Instance):
         # we need to maintain this set in order to do broadcasts
         self.instances = [self] # object manager is an instance too!
 
-        self._create(model.default_class)
+        i = StatechartInstance(model.get_default_class(), self)
+        self.instances.append(i)
 
     def _create(self, class_name) -> StatechartInstance:
         # Instantiate the model for each class at most once:

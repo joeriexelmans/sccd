@@ -1,15 +1,13 @@
 <?xml version="1.0" ?>
 <test>
-  <statechart src="sequence.statechart.xml">
-    <override-semantics
-      big_step_maximality="take_one"/>
+  <statechart src="../models/flat.statechart.xml">
+    <override_semantics
+      big_step_maximality="take_many"/>
   </statechart>
   <input/>
   <output>
     <big_step>
       <event name="in_b" port="out"/>
-    </big_step>
-    <big_step>
       <event name="in_c" port="out"/>
     </big_step>
   </output>

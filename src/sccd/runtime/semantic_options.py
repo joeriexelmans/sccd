@@ -1,5 +1,7 @@
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
+from typing import *
+import itertools
 
 class BigStepMaximality(Enum):
   TAKE_ONE = 0
@@ -8,7 +10,6 @@ class BigStepMaximality(Enum):
 class ComboStepMaximality(Enum):
   COMBO_TAKE_ONE = 0
   COMBO_TAKE_MANY = 1
-
 
 class InternalEventLifeline(Enum):
   QUEUE = 0
@@ -28,6 +29,7 @@ class Concurrency(Enum):
   SINGLE = 0
   MANY = 1
 
+
 @dataclass
 class SemanticConfiguration:
   big_step_maximality: BigStepMaximality = BigStepMaximality.TAKE_MANY
@@ -36,3 +38,21 @@ class SemanticConfiguration:
   input_event_lifeline: InputEventLifeline = InputEventLifeline.FIRST_COMBO_STEP
   priority: Priority = Priority.SOURCE_PARENT
   concurrency: Concurrency = Concurrency.SINGLE
+
+  # Check if any field has been set to None.
+  def has_wildcard(self):
+    for field in fields(self):
+      if getattr(self, field.name) is None:
+        return True
+    return False
+
+  # List of mappings from field name to value for that field.
+  # Each mapping in the list can be used as parameter to the dataclasses.replace function
+  # to create a new semantic configuration with the changes applied.
+  def wildcard_cart_product(self) -> Iterable[Mapping[str, Any]]:
+    wildcard_fields = []
+    for field in fields(self):
+      if getattr(self, field.name) is None:
+        wildcard_fields.append(field)
+    types = (field.type for field in wildcard_fields)
+    return ({wildcard_fields[i].name: option for i,option in enumerate(configuration)} for configuration in itertools.product(*types))

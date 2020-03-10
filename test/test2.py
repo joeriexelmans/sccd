@@ -6,12 +6,13 @@ from sccd.runtime.xml_loader2 import *
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Run SCCD tests.",
-        epilog="Set environment variable SCCDDEBUG=1 to display debug information about the inner workings of state machines.")
+        epilog="Set environment variable SCCDDEBUG=1 to display debug information about the inner workings of the runtime.")
     parser.add_argument('path', metavar='PATH', type=str, nargs='*', help="Tests to run. Can be a XML file or a directory. If a directory, it will be recursively scanned for XML files.")
     parser.add_argument('--build-dir', metavar='BUILD_DIR', type=str, default='build', help="Directory for built tests. Defaults to 'build'")
     args = parser.parse_args()
 
-    src_files = get_files(args.path, filter=lambda file: file.endswith(".test.xml"))
+    src_files = get_files(args.path,
+        filter=lambda file: file.startswith("test_") and file.endswith(".xml"))
 
     suite = unittest.TestSuite()
     for src_file in src_files:

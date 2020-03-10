@@ -14,9 +14,9 @@ CURRENT_NODE: "."
 IDENTIFIER: /[A-Za-z_][A-Za-z_0-9]*/ 
 
 // target of a transition
-state_ref: _path | "(" _path ("," _path)+ ")" 
+state_ref: path | "(" path ("," path)+ ")" 
 
-_path: absolute_path | relative_path 
+?path: absolute_path | relative_path 
 absolute_path: _PATH_SEP _path_sequence
 relative_path: _path_sequence
 _path_sequence: (CURRENT_NODE | PARENT_NODE | IDENTIFIER) (_PATH_SEP _path_sequence)?
@@ -27,23 +27,24 @@ _path_sequence: (CURRENT_NODE | PARENT_NODE | IDENTIFIER) (_PATH_SEP _path_seque
 ?expr: or_expr
 
 ?or_expr: and_expr
-       | or_expr "||" and_expr -> or
+        | or_expr "||" and_expr -> or
 
 ?and_expr: atom
-        | and_expr "&&" atom   -> and
+         | and_expr "&&" atom   -> and
 
 ?atom: IDENTIFIER               -> identifier
-    | "-" atom                 -> neg
-    | "(" expr ")"             -> group
-    | literal                 
-    | func_call
-    | array
+     | "-" atom                 -> neg
+     | "(" expr ")"             -> group
+     | literal
+     | func_call
+     | array
 
 array: "[" (expr ("," expr)*)? "]"
 
 ?literal: ESCAPED_STRING -> string
         | SIGNED_NUMBER -> number
         | bool_literal -> bool
+
 ?bool_literal: TRUE | FALSE
 
 func_call: atom "(" param_list ")"

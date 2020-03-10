@@ -18,7 +18,8 @@ if __name__ == '__main__':
     parser.add_argument('--pool-size', metavar='INT', type=int, default=multiprocessing.cpu_count()+1, help="Number of worker processes. Default = CPU count + 1.")
     args = parser.parse_args()
 
-    srcs = get_files(args.path, filter=lambda file: file.endswith(".statechart.xml"))
+    srcs = get_files(args.path,
+      filter=lambda file: (file.startswith("statechart_") or file.startswith("test_")) and file.endswith(".xml"))
 
     if len(srcs):
       if not args.no_svg:
@@ -35,7 +36,9 @@ if __name__ == '__main__':
 
     def process(src):
       statechart_node = ET.parse(src).getroot()
-      tree_node = statechart_node.find("tree")
+      tree_node = statechart_node.find(".//tree")
+      if tree_node is None:
+        return # no tree here :(
       tree = load_state_tree(ModelNamespace(), tree_node)
 
       target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+ext)
@@ -62,6 +65,7 @@ if __name__ == '__main__':
         def __init__(self, source, targets):
           self.source = source
           self.targets = targets
+          self.guard = None
           self.trigger = None
           self.actions = []
 
@@ -111,6 +115,8 @@ if __name__ == '__main__':
         label = ""
         if t.trigger:
           label += t.trigger.render()
+        if t.guard:
+          label += ' ['+t.guard.render()+']'
         if t.actions:
           raises = [a for a in t.actions if isinstance(a, RaiseEvent)]
           label += ','.join([r.render() for r in raises])

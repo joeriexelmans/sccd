@@ -1,6 +1,6 @@
 import os
 import lxml.etree as ET
-from lark import Lark
+from lark import Lark, Transformer
 from sccd.runtime.test import *
 from sccd.runtime.model import *
 from sccd.runtime.statechart_syntax import *
@@ -8,27 +8,25 @@ from sccd.runtime.statechart_syntax import *
 import sccd.schema
 schema_dir = os.path.dirname(sccd.schema.__file__)
 
-# Grammar for parsing state references and expressions
-grammar = open(os.path.join(schema_dir,"grammar.g"))
-parser = Lark(grammar, parser="lalr", start=["state_ref", "expr"])
+with open(os.path.join(schema_dir,"grammar.g")) as file:
+  grammar = file.read()
 
-class ParseError(Exception):
-  def __init__(self, msg):
-    self.msg = msg
+# Lark transformer for parsetree-less parsing of expressions
+class ExpressionTransformer(Transformer):
+  def string(self, node):
+    return StringLiteral(node[0][1:-1])
 
-def load_expression(parse_node) -> Expression:
-  if parse_node.data == "func_call":
-    function = load_expression(parse_node.children[0])
-    parameters = [load_expression(e) for e in parse_node.children[1].children]
-    return FunctionCall(function, parameters)
-  elif parse_node.data == "string":
-    return StringLiteral(parse_node.children[0].value[1:-1])
-  elif parse_node.data == "identifier":
-    return Identifier(parse_node.children[0].value)
-  elif parse_node.data == "array":
-    elements = [load_expression(e) for e in parse_node.children]
-    return Array(elements)
-  raise ParseError("Can't handle expression type: "+parse_node.data)
+  def func_call(self, node):
+    return FunctionCall(node[0], node[1].children)
+
+  def identifier(self, node):
+    return Identifier(node[0].value)
+
+  array = Array
+
+expr_parser = Lark(grammar, parser="lalr", start=["expr"], transformer=ExpressionTransformer())
+
+state_ref_parser = Lark(grammar, parser="lalr", start=["state_ref"])
 
 # Load state tree from XML <tree> node.
 # Namespace is required for building event namespace and in/outport discovery.
@@ -45,7 +43,7 @@ def load_state_tree(namespace: ModelNamespace, tree_node) -> StateTree:
         namespace.add_outport(port)
         return RaiseOutputEvent(name=name, parameters=[], outport=port, time_offset=0)
     else:
-      raise None
+      raise Exception("Unsupported action")
 
   # parent_node: XML node containing any number of action nodes as direct children
   def load_actions(parent_node) -> List[Action]:
@@ -79,8 +77,11 @@ def load_state_tree(namespace: ModelNamespace, tree_node) -> StateTree:
           state.addChild(child)
           if child.short_name == initial:
             state.default_state = child
-    if not initial and len(state.children) == 1:
+    if tag == "state" and not initial:
+      if len(state.children) == 1:
         state.default_state = state.children[0]
+      elif len(state.children) > 1:
+        raise Exception("Line %d: <%s> with %d children: Must set 'initial' attribute." % (state_node.sourceline, tag, len(state.children)))
 
     for xml_t in state_node.findall("transition", state_node.nsmap):
       transition_nodes.append((xml_t, state))
@@ -104,23 +105,26 @@ def load_state_tree(namespace: ModelNamespace, tree_node) -> StateTree:
   # Add transitions
   next_after_id = 0
   for t_node, source in transition_nodes:
-    # Parse and find target state
-    target_string = t_node.get("target", "")
-    parse_tree = parser.parse(target_string, start="state_ref")
-    def find_state(sequence) -> State:
-      if sequence.data == "relative_path":
-        el = source
-      elif sequence.data == "absolute_path":
-        el = root
-      for item in sequence.children:
-        if item.type == "PARENT_NODE":
-          el = el.parent
-        elif item.type == "CURRENT_NODE":
-          continue
-        elif item.type == "IDENTIFIER":
-          el = [x for x in el.children if x.short_name == item.value][0]
-      return el
-    targets = [find_state(seq) for seq in parse_tree.children]
+    try:
+      # Parse and find target state
+      target_string = t_node.get("target", "")
+      parse_tree = state_ref_parser.parse(target_string, start="state_ref")
+      def find_state(sequence) -> State:
+        if sequence.data == "relative_path":
+          el = source
+        elif sequence.data == "absolute_path":
+          el = root
+        for item in sequence.children:
+          if item.type == "PARENT_NODE":
+            el = el.parent
+          elif item.type == "CURRENT_NODE":
+            continue
+          elif item.type == "IDENTIFIER":
+            el = [x for x in el.children if x.short_name == item.value][0]
+        return el
+      targets = [find_state(seq) for seq in parse_tree.children]
+    except:
+      raise Exception("Line %d: <transition> with target=\"%s\": Could not find target." % (t_node.sourceline, target_string))
 
     transition = Transition(source, targets)
 
@@ -144,11 +148,8 @@ def load_state_tree(namespace: ModelNamespace, tree_node) -> StateTree:
     # Guard
     cond = t_node.get("cond")
     if cond is not None:
-      parse_tree = parser.parse(cond, start="expr")
-      # print(parse_tree)
-      # print(parse_tree.pretty())
-      cond_expr = load_expression(parse_tree)
-      transition.setGuard(cond_expr)
+      expr = expr_parser.parse(cond, start="expr")
+      transition.setGuard(expr)
     source.addTransition(transition)
 
   # Calculate stuff like list of ancestors, descendants, etc.
@@ -178,16 +179,16 @@ def load_statechart(namespace: ModelNamespace, sc_node) -> Statechart:
   return Statechart(tree=state_tree, semantics=semantics)
 
 def load_semantics(semantics: SemanticConfiguration, semantics_node):
-  if semantics_node is not None:
-    # Use reflection to find the possible XML attributes and their values
-    for aspect in dataclasses.fields(SemanticConfiguration):
-      key = semantics_node.get(aspect.name)
-      if key is not None:
-        if key == "*":
-          setattr(semantics, aspect.name, None)
-        else:
-          value = aspect.type[key.upper()]
-          setattr(semantics, aspect.name, value)
+    if semantics_node is not None:
+      # Use reflection to find the possible XML attributes and their values
+      for aspect in dataclasses.fields(SemanticConfiguration):
+        key = semantics_node.get(aspect.name)
+        if key is not None:
+          if key == "*":
+            setattr(semantics, aspect.name, None)
+          else:
+            value = aspect.type[key.upper()]
+            setattr(semantics, aspect.name, value)
 
 # Returned list contains more than one test if the semantic configuration contains wildcard values.
 def load_test(src_file) -> List[Test]:

@@ -5,34 +5,24 @@ from sccd.runtime.statechart_syntax import *
 from sccd.runtime.debug import print_debug
 
 class CandidatesGenerator:
-    def __init__(self, instance):
-        self.instance = instance
+    def __init__(self, reverse: bool):
+        self.reverse = reverse
         self.cache = {}
 
-class CandidatesGeneratorEventBased(CandidatesGenerator):
-    def generate(self, enabled_events: List[Event], arenas_changed: Bitmap) -> Iterable[Transition]:
-        events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
-        key = (events_bitmap, arenas_changed)
-
-        candidates = self.cache.setdefault(key, [
-            t for t in self.instance.statechart.tree.transition_list
-                if (not t.trigger or events_bitmap.has(t.trigger.id)) # todo: check port
-                and (not arenas_changed.has(t.source.state_id))
-            ])
-
-        def filter_f(t):
-            return self.instance._check_source(t) and self.instance._check_guard(t, enabled_events)
-        return filter(filter_f, candidates)
-
 class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
-    def generate(self, enabled_events: List[Event], arenas_changed: Bitmap) -> Iterable[Transition]:
-        key = (self.instance.configuration_bitmap, arenas_changed)
+    def generate(self, state, enabled_events: List[Event], arenas_changed: Bitmap) -> Iterable[Transition]:
+        key = (state.configuration_bitmap, arenas_changed)
 
-        candidates = self.cache.setdefault(key, [
-            t for s in self.instance.configuration
-                if (not arenas_changed.has(s.state_id))
-                for t in s.transitions
-            ])
+        try:
+            candidates = self.cache[key]
+        except KeyError:
+            candidates = self.cache[key] = [
+                t for s in state.configuration
+                    if (not arenas_changed.has(s.state_id))
+                    for t in s.transitions
+                ]
+            if self.reverse:
+                candidates.reverse()
 
         def check_trigger(t, enabled_events):
             if not t.trigger:
@@ -43,7 +33,27 @@ class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
             return False
 
         def filter_f(t):
-            return check_trigger(t, enabled_events) and self.instance._check_guard(t, enabled_events)
+            return check_trigger(t, enabled_events) and state.check_guard(t, enabled_events)
+        return filter(filter_f, candidates)
+
+class CandidatesGeneratorEventBased(CandidatesGenerator):
+    def generate(self, state, enabled_events: List[Event], arenas_changed: Bitmap) -> Iterable[Transition]:
+        events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
+        key = (events_bitmap, arenas_changed)
+
+        try:
+            candidates = self.cache[key]
+        except KeyError:
+            candidates = self.cache[key] = [
+                t for t in state.model.tree.transition_list
+                    if (not t.trigger or events_bitmap.has(t.trigger.id)) # todo: check port?
+                    and (not arenas_changed.has(t.source.state_id))
+                ]
+            if self.reverse:
+                candidates.reverse()
+
+        def filter_f(t):
+            return state.check_source(t) and state.check_guard(t, enabled_events)
         return filter(filter_f, candidates)
 
 class Round(ABC):
@@ -78,6 +88,9 @@ class Round(ABC):
         else:
             return self.remainder_events
 
+    def __repr__(self):
+        return self.name
+
 # Examples: Big step, combo step
 class SuperRound(Round):
     def __init__(self, name, subround: Round, take_one: bool):
@@ -97,24 +110,26 @@ class SuperRound(Round):
             arenas_changed |= changed
         return arenas_changed
 
+    def __repr__(self):
+        return self.name + " > " + self.subround.__repr__()
+
 class SmallStep(Round):
-    def __init__(self, name, generator: CandidatesGenerator):
+    def __init__(self, name, state, generator: CandidatesGenerator):
         super().__init__(name)
+        self.state = state
         self.generator = generator
 
     def _internal_run(self, arenas_changed: Bitmap) -> Bitmap:
         enabled_events = self.enabled_events()
-        print_debug("enabled events: " + str(enabled_events))
-        candidates = self.generator.generate(enabled_events, arenas_changed)
+        candidates = self.generator.generate(self.state, enabled_events, arenas_changed)
 
-        # candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
-        # print_debug(termcolor.colored("small step candidates: "+
-        #     str(list(map(
-        #         lambda t: reduce(lambda x,y:x+y,list(map(
-        #             lambda s: "to "+s.name,
-        #             t.targets))),
-        #         candidates))), 'blue'))
+        candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
+        if candidates:
+            print_debug("")
+            if enabled_events:
+                print_debug("events: " + str(enabled_events))
+            print_debug("candidates: " + str(candidates))
 
         for t in candidates:
-            arenas_changed |= self.generator.instance._fire_transition(t)
+            arenas_changed |= self.state.fire_transition(t)
             return arenas_changed

@@ -1,14 +1,13 @@
 <?xml version="1.0" ?>
 <test>
-  <statechart src="../models/ortho_intevent.statechart.xml">
+  <statechart src="statechart_ortho.xml">
     <override_semantics
-      big_step_maximality="take_many"
-      internal_event_lifeline="next_combo_step"/>
+      big_step_maximality="*"
+      internal_event_lifeline="next_small_step"/>
   </statechart>
   <output>
     <big_step>
       <event name="in_b" port="out"/>
-      <event name="in_c" port="out"/>
       <event name="in_e" port="out"/>
     </big_step>
   </output>

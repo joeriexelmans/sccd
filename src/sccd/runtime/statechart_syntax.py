@@ -1,3 +1,4 @@
+import termcolor
 from dataclasses import dataclass, field
 from typing import *
 from sccd.runtime.event_queue import Timestamp
@@ -89,7 +90,7 @@ class State:
         self.exit = exit
                     
     def __repr__(self):
-        return "State(%s)" % (self.state_id)
+        return "State(\"%s\")" % (self.name)
         
 class HistoryState(State):
     def __init__(self, name):
@@ -154,18 +155,6 @@ class AfterTrigger(Trigger):
         # Only one scheduled event should be responded to, i.e. the latest one.
         self.expected_id = -1
 
-    # Guard condition always paired with an AfterTrigger
-    class Guard(Expression):
-        def __init__(self, trigger):
-            self.trigger = trigger
-
-        def eval(self, events, datamodel):
-            e = [e for e in events if e.name == self.trigger.name][0]
-            return e.parameters[0] == self.trigger.expected_id
-
-    def createGuard(self):
-        return AfterTrigger.Guard(self)
-
     def nextTimerId(self) -> int:
         self.expected_id += 1
         return self.expected_id
@@ -191,8 +180,6 @@ class Transition:
         self.trigger = trigger
         if self.trigger is None:
             self.source.has_eventless_transitions = True
-        if isinstance(self.trigger, AfterTrigger):
-            self.guard = self.trigger.createGuard()
         
     def optimize(self):
         # the least-common ancestor can be computed statically
@@ -209,7 +196,7 @@ class Transition:
         self.arena_bitmap = self.lca.descendant_bitmap.set(self.lca.state_id)
                     
     def __repr__(self):
-        return "Transition(%s, %s)" % (self.source, self.targets[0])
+        return termcolor.colored("%s 🡪 %s" % (self.source.name, self.targets[0].name), 'green')
 
 @dataclass
 class RaiseEvent(Action):

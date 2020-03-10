@@ -25,6 +25,9 @@ class Identifier(Expression):
     def eval(self, events, datamodel):
         return datamodel.names[self.identifier].value
 
+    def render(self):
+        return self.identifier
+
 @dataclass
 class FunctionCall(Expression):
     function: Expression
@@ -35,6 +38,9 @@ class FunctionCall(Expression):
         p = [p.eval(events, datamodel) for p in self.parameters]
         return f(*p)
 
+    def render(self):
+        return self.function.render()+'('+','.join([p.render() for p in self.parameters])+')'
+
 @dataclass
 class StringLiteral(Expression):
     string: str
@@ -42,9 +48,15 @@ class StringLiteral(Expression):
     def eval(self, events, datamodel):
         return self.string
 
+    def render(self):
+        return '"'+self.string+'"'
+
 @dataclass
 class Array(Expression):
     elements: List[Any]
 
     def eval(self, events, datamodel):
         return [e.eval(events, datamodel) for e in self.elements]
+
+    def render(self):
+        return '['+','.join([e.render() for e in self.elements])+']'

@@ -6,14 +6,14 @@
     <state initial="a">
       <state id="a">
         <transition target="/b">
-          <raise event="f"/>
+          <raise event="e"/>
         </transition>
       </state>
       <state id="b">
         <onentry>
           <raise event="in_b" port="out"/>
         </onentry>
-        <transition event="f" target="/c"/>
+        <transition event="e" target="/c"/>
       </state>
       <state id="c">
         <onentry>

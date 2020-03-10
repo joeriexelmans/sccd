@@ -42,7 +42,7 @@ if __name__ == '__main__':
       model = module.Model()
 
       # Produce an output file for each class in the src file
-      for class_name, _class in model.classes.items():
+      for class_name, sc in model.classes.items():
         target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+'+'+class_name+ext)
         smcat_target = target_path('.smcat')
         svg_target = target_path('.svg')
@@ -51,7 +51,6 @@ if __name__ == '__main__':
 
         f = open(smcat_target, 'w')
         w = FormattedWriter(f)
-        sc = _class().statechart
 
         def name_to_label(name):
           label = name.split('/')[-1]
@@ -110,7 +109,7 @@ if __name__ == '__main__':
               w.write('}')
           transitions.extend(s.transitions)
 
-        write_state(sc.root, hide=True)
+        write_state(sc.tree.root, hide=True)
 
         ctr = 0
         for t in transitions:

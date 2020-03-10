@@ -16,16 +16,13 @@ class ObjectManager(Instance):
         # we need to maintain this set in order to do broadcasts
         self.instances = [self] # object manager is an instance too!
 
-        self._classmodels = {}
-
         self._create(model.default_class)
 
     def _create(self, class_name) -> StatechartInstance:
         # Instantiate the model for each class at most once:
         # The model is shared between instances of the same type.
-        self._classmodels.setdefault(class_name, self.model.classes[class_name]())
-        model = self._classmodels[class_name]
-        i = StatechartInstance(model.statechart, self)
+        statechart = self.model.classes[class_name]
+        i = StatechartInstance(statechart, self)
         self.instances.append(i)
         return i
 

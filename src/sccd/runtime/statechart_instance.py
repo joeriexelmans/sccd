@@ -143,11 +143,13 @@ class StatechartInstance(Instance):
     # Alternative implementation of candidate generation using mapping from set of enabled events to enabled transitions
     def _transition_candidates2(self) -> Iterable[Transition]:
         enabled_events = self._enabled_events()
-        key = Bitmap.from_list(e.id for e in enabled_events)
+        enabled_events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
+        changed_bitmap = self._combo_step.changed_bitmap
+        key = (enabled_events_bitmap, changed_bitmap)
         try:
             transitions = self.event_mem[key]
         except KeyError:
-            self.event_mem[key] = transitions = [t for t in self.model.transition_list if (not t.trigger or key.has(t.trigger.id))]
+            self.event_mem[key] = transitions = [t for t in self.model.transition_list if (not t.trigger or enabled_events_bitmap.has(t.trigger.id)) and not changed_bitmap.has(t.source.state_id)]
             if self.model.semantics.priority == Priority.SOURCE_CHILD:
                 # Transitions are already in parent -> child (depth-first) order
                 # Only the first transition of the candidates will be executed.
@@ -155,7 +157,7 @@ class StatechartInstance(Instance):
                 transitions.reverse()
 
         def filter_f(t):
-            return self._check_source(t) and self._check_arena(t) and self._check_guard(t, enabled_events)
+            return self._check_source(t) and self._check_guard(t, enabled_events)
         return filter(filter_f, transitions)
 
     def _check_trigger(self, t, events) -> bool:
@@ -174,9 +176,6 @@ class StatechartInstance(Instance):
 
     def _check_source(self, t) -> bool:
         return self.configuration_bitmap.has(t.source.state_id)
-
-    def _check_arena(self, t) -> bool:
-        return not self._combo_step.changed_bitmap.has(t.source.state_id)
 
     # List of current small step enabled events
     def _enabled_events(self) -> List[Event]:
@@ -223,7 +222,7 @@ class StatechartInstance(Instance):
                     f = lambda s0: not s0.descendants and s0 in s.descendants
                 self.history_values[h.state_id] = list(filter(f, self.configuration))
         print_debug('')
-        print_debug(termcolor.colored('transition %s:  %s 🡪 %s'%(self.model._class.name, t.source.name, t.targets[0].name), 'green'))
+        print_debug(termcolor.colored('transition  %s 🡪 %s'%(t.source.name, t.targets[0].name), 'green'))
         for s in exit_set:
             print_debug(termcolor.colored('  EXIT %s' % s.name, 'green'))
             self.eventless_states -= s.has_eventless_transitions

@@ -59,7 +59,7 @@ class Controller:
 
     # Run until the event queue has no more due events wrt given timestamp and until all instances are stable.
     # If no timestamp is given (now = None), run until event queue is empty.
-    def run_until(self, now: Optional[Timestamp], pipe: queue.Queue):
+    def run_until(self, now: Optional[Timestamp], pipe: queue.Queue, interrupt: queue.Queue = queue.SimpleQueue()):
 
         unstable: List[Instance] = []
 
@@ -78,7 +78,7 @@ class Controller:
                 pipe.put(pipe_events, block=True, timeout=None)
 
         # Helper. Let all unstable instances execute big steps until they are stable
-        def stabilize():
+        def do_stabilize():
             while unstable:
                 for i in reversed(range(len(unstable))):
                     instance = unstable[i]
@@ -86,9 +86,16 @@ class Controller:
                     process_big_step_output(output)
                     if stable:
                         del unstable[i]
+                try:
+                    interrupt.get_nowait()
+                    return False # interrupted
+                except queue.Empty:
+                    pass
             else:
-                return
+                # already stable
+                return True
             print_debug("all instances stabilized.")
+            return True
 
 
         if not self.initialized:
@@ -114,7 +121,8 @@ class Controller:
                 # check if there's a time leap
                 if timestamp is not self.simulated_time:
                     # before every "time leap", continue to run instances until they are stable.
-                    stabilize()
+                    if not do_stabilize():
+                        return
                     # make time leap
                     self.simulated_time = timestamp
                 # run all instances for whom there are events
@@ -124,6 +132,7 @@ class Controller:
                     if not stable:
                         unstable.append(instance)
             # 2. No more due events -> stabilize
-            stabilize()
+            if not do_stabilize():
+                return
 
         self.simulated_time = now

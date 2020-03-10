@@ -4,7 +4,6 @@
     <override-semantics
       big_step_maximality="take_many"/>
   </statechart>
-  <scheduler stabilize="false"/>
   <input/>
   <output>
     <big_step>

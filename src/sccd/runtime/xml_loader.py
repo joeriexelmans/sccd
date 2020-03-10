@@ -8,6 +8,7 @@ from sccd.runtime.statechart_syntax import *
 from sccd.runtime.event import Event
 from sccd.runtime.semantic_options import SemanticConfiguration
 from sccd.runtime.controller import InputEvent
+from sccd.runtime.model import *
 import sccd.schema
 
 schema_dir = os.path.dirname(sccd.schema.__file__)
@@ -20,54 +21,17 @@ schema = ET.XMLSchema(ET.parse(schema_path))
 grammar = open(os.path.join(schema_dir,"grammar.g"))
 parser = Lark(grammar, parser="lalr", start=["state_ref", "expr"])
 
-# Mapping from event name to event ID
-class EventNamespace:
-  def __init__(self):
-    self.mapping: Dict[str, int] = {}
-
-  def assign_id(self, event: str) -> int:
-    return self.mapping.setdefault(event, len(self.mapping))
-
-  def get_id(self, event: str) -> int:
-    return self.mapping[event]
-
-# Some types immitating the types that are produced by the compiler
-@dataclass
-class Statechart:
-  root: State
-  states: Dict[str, State] # mapping from state "full name" (e.g. "/parallel/ortho1/a") to state
-  state_list: List[State] # depth-first order
-  transition_list: List[Transition] # source state depth-first order, then document order
-
-  semantics: SemanticConfiguration = SemanticConfiguration()
-  _class: Any = None
-
-@dataclass
-class Class:
-  name: str
-  statechart: Statechart
-
-@dataclass
-class Model:
-  event_namespace: EventNamespace
-  inports: List[str]
-  outports: List[str]
-  classes: Dict[str, Any]
-  default_class: str
-
 @dataclass
 class Test:
   input_events: List[InputEvent]
   expected_events: List[Event]
-
 
 def load_model(src_file) -> Tuple[Model, Optional[Test]]:
   tree = ET.parse(src_file)
   schema.assertValid(tree)
   root = tree.getroot()
 
-  model = Model(event_namespace=EventNamespace(),
-    inports=[], outports=[], classes={}, default_class="")
+  model = Model()
 
   classes = root.findall(".//class", root.nsmap)
   for c in classes:
@@ -77,10 +41,7 @@ def load_model(src_file) -> Tuple[Model, Optional[Test]]:
     scxml_node = c.find("scxml", root.nsmap)
     statechart = load_statechart(scxml_node, model.event_namespace)
 
-    _class = Class(class_name, statechart)
-    statechart._class = _class
-
-    model.classes[class_name] = lambda: _class
+    model.classes[class_name] = statechart
     if default or len(classes) == 1:
       model.default_class = class_name
 
@@ -243,8 +204,6 @@ def load_statechart(scxml_node, event_namespace: EventNamespace) -> Statechart:
   state_list: List[State] = []
   transition_list: List[Transition] = []
   root.init_tree(0, "", states, state_list, transition_list)
-
-  print(transition_list)
 
   for t in transition_list:
     t.optimize()

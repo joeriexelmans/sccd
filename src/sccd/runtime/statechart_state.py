@@ -128,10 +128,11 @@ class StatechartState:
 
   def start_timers(self, triggers: List[AfterTrigger]):
       for after in triggers:
+          delay = after.delay.eval([], self.data_model)
           self.output.append(OutputEvent(
               Event(id=after.id, name=after.name, parameters=[after.nextTimerId()]),
               target=InstancesTarget([self.instance]),
-              time_offset=after.delay))
+              time_offset=delay))
 
   # Return whether the current configuration includes ALL the states given.
   def in_state(self, state_strings: List[str]) -> bool:

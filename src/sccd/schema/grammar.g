@@ -98,6 +98,8 @@ INT: /[0-9]+/
 
 // Statement parsing
 
+block: stmt (";" stmt)
+
 ?stmt: assignment
 
 assignment: lhs "=" expr

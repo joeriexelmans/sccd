@@ -12,6 +12,8 @@ class DataModel:
 
 
 class Expression(ABC):
+    # Evaluation should NOT have side effects.
+    # Motivation is that the evaluation of a guard condition cannot have side effects.
     @abstractmethod
     def eval(self, events, datamodel):
         pass
@@ -25,7 +27,9 @@ class LHS(Expression):
     def eval(self, events, datamodel):
         return self.lhs(events, datamodel).value
 
+# A statement is NOT an expression.
 class Statement(ABC):
+    # Execution typically has side effects.
     @abstractmethod
     def exec(self, events, datamodel):
         pass

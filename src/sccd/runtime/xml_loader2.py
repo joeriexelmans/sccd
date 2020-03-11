@@ -152,9 +152,11 @@ def load_state_tree(namespace: ModelNamespace, tree_node) -> StateTree:
     port = t_node.get("port")
     after = t_node.get("after")
     if after is not None:
+      after_expr = expr_parser.parse(after, start="expr")
+      # print(after_expr)
       name = "_after%d" % next_after_id # transition gets unique event name
       next_after_id += 1
-      trigger = AfterTrigger(namespace.assign_event_id(name), name, Timestamp(after))
+      trigger = AfterTrigger(namespace.assign_event_id(name), name, after_expr)
     elif name is not None:
       trigger = Trigger(namespace.assign_event_id(name), name, port)
       namespace.add_inport(port)

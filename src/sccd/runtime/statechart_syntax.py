@@ -146,7 +146,7 @@ class Trigger:
 
 class AfterTrigger(Trigger):
     # id: unique within the statechart
-    def __init__(self, id: int, name: str, delay: Timestamp):
+    def __init__(self, id: int, name: str, delay: Expression):
         super().__init__(id=id, name=name, port="")
         self.delay = delay
 

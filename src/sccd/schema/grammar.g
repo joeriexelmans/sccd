@@ -93,9 +93,8 @@ INT: /[0-9]+/
 func_call: atom "(" param_list ")"
 param_list: ( expr ("," expr)* )?  -> params
 
-TRUE: "true"
-FALSE: "false"
-
+TRUE: "True"
+FALSE: "False"
 
 ?stmt: assignment
 

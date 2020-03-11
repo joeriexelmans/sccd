@@ -6,7 +6,25 @@
         big_step_maximality="take_many"
         combo_step_maximality="*"/>
     <tree>
-      <state initial="arithmetic">
+      <state initial="comparisons">
+
+        <state id="comparisons" initial="s1">
+          <state id="s1">
+            <transition cond="1 == 1" target="../s2"/>
+          </state>
+          <state id="s2">
+            <transition cond="1 != 2" target="../s3"/>
+          </state>
+          <state id="s3">
+            <transition cond="1 &lt; 2" target="../s4"/>
+          </state>
+          <state id="s4">
+            <transition cond="2 &gt; 1" target="../s5"/>
+          </state>
+          <state id="s5">
+            <transition target="/arithmetic"/>
+          </state>
+        </state>
 
         <state id="arithmetic" initial="s1">
           <state id="s1">
@@ -28,9 +46,26 @@
             <transition cond="5 % 2 == 1" target="../s7"/>
           </state>
           <state id="s7">
+            <transition target="/boolean_logic"/>
+          </state>
+        </state>
+
+        <state id="boolean_logic" initial="s1">
+          <state id="s1">
+            <transition cond="True" target="../s2"/>
+          </state>
+          <state id="s2">
+            <transition cond="False or True" target="../s3"/>
+          </state>
+          <state id="s3">
+            <transition cond="True and not False" target="../s4"/>
+          </state>
+          <state id="s4">
+            <transition cond="not ((False or True) and False)" target="../s5"/>
+          </state>
+          <state id="s5">
             <transition target="/final"/>
           </state>
-
         </state>
 
         <state id="final">

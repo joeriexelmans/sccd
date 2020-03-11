@@ -75,6 +75,16 @@ class IntLiteral(Expression):
         return str(self.i)
 
 @dataclass
+class BoolLiteral(Expression):
+    b: bool 
+
+    def eval(self, events, datamodel):
+        return self.b
+
+    def render(self):
+        return "true" if self.b else "false"
+
+@dataclass
 class Array(Expression):
     elements: List[Any]
 
@@ -84,6 +94,18 @@ class Array(Expression):
     def render(self):
         return '['+','.join([e.render() for e in self.elements])+']'
 
+# Does not add anything semantically, but ensures that when rendering an expression,
+# the parenthesis are not lost
+@dataclass
+class Group(Expression):
+    subexpr: Expression
+
+    def eval(self, events, datamodel):
+        return self.subexpr.eval(events, datamodel)
+
+    def render(self):
+        return '('+self.subexpr.render()+')'
+
 @dataclass
 class BinaryExpression(Expression):
     lhs: Expression
@@ -91,6 +113,7 @@ class BinaryExpression(Expression):
     rhs: Expression
 
     def eval(self, events, datamodel):
+        
         return {
             # "AND": lambda x,y: x and y,
             # "OR": lambda x,y: x or y,
@@ -108,23 +131,22 @@ class BinaryExpression(Expression):
             # "MOD": lambda x,y: x % y,
             # "EXP": lambda x,y: x ** y,
 
-
-            "and": lambda x,y: x and y,
-            "or": lambda x,y: x or y,
-            "==": lambda x,y: x == y,
-            "!=": lambda x,y: x != y,
-            ">": lambda x,y: x > y,
-            ">=": lambda x,y: x >= y,
-            "<": lambda x,y: x < y,
-            "<=": lambda x,y: x <= y,
-            "+": lambda x,y: x + y,
-            "-": lambda x,y: x - y,
-            "*": lambda x,y: x * y,
-            "/": lambda x,y: x / y,
-            "//": lambda x,y: x // y,
-            "%": lambda x,y: x % y,
-            "**": lambda x,y: x ** y,
-        }[self.operator](self.lhs.eval(events, datamodel), self.rhs.eval(events, datamodel))
+            "and": lambda x,y: x.eval(events, datamodel) and y.eval(events, datamodel),
+            "or": lambda x,y: x.eval(events, datamodel) or y.eval(events, datamodel),
+            "==": lambda x,y: x.eval(events, datamodel) == y.eval(events, datamodel),
+            "!=": lambda x,y: x.eval(events, datamodel) != y.eval(events, datamodel),
+            ">": lambda x,y: x.eval(events, datamodel) > y.eval(events, datamodel),
+            ">=": lambda x,y: x.eval(events, datamodel) >= y.eval(events, datamodel),
+            "<": lambda x,y: x.eval(events, datamodel) < y.eval(events, datamodel),
+            "<=": lambda x,y: x.eval(events, datamodel) <= y.eval(events, datamodel),
+            "+": lambda x,y: x.eval(events, datamodel) + y.eval(events, datamodel),
+            "-": lambda x,y: x.eval(events, datamodel) - y.eval(events, datamodel),
+            "*": lambda x,y: x.eval(events, datamodel) * y.eval(events, datamodel),
+            "/": lambda x,y: x.eval(events, datamodel) / y.eval(events, datamodel),
+            "//": lambda x,y: x.eval(events, datamodel) // y.eval(events, datamodel),
+            "%": lambda x,y: x.eval(events, datamodel) % y.eval(events, datamodel),
+            "**": lambda x,y: x.eval(events, datamodel) ** y.eval(events, datamodel),
+        }[self.operator](self.lhs, self.rhs) # Borrow Python's lazy evaluation
 
     def render(self):
         return self.lhs.render() + ' ' + self.operator + ' ' + self.rhs.render()
@@ -136,9 +158,12 @@ class UnaryExpression(Expression):
 
     def eval(self, events, datamodel):
         return {
-            "NOT": lambda x: not x,
-            "MINUS": lambda x: -x,
-        }[self.operator](self.expr.eval(events, datamodel))
+            "not": lambda x: not x.eval(events, datamodel),
+            "-": lambda x: - x.eval(events, datamodel),
+        }[self.operator](self.expr)
+
+    def render(self):
+        return self.operator + ' ' + self.expr.render()
 
 @dataclass
 class Assignment(Statement):

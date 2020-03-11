@@ -28,6 +28,18 @@ class ExpressionTransformer(Transformer):
   def binary_expr(self, node):
     return BinaryExpression(node[0], node[1].value, node[2])
 
+  def unary_expr(self, node):
+    return UnaryExpression(node[0].value, node[1])
+
+  def bool(self, node):
+    return BoolLiteral({
+      "True": True,
+      "False": False,
+      }[node[0].value])
+
+  def group(self, node):
+    return Group(node[0])
+
   array = Array
 
 
@@ -161,6 +173,7 @@ def load_state_tree(namespace: ModelNamespace, tree_node) -> StateTree:
         # print(tree2.pretty())
 
         expr = expr_parser.parse(cond, start="expr")
+        print(expr)
         transition.setGuard(expr)
       except:
         raise Exception("Line %d: <transition> with cond=\"%s\": Parse error." % (t_node.sourceline, cond))

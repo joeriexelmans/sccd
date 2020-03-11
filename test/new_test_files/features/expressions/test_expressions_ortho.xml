@@ -1,0 +1,91 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics/>
+    <tree>
+      <state>
+
+        <parallel id="p">
+
+          <state id="comparisons" initial="s1">
+            <state id="s1">
+              <transition cond="1 == 1" target="../s2"/>
+            </state>
+            <state id="s2">
+              <transition cond="1 != 2" target="../s3"/>
+            </state>
+            <state id="s3">
+              <transition cond="1 &lt; 2" target="../s4"/>
+            </state>
+            <state id="s4">
+              <transition cond="2 &gt; 1" target="../ok"/>
+            </state>
+            <state id="ok">
+              <onentry>
+                <raise event="ok" port="out"/>
+              </onentry>
+            </state>
+          </state>
+
+          <state id="arithmetic" initial="s1">
+            <state id="s1">
+              <transition cond="1 + 1 == 2" target="../s2"/>
+            </state>
+            <state id="s2">
+              <transition cond="42 == 52 - 11 + 1" target="../s3"/>
+            </state>
+            <state id="s3">
+              <transition cond="2 * 3 == 6" target="../s4"/>
+            </state>
+            <state id="s4">
+              <transition cond="21 / 3 == 7" target="../s5"/>
+            </state>
+            <state id="s5">
+              <transition cond="256 == 2 ** 2 ** 3" target="../s6"/>
+            </state>
+            <state id="s6">
+              <transition cond="5 % 2 == 1" target="../ok"/>
+            </state>
+            <state id="ok">
+              <onentry>
+                <raise event="ok" port="out"/>
+              </onentry>
+            </state>
+          </state>
+
+          <state id="boolean_logic" initial="s1">
+            <state id="s1">
+              <transition cond="True" target="../s2"/>
+            </state>
+            <state id="s2">
+              <transition cond="False or True" target="../s3"/>
+            </state>
+            <state id="s3">
+              <transition cond="True and not False" target="../s4"/>
+            </state>
+            <state id="s4">
+              <transition cond="not (True and False or False)" target="../s5"/>
+            </state>
+            <state id="s5">
+              <transition cond="not (False or False and True)" target="../ok"/>
+            </state>
+            <state id="ok">
+              <onentry>
+                <raise event="ok" port="out"/>
+              </onentry>
+            </state>
+          </state>
+
+        </parallel>
+
+      </state>
+    </tree>
+  </statechart>
+  <output>
+    <big_step>
+      <event name="ok" port="out"/>
+      <event name="ok" port="out"/>
+      <event name="ok" port="out"/>
+    </big_step>
+  </output>
+</test>

@@ -2,9 +2,7 @@
 <test>
   <statechart>
     <!-- after events are always received as input events in a later big step -->
-    <semantics
-        big_step_maximality="take_many"
-        combo_step_maximality="*"/>
+    <semantics/>
     <tree>
       <state initial="comparisons">
 
@@ -61,9 +59,12 @@
             <transition cond="True and not False" target="../s4"/>
           </state>
           <state id="s4">
-            <transition cond="not ((False or True) and False)" target="../s5"/>
+            <transition cond="not (True and False or False)" target="../s5"/>
           </state>
           <state id="s5">
+            <transition cond="not (False or False and True)" target="../s6"/>
+          </state>
+          <state id="s6">
             <transition target="/final"/>
           </state>
         </state>

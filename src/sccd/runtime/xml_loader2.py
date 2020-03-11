@@ -173,7 +173,7 @@ def load_state_tree(namespace: ModelNamespace, tree_node) -> StateTree:
         # print(tree2.pretty())
 
         expr = expr_parser.parse(cond, start="expr")
-        print(expr)
+        # print(expr)
         transition.setGuard(expr)
       except:
         raise Exception("Line %d: <transition> with cond=\"%s\": Parse error." % (t_node.sourceline, cond))

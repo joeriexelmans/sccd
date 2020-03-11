@@ -24,34 +24,55 @@ _path_sequence: (CURRENT_NODE | PARENT_NODE | IDENTIFIER) (_PATH_SEP _path_seque
 
 // We use the same operators and operator precedence rules as Python
 
-COMPARE_OPERATOR: "==" | "!=" | ">" | ">=" | "<" | "<="
-ADD_OPERATOR: "+" | "-"
-MULT_OPERATOR: "*" | "/" | "//" | "%"
+?compare_operator: EQ | NEQ | GT | GEQ | LT | LEQ
+?add_operator: PLUS | MINUS
+?mult_operator: MULT | DIV | FLOORDIV | MOD
+
+AND: "and"
+OR: "or"
+EQ: "=="
+NEQ: "!="
+GT: ">"
+GEQ: ">="
+LT: "<"
+LEQ: "<="
+PLUS: "+"
+MINUS: "-"
+MULT: "*"
+DIV: "/"
+FLOORDIV: "//"
+MOD: "%"
+EXP: "**"
+
+NOT: "not"
 
 ?expr: or_expr
 
 ?or_expr: and_expr
-        | or_expr "or" and_expr    -> or
+        | or_expr OR and_expr    -> binary_expr
 
-?and_expr: atom
-         | and_expr "and" not_expr  -> and
+?and_expr: not_expr
+         | and_expr AND not_expr  -> binary_expr
 
 ?not_expr: comp_expr
-         | "not" comp_expr           -> not
+         | NOT comp_expr           -> unary_expr
 
 ?comp_expr: add_expr
-          | comp_expr COMPARE_OPERATOR add_expr -> compare
+          | comp_expr compare_operator add_expr -> binary_expr
 
 
 ?add_expr: mult_expr
-         | add_expr ADD_OPERATOR mult_expr -> add
+         | add_expr add_operator mult_expr -> binary_expr
 
 
 ?mult_expr: unary
-          | mult_expr MULT_OPERATOR unary -> mult
+          | mult_expr mult_operator unary -> binary_expr
 
-?unary: atom
-      | "-" atom  -> neg
+?unary: exponent
+      | MINUS exponent  -> unary_expr
+
+?exponent: atom
+         | atom EXP exponent -> binary_expr
 
 ?atom: IDENTIFIER               -> identifier
      | "(" expr ")"             -> group
@@ -62,8 +83,10 @@ MULT_OPERATOR: "*" | "/" | "//" | "%"
 array: "[" (expr ("," expr)*)? "]"
 
 ?literal: ESCAPED_STRING -> string
-        | SIGNED_NUMBER -> number
+        | INT -> int
         | bool_literal -> bool
+
+INT: /[0-9]+/
 
 ?bool_literal: TRUE | FALSE
 

@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <!-- after events are always received as input events in a later big step -->
+    <semantics
+        big_step_maximality="take_many"
+        combo_step_maximality="*"/>
+    <tree>
+      <state initial="arithmetic">
+
+        <state id="arithmetic" initial="s1">
+          <state id="s1">
+            <transition cond="1 + 1 == 2" target="../s2"/>
+          </state>
+          <state id="s2">
+            <transition cond="42 == 52 - 11 + 1" target="../s3"/>
+          </state>
+          <state id="s3">
+            <transition cond="2 * 3 == 6" target="../s4"/>
+          </state>
+          <state id="s4">
+            <transition cond="21 / 3 == 7" target="../s5"/>
+          </state>
+          <state id="s5">
+            <transition cond="256 == 2 ** 2 ** 3" target="../s6"/>
+          </state>
+          <state id="s6">
+            <transition cond="5 % 2 == 1" target="../s7"/>
+          </state>
+          <state id="s7">
+            <transition target="/final"/>
+          </state>
+
+        </state>
+
+        <state id="final">
+          <onentry>
+            <raise event="all_good" port="out"/>
+          </onentry>
+        </state>
+
+      </state>
+    </tree>
+  </statechart>
+  <output>
+    <big_step>
+      <event name="all_good" port="out"/>
+    </big_step>
+  </output>
+</test>

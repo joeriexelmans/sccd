@@ -16,13 +16,20 @@ class ExpressionTransformer(Transformer):
   def string(self, node):
     return StringLiteral(node[0][1:-1])
 
+  def int(self, node):
+    return IntLiteral(int(node[0].value))
+
   def func_call(self, node):
     return FunctionCall(node[0], node[1].children)
 
   def identifier(self, node):
     return Identifier(node[0].value)
 
+  def binary_expr(self, node):
+    return BinaryExpression(node[0], node[1].value, node[2])
+
   array = Array
+
 
 expr_parser = Lark(grammar, parser="lalr", start=["expr"], transformer=ExpressionTransformer())
 
@@ -148,8 +155,15 @@ def load_state_tree(namespace: ModelNamespace, tree_node) -> StateTree:
     # Guard
     cond = t_node.get("cond")
     if cond is not None:
-      expr = expr_parser.parse(cond, start="expr")
-      transition.setGuard(expr)
+      try:
+        # expr_parser2 = Lark(grammar, parser="lalr", start=["expr"])
+        # tree2 = expr_parser2.parse(cond, start="expr")
+        # print(tree2.pretty())
+
+        expr = expr_parser.parse(cond, start="expr")
+        transition.setGuard(expr)
+      except:
+        raise Exception("Line %d: <transition> with cond=\"%s\": Parse error." % (t_node.sourceline, cond))
     source.addTransition(transition)
 
   # Calculate stuff like list of ancestors, descendants, etc.

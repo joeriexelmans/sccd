@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <test>
   <statechart>
-    <!-- after events are always received as input events in a later big step -->
     <semantics/>
     <tree>
       <state initial="comparisons">

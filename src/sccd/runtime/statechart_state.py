@@ -12,9 +12,8 @@ class StatechartState:
     self.instance = instance
     self.raise_internal = raise_internal
 
-    self.data_model = DataModel({
-        "INSTATE": Variable(self.in_state),
-    })
+    self.data_model = statechart.datamodel
+    self.data_model.names["INSTATE"] = Variable(self.in_state)
 
     # these 2 fields have the same information
     self.configuration: List[State] = []
@@ -38,10 +37,10 @@ class StatechartState:
     for state in states:
         print_debug(termcolor.colored('  ENTER %s'%state.name, 'green'))
         self.eventless_states += state.has_eventless_transitions
-        self.perform_actions(state.enter)
+        self.perform_actions([], state.enter)
         self.start_timers(state.after_triggers)
 
-  def fire_transition(self, t: Transition) -> Bitmap:
+  def fire_transition(self, events, t: Transition) -> Bitmap:
     def __exitSet():
         return [s for s in reversed(t.lca.descendants) if (s in self.configuration)]
     
@@ -78,11 +77,11 @@ class StatechartState:
         print_debug(termcolor.colored('  EXIT %s' % s.name, 'green'))
         self.eventless_states -= s.has_eventless_transitions
         # execute exit action(s)
-        self.perform_actions(s.exit)
+        self.perform_actions(events, s.exit)
         self.configuration_bitmap &= ~Bit(s.state_id)
             
     # execute transition action(s)
-    self.perform_actions(t.actions)
+    self.perform_actions(events, t.actions)
         
     # enter states...
     targets = __getEffectiveTargetStates()
@@ -92,7 +91,7 @@ class StatechartState:
         self.eventless_states += s.has_eventless_transitions
         self.configuration_bitmap |= Bit(s.state_id)
         # execute enter action(s)
-        self.perform_actions(s.enter)
+        self.perform_actions(events, s.enter)
         self.start_timers(s.after_triggers)
     try:
         self.configuration = self.config_mem[self.configuration_bitmap]
@@ -116,7 +115,7 @@ class StatechartState:
   def check_source(self, t) -> bool:
       return self.configuration_bitmap.has(t.source.state_id)
 
-  def perform_actions(self, actions: List[Action]):
+  def perform_actions(self, events, actions: List[Action]):
       for a in actions:
           if isinstance(a, RaiseInternalEvent):
               self.raise_internal(Event(id=a.event_id, name=a.name, port="", parameters=[]))
@@ -125,6 +124,8 @@ class StatechartState:
                   OutputEvent(Event(id=0, name=a.name, port=a.outport, parameters=[]),
                   OutputPortTarget(a.outport),
                   a.time_offset))
+          elif isinstance(a, Code):
+              a.block.exec(events, self.data_model)
 
   def start_timers(self, triggers: List[AfterTrigger]):
       for after in triggers:

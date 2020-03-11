@@ -131,5 +131,5 @@ class SmallStep(Round):
             print_debug("candidates: " + str(candidates))
 
         for t in candidates:
-            arenas_changed |= self.state.fire_transition(t)
+            arenas_changed |= self.state.fire_transition(enabled_events, t)
             return arenas_changed

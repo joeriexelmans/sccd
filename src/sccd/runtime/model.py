@@ -35,7 +35,8 @@ class StateTree:
 @dataclass
 class Statechart:
   tree: StateTree
-  semantics: SemanticConfiguration = SemanticConfiguration()
+  semantics: SemanticConfiguration
+  datamodel: DataModel
 
 @dataclass
 class AbstractModel(ABC):

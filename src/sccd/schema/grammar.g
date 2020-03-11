@@ -98,10 +98,20 @@ INT: /[0-9]+/
 
 // Statement parsing
 
-block: stmt (";" stmt)
+block: stmt (";" stmt)*
 
 ?stmt: assignment
 
-assignment: lhs "=" expr
+assignment: lhs assign_operator expr
 
-?lhs: IDENTIFIER
+increment: lhs "+=" expr
+
+?lhs: IDENTIFIER -> identifier
+
+?assign_operator: ASSIGN | INCREMENT | DECREMENT | MULTIPLY | DIVIDE
+
+ASSIGN: "="
+INCREMENT: "+="
+DECREMENT: "-="
+MULTIPLY: "*="
+DIVIDE: "/="

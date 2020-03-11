@@ -4,12 +4,7 @@ from lark import Lark, Transformer
 from sccd.runtime.test import *
 from sccd.runtime.model import *
 from sccd.runtime.statechart_syntax import *
-
-import sccd.schema
-schema_dir = os.path.dirname(sccd.schema.__file__)
-
-with open(os.path.join(schema_dir,"grammar.g")) as file:
-  grammar = file.read()
+from copy import deepcopy
 
 # Lark transformer for parsetree-less parsing of expressions
 class ExpressionTransformer(Transformer):
@@ -40,29 +35,44 @@ class ExpressionTransformer(Transformer):
   def group(self, node):
     return Group(node[0])
 
+  def assignment(self, node):
+    return Assignment(node[0], node[1].value, node[2])
+
   array = Array
 
+  block = Block
 
-expr_parser = Lark(grammar, parser="lalr", start=["expr"], transformer=ExpressionTransformer())
+import sccd.schema
+schema_dir = os.path.dirname(sccd.schema.__file__)
+with open(os.path.join(schema_dir,"grammar.g")) as file:
+  grammar = file.read()
 
+expr_parser = Lark(grammar, parser="lalr", start=["expr", "block"], transformer=ExpressionTransformer())
 state_ref_parser = Lark(grammar, parser="lalr", start=["state_ref"])
 
 # Load state tree from XML <tree> node.
 # Namespace is required for building event namespace and in/outport discovery.
 def load_state_tree(namespace: ModelNamespace, tree_node) -> StateTree:
   def load_action(action_node) -> Optional[Action]:
-    tag = ET.QName(action_node).localname
-    if tag == "raise":
-      name = action_node.get("event")
-      port = action_node.get("port")
-      if not port:
-        event_id = namespace.assign_event_id(name)
-        return RaiseInternalEvent(name=name, parameters=[], event_id=event_id)
+      tag = ET.QName(action_node).localname
+      if tag == "raise":
+        name = action_node.get("event")
+        port = action_node.get("port")
+        if not port:
+          event_id = namespace.assign_event_id(name)
+          return RaiseInternalEvent(name=name, parameters=[], event_id=event_id)
+        else:
+          namespace.add_outport(port)
+          return RaiseOutputEvent(name=name, parameters=[], outport=port, time_offset=0)
+      elif tag == "code":
+        code = action_node.text
+        try:
+          stmt_block = expr_parser.parse(code, start="block")
+          return Code(stmt_block)
+        except:
+          raise Exception("Line %d: <%s>: Error parsing code." % (action_node.sourceline, tag))
       else:
-        namespace.add_outport(port)
-        return RaiseOutputEvent(name=name, parameters=[], outport=port, time_offset=0)
-    else:
-      raise Exception("Unsupported action")
+        raise Exception("Line %d: <%s>: Unsupported action tag." % (action_node.sourceline, tag))
 
   # parent_node: XML node containing any number of action nodes as direct children
   def load_actions(parent_node) -> List[Action]:
@@ -203,21 +213,31 @@ def load_statechart(namespace: ModelNamespace, sc_node) -> Statechart:
   load_semantics(semantics, semantics_node)
 
   datamodel_node = sc_node.find("datamodel")
-  # TODO: process datamodel node
+  datamodel = load_datamodel(datamodel_node)
 
-  return Statechart(tree=state_tree, semantics=semantics)
+  return Statechart(tree=state_tree, semantics=semantics, datamodel=datamodel)
 
 def load_semantics(semantics: SemanticConfiguration, semantics_node):
-    if semantics_node is not None:
-      # Use reflection to find the possible XML attributes and their values
-      for aspect in dataclasses.fields(SemanticConfiguration):
-        key = semantics_node.get(aspect.name)
-        if key is not None:
-          if key == "*":
-            setattr(semantics, aspect.name, None)
-          else:
-            value = aspect.type[key.upper()]
-            setattr(semantics, aspect.name, value)
+  if semantics_node is not None:
+    # Use reflection to find the possible XML attributes and their values
+    for aspect in dataclasses.fields(SemanticConfiguration):
+      key = semantics_node.get(aspect.name)
+      if key is not None:
+        if key == "*":
+          setattr(semantics, aspect.name, None)
+        else:
+          value = aspect.type[key.upper()]
+          setattr(semantics, aspect.name, value)
+
+def load_datamodel(d_node) -> DataModel:
+  datamodel = DataModel()
+  if d_node is not None:
+    for var_node in d_node.findall("var"):
+      id = var_node.get("id")
+      expr = var_node.get("expr")
+      val = expr_parser.parse(expr, start="expr")
+      datamodel.names[id] = Variable(val.eval([], datamodel))
+  return datamodel
 
 # Returned list contains more than one test if the semantic configuration contains wildcard values.
 def load_test(src_file) -> List[Test]:
@@ -249,7 +269,7 @@ def load_test(src_file) -> List[Test]:
       src_file + variant_description(i, variant),
       SingleInstanceModel(
         namespace,
-        Statechart(tree=statechart.tree, semantics=dataclasses.replace(statechart.semantics, **variant))),
+        Statechart(tree=statechart.tree, datamodel=deepcopy(statechart.datamodel), semantics=dataclasses.replace(statechart.semantics, **variant))),
       input,
       output)
     for i, variant in enumerate(statechart.semantics.wildcard_cart_product())

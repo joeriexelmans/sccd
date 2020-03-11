@@ -1,0 +1,32 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics/>
+    <datamodel>
+      <var id="x" expr="0"/>
+    </datamodel>
+    <tree>
+      <state initial="counting">
+        <state id="counting">
+          <transition cond="x &lt; 3" target=".">
+            <code> x += 1 </code>
+            <raise event="inc" port="out"/>
+          </transition>
+          <transition cond="x == 3" target="../done"/>
+        </state>
+        <state id="done">
+          <onentry><raise event="done" port="out"/></onentry>
+        </state>
+      </state>
+    </tree>
+  </statechart>
+  <output>
+    <big_step>
+      <event name="inc" port="out"/>
+      <event name="inc" port="out"/>
+      <event name="inc" port="out"/>
+
+      <event name="done" port="out"/>
+    </big_step>
+  </output>
+</test>

@@ -7,8 +7,8 @@ class Variable:
         self.value = value
 
 class DataModel:
-    def __init__(self, names: Dict[str, Variable]):
-        self.names = names
+    def __init__(self):
+        self.names: Dict[str, Variable] = {}
 
 
 class Expression(ABC):
@@ -37,13 +37,13 @@ class Statement(ABC):
 
 @dataclass
 class Identifier(LHS):
-    identifier: str
+    name: str
 
     def lhs(self, events, datamodel):
-        return datamodel.names[self.identifier]
+        return datamodel.names[self.name]
 
     def render(self):
-        return self.identifier
+        return self.name
 
 @dataclass
 class FunctionCall(Expression):
@@ -157,7 +157,7 @@ class BinaryExpression(Expression):
 
 @dataclass
 class UnaryExpression(Expression):
-    operator: str # token name from the grammar.
+    operator: str # token value from the grammar.
     expr: Expression
 
     def eval(self, events, datamodel):
@@ -172,7 +172,36 @@ class UnaryExpression(Expression):
 @dataclass
 class Assignment(Statement):
     lhs: LHS
+    operator: str # token value from the grammar.
     rhs: Expression
 
     def exec(self, events, datamodel):
-        self.lhs.lhs(events, datamodel).value = rhs.eval(events, datamodel)
+        rhs = self.rhs.eval(events, datamodel)
+        lhs = self.lhs.lhs(events, datamodel)
+
+        def assign(x,y):
+            x.value = y
+        def increment(x,y):
+            x.value += y
+        def decrement(x,y):
+            x.value -= y
+        def multiply(x,y):
+            x.value *= y
+        def divide(x,y):
+            x.value /= y
+
+        {
+            "=": assign,
+            "+=": increment,
+            "-=": decrement,
+            "*=": multiply,
+            "/=": divide,
+        }[self.operator](lhs, rhs)
+
+@dataclass
+class Block(Statement):
+    stmts: List[Statement]
+
+    def exec(self, events, datamodel):
+        for stmt in self.stmts:
+            stmt.exec(events, datamodel)

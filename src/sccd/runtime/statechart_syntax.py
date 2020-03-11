@@ -218,3 +218,7 @@ class RaiseOutputEvent(RaiseEvent):
 
     def render(self) -> str:
         return '^'+self.outport + '.' + self.name
+
+@dataclass
+class Code(Action):
+    block: Block

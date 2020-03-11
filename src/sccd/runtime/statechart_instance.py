@@ -25,8 +25,8 @@ class StatechartInstance(Instance):
 
         reverse = semantics.priority == Priority.SOURCE_CHILD
 
-        # generator = CandidatesGeneratorCurrentConfigBased(reverse)
-        generator = CandidatesGeneratorEventBased(reverse)
+        generator = CandidatesGeneratorCurrentConfigBased(reverse)
+        # generator = CandidatesGeneratorEventBased(reverse)
 
         small_step = SmallStep(termcolor.colored("small", 'blue'), None, generator)
 

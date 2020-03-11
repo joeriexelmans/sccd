@@ -10,20 +10,26 @@ class DataModel:
     def __init__(self, names: Dict[str, Variable]):
         self.names = names
 
-@dataclass
 class Expression(ABC):
-    pass
-
     @abstractmethod
     def eval(self, events, datamodel):
         pass
 
+class LHS(Expression):
+    @abstractmethod
+    def lhs(self, events, datamodel) -> Variable:
+        pass
+
+    # LHS types are expressions too!
+    def eval(self, events, datamodel):
+        return self.lhs(events, datamodel).value
+
 @dataclass
-class Identifier(Expression):
+class Identifier(LHS):
     identifier: str
 
-    def eval(self, events, datamodel):
-        return datamodel.names[self.identifier].value
+    def lhs(self, events, datamodel):
+        return datamodel.names[self.identifier]
 
     def render(self):
         return self.identifier
@@ -60,3 +66,40 @@ class Array(Expression):
 
     def render(self):
         return '['+','.join([e.render() for e in self.elements])+']'
+
+@dataclass
+class BinaryExpression(Expression):
+    lhs: Expression
+    operator: str # the operator token value from the grammar.
+    rhs: Expression
+
+    def eval(self, events, datamodel):
+        return {
+            "and": lambda x,y: x and y,
+            "or": lambda x,y: x or y,
+            "==": lambda x,y: x == y,
+            "!=": lambda x,y: x != y,
+            ">": lambda x,y: x > y,
+            ">=": lambda x,y: x >= y,
+            "<": lambda x,y: x < y,
+            "<=": lambda x,y: x <= y,
+            "+": lambda x,y: x + y,
+            "-": lambda x,y: x - y,
+            "*": lambda x,y: x * y,
+            "/": lambda x,y: x / y,
+            "//": lambda x,y: x // y,
+            "%": lambda x,y: x % y,
+        }[self.operator](self.lhs.eval(events, datamodel), self.rhs.eval(events, datamodel))
+
+class Statement(ABC):
+    @abstractmethod
+    def exec(self, events, datamodel):
+        pass
+
+@dataclass
+class Assignment(Statement):
+    lhs: LHS
+    rhs: Expression
+
+    def exec(self, events, datamodel):
+        self.lhs.lhs(events, datamodel).value = rhs.eval(events, datamodel)

@@ -22,18 +22,38 @@ relative_path: _path_sequence
 _path_sequence: (CURRENT_NODE | PARENT_NODE | IDENTIFIER) (_PATH_SEP _path_sequence)?
 
 
+// We use the same operators and operator precedence rules as Python
 
+COMPARE_OPERATOR: "==" | "!=" | ">" | ">=" | "<" | "<="
+ADD_OPERATOR: "+" | "-"
+MULT_OPERATOR: "*" | "/" | "//" | "%"
 
 ?expr: or_expr
 
 ?or_expr: and_expr
-        | or_expr "||" and_expr -> or
+        | or_expr "or" and_expr    -> or
 
 ?and_expr: atom
-         | and_expr "&&" atom   -> and
+         | and_expr "and" not_expr  -> and
+
+?not_expr: comp_expr
+         | "not" comp_expr           -> not
+
+?comp_expr: add_expr
+          | comp_expr COMPARE_OPERATOR add_expr -> compare
+
+
+?add_expr: mult_expr
+         | add_expr ADD_OPERATOR mult_expr -> add
+
+
+?mult_expr: unary
+          | mult_expr MULT_OPERATOR unary -> mult
+
+?unary: atom
+      | "-" atom  -> neg
 
 ?atom: IDENTIFIER               -> identifier
-     | "-" atom                 -> neg
      | "(" expr ")"             -> group
      | literal
      | func_call
@@ -52,3 +72,10 @@ param_list: ( expr ("," expr)* )?  -> params
 
 TRUE: "true"
 FALSE: "false"
+
+
+?stmt: assignment
+
+assignment: lhs "=" expr
+
+?lhs: IDENTIFIER

@@ -3,9 +3,9 @@ import sys
 import subprocess
 import multiprocessing
 from lib.os_tools import *
-from lib.loader import *
-from sccd.compiler.utils import FormattedWriter
-from sccd.runtime.statechart_syntax import *
+from sccd.util.indenting_writer import *
+from sccd.model.xml_loader import *
+import lxml.etree as ET
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -18,10 +18,8 @@ if __name__ == '__main__':
     parser.add_argument('--pool-size', metavar='INT', type=int, default=multiprocessing.cpu_count()+1, help="Number of worker processes. Default = CPU count + 1.")
     args = parser.parse_args()
 
-
-    # builder = Builder(args.build_dir)
-    builder = Loader()
-    srcs = get_files(args.path, filter=filter_xml)
+    srcs = get_files(args.path,
+      filter=lambda file: (file.startswith("statechart_") or file.startswith("test_")) and file.endswith(".xml"))
 
     if len(srcs):
       if not args.no_svg:
@@ -36,113 +34,116 @@ if __name__ == '__main__':
       parser.print_usage()
       exit()
 
-
     def process(src):
-      module = builder.build_and_load(src)
-      model = module.Model()
+      statechart_node = ET.parse(src).getroot()
+      tree_node = statechart_node.find(".//tree")
+      if tree_node is None:
+        return # no tree here :(
+      tree = load_tree(Namespace(), tree_node)
 
-      # Produce an output file for each class in the src file
-      for class_name, sc in model.classes.items():
-        target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+'+'+class_name+ext)
-        smcat_target = target_path('.smcat')
-        svg_target = target_path('.svg')
-        
-        make_dirs(smcat_target)
+      target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+ext)
+      smcat_target = target_path('.smcat')
+      svg_target = target_path('.svg')
+      
+      make_dirs(smcat_target)
 
-        f = open(smcat_target, 'w')
-        w = FormattedWriter(f)
+      f = open(smcat_target, 'w')
+      w = IndentingWriter(f)
 
-        def name_to_label(name):
-          label = name.split('/')[-1]
-          return label if len(label) else "root"
-        def name_to_name(name):
-          return name.replace('/','_')
+      def name_to_label(name):
+        label = name.split('/')[-1]
+        return label if len(label) else "root"
+      def name_to_name(name):
+        return name.replace('/','_')
 
-        # Used for drawing initial state
-        class PseudoState:
-          def __init__(self, name):
-            self.name = name
-        # Used for drawing initial state
-        class PseudoTransition:
-          def __init__(self, source, targets):
-            self.source = source
-            self.targets = targets
-            self.trigger = None
-            self.actions = []
+      # Used for drawing initial state
+      class PseudoState:
+        def __init__(self, name):
+          self.name = name
+      # Used for drawing initial state
+      class PseudoTransition:
+        def __init__(self, source, targets):
+          self.source = source
+          self.targets = targets
+          self.guard = None
+          self.trigger = None
+          self.actions = []
 
-        transitions = []
+      transitions = []
 
-        def write_state(s, hide=False):
-          if not hide:
-            w.write(name_to_name(s.name))
-            w.extendWrite(' [label="')
-            w.extendWrite(name_to_label(s.name))
-            w.extendWrite('"')
-            if isinstance(s, ParallelState):
-              w.extendWrite(' type=parallel')
-            elif isinstance(s, ShallowHistoryState):
-              w.extendWrite(' type=history')
-            elif isinstance(s, DeepHistoryState):
-              w.extendWrite(' type=deephistory')
-            else:
-              w.extendWrite(' type=regular')
-            w.extendWrite(']')
-          if s.enter or s.exit:
-            w.extendWrite(' :')
-            for a in s.enter:
-              w.write("onentry/ "+a.render())
-            for a in s.exit:
-              w.write("onexit/ "+a.render())
-            w.write()
-          if s.children:
-            if not hide:
-              w.extendWrite(' {')
-              w.indent()
-            if s.default_state:
-              w.write(name_to_name(s.name)+'_initial [type=initial],')
-              transitions.append(PseudoTransition(source=PseudoState(s.name+'/initial'), targets=[s.default_state]))
-            for i, c in enumerate(s.children):
-              write_state(c)
-              w.extendWrite(',' if i < len(s.children)-1 else ';')
-            if not hide:
-              w.dedent()
-              w.write('}')
-          transitions.extend(s.transitions)
-
-        write_state(sc.tree.root, hide=True)
-
-        ctr = 0
-        for t in transitions:
-          label = ""
-          if t.trigger:
-            label += t.trigger.render()
-          if t.actions:
-            raises = [a for a in t.actions if isinstance(a, RaiseEvent)]
-            label += ','.join([r.render() for r in raises])
-
-          if len(t.targets) == 1:
-            w.write(name_to_name(t.source.name) + ' -> ' + name_to_name(t.targets[0].name))
-            if label:
-              w.extendWrite(': '+label)
-            w.extendWrite(';')
+      def write_state(s, hide=False):
+        if not hide:
+          w.write(name_to_name(s.name))
+          w.extendWrite(' [label="')
+          w.extendWrite(name_to_label(s.name))
+          w.extendWrite('"')
+          if isinstance(s, ParallelState):
+            w.extendWrite(' type=parallel')
+          elif isinstance(s, ShallowHistoryState):
+            w.extendWrite(' type=history')
+          elif isinstance(s, DeepHistoryState):
+            w.extendWrite(' type=deephistory')
           else:
-            w.write(name_to_name(t.source.name) + ' -> ' + ']split'+str(ctr))
-            if label:
-                w.extendWrite(': '+label)
-            w.extendWrite(';')
-            for tt in t.targets:
-              w.write(']split'+str(ctr) + ' -> ' + name_to_name(tt.name))
-              w.extendWrite(';')
-            ctr += 1
+            w.extendWrite(' type=regular')
+          w.extendWrite(']')
+        if s.enter or s.exit:
+          w.extendWrite(' :')
+          for a in s.enter:
+            w.write("onentry/ "+a.render())
+          for a in s.exit:
+            w.write("onexit/ "+a.render())
+          w.write()
+        if s.children:
+          if not hide:
+            w.extendWrite(' {')
+            w.indent()
+          if s.default_state:
+            w.write(name_to_name(s.name)+'_initial [type=initial],')
+            transitions.append(PseudoTransition(source=PseudoState(s.name+'/initial'), targets=[s.default_state]))
+          for i, c in enumerate(s.children):
+            write_state(c)
+            w.extendWrite(',' if i < len(s.children)-1 else ';')
+          if not hide:
+            w.dedent()
+            w.write('}')
+        transitions.extend(s.transitions)
 
-        f.close()
-        if args.keep_smcat:
-          print("Wrote "+smcat_target)
-        if not args.no_svg:
-          subprocess.run(["state-machine-cat", smcat_target, "-o", svg_target])
-          print("Wrote "+svg_target)
-        if not args.keep_smcat:
-          os.remove(smcat_target)
+      write_state(tree.root, hide=True)
+
+      ctr = 0
+      for t in transitions:
+        label = ""
+        if t.trigger:
+          label += t.trigger.render()
+        if t.guard:
+          label += ' ['+t.guard.render()+']'
+        if t.actions:
+          raises = [a for a in t.actions if isinstance(a, RaiseEvent)]
+          label += ','.join([r.render() for r in raises])
+
+        if len(t.targets) == 1:
+          w.write(name_to_name(t.source.name) + ' -> ' + name_to_name(t.targets[0].name))
+          if label:
+            w.extendWrite(': '+label)
+          w.extendWrite(';')
+        else:
+          w.write(name_to_name(t.source.name) + ' -> ' + ']split'+str(ctr))
+          if label:
+              w.extendWrite(': '+label)
+          w.extendWrite(';')
+          for tt in t.targets:
+            w.write(']split'+str(ctr) + ' -> ' + name_to_name(tt.name))
+            w.extendWrite(';')
+          ctr += 1
+
+      f.close()
+      if args.keep_smcat:
+        print("Wrote "+smcat_target)
+      if not args.no_svg:
+        subprocess.run(["state-machine-cat", smcat_target, "-o", svg_target])
+        print("Wrote "+svg_target)
+      if not args.keep_smcat:
+        os.remove(smcat_target)
 
     pool_size = min(args.pool_size, len(srcs))
     with multiprocessing.Pool(processes=pool_size) as pool:

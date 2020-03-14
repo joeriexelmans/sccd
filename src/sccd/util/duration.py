@@ -107,7 +107,7 @@ def gcd_pair(x: Duration, y: Duration) -> Duration:
   return Duration(gcd, x_converted.unit).normalize()
 
 def gcd(*iterable) -> Duration:
-  g = None
+  g = Duration(0)
   for d in iterable:
     if g is None:
       g = d

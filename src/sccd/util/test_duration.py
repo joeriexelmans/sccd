@@ -65,3 +65,17 @@ class TestDuration(unittest.TestCase):
     u = gcd(*l)
 
     self.assertEqual(u, Duration(1, Microsecond))
+
+  def test_gcd_few(self):
+    l = [Duration(3, Microsecond)]
+
+    u = gcd(*l)
+
+    self.assertEqual(u, Duration(3, Microsecond))
+
+  def test_gcd_none(self):
+    l = []
+
+    u = gcd(*l)
+
+    self.assertEqual(u, Duration(0))

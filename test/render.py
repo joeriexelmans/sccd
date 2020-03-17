@@ -39,7 +39,7 @@ if __name__ == '__main__':
       tree_node = statechart_node.find(".//tree")
       if tree_node is None:
         return # no tree here :(
-      tree = load_tree(Namespace(), tree_node)
+      tree = load_tree(Context(), tree_node)
 
       target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+ext)
       smcat_target = target_path('.smcat')

@@ -39,7 +39,7 @@ def load_model(src_file) -> Tuple[MultiInstanceModel, Optional[Test]]:
     default = c.get("default", "")
 
     scxml_node = c.find("scxml", root.nsmap)
-    statechart = load_statechart(scxml_node, model.namespace)
+    statechart = load_statechart(scxml_node, model.context)
 
     model.classes[class_name] = statechart
     if default or len(classes) == 1:

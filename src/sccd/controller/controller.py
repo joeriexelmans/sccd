@@ -5,7 +5,6 @@ from sccd.controller.event_queue import *
 from sccd.execution.event import *
 from sccd.controller.object_manager import *
 from sccd.util.debug import print_debug
-# from sccd.syntax.model import *
 from sccd.model.model import *
 
 @dataclasses.dataclass
@@ -39,12 +38,12 @@ class Controller:
             if input.name == "":
                 raise Exception("Input event can't have an empty name.")
         
-            if input.port not in self.model.namespace.inports:
+            if input.port not in self.model.context.inports:
                 raise Exception("No such port: '" + input.port + "'")
 
 
             e = Event(
-                id=self.model.namespace.get_event_id(input.name),
+                id=self.model.context.get_event_id(input.name),
                 name=input.name,
                 port=input.port,
                 parameters=input.parameters)

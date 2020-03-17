@@ -5,7 +5,6 @@
 %import common.WS
 %ignore WS
 
-%import common.SIGNED_NUMBER
 %import common.ESCAPED_STRING
 
 _PATH_SEP: "/" 
@@ -66,6 +65,7 @@ array: "[" (expr ("," expr)*)? "]"
 ?literal: ESCAPED_STRING -> string
         | INT -> int
         | bool_literal -> bool
+        | duration_literal -> duration
 
 ?compare_operator: EQ | NEQ | GT | GEQ | LT | LEQ
 ?add_operator: PLUS | MINUS
@@ -94,6 +94,19 @@ TRUE: "True"
 FALSE: "False"
 
 INT: /[0-9]+/
+
+?duration_literal: (INT duration_unit)+
+
+?duration_unit: TIME_H | TIME_M | TIME_S | TIME_MS | TIME_US | TIME_NS | TIME_PS | TIME_FS
+
+TIME_H: "h"
+TIME_M: "m"
+TIME_S: "s"
+TIME_MS: "ms"
+TIME_US: "us"
+TIME_NS: "ns"
+TIME_PS: "ps"
+TIME_FS: "fs"
 
 
 // Statement parsing

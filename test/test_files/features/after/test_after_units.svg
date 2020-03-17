@@ -40,9 +40,9 @@
 <!-- _s1&#45;&gt;_s2 -->
 <g id="edge2" class="edge">
 <title>_s1&#45;&gt;_s2</title>
-<path fill="none" stroke="#000000" d="M100.1848,-147.8711C94.4188,-141.6547 87.7966,-134.5151 81.372,-127.5886"/>
-<polygon fill="#000000" stroke="#000000" points="83.8947,-125.1616 74.5281,-120.21 78.7625,-129.9219 83.8947,-125.1616"/>
-<text text-anchor="start" x="93" y="-131" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">after(100) &#160;&#160;</text>
+<path fill="none" stroke="#000000" d="M96.3763,-147.8814C93.6472,-145.2958 90.9328,-142.6227 88.436,-140 84.8592,-136.2428 81.226,-132.1729 77.717,-128.0861"/>
+<polygon fill="#000000" stroke="#000000" points="80.2789,-125.6942 71.1695,-120.2841 74.9168,-130.1941 80.2789,-125.6942"/>
+<text text-anchor="start" x="88" y="-131" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">after(100 µs) &#160;&#160;</text>
 </g>
 <!-- _s3 -->
 <g id="node4" class="node">
@@ -56,9 +56,9 @@
 <!-- _s1&#45;&gt;_s3 -->
 <g id="edge3" class="edge">
 <title>_s1&#45;&gt;_s3</title>
-<path fill="none" stroke="#000000" d="M141.4695,-147.9993C144.4564,-145.4372 147.376,-142.7385 150,-140 153.4025,-136.4491 156.7352,-132.5071 159.8791,-128.4919"/>
-<polygon fill="#000000" stroke="#000000" points="162.8542,-130.3572 166.029,-120.2492 157.2437,-126.1712 162.8542,-130.3572"/>
-<text text-anchor="start" x="159" y="-131" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">after(200) &#160;&#160;</text>
+<path fill="none" stroke="#000000" d="M145.1022,-148.8417C148.6296,-146.1072 152.0347,-143.1369 155,-140 158.1875,-136.6281 161.1728,-132.8012 163.9023,-128.8539"/>
+<polygon fill="#000000" stroke="#000000" points="167.0262,-130.4645 169.4484,-120.1502 161.1228,-126.7027 167.0262,-130.4645"/>
+<text text-anchor="start" x="164" y="-131" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">after(200 ms) &#160;&#160;</text>
 </g>
 <!-- _s4 -->
 <g id="node5" class="node">
@@ -74,7 +74,7 @@
 <title>_s2&#45;&gt;_s4</title>
 <path fill="none" stroke="#000000" d="M53,-73.9916C53,-68.476 53,-62.474 53,-56.5881"/>
 <polygon fill="#000000" stroke="#000000" points="56.5001,-56.249 53,-46.2491 49.5001,-56.2491 56.5001,-56.249"/>
-<text text-anchor="start" x="53" y="-57" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">after(150) &#160;&#160;</text>
+<text text-anchor="start" x="53" y="-57" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">after(150 h) &#160;&#160;</text>
 </g>
 </g>
 </svg>

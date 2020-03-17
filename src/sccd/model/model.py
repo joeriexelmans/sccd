@@ -2,11 +2,11 @@ from abc import *
 from dataclasses import *
 from typing import *
 from sccd.syntax.statechart import *
-from sccd.model.namespace import *
+from sccd.model.context import *
 
 @dataclass
 class AbstractModel(ABC):
-  namespace: Namespace
+  context: Context
 
   @abstractmethod
   def get_default_class(self) -> Statechart:

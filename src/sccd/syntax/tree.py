@@ -57,7 +57,7 @@ class State:
         for c in self.children:
             self.descendants.extend(c.descendants)
         for d in self.descendants:
-            self.descendant_bitmap |= Bit(d.state_id)
+            self.descendant_bitmap |= bit(d.state_id)
         return next_id
 
     # def print(self, w = FormattedWriter()):
@@ -153,7 +153,7 @@ class AfterTrigger(Trigger):
         return self.expected_id
 
     def render(self) -> str:
-        return "after("+str(self.delay)+")"
+        return "after("+self.delay.render()+")"
 
 class Transition:
     def __init__(self, source, targets: List[State]):

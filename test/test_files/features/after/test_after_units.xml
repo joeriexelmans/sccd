@@ -1,0 +1,41 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <!-- after events are always received as input events in a later big step -->
+    <semantics
+        big_step_maximality="*"
+        combo_step_maximality="*"/>
+    <tree>
+      <state initial="s1">
+        <state id="s1">
+          <transition after="100 us" target="/s2"/>
+          <transition after="200 ms" target="/s3"/>
+        </state>
+        <state id="s2">
+          <onentry>
+            <raise event="in_2" port="out" />
+          </onentry>
+          <transition after="150 h" target="/s4"/>
+        </state>
+        <state id="s3">
+          <onentry>
+            <raise event="in_3" port="out"/>
+          </onentry>
+        </state>
+        <state id="s4">
+          <onentry>
+            <raise event="in_4" port="out"/>
+          </onentry>
+        </state>
+      </state>
+    </tree>
+  </statechart>
+  <output>
+    <big_step>
+      <event name="in_2" port="out"/>
+    </big_step>
+    <big_step>
+      <event name="in_4" port="out"/>
+    </big_step>
+  </output>
+</test>

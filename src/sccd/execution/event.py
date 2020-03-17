@@ -32,7 +32,7 @@ class EventTarget(ABC):
 
 # A raised output event with a target and a time offset.
 class OutputEvent:
-    def __init__(self, event: Event, target: EventTarget, time_offset=0):
+    def __init__(self, event: Event, target: EventTarget, time_offset = 0):
         self.event = event
         self.target = target
         self.time_offset = time_offset

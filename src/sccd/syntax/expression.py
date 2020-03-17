@@ -2,12 +2,18 @@ from abc import *
 from typing import *
 from dataclasses import *
 from sccd.syntax.datamodel import *
+from sccd.util.duration import *
 
 class Expression(ABC):
     # Evaluation should NOT have side effects.
     # Motivation is that the evaluation of a guard condition cannot have side effects.
     @abstractmethod
     def eval(self, events, datamodel):
+        pass
+
+    # Types of expressions are statically checked in SCCD.
+    # @abstractmethod
+    def get_static_type(self) -> type:
         pass
 
 class LHS(Expression):
@@ -23,7 +29,7 @@ class LHS(Expression):
 class Identifier(LHS):
     name: str
 
-    def lhs(self, events, datamodel):
+    def lhs(self, events, datamodel) -> Variable:
         return datamodel.names[self.name]
 
     def render(self):
@@ -52,6 +58,9 @@ class StringLiteral(Expression):
     def render(self):
         return '"'+self.string+'"'
 
+    def get_static_type(self) -> type:
+        return str
+
 @dataclass
 class IntLiteral(Expression):
     i: int 
@@ -61,6 +70,9 @@ class IntLiteral(Expression):
 
     def render(self):
         return str(self.i)
+
+    def get_static_type(self) -> type:
+        return int
 
 @dataclass
 class BoolLiteral(Expression):
@@ -72,15 +84,45 @@ class BoolLiteral(Expression):
     def render(self):
         return "true" if self.b else "false"
 
+    def get_static_type(self) -> type:
+        return bool
+
+@dataclass
+class DurationLiteral(Expression):
+    original: Duration
+
+    # All duration expressions in a model evaluate to a duration with the same unit.
+    normalized: Optional[Duration] = None
+
+    def eval(self, events, datamodel):
+        return self.normalized
+
+    def render(self):
+        return self.original.__str__()
+
+    def get_static_type(self) -> type:
+        return Duration
+
 @dataclass
 class Array(Expression):
     elements: List[Any]
+    t: type = None
+
+    def __post_init__(self):
+        for e in self.elements:
+            t = e.get_static_type()
+            if self.t and self.t != t:
+                raise Exception("Mixed element types in Array expression: %s and %s" % (str(self.t), str(t)))
+            self.t = t
 
     def eval(self, events, datamodel):
         return [e.eval(events, datamodel) for e in self.elements]
 
     def render(self):
         return '['+','.join([e.render() for e in self.elements])+']'
+
+    def get_static_type(self) -> type:
+        return List[self.t]
 
 # Does not add anything semantically, but ensures that when rendering an expression,
 # the parenthesis are not lost
@@ -94,11 +136,20 @@ class Group(Expression):
     def render(self):
         return '('+self.subexpr.render()+')'
 
+    def get_static_type(self) -> type:
+        return subexpr.get_static_type()
+
 @dataclass
 class BinaryExpression(Expression):
     lhs: Expression
     operator: str # token name from the grammar.
     rhs: Expression
+
+    def __post_init__(self):
+        lhs_t = self.lhs.get_static_type()
+        rhs_t = self.rhs.get_static_type()
+        if lhs_t != rhs_t:
+            raise Exception("Mixed LHS and RHS types in '%s' expression: %s and %s" % (self.operator, str(lhs_t), str(rhs_t)))
 
     def eval(self, events, datamodel):
         
@@ -139,6 +190,9 @@ class BinaryExpression(Expression):
     def render(self):
         return self.lhs.render() + ' ' + self.operator + ' ' + self.rhs.render()
 
+    def get_static_type(self) -> type:
+        return self.lhs.get_static_type()
+
 @dataclass
 class UnaryExpression(Expression):
     operator: str # token value from the grammar.
@@ -152,3 +206,6 @@ class UnaryExpression(Expression):
 
     def render(self):
         return self.operator + ' ' + self.expr.render()
+
+    def get_static_type(self) -> type:
+        return self.expr.get_static_type()

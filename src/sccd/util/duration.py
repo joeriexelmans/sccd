@@ -2,6 +2,7 @@ from enum import *
 from dataclasses import *
 from typing import *
 import math
+import functools
 
 @dataclass
 class _Unit:
@@ -90,6 +91,9 @@ class Duration:
   def __eq__(self, other):
     return self.val == other.val and self.unit is other.unit
 
+  def __mul__(self, other):
+    return Duration(self.val*other, self.unit)
+
 def gcd_pair(x: Duration, y: Duration) -> Duration:
   if x.unit is None:
     return y
@@ -107,10 +111,4 @@ def gcd_pair(x: Duration, y: Duration) -> Duration:
   return Duration(gcd, x_converted.unit).normalize()
 
 def gcd(*iterable) -> Duration:
-  g = Duration(0)
-  for d in iterable:
-    if g is None:
-      g = d
-    else:
-      g = gcd_pair(g, d)
-  return g
+  return functools.reduce(gcd_pair, iterable, Duration(0))

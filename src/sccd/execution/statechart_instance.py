@@ -3,17 +3,13 @@ import functools
 from typing import List, Tuple, Iterable
 from sccd.execution.instance import *
 from sccd.syntax.statechart import *
-# from sccd.execution.event import *
-# from sccd.runtime.semantic_options import *
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
-# from sccd.model.model import *
 from sccd.execution.round import *
 from sccd.execution.statechart_state import *
 
 class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager):
-        self.statechart = statechart
         self.object_manager = object_manager
 
         semantics = statechart.semantics
@@ -97,9 +93,9 @@ class StatechartInstance(Instance):
         # can the next big step still contain transitions, even if there are no input events?
         stable |= not input_events and not arenas_changed
 
-        # if arenas_changed:
-        #     print_debug(termcolor.colored('completed big step (time=%d)'%now+(" (stable)" if stable else ""), 'red'))
-        # else:
-        #     print_debug(termcolor.colored("(stable)" if stable else "", 'red'))
+        if arenas_changed:
+            print_debug(termcolor.colored('completed big step (time=%d)'%now+(" (stable)" if stable else ""), 'red'))
+        else:
+            print_debug(termcolor.colored("(stable)" if stable else "", 'red'))
 
         return (stable, output)

@@ -7,3 +7,7 @@ except KeyError:
 def print_debug(msg):
     if DEBUG:
         print(msg)
+
+
+def is_debug() -> bool:
+  return DEBUG

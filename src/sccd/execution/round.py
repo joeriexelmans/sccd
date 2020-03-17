@@ -2,7 +2,7 @@ from typing import *
 from sccd.execution.event import *
 from sccd.util.bitmap import *
 from sccd.syntax.tree import *
-from sccd.util.debug import print_debug
+from sccd.util.debug import *
 
 class CandidatesGenerator:
     def __init__(self, reverse: bool):
@@ -61,8 +61,8 @@ class Round(ABC):
         self.name = name
         self.parent = None
 
-        self.remainder_events = []
-        self.next_events = []
+        self.remainder_events = [] # events enabled for the remainder of the current round
+        self.next_events = [] # events enabled for the entirety of the next round
 
     def run(self, arenas_changed: Bitmap = Bitmap()) -> Bitmap:
         changed = self._internal_run(arenas_changed)
@@ -123,12 +123,13 @@ class SmallStep(Round):
         enabled_events = self.enabled_events()
         candidates = self.generator.generate(self.state, enabled_events, arenas_changed)
 
-        candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
-        if candidates:
-            print_debug("")
-            if enabled_events:
-                print_debug("events: " + str(enabled_events))
-            print_debug("candidates: " + str(candidates))
+        if is_debug():
+            candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
+            if candidates:
+                print_debug("")
+                if enabled_events:
+                    print_debug("events: " + str(enabled_events))
+                print_debug("candidates: " + str(candidates))
 
         for t in candidates:
             arenas_changed |= self.state.fire_transition(enabled_events, t)

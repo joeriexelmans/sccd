@@ -1,6 +1,5 @@
 from typing import *
 from sccd.syntax.statechart import *
-# from sccd.syntax.model import Statechart
 from sccd.execution.event import *
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
@@ -79,7 +78,7 @@ class StatechartState:
         self.eventless_states -= s.has_eventless_transitions
         # execute exit action(s)
         self._perform_actions(events, s.exit)
-        self.configuration_bitmap &= ~Bit(s.state_id)
+        self.configuration_bitmap &= ~bit(s.state_id)
             
     # execute transition action(s)
     self._perform_actions(events, t.actions)
@@ -90,7 +89,7 @@ class StatechartState:
     for s in enter_set:
         print_debug(termcolor.colored('  ENTER %s' % s.name, 'green'))
         self.eventless_states += s.has_eventless_transitions
-        self.configuration_bitmap |= Bit(s.state_id)
+        self.configuration_bitmap |= bit(s.state_id)
         # execute enter action(s)
         self._perform_actions(events, s.enter)
         self._start_timers(s.after_triggers)

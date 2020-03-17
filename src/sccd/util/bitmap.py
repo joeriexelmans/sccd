@@ -1,6 +1,9 @@
 from functools import reduce
 import math
 
+# Bitmap inherits 'int' and is therefore immutable.
+# Methods that return a Bitmap return a new bitmap and leave the arguments untouched.
+# To change a bitmap, use an assignment operator ('=', '|=', '&=', ...)
 class Bitmap(int):
   def __new__(cls, value=0, *args, **kwargs):
     return super(cls, cls).__new__(cls, value)
@@ -43,5 +46,5 @@ class Bitmap(int):
     return math.floor(math.log2(x & -x))
 
 
-def Bit(pos):
+def bit(pos):
   return Bitmap(2 ** pos)

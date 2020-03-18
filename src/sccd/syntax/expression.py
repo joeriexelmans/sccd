@@ -4,6 +4,10 @@ from dataclasses import *
 from sccd.syntax.datamodel import *
 from sccd.util.duration import *
 
+# to inspect types in Python 3.7
+# Python 3.8 already has this built in
+import typing_inspect
+
 class Expression(ABC):
     # Evaluation should NOT have side effects.
     # Motivation is that the evaluation of a guard condition cannot have side effects.
@@ -12,7 +16,7 @@ class Expression(ABC):
         pass
 
     # Types of expressions are statically checked in SCCD.
-    # @abstractmethod
+    @abstractmethod
     def get_static_type(self) -> type:
         pass
 
@@ -25,28 +29,47 @@ class LHS(Expression):
     def eval(self, events, datamodel):
         return self.lhs(events, datamodel).value
 
+
 @dataclass
 class Identifier(LHS):
     name: str
+    offset: int # offset in datamodel storage
+    type: type
 
     def lhs(self, events, datamodel) -> Variable:
-        return datamodel.names[self.name]
+        return datamodel.storage[self.offset]
 
     def render(self):
         return self.name
+
+    def get_static_type(self) -> type:
+        return self.type
 
 @dataclass
 class FunctionCall(Expression):
     function: Expression
     parameters: List[Expression]
 
+    def __post_init__(self):
+        formal_types, return_type = typing_inspect.get_args(self.function.get_static_type())
+        self.type = return_type
+
+        actual_types = [p.get_static_type() for p in self.parameters]
+        for formal, actual in zip(formal_types, actual_types):
+            if formal != actual:
+                raise Exception("Function call: Actual types '%s' differ from formal types '%s'" % (actual_types, formal_types))
+
     def eval(self, events, datamodel):
+        # print(self.function)
         f = self.function.eval(events, datamodel)
         p = [p.eval(events, datamodel) for p in self.parameters]
         return f(*p)
 
     def render(self):
         return self.function.render()+'('+','.join([p.render() for p in self.parameters])+')'
+
+    def get_static_type(self) -> type:
+        return self.type
 
 @dataclass
 class StringLiteral(Expression):

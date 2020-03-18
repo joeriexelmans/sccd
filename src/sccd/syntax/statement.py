@@ -14,6 +14,12 @@ class Assignment(Statement):
     operator: str # token value from the grammar.
     rhs: Expression
 
+    def __post_init__(self):
+        lhs_t = self.lhs.get_static_type()
+        rhs_t = self.rhs.get_static_type()
+        if lhs_t != rhs_t:
+            raise Exception("Assignment: LHS type '%s' differs from RHS type '%s'." % (str(lhs_t), str(rhs_t)))
+
     def exec(self, events, datamodel):
         rhs = self.rhs.eval(events, datamodel)
         lhs = self.lhs.lhs(events, datamodel)

@@ -18,7 +18,7 @@ class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
         except KeyError:
             candidates = self.cache[key] = [
                 t for s in state.configuration
-                    if (not arenas_changed.has(s.state_id))
+                    if (not arenas_changed.has(s.gen.state_id))
                     for t in s.transitions
                 ]
             if self.reverse:
@@ -47,7 +47,7 @@ class CandidatesGeneratorEventBased(CandidatesGenerator):
             candidates = self.cache[key] = [
                 t for t in state.model.tree.transition_list
                     if (not t.trigger or events_bitmap.has(t.trigger.id)) # todo: check port?
-                    and (not arenas_changed.has(t.source.state_id))
+                    and (not arenas_changed.has(t.source.gen.state_id))
                 ]
             if self.reverse:
                 candidates.reverse()

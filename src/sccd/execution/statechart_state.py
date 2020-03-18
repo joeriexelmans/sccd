@@ -13,7 +13,8 @@ class StatechartState:
     self.raise_internal = raise_internal
 
     self.data_model = statechart.datamodel
-    self.data_model.names["INSTATE"] = Variable(self.in_state)
+
+    self.data_model.set("INSTATE", self.in_state)
 
     # these 2 fields have the same information
     self.configuration: List[State] = []
@@ -33,21 +34,21 @@ class StatechartState:
   def initialize(self):
     states = self.model.tree.root.getEffectiveTargetStates(self)
     self.configuration.extend(states)
-    self.configuration_bitmap = Bitmap.from_list(s.state_id for s in states)
+    self.configuration_bitmap = Bitmap.from_list(s.gen.state_id for s in states)
     for state in states:
-        print_debug(termcolor.colored('  ENTER %s'%state.name, 'green'))
-        self.eventless_states += state.has_eventless_transitions
+        print_debug(termcolor.colored('  ENTER %s'%state.gen.full_name, 'green'))
+        self.eventless_states += state.gen.has_eventless_transitions
         self._perform_actions([], state.enter)
-        self._start_timers(state.after_triggers)
+        self._start_timers(state.gen.after_triggers)
 
   def fire_transition(self, events, t: Transition) -> Bitmap:
     def __exitSet():
-        return [s for s in reversed(t.lca.descendants) if (s in self.configuration)]
+        return [s for s in reversed(t.gen.lca.gen.descendants) if (s in self.configuration)]
     
     def __enterSet(targets):
         target = targets[0]
-        for a in reversed(target.ancestors):
-            if a in t.source.ancestors:
+        for a in reversed(target.gen.ancestors):
+            if a in t.source.gen.ancestors:
                 continue
             else:
                 yield a
@@ -66,19 +67,19 @@ class StatechartState:
     exit_set = __exitSet()
     for s in exit_set:
         # remember which state(s) we were in if a history state is present
-        for h in s.history:
-            f = lambda s0: s0.ancestors and s0.parent == s
+        for h in s.gen.history:
+            f = lambda s0: s0.gen.ancestors and s0.parent == s
             if isinstance(h, DeepHistoryState):
-                f = lambda s0: not s0.descendants and s0 in s.descendants
-            self.history_values[h.state_id] = list(filter(f, self.configuration))
+                f = lambda s0: not s0.gen.descendants and s0 in s.gen.descendants
+            self.history_values[h.gen.state_id] = list(filter(f, self.configuration))
     # print_debug('')
     print_debug("fire " + str(t))
     for s in exit_set:
-        print_debug(termcolor.colored('  EXIT %s' % s.name, 'green'))
-        self.eventless_states -= s.has_eventless_transitions
+        print_debug(termcolor.colored('  EXIT %s' % s.gen.full_name, 'green'))
+        self.eventless_states -= s.gen.has_eventless_transitions
         # execute exit action(s)
         self._perform_actions(events, s.exit)
-        self.configuration_bitmap &= ~bit(s.state_id)
+        self.configuration_bitmap &= ~bit(s.gen.state_id)
             
     # execute transition action(s)
     self._perform_actions(events, t.actions)
@@ -87,18 +88,18 @@ class StatechartState:
     targets = __getEffectiveTargetStates()
     enter_set = __enterSet(targets)
     for s in enter_set:
-        print_debug(termcolor.colored('  ENTER %s' % s.name, 'green'))
-        self.eventless_states += s.has_eventless_transitions
-        self.configuration_bitmap |= bit(s.state_id)
+        print_debug(termcolor.colored('  ENTER %s' % s.gen.full_name, 'green'))
+        self.eventless_states += s.gen.has_eventless_transitions
+        self.configuration_bitmap |= bit(s.gen.state_id)
         # execute enter action(s)
         self._perform_actions(events, s.enter)
-        self._start_timers(s.after_triggers)
+        self._start_timers(s.gen.after_triggers)
     try:
         self.configuration = self.config_mem[self.configuration_bitmap]
     except:
-        self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.model.tree.state_list if self.configuration_bitmap.has(s.state_id)]
+        self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.model.tree.state_list if self.configuration_bitmap.has(s.gen.state_id)]
 
-    return t.arena_bitmap
+    return t.gen.arena_bitmap
 
   def check_guard(self, t, events) -> bool:
       # Special case: after trigger
@@ -113,7 +114,7 @@ class StatechartState:
           return t.guard.eval(events, self.data_model)
 
   def check_source(self, t) -> bool:
-      return self.configuration_bitmap.has(t.source.state_id)
+      return self.configuration_bitmap.has(t.source.gen.state_id)
 
   def _perform_actions(self, events, actions: List[Action]):
       for a in actions:
@@ -137,7 +138,7 @@ class StatechartState:
 
   # Return whether the current configuration includes ALL the states given.
   def in_state(self, state_strings: List[str]) -> bool:
-      state_ids_bitmap = Bitmap.from_list((self.model.tree.states[state_string].state_id for state_string in state_strings))
+      state_ids_bitmap = Bitmap.from_list((self.model.tree.state_dict[state_string].gen.state_id for state_string in state_strings))
       in_state = self.configuration_bitmap.has_all(state_ids_bitmap)
       if in_state:
           print_debug("in state"+str(state_strings))

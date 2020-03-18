@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<test should_fail_load="true">
+<test>
   <statechart>
     <semantics/>
 
@@ -10,13 +10,11 @@
     <tree>
       <state initial="a">
         <state id="a">
-          <transition cond="x == True" target="/b">
-            <!-- illegal assignment, x is type 'int' -->
-            <!-- <code>x = "hello"</code> -->
-          </transition>
+          <onentry>
+            <!-- illegal assignment, LHS is int, RHS is string -->
+            <code>x="hello"</code>
+          </onentry>
         </state>
-
-        <state id="b"/>
       </state>
     </tree>
   </statechart>

@@ -178,13 +178,13 @@ def load_statechart(context: Context, sc_node) -> Statechart:
   datamodel_node = sc_node.find("datamodel")
   datamodel = load_datamodel(context, datamodel_node)
 
-  # tree_node = sc_node.find("tree")
-  # handler = TreeHandler(context)
-  # parse(ET.iterwalk(tree_node, events=("start", "end")), handler)
-  # state_tree = handler.tree
-
   tree_node = sc_node.find("tree")
-  state_tree = load_tree(context, datamodel, tree_node)
+  handler = TreeHandler(context, datamodel)
+  parse(ET.iterwalk(tree_node, events=("start", "end")), handler)
+  state_tree = handler.tree
+
+  # tree_node = sc_node.find("tree")
+  # state_tree = load_tree(context, datamodel, tree_node)
 
   semantics_node = sc_node.find("semantics")
   semantics = Semantics() # start with default semantics

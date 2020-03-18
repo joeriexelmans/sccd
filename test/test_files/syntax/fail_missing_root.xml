@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics/>
+    <datamodel/>
+
+    <tree>
+      <!-- not allowed: no root state -->
+    </tree>
+  </statechart>
+
+  <output>
+  </output>
+</test>

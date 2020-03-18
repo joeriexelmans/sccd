@@ -10,11 +10,12 @@ class XmlLoadError(Exception):
       parent = el
     # el = parent
     lines = etree.tostring(parent).decode('utf-8').strip().split('\n')
+    nbr_lines = len(etree.tostring(el).decode('utf-8').strip().split('\n'))
     lines_numbers = []
     l = parent.sourceline
     for line in lines:
       ll = ("%4d: " % l) + line
-      if l == el.sourceline:
+      if l >= el.sourceline and l < el.sourceline + nbr_lines:
         ll = termcolor.colored(ll, 'yellow')
       lines_numbers.append(ll)
       l += 1
@@ -47,8 +48,9 @@ class ElementHandler:
 
 class TreeHandler(ElementHandler):
 
-  def __init__(self, context):
+  def __init__(self, context, datamodel):
     self.context = context
+    self.datamodel = datamodel
 
   def end_raise(self, el):
     name = el.get("event")
@@ -63,7 +65,7 @@ class TreeHandler(ElementHandler):
     return a
 
   def end_code(self, el):
-    block = parse_block(self.context, block=el.text)
+    block = parse_block(self.context, self.datamodel, block=el.text)
     a = Code(block)
     self.top("actions").append(a)
     return a
@@ -76,7 +78,7 @@ class TreeHandler(ElementHandler):
 
     parent_children = self.top("state_children")
     already_there = parent_children.setdefault(short_name, state)
-    if already_there != state:
+    if already_there is not state:
       raise XmlLoadError(el, "Sibling state with the same id exists.")
 
     self.push("state", state)
@@ -157,8 +159,10 @@ class TreeHandler(ElementHandler):
 
   def end_tree(self, el):
     root_states = self.pop("state_children")
-    if len(root_states) != 1:
-      raise XmlLoadError(el, "More than one root <state>.")
+    if len(root_states) == 0:
+      raise XmlLoadError(el, "Missing root <state> !")
+    if len(root_states) > 1:
+      raise XmlLoadError(el, "Only one root <state> allowed.")
     root = list(root_states.values())[0]
 
     transitions = self.pop("transitions")
@@ -191,7 +195,7 @@ class TreeHandler(ElementHandler):
 
       # Trigger
       if after is not None:
-        after_expr = parse_expression(self.context, expr=after)
+        after_expr = parse_expression(self.context, self.datamodel, expr=after)
         # print(after_expr)
         event = "_after%d" % next_after_id # transition gets unique event name
         next_after_id += 1
@@ -207,7 +211,7 @@ class TreeHandler(ElementHandler):
       # Guard
       if cond is not None:
         try:
-          expr = parse_expression(self.context, expr=cond)
+          expr = parse_expression(self.context, self.datamodel, expr=cond)
         except Exception as e:
           raise XmlLoadError(t_el, "Condition '%s': %s" % (cond, str(e)))
         transition.guard = expr
@@ -222,15 +226,23 @@ def parse(event_generator, handler: ElementHandler):
   # for event, el in etree.iterparse(file, events=("start", "end")):
   for event, el in event_generator:
 
-    if event == "start":
-      start_method = getattr(handler, "start_"+el.tag, None)
-      if start_method:
-        start_method(el)
+    try:
 
-    elif event == "end":
-      end_method = getattr(handler, "end_"+el.tag)
-      if end_method:
-        end_method(el)
+      if event == "start":
+        start_method = getattr(handler, "start_"+el.tag, None)
+        if start_method:
+          start_method(el)
+
+      elif event == "end":
+        end_method = getattr(handler, "end_"+el.tag)
+        if end_method:
+          end_method(el)
+
+    except XmlLoadError:
+      raise
+    # Decorate non-XmlLoadErrors
+    except Exception as e:
+      raise XmlLoadError(el, e)
 
       # We don't need anything from this element anymore, so we clear it to save memory.
       # This is a technique mentioned in the lxml documentation:

@@ -4,6 +4,7 @@
     <semantics/>
     <datamodel>
       <var id="x" expr="0"/>
+      <var id="y" expr="x"/><!-- this is allowed, y is also 0 -->
     </datamodel>
     <tree>
       <state initial="counting">

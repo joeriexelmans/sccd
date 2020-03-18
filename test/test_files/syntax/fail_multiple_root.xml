@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics/>
+    <datamodel/>
+
+    <tree>
+      <!-- not allowed: more than one root state -->
+      <state id="a"/>
+      <state id="b"/>
+    </tree>
+  </statechart>
+
+  <output>
+  </output>
+</test>

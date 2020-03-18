@@ -94,8 +94,8 @@ class StatechartInstance(Instance):
         stable |= not input_events and not arenas_changed
 
         if arenas_changed:
-            print_debug(termcolor.colored('completed big step (time=%d)'%now+(" (stable)" if stable else ""), 'red'))
+            print_debug('completed big step (time=%d)'%now+(" (stable)" if stable else ""))
         else:
-            print_debug(termcolor.colored("(stable)" if stable else "", 'red'))
+            print_debug("(stable)" if stable else "")
 
         return (stable, output)

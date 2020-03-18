@@ -11,7 +11,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     src_files = get_files(args.path,
-        filter=lambda file: file.startswith("test_") and file.endswith(".xml"))
+        filter=lambda file: (file.startswith("test_") or file.startswith("fail_")) and file.endswith(".xml"))
 
     suite = unittest.TestSuite()
     for src_file in src_files:

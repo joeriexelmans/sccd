@@ -33,6 +33,7 @@ class Controller:
         self.initialized = False
 
         self.model.context.assert_ready()
+        print_debug("model delta is %s" % str(self.model.context.delta))
 
     # time_offset: the offset relative to the current simulated time
     # (the timestamp given in the last call to run_until)
@@ -62,7 +63,7 @@ class Controller:
 
     # Returns duration since start
     def get_simulated_duration(self) -> Duration:
-        return self.model.context.delta * self.simulated_time
+        return (self.model.context.delta * self.simulated_time).normalize()
 
     # Run until the event queue has no more due events wrt given timestamp and until all instances are stable.
     # If no timestamp is given (now = None), run until event queue is empty.
@@ -108,7 +109,7 @@ class Controller:
         if not self.initialized:
             self.initialized = True
 
-            print_debug('time is now %s' % str(self.get_simulated_duration()))
+            print_debug("time is now %s" % str(self.get_simulated_duration()))
             # first run...
             # initialize the object manager, in turn initializing our default class
             # and adding the generated events to the queue
@@ -135,7 +136,7 @@ class Controller:
                         return
                     # make time leap
                     self.simulated_time = timestamp
-                    print_debug('\ntime is now %s' % str(self.get_simulated_duration()))
+                    print_debug("\ntime is now %s" % str(self.get_simulated_duration()))
                 # run all instances for whom there are events
                 for instance in entry.targets:
                     stable, output = instance.big_step(timestamp, [entry.event])

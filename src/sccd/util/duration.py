@@ -121,6 +121,10 @@ class Duration:
     # else:
       # return Duration(self.val%other, self.unit)
 
+  def __lt__(self, other):
+    self_conv, other_conv = same_unit(self, other)
+    return self_conv.val < other_conv.val
+
 def same_unit(x: Duration, y: Duration) -> Tuple[Duration, Duration]:
   if x.unit.relative_size >= y.unit.relative_size:
     x_conv = x.convert(y.unit)

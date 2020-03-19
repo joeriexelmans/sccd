@@ -36,7 +36,7 @@ class PseudoFailedTest(unittest.TestCase):
 def load_test(src_file) -> List[Test]:
   should_fail = os.path.basename(src_file).startswith("fail_")
 
-  context = Context()
+  context = Context(fixed_delta = None)
 
   test_node = etree.parse(src_file).getroot()
 
@@ -58,7 +58,7 @@ def load_test(src_file) -> List[Test]:
     input = load_input(input_node)
     output = load_output(output_node)
 
-    context.convert_durations_auto_delta()
+    context.process_durations()
 
     def variant_description(i, variant) -> str:
       if not variant:

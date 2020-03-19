@@ -240,7 +240,6 @@ def parse(event_generator, handler: ElementHandler):
   for event, el in event_generator:
 
     try:
-
       if event == "start":
         start_method = getattr(handler, "start_"+el.tag, None)
         if start_method:

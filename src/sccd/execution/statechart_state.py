@@ -130,7 +130,7 @@ class StatechartState:
 
   def _start_timers(self, triggers: List[AfterTrigger]):
       for after in triggers:
-          delay = after.delay.eval([], self.data_model)
+          delay: int = after.delay.eval([], self.data_model)
           self.output.append(OutputEvent(
               Event(id=after.id, name=after.name, parameters=[after.nextTimerId()]),
               target=InstancesTarget([self.instance]),
@@ -140,10 +140,10 @@ class StatechartState:
   def in_state(self, state_strings: List[str]) -> bool:
       state_ids_bitmap = Bitmap.from_list((self.model.tree.state_dict[state_string].gen.state_id for state_string in state_strings))
       in_state = self.configuration_bitmap.has_all(state_ids_bitmap)
-      if in_state:
-          print_debug("in state"+str(state_strings))
-      else:
-          print_debug("not in state"+str(state_strings))
+      # if in_state:
+      #     print_debug("in state"+str(state_strings))
+      # else:
+      #     print_debug("not in state"+str(state_strings))
       return in_state
 
   def collect_output(self) -> Tuple[bool, List[OutputEvent]]:

@@ -115,16 +115,17 @@ class DurationLiteral(Expression):
     original: Duration
 
     # All duration expressions in a model evaluate to a duration with the same unit.
-    normalized: Optional[Duration] = None
+    # What remains is a just an integer in  that unit.
+    converted: Optional[int] = None
 
     def eval(self, events, datamodel):
-        return self.normalized
+        return self.converted
 
     def render(self):
         return self.original.__str__()
 
     def get_static_type(self) -> type:
-        return Duration
+        return int
 
 @dataclass
 class Array(Expression):

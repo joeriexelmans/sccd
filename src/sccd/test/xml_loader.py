@@ -36,7 +36,7 @@ class PseudoFailedTest(unittest.TestCase):
 def load_test(src_file) -> List[Test]:
   should_fail = os.path.basename(src_file).startswith("fail_")
 
-  namespace = Context()
+  context = Context()
 
   test_node = etree.parse(src_file).getroot()
 
@@ -44,12 +44,12 @@ def load_test(src_file) -> List[Test]:
     sc_node = test_node.find("statechart")
     src = sc_node.get("src")
     if src is None:
-      statechart = load_statechart(namespace, sc_node)
+      statechart = load_statechart(context, sc_node)
     else:
       external_file = os.path.join(os.path.dirname(src_file), src)
       # print("loading", external_file, "...")
       external_node = etree.parse(external_file).getroot()
-      statechart = load_statechart(namespace, external_node)
+      statechart = load_statechart(context, external_node)
       semantics_node = sc_node.find("override_semantics")
       load_semantics(statechart.semantics, semantics_node)
 
@@ -58,10 +58,12 @@ def load_test(src_file) -> List[Test]:
     input = load_input(input_node)
     output = load_output(output_node)
 
+    context.convert_durations_auto_delta()
+
     def variant_description(i, variant) -> str:
       if not variant:
         return ""
-      return " (variant %d: %s)" % (i, ",".join(str(val) for val in variant.values()))
+      return " (variant %d: %s)" % (i, ", ".join(str(val) for val in variant.values()))
 
     if should_fail:
       return [PseudoFailedTest(name=src_file, e=Exception("Unexpectedly succeeded at loading."))]
@@ -70,7 +72,7 @@ def load_test(src_file) -> List[Test]:
         Test(
           name=src_file + variant_description(i, variant),
           model=SingleInstanceModel(
-            namespace,
+            context,
             Statechart(tree=statechart.tree, datamodel=deepcopy(statechart.datamodel), semantics=dataclasses.replace(statechart.semantics, **variant))),
           input=input,
           output=output)

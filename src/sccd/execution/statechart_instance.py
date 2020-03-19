@@ -75,14 +75,12 @@ class StatechartInstance(Instance):
         self.state.initialize()
         stable, output = self.state.collect_output()
 
-        print_debug('completed initialization (time=%d)'%now+("(stable)" if stable else ""))
-
         return (stable, output)
 
     # perform a big step. generating a set of output events
     def big_step(self, now: Timestamp, input_events: List[Event]) -> Tuple[bool, List[OutputEvent]]:
 
-        # print_debug(termcolor.colored('attempting big step, input_events='+str(input_events), 'red'))
+        # print_debug('attempting big step, input_events='+str(input_events))
 
         self.set_input(input_events)
 
@@ -92,10 +90,5 @@ class StatechartInstance(Instance):
 
         # can the next big step still contain transitions, even if there are no input events?
         stable |= not input_events and not arenas_changed
-
-        if arenas_changed:
-            print_debug('completed big step (time=%d)'%now+(" (stable)" if stable else ""))
-        else:
-            print_debug("(stable)" if stable else "")
 
         return (stable, output)

@@ -17,7 +17,7 @@ class Event:
         else:
             s = "Event("+self.name
         if self.parameters:
-            s += ", params="+str(self.parameters)
+            s += str(self.parameters)
         s += ")"
         return termcolor.colored(s, 'yellow')
 

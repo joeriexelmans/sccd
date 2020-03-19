@@ -5,7 +5,7 @@ import math
 import functools
 
 @dataclass
-class _Unit:
+class Unit:
   notation: str
   relative_size: int
   larger: Optional[Tuple[Any, int]] = None
@@ -14,15 +14,15 @@ class _Unit:
   def __eq__(self, other):
     return self is other
 
-FemtoSecond = _Unit("fs", 1)
-PicoSecond = _Unit("ps", 1000)
-Nanosecond = _Unit("ns", 1000000)
-Microsecond = _Unit("µs", 1000000000)
-Millisecond = _Unit("ms", 1000000000000)
-Second = _Unit("s", 1000000000000000)
-Minute = _Unit("m", 60000000000000000)
-Hour = _Unit("h", 3600000000000000000)
-Day = _Unit("D", 86400000000000000000)
+FemtoSecond = Unit("fs", 1)
+PicoSecond = Unit("ps", 1000)
+Nanosecond = Unit("ns", 1000000)
+Microsecond = Unit("µs", 1000000000)
+Millisecond = Unit("ms", 1000000000000)
+Second = Unit("s", 1000000000000000)
+Minute = Unit("m", 60000000000000000)
+Hour = Unit("h", 3600000000000000000)
+Day = Unit("D", 86400000000000000000)
 
 FemtoSecond.larger = (PicoSecond, 1000)
 PicoSecond.larger = (Nanosecond, 1000)
@@ -45,9 +45,10 @@ Hour.larger = (Day, 24)
 
 # @dataclass
 class Duration:
-  def __init__(self, val: int, unit: _Unit = None):
+  def __init__(self, val: int, unit: Unit = None):
     self.val = val
     self.unit = unit
+
     if self.val != 0 and self.unit is None:
       raise Exception("Duration: Non-zero value should have unit")
     # Zero-durations are treated a bit special
@@ -56,7 +57,7 @@ class Duration:
 
   # Can only convert to smaller units.
   # Returns new Duration.
-  def convert(self, unit: _Unit):
+  def convert(self, unit: Unit):
     if self.unit is None:
       return self
 
@@ -92,7 +93,42 @@ class Duration:
     return self.val == other.val and self.unit is other.unit
 
   def __mul__(self, other):
-    return Duration(self.val*other, self.unit)
+    new_val = self.val * other
+    if new_val == 0:
+      return Duration(0)
+    else:
+      return Duration(new_val, self.unit)
+
+  # Commutativity
+  __rmul__ = __mul__
+
+  def __floordiv__(self, other):
+    # if isinstance(other, Duration):
+      self_conv, other_conv = same_unit(self, other)
+      return self_conv.val // other_conv.val
+    # else:
+      # return Duration(self.val//other, self.unit)
+
+
+  def __mod__(self, other):
+    # if isinstance(other, Duration):
+      self_conv, other_conv = same_unit(self, other)
+      new_val = self_conv.val % other_conv.val
+      if new_val == 0:
+        return Duration(0)
+      else:
+        return Duration(new_val, self_conv.unit)
+    # else:
+      # return Duration(self.val%other, self.unit)
+
+def same_unit(x: Duration, y: Duration) -> Tuple[Duration, Duration]:
+  if x.unit.relative_size >= y.unit.relative_size:
+    x_conv = x.convert(y.unit)
+    y_conv = y
+  else:
+    x_conv = x
+    y_conv = y.convert(x.unit)
+  return (x_conv, y_conv)
 
 def gcd_pair(x: Duration, y: Duration) -> Duration:
   if x.unit is None:
@@ -100,15 +136,9 @@ def gcd_pair(x: Duration, y: Duration) -> Duration:
   if y.unit is None:
     return x
 
-  if x.unit.relative_size >= y.unit.relative_size:
-    x_converted = x.convert(y.unit)
-    y_converted = y
-  else:
-    x_converted = x
-    y_converted = y.convert(x.unit)
-  # x_conv and y_conv are now the same unit
-  gcd = math.gcd(x_converted.val, y_converted.val)
-  return Duration(gcd, x_converted.unit).normalize()
+  x_conv, y_conv = same_unit(x, y)
+  gcd = math.gcd(x_conv.val, y_conv.val)
+  return Duration(gcd, x_conv.unit).normalize()
 
 def gcd(*iterable) -> Duration:
   return functools.reduce(gcd_pair, iterable, Duration(0))

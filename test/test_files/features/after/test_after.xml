@@ -8,14 +8,14 @@
     <tree>
       <state initial="s1">
         <state id="s1">
-          <transition after="100" target="/s2"/>
-          <transition after="200" target="/s3"/>
+          <transition after="100 ms" target="/s2"/>
+          <transition after="200 ms" target="/s3"/>
         </state>
         <state id="s2">
           <onentry>
             <raise event="in_2" port="out" />
           </onentry>
-          <transition after="150" target="/s4"/>
+          <transition after="150 ms" target="/s4"/>
         </state>
         <state id="s3">
           <onentry>

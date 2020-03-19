@@ -32,6 +32,8 @@ class Controller:
         self.simulated_time = 0 # integer
         self.initialized = False
 
+        self.model.context.assert_ready()
+
     # time_offset: the offset relative to the current simulated time
     # (the timestamp given in the last call to run_until)
     def add_input(self, input: InputEvent):
@@ -57,6 +59,10 @@ class Controller:
     # Get timestamp of next entry in event queue
     def next_wakeup(self) -> Optional[Timestamp]:
         return self.queue.earliest_timestamp()
+
+    # Returns duration since start
+    def get_simulated_duration(self) -> Duration:
+        return self.model.context.delta * self.simulated_time
 
     # Run until the event queue has no more due events wrt given timestamp and until all instances are stable.
     # If no timestamp is given (now = None), run until event queue is empty.
@@ -101,6 +107,8 @@ class Controller:
 
         if not self.initialized:
             self.initialized = True
+
+            print_debug('time is now %s' % str(self.get_simulated_duration()))
             # first run...
             # initialize the object manager, in turn initializing our default class
             # and adding the generated events to the queue
@@ -109,6 +117,7 @@ class Controller:
                 process_big_step_output(events)
                 if not stable:
                     unstable.append(i)
+
 
         # Actual "event loop"
         # TODO: What is are the right semantics for this loop?
@@ -126,9 +135,11 @@ class Controller:
                         return
                     # make time leap
                     self.simulated_time = timestamp
+                    print_debug('\ntime is now %s' % str(self.get_simulated_duration()))
                 # run all instances for whom there are events
                 for instance in entry.targets:
                     stable, output = instance.big_step(timestamp, [entry.event])
+                    # print_debug("completed big step (time = %s)" % str(self.model.context.delta * self.simulated_time))
                     process_big_step_output(output)
                     if not stable:
                         unstable.append(instance)

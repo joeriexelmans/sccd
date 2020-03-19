@@ -4,8 +4,14 @@ import sccd.schema
 from sccd.syntax.statement import *
 from sccd.model.context import *
 
-with open(os.path.join(os.path.dirname(sccd.schema.__file__),"grammar.g")) as file:
-  _grammar = file.read()
+_schema_dir = os.path.dirname(sccd.schema.__file__)
+
+with open(os.path.join(_schema_dir,"expr.g")) as file:
+  _expr_grammar = file.read()
+
+with open(os.path.join(_schema_dir,"state_ref.g")) as file:
+  _state_ref_grammar = file.read()
+
 
 # Lark transformer for parsetree-less parsing of expressions
 class _ExpressionTransformer(Transformer):
@@ -71,8 +77,8 @@ class _ExpressionTransformer(Transformer):
 # Global variables so we don't have to rebuild our parser every time
 # Obviously not thread-safe
 _transformer = _ExpressionTransformer()
-_expr_parser = Lark(_grammar, parser="lalr", start=["expr", "block"], transformer=_transformer)
-_state_ref_parser = Lark(_grammar, parser="lalr", start=["state_ref"])
+_expr_parser = Lark(_expr_grammar, parser="lalr", start=["expr", "block"], transformer=_transformer)
+_state_ref_parser = Lark(_state_ref_grammar, parser="lalr", start=["state_ref"])
 
 # Exported functions:
 

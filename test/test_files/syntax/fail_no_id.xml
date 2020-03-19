@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics/>
+    <datamodel/>
+
+    <tree>
+      <state>
+        <state><!-- non-root state must have 'id' -->
+        </state>
+      </state>
+    </tree>
+  </statechart>
+
+  <output>
+    <big_step>
+      <event name="ok" port="out" />
+    </big_step>
+  </output>
+</test>

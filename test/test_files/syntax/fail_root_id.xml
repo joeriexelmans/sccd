@@ -5,9 +5,8 @@
     <datamodel/>
 
     <tree>
-      <!-- not allowed: more than one root state -->
-      <state/>
-      <state/>
+      <!-- not allowed: root with id -->
+      <state id="root"/>
     </tree>
   </statechart>
 

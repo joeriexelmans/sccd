@@ -74,12 +74,22 @@ class TreeHandler(ElementHandler):
     parent = self.top("state", default=None)
 
     short_name = el.get("id", "")
+    if parent is None:
+      if short_name:
+        raise XmlLoadError(el, "Root <state> must not have 'id' attribute.")
+    else:
+      if not short_name:
+        raise XmlLoadError(el, "Non-root <state> must have 'id' attribute.")
+
     state = constructor(short_name, parent)
 
     parent_children = self.top("state_children")
     already_there = parent_children.setdefault(short_name, state)
     if already_there is not state:
-      raise XmlLoadError(el, "Sibling state with the same id exists.")
+      if parent:
+        raise XmlLoadError(el, "Sibling state with the same id exists.")
+      else:
+        raise XmlLoadError(el, "Only 1 root <state> allowed.")
 
     self.push("state", state)
     self.push("state_children", {})
@@ -96,7 +106,7 @@ class TreeHandler(ElementHandler):
   def end_state(self, el):
     state, state_children = self._end_state()
 
-    initial = el.get("initial")
+    initial = el.get("initial", None)
     if initial is not None:
       state.default_state = state_children[initial]
     elif len(state.children) == 1:
@@ -161,8 +171,6 @@ class TreeHandler(ElementHandler):
     root_states = self.pop("state_children")
     if len(root_states) == 0:
       raise XmlLoadError(el, "Missing root <state> !")
-    if len(root_states) > 1:
-      raise XmlLoadError(el, "Only one root <state> allowed.")
     root = list(root_states.values())[0]
 
     transitions = self.pop("transitions")
@@ -174,19 +182,24 @@ class TreeHandler(ElementHandler):
       try:
         # Parse and find target state
         parse_tree = parse_state_ref(target_string)
-        def find_state(sequence) -> State:
-          if sequence.data == "relative_path":
-            state = source
-          elif sequence.data == "absolute_path":
-            state = root
-          for item in sequence.children:
-            if item.type == "PARENT_NODE":
-              state = state.parent
-            elif item.type == "CURRENT_NODE":
-              continue
-            elif item.type == "IDENTIFIER":
-              state = [x for x in state.children if x.short_name == item.value][0]
-          return state
+      except Exception as e:
+        raise XmlLoadError(t_el, "Parsing target '%s': %s" % (target_string, str(e)))
+
+      def find_state(sequence) -> State:
+        if sequence.data == "relative_path":
+          state = source
+        elif sequence.data == "absolute_path":
+          state = root
+        for item in sequence.children:
+          if item.type == "PARENT_NODE":
+            state = state.parent
+          elif item.type == "CURRENT_NODE":
+            continue
+          elif item.type == "IDENTIFIER":
+            state = [x for x in state.children if x.short_name == item.value][0]
+        return state
+
+      try:
         targets = [find_state(seq) for seq in parse_tree.children]
       except:
         raise XmlLoadError(t_el, "Could not find target '%s'." % (target_string))

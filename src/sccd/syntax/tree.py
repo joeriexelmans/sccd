@@ -185,7 +185,14 @@ class StateTree:
         def init_tree(state: State, parent_full_name: str, ancestors: List[State]):
             nonlocal next_id
 
-            full_name = parent_full_name + '/' + state.short_name
+            if state is root:
+                full_name = '/'
+            elif state.parent is root:
+                full_name = '/' + state.short_name
+            else:
+                full_name = parent_full_name + '/' + state.short_name
+
+            # full_name = parent_full_name + '/' + state.short_name
 
             state.gen = gen = StateGenerated(
                 state_id=next_id,

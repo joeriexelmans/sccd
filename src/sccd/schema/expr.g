@@ -1,27 +1,11 @@
 // Grammar file for Lark-parser
 
-// Parsing target of a transition as a sequence of nodes
+// Parsing expressions
 
 %import common.WS
 %ignore WS
-
 %import common.ESCAPED_STRING
 
-_PATH_SEP: "/" 
-PARENT_NODE: ".." 
-CURRENT_NODE: "." 
-IDENTIFIER: /[A-Za-z_][A-Za-z_0-9]*/ 
-
-// target of a transition
-state_ref: path | "(" path ("," path)+ ")" 
-
-?path: absolute_path | relative_path 
-absolute_path: _PATH_SEP _path_sequence
-relative_path: _path_sequence
-_path_sequence: (CURRENT_NODE | PARENT_NODE | IDENTIFIER) (_PATH_SEP _path_sequence)?
-
-
-// Parsing expressions
 
 // We use the same operators and operator precedence rules as Python
 
@@ -56,6 +40,8 @@ _path_sequence: (CURRENT_NODE | PARENT_NODE | IDENTIFIER) (_PATH_SEP _path_seque
      | literal
      | func_call
      | array
+
+IDENTIFIER: /[A-Za-z_][A-Za-z_0-9]*/ 
 
 func_call: atom "(" param_list ")"
 param_list: ( expr ("," expr)* )?  -> params

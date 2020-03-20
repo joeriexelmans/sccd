@@ -33,7 +33,7 @@ class Context:
     # Ensure delta not too big
     if self.fixed_delta:
       if self.delta < self.fixed_delta:
-        raise Exception("Model contains duration deltas (smallest = %s) than representable with delta given (%s)." % (str(self.delta), str(self.fixed_delta)))
+        raise Exception("Model contains duration deltas (smallest = %s) not representable with fixed delta of %s." % (str(self.delta), str(self.fixed_delta)))
       else:
         self.delta = self.fixed_delta
 

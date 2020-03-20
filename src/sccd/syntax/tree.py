@@ -3,6 +3,7 @@ from typing import *
 from sccd.syntax.action import *
 from sccd.util.bitmap import *
 
+
 @dataclass
 class State:
     short_name: str # value of 'id' attribute in XML
@@ -27,65 +28,29 @@ class State:
         if self.default_state:
             targets.extend(self.default_state.getEffectiveTargetStates(instance))
         return targets
-
-    # # Recursively assigns unique state_id to each state in the tree,
-    # # as well as some other optimization stuff
-    # # Should only be called once for the root of the state tree,
-    # # after the tree has been built.
-    # # Returns state_id + total number of states in tree
-    # def init_tree(self, state_id: int = 0, name_prefix: str = "", states = {}, state_list = [], transition_list = []) -> int:
-    #     self.state_id = state_id
-    #     next_id = state_id + 1
-    #     self.name = name_prefix + self.short_name if name_prefix == '/' else name_prefix + '/' + self.short_name
-    #     states[self.name] = self
-    #     state_list.append(self)
-    #     for t in self.transitions:
-    #         transition_list.append(t)
-    #     for i, c in enumerate(self.children):
-    #         if isinstance(c, HistoryState):
-    #             self.history.append(c)
-    #         c.parent = self
-    #         c.ancestors.append(self)
-    #         c.ancestors.extend(self.ancestors)
-    #         next_id = c.init_tree(next_id, self.name, states, state_list, transition_list)
-    #     self.descendants.extend(self.children)
-    #     for c in self.children:
-    #         self.descendants.extend(c.descendants)
-    #     for d in self.descendants:
-    #         self.descendant_bitmap |= bit(d.state_id)
-    #     return next_id
-
-    # def print(self, w = FormattedWriter()):
-    #     w.write(self.name)
-    #     w.indent()
-    #     for c in self.children:
-    #         c.print(w)
-    #     w.dedent()
                     
     def __repr__(self):
         return "State(\"%s\")" % (self.gen.full_name)
 
 # Generated fields (for optimization) of a state
-@dataclass
+@dataclass(frozen=True)
 class StateGenerated:
     state_id: int
     full_name: str
-    ancestors: List[State] = field(default_factory=list) # order: close to far away, i.e. first element is parent
-    descendants: List[State] = field(default_factory=list)  # order: breadth-first
-    descendant_bitmap: Bitmap = Bitmap()
-    history: List[State] = field(default_factory=list) # subset of children
-    has_eventless_transitions: bool = False
-    after_triggers: List['AfterTrigger'] = field(default_factory=list)
+    ancestors: List[State] # order: close to far away, i.e. first element is parent
+    descendants: List[State]  # order: breadth-first
+    descendant_bitmap: Bitmap
+    history: List[State] # subset of children
+    has_eventless_transitions: bool
+    after_triggers: List['AfterTrigger']
 
 
 class HistoryState(State):
-    pass
-    # def __init__(self, name):
-        # State.__init__(self, name)
+    @abstractmethod
+    def getEffectiveTargetStates(self, instance):
+        pass
         
 class ShallowHistoryState(HistoryState):
-    # def __init__(self, name):
-        # HistoryState.__init__(self, name)
         
     def getEffectiveTargetStates(self, instance):
         if self.state_id in instance.history_values:
@@ -98,8 +63,6 @@ class ShallowHistoryState(HistoryState):
             return self.parent.getEffectiveTargetStates(instance)
         
 class DeepHistoryState(HistoryState):
-    # def __init__(self, name):
-        # HistoryState.__init__(self, name)
         
     def getEffectiveTargetStates(self, instance):
         if self.state_id in instance.history_values:
@@ -109,8 +72,6 @@ class DeepHistoryState(HistoryState):
             return self.parent.getEffectiveTargetStates(instance)
         
 class ParallelState(State):
-    # def __init__(self, name):
-        # State.__init__(self, name)
         
     def getEffectiveTargetStates(self, instance):
         targets = [self]
@@ -165,7 +126,7 @@ class Transition:
         return termcolor.colored("%s 🡪 %s" % (self.source.gen.full_name, self.targets[0].gen.full_name), 'green')
 
 # Generated fields (for optimization) of a transition
-@dataclass
+@dataclass(frozen=True)
 class TransitionGenerated:
     lca: State
     arena_bitmap: Bitmap
@@ -185,6 +146,9 @@ class StateTree:
         def init_tree(state: State, parent_full_name: str, ancestors: List[State]):
             nonlocal next_id
 
+            state_id = next_id
+            next_id += 1
+
             if state is root:
                 full_name = '/'
             elif state.parent is root:
@@ -192,36 +156,39 @@ class StateTree:
             else:
                 full_name = parent_full_name + '/' + state.short_name
 
-            # full_name = parent_full_name + '/' + state.short_name
-
-            state.gen = gen = StateGenerated(
-                state_id=next_id,
-                full_name=full_name,
-                ancestors=ancestors)
-
-            next_id += 1
-
-            self.state_dict[gen.full_name] = state
+            self.state_dict[full_name] = state
             self.state_list.append(state)
+
+            descendants = []
+            history = []
+            has_eventless_transitions = False
+            after_triggers = []
 
             for t in state.transitions:
                 self.transition_list.append(t)
                 if t.trigger is None:
-                    gen.has_eventless_transitions = True
+                    has_eventless_transitions = True
                 elif isinstance(t.trigger, AfterTrigger):
-                    gen.after_triggers.append(t.trigger)
+                    after_triggers.append(t.trigger)
 
             for c in state.children:
-                init_tree(c, gen.full_name, [state] + gen.ancestors)
+                init_tree(c, full_name, [state] + ancestors)
                 if isinstance(c, HistoryState):
-                    gen.history.append(c)
+                    history.append(c)
 
-            gen.descendants.extend(state.children)
+            descendants.extend(state.children)
             for c in state.children:
-                gen.descendants.extend(c.gen.descendants)
+                descendants.extend(c.gen.descendants)
 
-            for d in gen.descendants:
-                gen.descendant_bitmap |= bit(d.gen.state_id)
+            state.gen = StateGenerated(
+                state_id=state_id,
+                full_name=full_name,
+                ancestors=ancestors,
+                descendants=descendants,
+                descendant_bitmap=reduce(lambda x,y: x | bit(y.gen.state_id), descendants, Bitmap(0)),
+                history=history,
+                has_eventless_transitions=has_eventless_transitions,
+                after_triggers=after_triggers)
 
         init_tree(root, "", [])
         self.root = root
@@ -239,6 +206,7 @@ class StateTree:
                         if a in target.gen.ancestors:
                             lca = a
                             break
+
             t.gen = TransitionGenerated(
                 lca=lca,
                 arena_bitmap=lca.gen.descendant_bitmap.set(lca.gen.state_id))

@@ -1,5 +1,4 @@
 import os
-import lxml.etree as etree
 from sccd.model.statechart_parser import *
 from sccd.test.test import *
 from copy import deepcopy

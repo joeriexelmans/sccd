@@ -52,11 +52,9 @@ if __name__ == '__main__':
         should_fail = os.path.basename(src_file).startswith("fail_")
 
         try:
-            parser.push("src_file", src_file)
             parser.push("tests", [])
-            statechart = parser.parse(etree.iterparse(src_file, events=("start", "end")))
+            statechart = parser.parse(src_file)
             tests = parser.pop("tests")
-            parser.pop("src_file")
 
             if should_fail:
                 suite.addTest(PseudoFailedTest(name=src_file, e=Exception("Unexpectedly succeeded at loading.")))

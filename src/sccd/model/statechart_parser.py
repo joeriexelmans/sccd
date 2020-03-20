@@ -26,43 +26,38 @@ class XmlLoadError(Exception):
 
 class Parser:
 
-  def _raise(self, el, err):
-    src_file = self.require("src_file")
-    raise XmlLoadError(src_file, el, err)
+  def __init__(self):
+    self.stacks: Dict[str, List[Any]] = {}
 
-  def _get_stack(self, name):
-    stack = getattr(self, '_'+name, None)
-    if stack is None:
-      stack = []
-      setattr(self, '_'+name, stack)
-    return stack
+  def _init_stack(self, name):
+    return self.stacks.setdefault(name, [])
 
   def push(self, name, value):
-    stack = self._get_stack(name)
+    stack = self._init_stack(name)
     stack.append(value)
 
   def pop(self, name):
-    stack = getattr(self, '_'+name)
-    return stack.pop()
+    return self.stacks[name].pop()
 
   def get(self, name, default=None):
-    stack = getattr(self, '_'+name, [])
+    stack = self._init_stack(name)
     return stack[-1] if len(stack) else default
 
   def require(self, name):
-    stack = getattr(self, '_'+name, [])
-    if len(stack) == 0:
+    try:
+      return self.stacks[name][-1]
+    except:
       raise Exception("Element expected only within context: %s" % name)
-    return stack[-1]
 
   def all(self, name):
-    stack = self._get_stack(name)
+    stack = self._init_stack(name)
     return stack
 
-  def parse(self, event_generator):
-    result = None
-    for event, el in event_generator:
-      print(event, el.tag)
+  def parse(self, src_file):
+    self.push("src_file", src_file)
+
+    for event, el in etree.iterparse(src_file, events=("start", "end")):
+      # print(event, el.tag)
       try:
         if event == "start":
           start_method = getattr(self, "start_"+el.tag, None)
@@ -72,7 +67,8 @@ class Parser:
         elif event == "end":
           end_method = getattr(self, "end_"+el.tag)
           if end_method:
-            result = end_method(el)
+            end_method(el)
+
       except XmlLoadError:
         raise
       # Decorate non-XmlLoadErrors
@@ -83,8 +79,12 @@ class Parser:
       # This is a technique mentioned in the lxml documentation:
       # https://lxml.de/tutorial.html#event-driven-parsing
       # el.clear()
-    return result
+      
+    self.pop("src_file")
 
+  def _raise(self, el, err):
+    src_file = self.require("src_file")
+    raise XmlLoadError(src_file, el, err)
 
 class StatechartParser(Parser):
 
@@ -324,14 +324,12 @@ class StatechartParser(Parser):
         tree=None, semantics=Semantics(), datamodel=DataModel())
     else:
       ext_file_path = os.path.join(os.path.dirname(src_file), ext_file)
-      self.push("src_file", ext_file_path)
       self.push("statecharts", [])
-      self.parse(etree.iterparse(ext_file_path, events=("start", "end")))
+      self.parse(ext_file_path)
       statecharts = self.pop("statecharts")
       if len(statecharts) != 1:
         raise Exception("Expected exactly 1 <statechart> node, got %d." % len(statecharts))
       statechart = statecharts[0]
-      self.pop("src_file")
     self.push("statechart", statechart)
 
   def end_statechart(self, el):

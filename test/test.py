@@ -1,6 +1,7 @@
 import argparse
+import unittest
 from lib.os_tools import *
-from sccd.test.test_parser import *
+from lib.test_parser import *
 from sccd.util.debug import *
 
 class PseudoSucceededTest(unittest.TestCase):

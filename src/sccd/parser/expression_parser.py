@@ -1,15 +1,14 @@
 import os
 from lark import Lark, Transformer
-import sccd.schema
 from sccd.syntax.statement import *
 from sccd.model.globals import *
 
-_schema_dir = os.path.dirname(sccd.schema.__file__)
+_grammar_dir = os.path.join(os.path.dirname(__file__), "grammar")
 
-with open(os.path.join(_schema_dir,"expr.g")) as file:
-  _expr_grammar = file.read()
+with open(os.path.join(_grammar_dir,"action_language.g")) as file:
+  _action_lang_grammar = file.read()
 
-with open(os.path.join(_schema_dir,"state_ref.g")) as file:
+with open(os.path.join(_grammar_dir,"state_ref.g")) as file:
   _state_ref_grammar = file.read()
 
 
@@ -77,7 +76,7 @@ class _ExpressionTransformer(Transformer):
 # Global variables so we don't have to rebuild our parser every time
 # Obviously not thread-safe
 _transformer = _ExpressionTransformer()
-_expr_parser = Lark(_expr_grammar, parser="lalr", start=["expr", "block"], transformer=_transformer)
+_action_lang_parser = Lark(_action_lang_grammar, parser="lalr", start=["expr", "block"], transformer=_transformer)
 _state_ref_parser = Lark(_state_ref_grammar, parser="lalr", start=["state_ref"])
 
 # Exported functions:
@@ -85,12 +84,12 @@ _state_ref_parser = Lark(_state_ref_grammar, parser="lalr", start=["state_ref"])
 def parse_expression(globals: Globals, datamodel, expr: str) -> Expression:
   _transformer.globals = globals
   _transformer.datamodel = datamodel
-  return _expr_parser.parse(expr, start="expr")
+  return _action_lang_parser.parse(expr, start="expr")
 
 def parse_block(globals: Globals, datamodel, block: str) -> Statement:
   _transformer.globals = globals
   _transformer.datamodel = datamodel
-  return _expr_parser.parse(block, start="block")
+  return _action_lang_parser.parse(block, start="block")
 
 def parse_state_ref(state_ref: str):
   return _state_ref_parser.parse(state_ref, start="state_ref")

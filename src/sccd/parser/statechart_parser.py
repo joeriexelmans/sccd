@@ -1,9 +1,9 @@
 import dataclasses
 from lxml import etree
-from sccd.model.expression_parser import *
+from sccd.parser.expression_parser import *
 from sccd.syntax.statechart import *
 from sccd.syntax.tree import *
-
+from sccd.execution.event import *
 
 # An Exception that occured while visiting an XML element.
 # It will show a fragment of the source file and the line number of the error.

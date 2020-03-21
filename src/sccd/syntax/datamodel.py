@@ -14,7 +14,7 @@ class DataModel:
         self.names: Dict[str, int] = {}
         self.storage = []
 
-        # Reserved variable
+        # Reserved variable. This is dirty, find better solution
         self.create("INSTATE", None, Callable[[List[str]], bool])
 
     def create(self, name: str, value, _type=None) -> int:

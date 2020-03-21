@@ -1,6 +1,6 @@
 import os
-from sccd.model.statechart_parser import *
-from sccd.test.test import *
+from sccd.parser.statechart_parser import *
+from lib.test import *
 from copy import deepcopy
 
 # Parses <test> element and all its children (including <statechart>)

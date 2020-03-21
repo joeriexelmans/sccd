@@ -5,6 +5,8 @@ from sccd.syntax.statechart import *
 from sccd.syntax.tree import *
 
 
+# An Exception that occured while visiting an XML element.
+# It will show a fragment of the source file and the line number of the error.
 class XmlLoadError(Exception):
   def __init__(self, src_file: str, el: etree.Element, err):
     parent = el.getparent()
@@ -22,10 +24,16 @@ class XmlLoadError(Exception):
       lines_numbers.append(ll)
       l += 1
     super().__init__("\n\n%s\n\n%s:\nline %d: <%s>: %s" % ('\n'.join(lines_numbers), src_file,el.sourceline, el.tag, str(err)))
+    
+    self.src_file = src_file
+    self.el = el
+    self.err = err
 
 
 class XmlParser:
 
+  # Stack-like data structure extensively used for event-driven parsing.
+  # Typically, when visiting the opening tag of a parent XML element, a context value is *pushed*, and when visiting the matching closing tag, that value is popped. Child XML elements will be able to "peek" or, more often, "require" a context value to "be there". This way, child XML elements can express only being allowed as children of certain parent XML elements that push/pop these contexts, otherwise raising an exception.
   class Context:
     def __init__(self, name):
       self.data = []
@@ -72,14 +80,17 @@ class XmlParser:
 
       except XmlLoadError:
         raise
-      # Decorate non-XmlLoadErrors
       except Exception as e:
+        # An advantage of this event-driven parsing is that if an exception is thrown during the visiting of an XML node, we can automatically decorate it with info about the tag where the error occured, the line number in the source file, etc.
         self._raise(el, e)
 
       # We don't need anything from this element anymore, so we clear it to save memory.
       # This is a technique mentioned in the lxml documentation:
       # https://lxml.de/tutorial.html#event-driven-parsing
       # el.clear()
+      # Currently disabled for 2 reasons:
+      # 1) Because we store <transition> elements and need to read their attributes later on.
+      # 2) To be able to pretty-print XML data later on, if a future error occurs.
       
     self.src_file.pop()
 

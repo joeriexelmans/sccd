@@ -2,7 +2,7 @@ import os
 from lark import Lark, Transformer
 import sccd.schema
 from sccd.syntax.statement import *
-from sccd.model.context import *
+from sccd.model.globals import *
 
 _schema_dir = os.path.dirname(sccd.schema.__file__)
 
@@ -17,7 +17,7 @@ with open(os.path.join(_schema_dir,"state_ref.g")) as file:
 class _ExpressionTransformer(Transformer):
   def __init__(self):
     super().__init__()
-    self.context: Context = None
+    self.globals: Globals = None
     self.datamodel: DataModel = None
 
   array = Array
@@ -71,7 +71,7 @@ class _ExpressionTransformer(Transformer):
       "h": Hour
     }[node[0].children[1]]
     d = DurationLiteral(Duration(int(node[0].children[0]),unit))
-    self.context.durations.append(d)
+    self.globals.durations.append(d)
     return d
 
 # Global variables so we don't have to rebuild our parser every time
@@ -82,13 +82,13 @@ _state_ref_parser = Lark(_state_ref_grammar, parser="lalr", start=["state_ref"])
 
 # Exported functions:
 
-def parse_expression(context: Context, datamodel, expr: str) -> Expression:
-  _transformer.context = context
+def parse_expression(globals: Globals, datamodel, expr: str) -> Expression:
+  _transformer.globals = globals
   _transformer.datamodel = datamodel
   return _expr_parser.parse(expr, start="expr")
 
-def parse_block(context: Context, datamodel, block: str) -> Statement:
-  _transformer.context = context
+def parse_block(globals: Globals, datamodel, block: str) -> Statement:
+  _transformer.globals = globals
   _transformer.datamodel = datamodel
   return _expr_parser.parse(block, start="block")
 

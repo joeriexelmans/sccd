@@ -5,7 +5,7 @@ from sccd.util.namespace import *
 from sccd.util.duration import *
 
 # @dataclass
-class Context:
+class Globals:
   # max_delta: upper bound on model delta
   def __init__(self, fixed_delta: Optional[Duration] = Duration(100, Microsecond)):
     self.fixed_delta = fixed_delta
@@ -41,4 +41,4 @@ class Context:
 
   def assert_ready(self):
     if self.delta is None:
-      raise Exception("Context not ready: durations not yet processed.")
+      raise Exception("Globals not ready: durations not yet processed.")

@@ -32,8 +32,8 @@ class Controller:
         self.simulated_time = 0 # integer
         self.initialized = False
 
-        self.model.context.assert_ready()
-        print_debug("model delta is %s" % str(self.model.context.delta))
+        self.model.globals.assert_ready()
+        print_debug("model delta is %s" % str(self.model.globals.delta))
 
     # time_offset: the offset relative to the current simulated time
     # (the timestamp given in the last call to run_until)
@@ -41,12 +41,12 @@ class Controller:
             if input.name == "":
                 raise Exception("Input event can't have an empty name.")
         
-            if input.port not in self.model.context.inports:
+            if input.port not in self.model.globals.inports:
                 raise Exception("No such port: '" + input.port + "'")
 
 
             e = Event(
-                id=self.model.context.get_event_id(input.name),
+                id=self.model.globals.get_event_id(input.name),
                 name=input.name,
                 port=input.port,
                 parameters=input.parameters)
@@ -63,7 +63,7 @@ class Controller:
 
     # Returns duration since start
     def get_simulated_duration(self) -> Duration:
-        return (self.model.context.delta * self.simulated_time).normalize()
+        return (self.model.globals.delta * self.simulated_time).normalize()
 
     # Run until the event queue has no more due events wrt given timestamp and until all instances are stable.
     # If no timestamp is given (now = None), run until event queue is empty.
@@ -140,7 +140,7 @@ class Controller:
                 # run all instances for whom there are events
                 for instance in entry.targets:
                     stable, output = instance.big_step(timestamp, [entry.event])
-                    # print_debug("completed big step (time = %s)" % str(self.model.context.delta * self.simulated_time))
+                    # print_debug("completed big step (time = %s)" % str(self.model.globals.delta * self.simulated_time))
                     process_big_step_output(output)
                     if not stable:
                         unstable.append(instance)

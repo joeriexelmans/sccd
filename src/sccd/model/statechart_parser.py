@@ -104,30 +104,30 @@ class ActionParser(XmlParser):
 
   def __init__(self):
     super().__init__()
-    self.context = XmlParser.Context("context")
+    self.globals = XmlParser.Context("globals")
     self.datamodel = XmlParser.Context("datamodel")
     self.actions = XmlParser.Context("actions")
 
   def end_raise(self, el):
-    context = self.context.require()
+    globals = self.globals.require()
     actions = self.actions.require()
 
     name = el.get("event")
     port = el.get("port")
     if not port:
-      event_id = context.events.assign_id(name)
+      event_id = globals.events.assign_id(name)
       a = RaiseInternalEvent(name=name, parameters=[], event_id=event_id)
     else:
-      context.outports.assign_id(port)
+      globals.outports.assign_id(port)
       a = RaiseOutputEvent(name=name, parameters=[], outport=port, time_offset=0)
     actions.append(a)
 
   def end_code(self, el):
-    context = self.context.require()
+    globals = self.globals.require()
     datamodel = self.datamodel.require()
     actions = self.actions.require()
 
-    block = parse_block(context, datamodel, block=el.text)
+    block = parse_block(globals, datamodel, block=el.text)
     a = Code(block)
     actions.append(a)
 
@@ -256,12 +256,12 @@ class StatechartParser(StateParser):
   # <datamodel>
 
   def end_var(self, el):
-    context = self.context.require()
+    globals = self.globals.require()
     datamodel = self.datamodel.require()
 
     id = el.get("id")
     expr = el.get("expr")
-    parsed = parse_expression(context, datamodel, expr=expr)
+    parsed = parse_expression(globals, datamodel, expr=expr)
     datamodel.create(id, parsed.eval([], datamodel))
 
   def start_datamodel(self, el):
@@ -281,7 +281,7 @@ class StatechartParser(StateParser):
 
   def end_tree(self, el):
     statechart = self.statechart.require()
-    context = self.context.require()
+    globals = self.globals.require()
     datamodel = self.datamodel.pop()
 
     root_states = self.state_children.pop()
@@ -329,14 +329,14 @@ class StatechartParser(StateParser):
 
       # Trigger
       if after is not None:
-        after_expr = parse_expression(context, datamodel, expr=after)
+        after_expr = parse_expression(globals, datamodel, expr=after)
         # print(after_expr)
         event = "_after%d" % next_after_id # transition gets unique event name
         next_after_id += 1
-        trigger = AfterTrigger(context.events.assign_id(event), event, after_expr)
+        trigger = AfterTrigger(globals.events.assign_id(event), event, after_expr)
       elif event is not None:
-        trigger = Trigger(context.events.assign_id(event), event, port)
-        context.inports.assign_id(port)
+        trigger = Trigger(globals.events.assign_id(event), event, port)
+        globals.inports.assign_id(port)
       else:
         trigger = None
       transition.trigger = trigger
@@ -345,7 +345,7 @@ class StatechartParser(StateParser):
       # Guard
       if cond is not None:
         try:
-          expr = parse_expression(context, datamodel, expr=cond)
+          expr = parse_expression(globals, datamodel, expr=cond)
         except Exception as e:
           self._raise(t_el, "Condition '%s': %s" % (cond, str(e)))
         transition.guard = expr

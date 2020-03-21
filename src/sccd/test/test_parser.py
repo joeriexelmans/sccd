@@ -9,7 +9,7 @@ class TestParser(StatechartParser):
   def __init__(self):
     super().__init__()
     self.tests = XmlParser.Context("tests")
-    self.context = XmlParser.Context("context")
+    self.globals = XmlParser.Context("globals")
     self.test_input = XmlParser.Context("test_input")
     self.test_output = XmlParser.Context("test_output")
     self.big_step = XmlParser.Context("big_step")
@@ -42,7 +42,7 @@ class TestParser(StatechartParser):
     pass
 
   def start_test(self, el):
-    self.context.push(Context(fixed_delta = None))
+    self.globals.push(Globals(fixed_delta = None))
     self.test_input.push([])
     self.test_output.push([])
     self.statecharts.push([])
@@ -54,13 +54,13 @@ class TestParser(StatechartParser):
     statecharts = self.statecharts.pop()
     input = self.test_input.pop()
     output = self.test_output.pop()
-    context = self.context.pop()
+    globals = self.globals.pop()
 
     if len(statecharts) != 1:
       raise Exception("Expected exactly 1 <statechart> node, got %d." % len(statecharts))
     statechart = statecharts[0]
 
-    context.process_durations()
+    globals.process_durations()
 
     def variant_description(i, variant) -> str:
       if not variant:
@@ -72,7 +72,7 @@ class TestParser(StatechartParser):
       Test(
         name=src_file + variant_description(i, variant),
         model=SingleInstanceModel(
-          context,
+          globals,
           Statechart(tree=statechart.tree, datamodel=deepcopy(statechart.datamodel), semantics=dataclasses.replace(statechart.semantics, **variant))),
         input=input,
         output=output)

@@ -24,37 +24,38 @@ class XmlLoadError(Exception):
     super().__init__("\n\n%s\n\n%s:\nline %d: <%s>: %s" % ('\n'.join(lines_numbers), src_file,el.sourceline, el.tag, str(err)))
 
 
-class Parser:
+class XmlParser:
+
+  class Context:
+    def __init__(self, name):
+      self.data = []
+      self.name = name
+
+    def push(self, value):
+      self.data.append(value)
+
+    def pop(self):
+      return self.data.pop()
+
+    def peek(self, default=None):
+      try:
+        return self.data[-1]
+      except IndexError:
+        return default
+
+    # Same as peek, but raises exception of stack is empty
+    def require(self):
+      try:
+        return self.data[-1]
+      except IndexError:
+        raise Exception("Element expected only within context: %s" % self.name)
+
 
   def __init__(self):
-    self.stacks: Dict[str, List[Any]] = {}
-
-  def _init_stack(self, name):
-    return self.stacks.setdefault(name, [])
-
-  def push(self, name, value):
-    stack = self._init_stack(name)
-    stack.append(value)
-
-  def pop(self, name):
-    return self.stacks[name].pop()
-
-  def get(self, name, default=None):
-    stack = self._init_stack(name)
-    return stack[-1] if len(stack) else default
-
-  def require(self, name):
-    try:
-      return self.stacks[name][-1]
-    except:
-      raise Exception("Element expected only within context: %s" % name)
-
-  def all(self, name):
-    stack = self._init_stack(name)
-    return stack
+    self.src_file = XmlParser.Context("src_file")
 
   def parse(self, src_file):
-    self.push("src_file", src_file)
+    self.src_file.push(src_file)
 
     for event, el in etree.iterparse(src_file, events=("start", "end")):
       # print(event, el.tag)
@@ -80,34 +81,26 @@ class Parser:
       # https://lxml.de/tutorial.html#event-driven-parsing
       # el.clear()
       
-    self.pop("src_file")
+    self.src_file.pop()
 
   def _raise(self, el, err):
-    src_file = self.require("src_file")
+    src_file = self.src_file.require()
     raise XmlLoadError(src_file, el, err)
 
-class StatechartParser(Parser):
 
-  def end_var(self, el):
-    context = self.require("context")
-    datamodel = self.require("datamodel")
+# Parses action elements: <raise>, <code>
+class ActionParser(XmlParser):
 
-    id = el.get("id")
-    expr = el.get("expr")
-    parsed = parse_expression(context, datamodel, expr=expr)
-    datamodel.create(id, parsed.eval([], datamodel))
-
-  def start_datamodel(self, el):
-    statechart = self.require("statechart")
-    self.push("datamodel", statechart.datamodel)
-
-  def end_datamodel(self, el):
-    self.pop("datamodel")
-
+  def __init__(self):
+    super().__init__()
+    self.context = XmlParser.Context("context")
+    self.datamodel = XmlParser.Context("datamodel")
+    self.actions = XmlParser.Context("actions")
 
   def end_raise(self, el):
-    context = self.require("context")
-    actions = self.require("actions")
+    context = self.context.require()
+    actions = self.actions.require()
+
     name = el.get("event")
     port = el.get("port")
     if not port:
@@ -119,17 +112,26 @@ class StatechartParser(Parser):
     actions.append(a)
 
   def end_code(self, el):
-    context = self.require("context")
-    datamodel = self.require("datamodel")
-    actions = self.require("actions")
+    context = self.context.require()
+    datamodel = self.datamodel.require()
+    actions = self.actions.require()
 
     block = parse_block(context, datamodel, block=el.text)
     a = Code(block)
     actions.append(a)
 
+# Parses state elements: <state>, <parallel>, <history>,
+# and all its children (transitions, entry/exit actions)
+class StateParser(ActionParser):
+
+  def __init__(self):
+    super().__init__()
+    self.state = XmlParser.Context("state")
+    self.state_children = XmlParser.Context("state_children")
+    self.transitions = XmlParser.Context("transitions")
 
   def _internal_start_state(self, el, constructor):
-    parent = self.get("state", default=None)
+    parent = self.state.peek(default=None)
 
     short_name = el.get("id", "")
     if parent is None:
@@ -141,7 +143,7 @@ class StatechartParser(Parser):
 
     state = constructor(short_name, parent)
 
-    parent_children = self.require("state_children")
+    parent_children = self.state_children.require()
     already_there = parent_children.setdefault(short_name, state)
     if already_there is not state:
       if parent:
@@ -149,14 +151,13 @@ class StatechartParser(Parser):
       else:
         raise Exception("Only 1 root <state> allowed.")
 
-    self.push("state", state)
-    self.push("state_children", {})
+    self.state.push(state)
+    self.state_children.push({})
 
   def _internal_end_state(self):
-    state_children = self.pop("state_children")
-    state = self.pop("state")
+    state_children = self.state_children.pop()
+    state = self.state.pop()
     return (state, state_children)
-
 
   def start_state(self, el):
     self._internal_start_state(el, State)
@@ -187,53 +188,92 @@ class StatechartParser(Parser):
   def end_history(self, el):
     return self._internal_end_state()
 
-
   def start_onentry(self, el):
-    self.push("actions", [])
+    self.actions.push([])
 
   def end_onentry(self, el):
-    actions = self.pop("actions")
-    self.require("state").enter = actions
+    actions = self.actions.pop()
+    self.state.require().enter = actions
 
   def start_onexit(self, el):
-    self.push("actions", [])
+    self.actions.push([])
 
   def end_onexit(self, el):
-    actions = self.pop("actions")
-    self.require("state").exit = actions
-
+    actions = self.actions.pop()
+    self.state.require().exit = actions
 
   def start_transition(self, el):
-    self.push("actions", [])
+    self.actions.push([])
 
   def end_transition(self, el):
-    actions = self.pop("actions")
-    # simply accumulate transition elements
-    # we'll deal with them in end_tree()
-    source = self.require("state")
+    transitions = self.transitions.require()
+    actions = self.actions.pop()
+    source = self.state.require()
 
-    # get stuff from element
-    target = el.get("target", "")
-    event = el.get("event")
-    port = el.get("port")
-    after = el.get("after")
-    cond = el.get("cond")
+    # Parse <transition> element not until all states have been parsed,
+    # and state tree constructed.
+    transitions.append((el, source, actions))
 
-    self.require("transitions").append((el, target, event, port, after, cond, source, actions))
+# Parses <statechart> element and all its children.
+class StatechartParser(StateParser):
 
+  def __init__(self):
+    super().__init__()
+    self.statechart = XmlParser.Context("statechart")
+    self.statecharts = XmlParser.Context("statecharts")
+
+  # <semantics>
+
+  def _internal_end_semantics(self, el):
+    statechart = self.statechart.require()
+    # Use reflection to find the possible XML attributes and their values
+    for aspect in dataclasses.fields(Semantics):
+      key = el.get(aspect.name)
+      if key is not None:
+        if key == "*":
+          setattr(statechart.semantics, aspect.name, None)
+        else:
+          value = aspect.type[key.upper()]
+          setattr(statechart.semantics, aspect.name, value)
+
+  def end_semantics(self, el):
+    self._internal_end_semantics(el)
+
+  def end_override_semantics(self, el):
+    self._internal_end_semantics(el)
+
+  # <datamodel>
+
+  def end_var(self, el):
+    context = self.context.require()
+    datamodel = self.datamodel.require()
+
+    id = el.get("id")
+    expr = el.get("expr")
+    parsed = parse_expression(context, datamodel, expr=expr)
+    datamodel.create(id, parsed.eval([], datamodel))
+
+  def start_datamodel(self, el):
+    statechart = self.statechart.require()
+    self.datamodel.push(statechart.datamodel)
+
+  def end_datamodel(self, el):
+    self.datamodel.pop()
+
+  # <tree>
 
   def start_tree(self, el):
-    statechart = self.require("statechart")
-    self.push("datamodel", statechart.datamodel)
-    self.push("transitions", [])
-    self.push("state_children", {})
+    statechart = self.statechart.require()
+    self.datamodel.push(statechart.datamodel)
+    self.transitions.push([])
+    self.state_children.push({})
 
   def end_tree(self, el):
-    statechart = self.require("statechart")
-    context = self.require("context")
-    datamodel = self.pop("datamodel")
+    statechart = self.statechart.require()
+    context = self.context.require()
+    datamodel = self.datamodel.pop()
 
-    root_states = self.pop("state_children")
+    root_states = self.state_children.pop()
     if len(root_states) == 0:
       raise Exception("Missing root <state> !")
     root = list(root_states.values())[0]
@@ -241,8 +281,14 @@ class StatechartParser(Parser):
     # Add transitions.
     # Only now that our tree structure is complete can we resolve 'target' states of transitions.
     next_after_id = 0
-    transitions = self.pop("transitions")
-    for t_el, target_string, event, port, after, cond, source, actions in transitions:
+    transitions = self.transitions.pop()
+    for t_el, source, actions in transitions:
+      target_string = t_el.get("target", "")
+      event = t_el.get("event")
+      port = t_el.get("port")
+      after = t_el.get("after")
+      cond = t_el.get("cond")
+
       try:
         # Parse and find target state
         parse_tree = parse_state_ref(target_string)
@@ -296,43 +342,25 @@ class StatechartParser(Parser):
 
     statechart.tree = StateTree(root)
 
-
-  def _internal_end_semantics(self, el):
-    statechart = self.require("statechart")
-    # Use reflection to find the possible XML attributes and their values
-    for aspect in dataclasses.fields(Semantics):
-      key = el.get(aspect.name)
-      if key is not None:
-        if key == "*":
-          setattr(statechart.semantics, aspect.name, None)
-        else:
-          value = aspect.type[key.upper()]
-          setattr(statechart.semantics, aspect.name, value)
-
-  def end_semantics(self, el):
-    self._internal_end_semantics(el)
-
-  def end_override_semantics(self, el):
-    self._internal_end_semantics(el)
-
+  # <statechart>
 
   def start_statechart(self, el):
-    src_file = self.require("src_file")
+    src_file = self.src_file.require()
     ext_file = el.get("src")
     if ext_file is None:
       statechart = Statechart(
         tree=None, semantics=Semantics(), datamodel=DataModel())
     else:
       ext_file_path = os.path.join(os.path.dirname(src_file), ext_file)
-      self.push("statecharts", [])
+      self.statecharts.push([])
       self.parse(ext_file_path)
-      statecharts = self.pop("statecharts")
+      statecharts = self.statecharts.pop()
       if len(statecharts) != 1:
         raise Exception("Expected exactly 1 <statechart> node, got %d." % len(statecharts))
       statechart = statecharts[0]
-    self.push("statechart", statechart)
+    self.statechart.push(statechart)
 
   def end_statechart(self, el):
-    statecharts = self.require("statecharts")
-    sc = self.pop("statechart")
+    statecharts = self.statecharts.require()
+    sc = self.statechart.pop()
     statecharts.append(sc)

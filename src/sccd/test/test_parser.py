@@ -3,50 +3,58 @@ from sccd.model.statechart_parser import *
 from sccd.test.test import *
 from copy import deepcopy
 
-
+# Parses <test> element and all its children (including <statechart>)
 class TestParser(StatechartParser):
 
+  def __init__(self):
+    super().__init__()
+    self.tests = XmlParser.Context("tests")
+    self.context = XmlParser.Context("context")
+    self.test_input = XmlParser.Context("test_input")
+    self.test_output = XmlParser.Context("test_output")
+    self.big_step = XmlParser.Context("big_step")
+
   def end_event(self, el):
-    big_step = self.require("big_step")
+    big_step = self.big_step.require()
     name = el.get("name")
     port = el.get("port")
     big_step.append(Event(id=0, name=name, port=port, parameters=[]))
 
   def start_big_step(self, el):
-    self.require("test_output")
-    self.push("big_step", [])
+    self.test_output.require()
+    self.big_step.push([])
 
   def end_big_step(self, el):
-    output = self.require("test_output")
-    big_step = self.pop("big_step")
+    output = self.test_output.require()
+    big_step = self.big_step.pop()
     output.append(big_step)
 
   def start_input(self, el):
-    self.require("test_input")
+    self.test_input.require()
 
   def end_input(self, el):
     pass
 
   def start_output(self, el):
-    self.require("test_output")
+    self.test_output.require()
 
   def end_output(self, el):
     pass
 
   def start_test(self, el):
-    self.push("context", Context(fixed_delta = None))
-    self.push("test_input", [])
-    self.push("test_output", [])
-    self.push("statecharts", [])
+    self.context.push(Context(fixed_delta = None))
+    self.test_input.push([])
+    self.test_output.push([])
+    self.statecharts.push([])
 
   def end_test(self, el):
-    tests = self.require("tests")
-    src_file = self.require("src_file")
+    tests = self.tests.require()
+    src_file = self.src_file.require()
 
-    statecharts = self.pop("statecharts")
-    input = self.pop("test_input")
-    output = self.pop("test_output")
-    context = self.pop("context")
+    statecharts = self.statecharts.pop()
+    input = self.test_input.pop()
+    output = self.test_output.pop()
+    context = self.context.pop()
 
     if len(statecharts) != 1:
       raise Exception("Expected exactly 1 <statechart> node, got %d." % len(statecharts))

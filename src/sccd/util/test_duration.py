@@ -7,36 +7,12 @@ class TestDuration(unittest.TestCase):
     # The same amount of time, but objects not considered equal.
     x = Duration(1000, Millisecond)
     y = Duration(1, Second)
+    z = Duration(3, Day)
 
-    self.assertNotEqual(x, y)
+    self.assertEqual(x, y)
+    self.assertEqual(y, x)
 
-    self.assertEqual(x.normalize(), y.normalize())
-
-    # original objects left intact by normalize() operation
-    self.assertNotEqual(x, y)
-
-  def test_convert_unit(self):
-    x = Duration(2, Second)
-
-    x2 = x.convert(Microsecond)
-
-    self.assertEqual(x2, Duration(2000000, Microsecond))
-
-  def test_convert_zero(self):
-    x = Duration(0)
-
-    x2 = x.convert(Millisecond)
-
-    self.assertEqual(x2, Duration(0))
-
-  def test_normalize(self):
-    x = Duration(1000, Millisecond)
-    y = Duration(1000000, Microsecond)
-    z = Duration(0)
-
-    self.assertEqual(x.normalize(), Duration(1, Second))
-    self.assertEqual(y.normalize(), Duration(1, Second))
-    self.assertEqual(z.normalize(), Duration(0))
+    self.assertNotEqual(x, z)
 
   def test_gcd(self):
     x = Duration(20, Second)
@@ -94,6 +70,8 @@ class TestDuration(unittest.TestCase):
     self.assertEqual(x // y, 10)
     self.assertEqual(y // x, 0)
     self.assertEqual(x // z, 33)
+
+    self.assertRaises(ZeroDivisionError, lambda: x // Duration(0))
 
   def test_mod(self):
     x = Duration(100, Millisecond)

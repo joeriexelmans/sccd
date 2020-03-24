@@ -12,22 +12,49 @@ class XmlLoadError(Exception):
     parent = el.getparent()
     if parent is None:
       parent = el
-    # el = parent
+
     lines = etree.tostring(parent).decode('utf-8').strip().split('\n')
-    nbr_lines = len(etree.tostring(el).decode('utf-8').strip().split('\n'))
-    lines_numbers = []
-    l = parent.sourceline
-    for line in lines:
-      ll = ("%4d: " % l) + line
-      if l >= el.sourceline and l < el.sourceline + nbr_lines:
+    nbr_highlighted_lines = len(etree.tostring(el).decode('utf-8').strip().split('\n'))
+    text = []
+
+    parent_firstline = parent.sourceline
+    parent_lastline = parent.sourceline + len(lines) - 1
+
+    el_firstline = el.sourceline
+    el_lastline = el.sourceline + nbr_highlighted_lines - 1
+
+    numbered_lines = list(zip(range(parent.sourceline, parent.sourceline + len(lines)), lines))
+
+    from_line = max(parent_firstline, el_firstline - 5)
+    to_line = min(parent_lastline, el_lastline + 5)
+
+    if from_line == parent_firstline+1:
+      from_line = parent_firstline
+    if to_line == parent_lastline-1:
+      to_line = parent_lastline
+
+    def f(tup):
+      return from_line <= tup[0] <= to_line
+
+    if from_line != parent_firstline:
+      text.append("%4d: %s" % (parent_firstline, lines[0]))
+      text.append("     ...")
+
+    for linenumber, line in filter(f, numbered_lines):
+      ll = "%4d: %s" % (linenumber, line)
+      if el_firstline <= linenumber <= el_lastline:
         ll = termcolor.colored(ll, 'yellow')
-      lines_numbers.append(ll)
-      l += 1
-    super().__init__("\n\n%s\n\n%s:\nline %d: <%s>: %s" % ('\n'.join(lines_numbers), src_file,el.sourceline, el.tag, str(err)))
+      text.append(ll)
+
+    if to_line != parent_lastline:
+      text.append("     ...")
+      text.append("%4d: %s" % (parent_lastline, lines[-1]))
+
+    super().__init__("\n\n%s\n\n%s:\nline %d: <%s>: %s" % ('\n'.join(text), src_file,el.sourceline, el.tag, str(err)))
     
-    self.src_file = src_file
-    self.el = el
-    self.err = err
+    # self.src_file = src_file
+    # self.el = el
+    # self.err = err
 
 
 class XmlParser:
@@ -74,7 +101,7 @@ class XmlParser:
             start_method(el)
 
         elif event == "end":
-          end_method = getattr(self, "end_"+el.tag)
+          end_method = getattr(self, "end_"+el.tag, None)
           if end_method:
             end_method(el)
 
@@ -214,6 +241,9 @@ class StateParser(ActionParser):
     self.state.require().exit = actions
 
   def start_transition(self, el):
+    if self.state.require().parent is None:
+      raise Exception("Root <state> cannot be source of a transition.")
+
     self.actions.push([])
 
   def end_transition(self, el):
@@ -226,50 +256,12 @@ class StateParser(ActionParser):
     transitions.append((el, source, actions))
 
 # Parses <statechart> element and all its children.
-class StatechartParser(StateParser):
+class TreeParser(StateParser):
 
   def __init__(self):
     super().__init__()
     self.statechart = XmlParser.Context("statechart")
-    self.statecharts = XmlParser.Context("statecharts")
 
-  # <semantics>
-
-  def _internal_end_semantics(self, el):
-    statechart = self.statechart.require()
-    # Use reflection to find the possible XML attributes and their values
-    for aspect in dataclasses.fields(Semantics):
-      key = el.get(aspect.name)
-      if key is not None:
-        if key == "*":
-          setattr(statechart.semantics, aspect.name, None)
-        else:
-          value = aspect.type[key.upper()]
-          setattr(statechart.semantics, aspect.name, value)
-
-  def end_semantics(self, el):
-    self._internal_end_semantics(el)
-
-  def end_override_semantics(self, el):
-    self._internal_end_semantics(el)
-
-  # <datamodel>
-
-  def end_var(self, el):
-    globals = self.globals.require()
-    datamodel = self.datamodel.require()
-
-    id = el.get("id")
-    expr = el.get("expr")
-    parsed = parse_expression(globals, datamodel, expr=expr)
-    datamodel.create(id, parsed.eval([], datamodel))
-
-  def start_datamodel(self, el):
-    statechart = self.statechart.require()
-    self.datamodel.push(statechart.datamodel)
-
-  def end_datamodel(self, el):
-    self.datamodel.pop()
 
   # <tree>
 
@@ -353,15 +345,63 @@ class StatechartParser(StateParser):
 
     statechart.tree = StateTree(root)
 
+class StatechartParser(TreeParser):
+
+  def __init__(self, load_external = True):
+    super().__init__()
+    self.load_external = load_external
+
+    self.statecharts = XmlParser.Context("statecharts")
+
+  # <semantics>
+
+  def _internal_end_semantics(self, el):
+    statechart = self.statechart.require()
+    # Use reflection to find the possible XML attributes and their values
+    for aspect in dataclasses.fields(Semantics):
+      key = el.get(aspect.name)
+      if key is not None:
+        if key == "*":
+          setattr(statechart.semantics, aspect.name, None)
+        else:
+          value = aspect.type[key.upper()]
+          setattr(statechart.semantics, aspect.name, value)
+
+  def end_semantics(self, el):
+    self._internal_end_semantics(el)
+
+  def end_override_semantics(self, el):
+    if self.load_external:
+      self._internal_end_semantics(el)
+
+  # <datamodel>
+
+  def end_var(self, el):
+    globals = self.globals.require()
+    datamodel = self.datamodel.require()
+
+    id = el.get("id")
+    expr = el.get("expr")
+    parsed = parse_expression(globals, datamodel, expr=expr)
+    datamodel.create(id, parsed.eval([], datamodel))
+
+  def start_datamodel(self, el):
+    statechart = self.statechart.require()
+    self.datamodel.push(statechart.datamodel)
+
+  def end_datamodel(self, el):
+    self.datamodel.pop()
+
   # <statechart>
 
   def start_statechart(self, el):
     src_file = self.src_file.require()
     ext_file = el.get("src")
+    statechart = None
     if ext_file is None:
       statechart = Statechart(
         tree=None, semantics=Semantics(), datamodel=DataModel())
-    else:
+    elif self.load_external:
       ext_file_path = os.path.join(os.path.dirname(src_file), ext_file)
       self.statecharts.push([])
       self.parse(ext_file_path)
@@ -374,4 +414,5 @@ class StatechartParser(StateParser):
   def end_statechart(self, el):
     statecharts = self.statecharts.require()
     sc = self.statechart.pop()
-    statecharts.append(sc)
+    if sc is not None:
+      statecharts.append(sc)

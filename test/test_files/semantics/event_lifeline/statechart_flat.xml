@@ -5,15 +5,15 @@
   <tree>
     <state initial="a">
       <state id="a">
-        <transition target="/b">
-          <raise event="e"/>
+        <transition event="e" target="/b">
+          <raise event="f"/>
         </transition>
       </state>
       <state id="b">
         <onentry>
           <raise event="in_b" port="out"/>
         </onentry>
-        <transition event="e" target="/c"/>
+        <transition event="f" target="/c"/>
       </state>
       <state id="c">
         <onentry>

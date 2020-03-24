@@ -58,8 +58,16 @@ class _ExpressionTransformer(Transformer):
   def assignment(self, node):
     return Assignment(node[0], node[1].value, node[2])
 
+  def duration_literal(self, node):
+    return DurationLiteral(node[0])
+
   def duration(self, node):
+    val = int(node[0])
+    suffix = node[1]
+
     unit = {
+      "d": None, # 'd' stands for "duration", the non-unit for all zero-durations.
+                 # need this to parse zero-duration as a duration instead of int.
       "fs": FemtoSecond,
       "ps": PicoSecond,
       "ns": Nanosecond,
@@ -68,15 +76,16 @@ class _ExpressionTransformer(Transformer):
       "s": Second,
       "m": Minute,
       "h": Hour
-    }[node[0].children[1]]
-    d = DurationLiteral(Duration(int(node[0].children[0]),unit))
+    }[suffix]
+
+    d = duration(val, unit)
     self.globals.durations.append(d)
     return d
 
 # Global variables so we don't have to rebuild our parser every time
 # Obviously not thread-safe
 _transformer = _ExpressionTransformer()
-_action_lang_parser = Lark(_action_lang_grammar, parser="lalr", start=["expr", "block"], transformer=_transformer)
+_action_lang_parser = Lark(_action_lang_grammar, parser="lalr", start=["expr", "block", "duration"], transformer=_transformer)
 _state_ref_parser = Lark(_state_ref_grammar, parser="lalr", start=["state_ref"])
 
 # Exported functions:
@@ -85,6 +94,10 @@ def parse_expression(globals: Globals, datamodel, expr: str) -> Expression:
   _transformer.globals = globals
   _transformer.datamodel = datamodel
   return _action_lang_parser.parse(expr, start="expr")
+
+def parse_duration(globals: Globals, expr:str) -> Duration:
+  _transformer.globals = globals
+  return _action_lang_parser.parse(expr, start="duration")
 
 def parse_block(globals: Globals, datamodel, block: str) -> Statement:
   _transformer.globals = globals

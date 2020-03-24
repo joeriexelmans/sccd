@@ -1,5 +1,6 @@
 import os
 from sccd.parser.statechart_parser import *
+from sccd.parser.expression_parser import *
 from lib.test import *
 from copy import deepcopy
 
@@ -28,6 +29,15 @@ class TestParser(StatechartParser):
     output = self.test_output.require()
     big_step = self.big_step.pop()
     output.append(big_step)
+
+  def end_input_event(self, el):
+    input = self.test_input.require()
+    globals = self.globals.require()
+    name = el.get("name")
+    port = el.get("port")
+    time = el.get("time")
+    duration = parse_duration(globals, time)
+    input.append(InputEvent(name=name, port=port, parameters=[], time_offset=duration))
 
   def start_input(self, el):
     self.test_input.require()

@@ -1,11 +1,12 @@
 <?xml version="1.0" ?>
 <test>
   <statechart>
-    <semantics/>
+    <semantics big_step_maximality="take_many"/>
     <tree>
       <state initial="comparisons">
 
         <state id="comparisons" initial="s1">
+          <transition event="e" target="." port="in"/>
           <state id="s1">
             <transition cond="1 == 1" target="../s2"/>
           </state>
@@ -77,6 +78,9 @@
       </state>
     </tree>
   </statechart>
+  <input>
+    <input_event name="e" port="in" time="0 d"/>
+  </input>
   <output>
     <big_step>
       <event name="all_good" port="out"/>

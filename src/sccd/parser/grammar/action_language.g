@@ -51,7 +51,7 @@ array: "[" (expr ("," expr)*)? "]"
 ?literal: ESCAPED_STRING -> string
         | INT -> int
         | bool_literal -> bool
-        | duration_literal -> duration
+        | duration -> duration_literal
 
 ?compare_operator: EQ | NEQ | GT | GEQ | LT | LEQ
 ?add_operator: PLUS | MINUS
@@ -81,9 +81,9 @@ FALSE: "False"
 
 INT: /[0-9]+/
 
-?duration_literal: (INT duration_unit)+
+duration: (INT duration_unit)+
 
-?duration_unit: TIME_H | TIME_M | TIME_S | TIME_MS | TIME_US | TIME_NS | TIME_PS | TIME_FS
+?duration_unit: TIME_H | TIME_M | TIME_S | TIME_MS | TIME_US | TIME_NS | TIME_PS | TIME_FS | TIME_D
 
 TIME_H: "h"
 TIME_M: "m"
@@ -93,6 +93,8 @@ TIME_US: "us"
 TIME_NS: "ns"
 TIME_PS: "ps"
 TIME_FS: "fs"
+
+TIME_D: "d" // for zero-duration
 
 
 // Statement parsing

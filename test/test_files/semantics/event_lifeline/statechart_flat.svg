@@ -42,7 +42,7 @@
 <title>_a&#45;&gt;_b</title>
 <path fill="none" stroke="#000000" d="M53,-147.8711C53,-142.4482 53,-136.3229 53,-130.2494"/>
 <polygon fill="#000000" stroke="#000000" points="56.5001,-130.21 53,-120.21 49.5001,-130.21 56.5001,-130.21"/>
-<text text-anchor="start" x="53" y="-131" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">^e &#160;&#160;</text>
+<text text-anchor="start" x="53" y="-131" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">e^f &#160;&#160;</text>
 </g>
 <!-- _c -->
 <g id="node4" class="node">
@@ -58,7 +58,7 @@
 <title>_b&#45;&gt;_c</title>
 <path fill="none" stroke="#000000" d="M53,-73.9916C53,-68.476 53,-62.474 53,-56.5881"/>
 <polygon fill="#000000" stroke="#000000" points="56.5001,-56.249 53,-46.2491 49.5001,-56.2491 56.5001,-56.249"/>
-<text text-anchor="start" x="53" y="-57" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">e &#160;&#160;</text>
+<text text-anchor="start" x="53" y="-57" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">f &#160;&#160;</text>
 </g>
 </g>
 </svg>

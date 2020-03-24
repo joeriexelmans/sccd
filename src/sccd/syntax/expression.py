@@ -112,17 +112,13 @@ class BoolLiteral(Expression):
 
 @dataclass
 class DurationLiteral(Expression):
-    original: Duration
-
-    # All duration expressions in a model evaluate to a duration with the same unit.
-    # What remains is a just an integer in  that unit.
-    converted: Optional[int] = None
+    d: Duration
 
     def eval(self, events, datamodel):
-        return self.converted
+        return self.d
 
     def render(self):
-        return self.original.__str__()
+        return str(self.d)
 
     def get_static_type(self) -> type:
         return int

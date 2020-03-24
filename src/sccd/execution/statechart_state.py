@@ -130,7 +130,7 @@ class StatechartState:
 
   def _start_timers(self, triggers: List[AfterTrigger]):
       for after in triggers:
-          delay: int = after.delay.eval([], self.data_model)
+          delay: Duration = after.delay.eval([], self.data_model)
           self.output.append(OutputEvent(
               Event(id=after.id, name=after.name, parameters=[after.nextTimerId()]),
               target=InstancesTarget([self.instance]),

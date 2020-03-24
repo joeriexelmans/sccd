@@ -4,7 +4,7 @@ import subprocess
 import multiprocessing
 from lib.os_tools import *
 from sccd.util.indenting_writer import *
-from sccd.model.xml_loader import *
+from sccd.parser.statechart_parser import *
 import lxml.etree as ET
 
 if __name__ == '__main__':
@@ -29,17 +29,22 @@ if __name__ == '__main__':
             print("Failed to run 'state-machine-cat'. Make sure this application is installed on your system.")
             exit()
     else:
-      print("No input files specified.")      
+      print("No input files specified.")
       print()
       parser.print_usage()
       exit()
 
     def process(src):
-      statechart_node = ET.parse(src).getroot()
-      tree_node = statechart_node.find(".//tree")
-      if tree_node is None:
-        return # no tree here :(
-      tree = load_tree(Globals(), tree_node)
+      parser = StatechartParser(load_external = False)
+      parser.globals.push(Globals(fixed_delta = None))
+      parser.statecharts.push([])
+      parser.parse(src)
+      statecharts = parser.statecharts.pop()
+      if len(statecharts) != 1:
+        return # no statechart here :(
+
+      statechart = statecharts[0]
+      root = statechart.tree.root
 
       target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+ext)
       smcat_target = target_path('.smcat')
@@ -58,8 +63,11 @@ if __name__ == '__main__':
 
       # Used for drawing initial state
       class PseudoState:
+        @dataclass
+        class Gen:
+          full_name: str
         def __init__(self, name):
-          self.name = name
+          self.gen = PseudoState.Gen(name)
       # Used for drawing initial state
       class PseudoTransition:
         def __init__(self, source, targets):
@@ -73,9 +81,9 @@ if __name__ == '__main__':
 
       def write_state(s, hide=False):
         if not hide:
-          w.write(name_to_name(s.name))
+          w.write(name_to_name(s.gen.full_name))
           w.extendWrite(' [label="')
-          w.extendWrite(name_to_label(s.name))
+          w.extendWrite(name_to_label(s.gen.full_name))
           w.extendWrite('"')
           if isinstance(s, ParallelState):
             w.extendWrite(' type=parallel')
@@ -98,8 +106,8 @@ if __name__ == '__main__':
             w.extendWrite(' {')
             w.indent()
           if s.default_state:
-            w.write(name_to_name(s.name)+'_initial [type=initial],')
-            transitions.append(PseudoTransition(source=PseudoState(s.name+'/initial'), targets=[s.default_state]))
+            w.write(name_to_name(s.gen.full_name)+'_initial [type=initial],')
+            transitions.append(PseudoTransition(source=PseudoState(s.gen.full_name+'/initial'), targets=[s.default_state]))
           for i, c in enumerate(s.children):
             write_state(c)
             w.extendWrite(',' if i < len(s.children)-1 else ';')
@@ -108,7 +116,7 @@ if __name__ == '__main__':
             w.write('}')
         transitions.extend(s.transitions)
 
-      write_state(tree.root, hide=True)
+      write_state(root, hide=True)
 
       ctr = 0
       for t in transitions:
@@ -122,17 +130,17 @@ if __name__ == '__main__':
           label += ','.join([r.render() for r in raises])
 
         if len(t.targets) == 1:
-          w.write(name_to_name(t.source.name) + ' -> ' + name_to_name(t.targets[0].name))
+          w.write(name_to_name(t.source.gen.full_name) + ' -> ' + name_to_name(t.targets[0].gen.full_name))
           if label:
             w.extendWrite(': '+label)
           w.extendWrite(';')
         else:
-          w.write(name_to_name(t.source.name) + ' -> ' + ']split'+str(ctr))
+          w.write(name_to_name(t.source.gen.full_name) + ' -> ' + ']split'+str(ctr))
           if label:
               w.extendWrite(': '+label)
           w.extendWrite(';')
           for tt in t.targets:
-            w.write(']split'+str(ctr) + ' -> ' + name_to_name(tt.name))
+            w.write(']split'+str(ctr) + ' -> ' + name_to_name(tt.gen.full_name))
             w.extendWrite(';')
           ctr += 1
 

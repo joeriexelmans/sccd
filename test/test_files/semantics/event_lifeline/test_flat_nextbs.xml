@@ -5,6 +5,9 @@
       big_step_maximality="*"
       internal_event_lifeline="queue"/>
   </statechart>
+  <input>
+      <input_event name="e" time="0 d"/>
+  </input>
   <output>
     <big_step>
       <event name="in_b" port="out"/>

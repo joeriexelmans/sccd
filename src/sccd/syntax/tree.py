@@ -17,7 +17,7 @@ class State:
     enter: List[Action] = field(default_factory=list)
     exit: List[Action] = field(default_factory=list)
 
-    gen: Optional['StateGenerated'] = None
+    gen: Optional['StateOptimization'] = None
 
     def __post_init__(self):
         if self.parent is not None:
@@ -34,7 +34,7 @@ class State:
 
 # Generated fields (for optimization) of a state
 @dataclass(frozen=True)
-class StateGenerated:
+class StateOptimization:
     state_id: int
     full_name: str
     ancestors: List[State] # order: close to far away, i.e. first element is parent
@@ -120,14 +120,14 @@ class Transition:
     actions: List[Action] = field(default_factory=list)
     trigger: Optional[Trigger] = None
 
-    gen: Optional['TransitionGenerated'] = None        
+    gen: Optional['TransitionOptimization'] = None        
                     
     def __repr__(self):
         return termcolor.colored("%s 🡪 %s" % (self.source.gen.full_name, self.targets[0].gen.full_name), 'green')
 
 # Generated fields (for optimization) of a transition
 @dataclass(frozen=True)
-class TransitionGenerated:
+class TransitionOptimization:
     lca: State
     arena_bitmap: Bitmap
 
@@ -143,7 +143,7 @@ class StateTree:
 
         next_id = 0
 
-        def init_tree(state: State, parent_full_name: str, ancestors: List[State]):
+        def init_state(state: State, parent_full_name: str, ancestors: List[State]):
             nonlocal next_id
 
             state_id = next_id
@@ -172,7 +172,7 @@ class StateTree:
                     after_triggers.append(t.trigger)
 
             for c in state.children:
-                init_tree(c, full_name, [state] + ancestors)
+                init_state(c, full_name, [state] + ancestors)
                 if isinstance(c, HistoryState):
                     history.append(c)
 
@@ -180,7 +180,7 @@ class StateTree:
             for c in state.children:
                 descendants.extend(c.gen.descendants)
 
-            state.gen = StateGenerated(
+            state.gen = StateOptimization(
                 state_id=state_id,
                 full_name=full_name,
                 ancestors=ancestors,
@@ -190,9 +190,11 @@ class StateTree:
                 has_eventless_transitions=has_eventless_transitions,
                 after_triggers=after_triggers)
 
-        init_tree(root, "", [])
-        self.root = root
+            # print("state:", full_name)
+            # print("ancestors:", len(ancestors))
 
+        init_state(root, "", [])
+        self.root = root
 
         def init_transition(t: Transition):
             # the least-common ancestor can be computed statically
@@ -207,7 +209,7 @@ class StateTree:
                             lca = a
                             break
 
-            t.gen = TransitionGenerated(
+            t.gen = TransitionOptimization(
                 lca=lca,
                 arena_bitmap=lca.gen.descendant_bitmap.set(lca.gen.state_id))
 

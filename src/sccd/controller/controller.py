@@ -35,24 +35,26 @@ class Controller:
         self.model.globals.assert_ready()
         # print_debug("model delta is %s" % str(self.model.globals.delta))
 
+    def _duration_to_time_offset(self, d: Duration) -> int:
+        if self.model.globals.delta == duration(0):
+            return 0
+        return d // self.model.globals.delta
+
     def add_input(self, input: InputEvent):
             if input.name == "":
                 raise Exception("Input event can't have an empty name.")
         
             try:
                 self.model.globals.inports.get_id(input.port)
-            except KeyError:
-                raise Exception("No such port: '%s'" % input.port)
+            except KeyError as e:
+                raise Exception("No such port: '%s'" % input.port) from e
 
             try:
                 event_id = self.model.globals.events.get_id(input.name)
-            except KeyError:
-                raise Exception("No such event: '%s'" % input.name)
+            except KeyError as e:
+                raise Exception("No such event: '%s'" % input.name) from e
 
-            if self.model.globals.delta == duration(0):
-                offset = 0
-            else:
-                offset = input.time_offset // self.model.globals.delta
+            offset = self._duration_to_time_offset(input.time_offset)
 
             e = Event(
                 id=event_id,
@@ -85,7 +87,7 @@ class Controller:
             pipe_events = []
             for e in events:
                 if isinstance(e.target, InstancesTarget):
-                    offset = e.time_offset // self.model.globals.delta
+                    offset = self._duration_to_time_offset(e.time_offset)
                     self.queue.add(self.simulated_time + offset, Controller.EventQueueEntry(e.event, e.target.instances))
                 elif isinstance(e.target, OutputPortTarget):
                     assert (e.time_offset == 0) # cannot combine 'after' with 'output port'

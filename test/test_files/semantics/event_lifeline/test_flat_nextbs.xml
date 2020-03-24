@@ -3,10 +3,11 @@
   <statechart src="statechart_flat.xml">
     <override_semantics
       big_step_maximality="*"
-      internal_event_lifeline="queue"/>
+      internal_event_lifeline="queue"
+      input_event_lifeline="*"/>
   </statechart>
   <input>
-      <input_event name="e" time="0 d"/>
+      <input_event name="e" port="in" time="0 d"/>
   </input>
   <output>
     <big_step>

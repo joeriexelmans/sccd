@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics/>
+    <datamodel/>
+
+    <tree>
+      <state>
+        <!-- not allowed: transition with source: root -->
+        <transition target="."/>
+      </state>
+    </tree>
+  </statechart>
+
+  <output>
+  </output>
+</test>

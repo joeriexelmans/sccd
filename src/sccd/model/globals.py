@@ -33,10 +33,10 @@ class Globals:
       else:
         self.delta = self.fixed_delta
 
-    if self.delta == duration(0):
-      print_debug(termcolor.colored("Warning: model delta is 0: Model does not have any notion of time.", 'yellow'))
-    else:
-      pass
+    # if self.delta == duration(0):
+    #   print_debug(termcolor.colored("Warning: model delta is 0: Model does not have any notion of time.", 'yellow'))
+    # else:
+    #   pass
       # # Convert all DurationLiterals to model delta
       # for d in self.durations:
       #   # The following error is impossible: (i think)

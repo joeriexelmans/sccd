@@ -9,7 +9,7 @@
     <tree>
       <state initial="start">
         <state id="start">
-          <transition target="/done" cond="y == 0">
+          <transition event="e" port="in" target="/done" cond="y == 0">
             <raise event="done" port="out"/>
           </transition>
         </state>
@@ -17,7 +17,9 @@
       </state>
     </tree>
   </statechart>
-
+  <input>
+    <input_event name="e" port="in" time="0 d"/>
+  </input>
   <output>
     <big_step>
       <event name="done" port="out"/>

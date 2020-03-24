@@ -19,6 +19,12 @@ class TestParser(StatechartParser):
     big_step = self.big_step.require()
     name = el.get("name")
     port = el.get("port")
+
+    if name is None:
+      raise Exception("missing attribute 'name'")
+    if port is None:
+      raise Exception("missing attribute 'port'")
+      
     big_step.append(Event(id=0, name=name, port=port, parameters=[]))
 
   def start_big_step(self, el):
@@ -36,6 +42,14 @@ class TestParser(StatechartParser):
     name = el.get("name")
     port = el.get("port")
     time = el.get("time")
+
+    if name is None:
+      raise Exception("missing attribute 'name'")
+    if port is None:
+      raise Exception("missing attribute 'port'")
+    if time is None:
+      raise Exception("missing attribute 'time'")
+
     duration = parse_duration(globals, time)
     input.append(InputEvent(name=name, port=port, parameters=[], time_offset=duration))
 

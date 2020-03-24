@@ -7,7 +7,7 @@
       <parallel id="p">
         <state id="o0" initial="a">
           <state id="a">
-            <transition target="../b"/>
+            <transition event="e" port="in" target="../b"/>
           </state>
           <state id="b">
             <onentry>

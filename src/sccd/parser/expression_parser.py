@@ -36,8 +36,8 @@ class _ExpressionTransformer(Transformer):
     name = node[0].value
     try:
       offset, type = self.datamodel.lookup(name)
-    except:
-      raise Exception("Unknown variable '%s'" % name)
+    except Exception as e:
+      raise Exception("Unknown variable '%s'" % name) from e
     return Identifier(name, offset, type)
 
   def binary_expr(self, node):

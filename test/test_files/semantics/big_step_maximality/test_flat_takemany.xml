@@ -4,7 +4,9 @@
     <override_semantics
       big_step_maximality="take_many"/>
   </statechart>
-  <input/>
+  <input>
+    <input_event name="e" port="in" time="0 d"/>
+  </input>
   <output>
     <big_step>
       <event name="in_b" port="out"/>

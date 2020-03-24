@@ -6,6 +6,7 @@
       <state>
 
         <parallel id="p">
+          <transition event="e" port="in" target="."/>
 
           <state id="comparisons" initial="s1">
             <state id="s1">
@@ -81,6 +82,9 @@
       </state>
     </tree>
   </statechart>
+  <input>
+    <input_event name="e" port="in" time="0 d"/>
+  </input>
   <output>
     <big_step>
       <event name="ok" port="out"/>

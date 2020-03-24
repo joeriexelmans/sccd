@@ -8,7 +8,7 @@ from sccd.execution.event import *
 # An Exception that occured while visiting an XML element.
 # It will show a fragment of the source file and the line number of the error.
 class XmlLoadError(Exception):
-  def __init__(self, src_file: str, el: etree.Element, err):
+  def __init__(self, src_file: str, el: etree.Element, msg):
     parent = el.getparent()
     if parent is None:
       parent = el
@@ -50,7 +50,7 @@ class XmlLoadError(Exception):
       text.append("     ...")
       text.append("%4d: %s" % (parent_lastline, lines[-1]))
 
-    super().__init__("\n\n%s\n\n%s:\nline %d: <%s>: %s" % ('\n'.join(text), src_file,el.sourceline, el.tag, str(err)))
+    super().__init__("\n\n%s\n\n%s:\nline %d: <%s>: %s" % ('\n'.join(text), src_file,el.sourceline, el.tag, msg))
     
     # self.src_file = src_file
     # self.el = el
@@ -82,8 +82,8 @@ class XmlParser:
     def require(self):
       try:
         return self.data[-1]
-      except IndexError:
-        raise Exception("Element expected only within context: %s" % self.name)
+      except IndexError as e:
+        raise Exception("Element expected only within context: %s" % self.name) from e
 
 
   def __init__(self):
@@ -109,7 +109,7 @@ class XmlParser:
         raise
       except Exception as e:
         # An advantage of this event-driven parsing is that if an exception is thrown during the visiting of an XML node, we can automatically decorate it with info about the tag where the error occured, the line number in the source file, etc.
-        self._raise(el, e)
+        self._raise(el, str(e), e)
 
       # We don't need anything from this element anymore, so we clear it to save memory.
       # This is a technique mentioned in the lxml documentation:
@@ -121,9 +121,9 @@ class XmlParser:
       
     self.src_file.pop()
 
-  def _raise(self, el, err):
+  def _raise(self, el, msg, err: Exception):
     src_file = self.src_file.require()
-    raise XmlLoadError(src_file, el, err)
+    raise XmlLoadError(src_file, el, msg) from err
 
 
 # Parses action elements: <raise>, <code>
@@ -296,7 +296,7 @@ class TreeParser(StateParser):
         # Parse and find target state
         parse_tree = parse_state_ref(target_string)
       except Exception as e:
-        self._raise(t_el, "Parsing target '%s': %s" % (target_string, str(e)))
+        self._raise(t_el, "Parsing target '%s': %s" % (target_string, str(e)), e)
 
       def find_state(sequence) -> State:
         if sequence.data == "relative_path":
@@ -314,8 +314,8 @@ class TreeParser(StateParser):
 
       try:
         targets = [find_state(seq) for seq in parse_tree.children]
-      except:
-        self._raise(t_el, "Could not find target '%s'." % (target_string))
+      except Exception as e:
+        self._raise(t_el, "Could not find target '%s'." % (target_string), e)
 
       transition = Transition(source, targets)
 
@@ -339,7 +339,7 @@ class TreeParser(StateParser):
         try:
           expr = parse_expression(globals, datamodel, expr=cond)
         except Exception as e:
-          self._raise(t_el, "Condition '%s': %s" % (cond, str(e)))
+          self._raise(t_el, "Condition '%s': %s" % (cond, str(e)), e)
         transition.guard = expr
       source.transitions.append(transition)
 

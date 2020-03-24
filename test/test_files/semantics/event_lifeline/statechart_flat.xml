@@ -5,7 +5,7 @@
   <tree>
     <state initial="a">
       <state id="a">
-        <transition event="e" target="/b">
+        <transition event="e" port="in" target="/b">
           <raise event="f"/>
         </transition>
       </state>

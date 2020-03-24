@@ -5,15 +5,15 @@
       <parallel id="p">
         <state id="o0" initial="a">
           <state id="a">
-            <transition target="../b">
-              <raise event="e"/>
+            <transition event="e" port="in" target="../b">
+              <raise event="f"/>
             </transition>
           </state>
           <state id="b">
             <onentry>
               <raise event="in_b" port="out"/>
             </onentry>
-            <transition event="e" target="../c"/>
+            <transition event="f" target="../c"/>
           </state>
           <state id="c">
             <onentry>
@@ -23,7 +23,7 @@
         </state>
         <state id="o1" initial="d">
           <state id="d">
-            <transition event="e" target="../e"/>
+            <transition event="f" target="../e"/>
           </state>
           <state id="e">
             <onentry>

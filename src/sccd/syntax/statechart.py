@@ -4,29 +4,34 @@ from typing import *
 import itertools
 from sccd.syntax.tree import *
 
-class BigStepMaximality(Enum):
+class SemanticOption:
+
+  def __str__(self):
+    return self.name
+
+class BigStepMaximality(SemanticOption, Enum):
   TAKE_ONE = 0
   TAKE_MANY = 1
 
-class ComboStepMaximality(Enum):
+class ComboStepMaximality(SemanticOption, Enum):
   COMBO_TAKE_ONE = 0
   COMBO_TAKE_MANY = 1
 
-class InternalEventLifeline(Enum):
+class InternalEventLifeline(SemanticOption, Enum):
   QUEUE = 0
   NEXT_COMBO_STEP = 1
   NEXT_SMALL_STEP = 2
 
-class InputEventLifeline(Enum):
+class InputEventLifeline(SemanticOption, Enum):
   WHOLE = 0
   FIRST_COMBO_STEP = 1
   FIRST_SMALL_STEP = 2
 
-class Priority(Enum):
+class Priority(SemanticOption, Enum):
   SOURCE_PARENT = 0
   SOURCE_CHILD = 1
 
-class Concurrency(Enum):
+class Concurrency(SemanticOption, Enum):
   SINGLE = 0
   MANY = 1
 

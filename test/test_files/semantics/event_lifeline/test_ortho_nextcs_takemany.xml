@@ -4,8 +4,12 @@
     <override_semantics
       big_step_maximality="take_many"
       combo_step_maximality="*"
-      internal_event_lifeline="next_combo_step"/>
+      internal_event_lifeline="next_combo_step"
+      input_event_lifeline="*"/>
   </statechart>
+  <input>
+    <input_event name="e" port="in" time="0 d"/>
+  </input>
   <output>
     <big_step>
       <event name="in_b" port="out"/>

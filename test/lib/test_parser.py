@@ -97,7 +97,7 @@ class TestParser(StatechartParser):
         name=src_file + variant_description(i, variant),
         model=SingleInstanceModel(
           globals,
-          Statechart(tree=statechart.tree, datamodel=deepcopy(statechart.datamodel), semantics=dataclasses.replace(statechart.semantics, **variant))),
+          Statechart(tree=statechart.tree, scope=statechart.scope, semantics=dataclasses.replace(statechart.semantics, **variant))),
         input=input,
         output=output)
 

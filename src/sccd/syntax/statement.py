@@ -5,35 +5,42 @@ from sccd.syntax.expression import *
 class Statement(ABC):
     # Execution typically has side effects.
     @abstractmethod
-    def exec(self, events, datamodel):
+    def exec(self, current_state, events, datamodel):
+        pass
+
+    @abstractmethod
+    def init_stmt(self, scope):
         pass
 
 @dataclass
 class Assignment(Statement):
-    lhs: LHS
+    lhs: LValue
     operator: str # token value from the grammar.
     rhs: Expression
 
-    def __post_init__(self):
-        lhs_t = self.lhs.get_static_type()
-        rhs_t = self.rhs.get_static_type()
-        if lhs_t != rhs_t:
-            raise Exception("Assignment: LHS type '%s' differs from RHS type '%s'." % (str(lhs_t), str(rhs_t)))
+    def init_stmt(self, scope):
+        rhs_t = self.rhs.init_rvalue(scope)
+        self.lhs.init_lvalue(scope, rhs_t)
 
-    def exec(self, events, datamodel):
-        rhs = self.rhs.eval(events, datamodel)
-        lhs = self.lhs.lhs(events, datamodel)
+    def exec(self, current_state, events, datamodel):
+        val = self.rhs.eval(current_state, events, datamodel)
+        offset = self.lhs.eval_lvalue(current_state, events, datamodel).offset
 
-        def assign(x,y):
-            x.value = y
-        def increment(x,y):
-            x.value += y
-        def decrement(x,y):
-            x.value -= y
-        def multiply(x,y):
-            x.value *= y
-        def divide(x,y):
-            x.value /= y
+        def load():
+            return datamodel.load(offset)
+        def store(val):
+            datamodel.store(offset, val)
+
+        def assign():
+            store(val)
+        def increment():
+            store(load() + val)
+        def decrement():
+            store(load() - val)
+        def multiply():
+            store(load() * val)
+        def divide():
+            store(load() / val)
 
         {
             "=": assign,
@@ -41,12 +48,28 @@ class Assignment(Statement):
             "-=": decrement,
             "*=": multiply,
             "/=": divide,
-        }[self.operator](lhs, rhs)
+        }[self.operator]()
 
 @dataclass
 class Block(Statement):
     stmts: List[Statement]
 
-    def exec(self, events, datamodel):
+    def init_stmt(self, scope):
+        local_scope = Scope("local", scope)
         for stmt in self.stmts:
-            stmt.exec(events, datamodel)
+            stmt.init_stmt(local_scope)
+
+    def exec(self, current_state, events, datamodel):
+        for stmt in self.stmts:
+            stmt.exec(current_state, events, datamodel)
+
+# e.g. a function call
+@dataclass
+class ExpressionStatement(Statement):
+    expr: Expression
+
+    def init_stmt(self, scope):
+        self.expr.init_rvalue(scope)
+
+    def exec(self, current_state, events, datamodel):
+        self.expr.eval(current_state, events, datamodel)

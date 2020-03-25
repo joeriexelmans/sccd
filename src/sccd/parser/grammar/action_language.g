@@ -99,9 +99,10 @@ TIME_D: "d" // for zero-duration
 
 // Statement parsing
 
-block: stmt (";" stmt)*
+block: (stmt ";")*
 
 ?stmt: assignment
+     | expr -> expression_stmt
 
 assignment: lhs assign_operator expr
 

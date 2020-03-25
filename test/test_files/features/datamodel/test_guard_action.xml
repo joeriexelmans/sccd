@@ -5,14 +5,14 @@
       big_step_maximality="take_many"/>
     <datamodel>
       <var id="x" expr="0"/>
-      <var id="y" expr="x"/><!-- this is allowed, y is also 0 -->
+      <!-- <var id="y" expr="x"/>this is allowed, y is also 0 -->
     </datamodel>
     <tree>
       <state initial="counting">
         <state id="counting">
           <transition event="e" port="in" target="."/>
           <transition cond="x &lt; 3" target=".">
-            <code> x += 1 </code>
+            <code> x += 1; </code>
             <raise event="inc" port="out"/>
           </transition>
           <transition cond="x == 3" target="../done"/>

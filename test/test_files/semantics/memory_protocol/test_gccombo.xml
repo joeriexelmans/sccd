@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="statechart_enabledness.xml">
+    <override_semantics
+      big_step_maximality="take_many"
+      input_event_lifeline="whole"
+      enabledness_memory_protocol="gc_combo_step"/>
+  </statechart>
+
+  <input>
+    <input_event port="in" name="e" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="inc"/>
+      <event port="out" name="inc"/>
+      <event port="out" name="inc"/>
+      <event port="out" name="done"/>
+    </big_step>
+  </output>
+</test>

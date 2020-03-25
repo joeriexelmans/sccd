@@ -2,6 +2,7 @@ import os
 from lark import Lark, Transformer
 from sccd.syntax.statement import *
 from sccd.model.globals import *
+from sccd.syntax.scope import *
 
 _grammar_dir = os.path.join(os.path.dirname(__file__), "grammar")
 
@@ -17,7 +18,6 @@ class _ExpressionTransformer(Transformer):
   def __init__(self):
     super().__init__()
     self.globals: Globals = None
-    self.datamodel: DataModel = None
 
   array = Array
 
@@ -34,11 +34,7 @@ class _ExpressionTransformer(Transformer):
 
   def identifier(self, node):
     name = node[0].value
-    try:
-      offset, type = self.datamodel.lookup(name)
-    except Exception as e:
-      raise Exception("Unknown variable '%s'" % name) from e
-    return Identifier(name, offset, type)
+    return Identifier(name)
 
   def binary_expr(self, node):
     return BinaryExpression(node[0], node[1].value, node[2])
@@ -82,6 +78,9 @@ class _ExpressionTransformer(Transformer):
     self.globals.durations.append(d)
     return d
 
+  def expression_stmt(self, node):
+    return ExpressionStatement(node[0])
+
 # Global variables so we don't have to rebuild our parser every time
 # Obviously not thread-safe
 _transformer = _ExpressionTransformer()
@@ -90,18 +89,16 @@ _state_ref_parser = Lark(_state_ref_grammar, parser="lalr", start=["state_ref"])
 
 # Exported functions:
 
-def parse_expression(globals: Globals, datamodel, expr: str) -> Expression:
+def parse_expression(globals: Globals, expr: str) -> Expression:
   _transformer.globals = globals
-  _transformer.datamodel = datamodel
   return _action_lang_parser.parse(expr, start="expr")
 
 def parse_duration(globals: Globals, expr:str) -> Duration:
   _transformer.globals = globals
   return _action_lang_parser.parse(expr, start="duration")
 
-def parse_block(globals: Globals, datamodel, block: str) -> Statement:
+def parse_block(globals: Globals, block: str) -> Statement:
   _transformer.globals = globals
-  _transformer.datamodel = datamodel
   return _action_lang_parser.parse(block, start="block")
 
 def parse_state_ref(state_ref: str):

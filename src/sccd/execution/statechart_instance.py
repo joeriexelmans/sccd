@@ -7,10 +7,13 @@ from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
 from sccd.execution.round import *
 from sccd.execution.statechart_state import *
+from sccd.execution.memory import *
 
 class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager):
         self.object_manager = object_manager
+
+        memory = Memory(scope=statechart.scope)
 
         semantics = statechart.semantics
 
@@ -63,9 +66,16 @@ class StatechartInstance(Instance):
             InternalEventLifeline.NEXT_SMALL_STEP: small_step.add_next_event
         }[semantics.internal_event_lifeline]
 
+        if semantics.enabledness_memory_protocol == EnablednessMemoryProtocol.GC_SMALL_STEP:
+            small_step.memory = memory
+        elif semantics.enabledness_memory_protocol == EnablednessMemoryProtocol.GC_COMBO_STEP:
+            combo_step.memory = memory
+        elif semantics.enabledness_memory_protocol == EnablednessMemoryProtocol.GC_BIG_STEP:
+            self._big_step.memory = memory
+
         print_debug("\nRound hierarchy: " + str(self._big_step) + '\n')
 
-        self.state = StatechartState(statechart, self, raise_internal)
+        self.state = StatechartState(statechart, self, memory, raise_internal)
 
         small_step.state = self.state
 

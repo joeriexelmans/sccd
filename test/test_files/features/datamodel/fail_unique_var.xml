@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics/>
+
+    <datamodel>
+      <var id="x" expr="42"/>
+
+      <!-- illegal, 'x' already in use -->
+      <var id="x" expr="43"/>
+    </datamodel>
+
+    <tree>
+      <state/>
+    </tree>
+  </statechart>
+
+  <output>
+  </output>
+</test>

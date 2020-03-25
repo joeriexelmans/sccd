@@ -1,4 +1,5 @@
 import os
+import termcolor
 from typing import List, Callable, Set
 
 filter_any = lambda x: True
@@ -27,7 +28,7 @@ def get_files(paths: List[str], filter: Callable[[str], bool] = filter_any) -> L
         elif os.path.isfile(p):
             add_file(p)
         else:
-            print("%s: not a file or a directory, skipped." % p)
+            print(termcolor.colored("%s: not a file or a directory, skipped." % p, 'yellow'))
 
     return src_files
 

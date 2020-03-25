@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <!-- after events are always received as input events in a later big step -->
+    <semantics
+        big_step_maximality="*"
+        combo_step_maximality="*"/>
+    <tree>
+      <state initial="s1">
+        <state id="s1">
+          <!-- '100' is not a duration -->
+          <transition after="100" target="/s2"/>
+        </state>
+        <state id="s2"/>
+      </state>
+    </tree>
+  </statechart>
+  <output/>
+</test>

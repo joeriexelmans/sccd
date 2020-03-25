@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="statechart_enabledness.xml">
+    <override_semantics
+      big_step_maximality="take_one"
+      enabledness_memory_protocol="gc_big_step"/>
+  </statechart>
+
+  <input>
+    <input_event port="in" name="e" time="0 d"/>
+    <input_event port="in" name="e" time="0 d"/>
+    <input_event port="in" name="e" time="0 d"/>
+    <input_event port="in" name="e" time="0 d"/>
+    <input_event port="in" name="e" time="0 d"/>
+    <input_event port="in" name="e" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="inc"/>
+    </big_step>
+    <big_step>
+      <event port="out" name="inc"/>
+    </big_step>
+    <big_step>
+      <event port="out" name="inc"/>
+      <event port="out" name="done"/>
+    </big_step>
+  </output>
+</test>

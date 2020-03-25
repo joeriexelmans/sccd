@@ -11,8 +11,10 @@
       <state initial="a">
         <state id="a">
           <onentry>
-            <!-- illegal assignment, LHS is int, RHS is string -->
-            <code> x = "hello" </code>
+            <code>
+              greeting = "hello";
+              x = greeting; <!-- 'x' is already declared as integer at instance level -->
+            </code>
           </onentry>
         </state>
       </state>

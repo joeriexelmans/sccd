@@ -3,18 +3,24 @@ from sccd.syntax.statechart import *
 from sccd.execution.event import *
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
+from sccd.syntax.scope import *
+
+
+def _in_state(current_state, events, memory, state_list):
+  return StatechartState.in_state(current_state, state_list)
+
+builtin_scope = Scope("builtin", None)
+builtin_scope.names["INSTATE"] = Variable(offset=0, type=Callable[[List[str]], bool], default_value=_in_state)
+
 
 # Set of current states etc.
 class StatechartState:
 
-  def __init__(self, statechart: Statechart, instance, raise_internal):
+  def __init__(self, statechart: Statechart, instance, memory, raise_internal):
     self.model = statechart
     self.instance = instance
+    self.memory = memory
     self.raise_internal = raise_internal
-
-    self.data_model = statechart.datamodel
-
-    self.data_model.set("INSTATE", self.in_state)
 
     # these 2 fields have the same information
     self.configuration: List[State] = []
@@ -96,7 +102,7 @@ class StatechartState:
         self._start_timers(s.gen.after_triggers)
     try:
         self.configuration = self.config_mem[self.configuration_bitmap]
-    except:
+    except KeyError:
         self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.model.tree.state_list if self.configuration_bitmap.has(s.gen.state_id)]
 
     return t.gen.arena_bitmap
@@ -111,7 +117,7 @@ class StatechartState:
       if t.guard is None:
           return True
       else:
-          return t.guard.eval(events, self.data_model)
+          return t.guard.eval(self, events, self.memory)
 
   def check_source(self, t) -> bool:
       return self.configuration_bitmap.has(t.source.gen.state_id)
@@ -126,11 +132,11 @@ class StatechartState:
                   OutputPortTarget(a.outport),
                   a.time_offset))
           elif isinstance(a, Code):
-              a.block.exec(events, self.data_model)
+              a.block.exec(self, events, self.memory)
 
   def _start_timers(self, triggers: List[AfterTrigger]):
       for after in triggers:
-          delay: Duration = after.delay.eval([], self.data_model)
+          delay: Duration = after.delay.eval(self, [], self.memory)
           self.output.append(OutputEvent(
               Event(id=after.id, name=after.name, parameters=[after.nextTimerId()]),
               target=InstancesTarget([self.instance]),

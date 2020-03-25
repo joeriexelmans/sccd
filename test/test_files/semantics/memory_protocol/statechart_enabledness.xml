@@ -1,0 +1,31 @@
+<?xml version="1.0" ?>
+<statechart>
+  <datamodel>
+    <var id="i" expr="0"/>
+  </datamodel>
+  <tree>
+    <state>
+      <parallel id="p">
+        <state id="increment">
+          <state id="a">
+            <transition port="in" event="e" target="." cond='not INSTATE(["/p/status/done"])'>
+              <raise port="out" event="inc"/>
+              <code> i += 1; </code>
+            </transition>
+          </state>
+        </state>
+
+        <state id="status" initial="counting">
+          <state id="counting">
+            <transition cond="i == 2" target="../done"/>
+          </state>
+          <state id="done">
+            <onentry>
+              <raise port="out" event="done"/>
+            </onentry>
+          </state>
+        </state>
+      </parallel>
+    </state>
+  </tree>
+</statechart>

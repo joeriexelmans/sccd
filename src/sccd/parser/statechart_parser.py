@@ -4,6 +4,7 @@ from sccd.parser.expression_parser import *
 from sccd.syntax.statechart import *
 from sccd.syntax.tree import *
 from sccd.execution.event import *
+from sccd.execution import statechart_state
 
 # An Exception that occured while visiting an XML element.
 # It will show a fragment of the source file and the line number of the error.
@@ -13,42 +14,33 @@ class XmlLoadError(Exception):
     if parent is None:
       parent = el
 
-    lines = etree.tostring(parent).decode('utf-8').strip().split('\n')
-    nbr_highlighted_lines = len(etree.tostring(el).decode('utf-8').strip().split('\n'))
+    with open(src_file, 'r') as file:
+      lines = file.read().split('\n')
+      numbered_lines = list(enumerate(lines, 1))
+
+    parent_lines = etree.tostring(parent).decode('utf-8').strip().split('\n')
+    el_lines = etree.tostring(el).decode('utf-8').strip().split('\n')
     text = []
 
     parent_firstline = parent.sourceline
-    parent_lastline = parent.sourceline + len(lines) - 1
+    parent_lastline = parent.sourceline + len(parent_lines) - 1
 
     el_firstline = el.sourceline
-    el_lastline = el.sourceline + nbr_highlighted_lines - 1
+    el_lastline = el.sourceline + len(el_lines) - 1
 
-    numbered_lines = list(zip(range(parent.sourceline, parent.sourceline + len(lines)), lines))
+    # numbered_lines = list(zip(range(parent.sourceline, parent.sourceline + len(lines)), lines))
 
-    from_line = max(parent_firstline, el_firstline - 5)
-    to_line = min(parent_lastline, el_lastline + 5)
-
-    if from_line == parent_firstline+1:
-      from_line = parent_firstline
-    if to_line == parent_lastline-1:
-      to_line = parent_lastline
+    from_line = max(parent_firstline, el_firstline - 4)
+    to_line = min(parent_lastline, el_lastline + 4)
 
     def f(tup):
       return from_line <= tup[0] <= to_line
-
-    if from_line != parent_firstline:
-      text.append("%4d: %s" % (parent_firstline, lines[0]))
-      text.append("     ...")
 
     for linenumber, line in filter(f, numbered_lines):
       ll = "%4d: %s" % (linenumber, line)
       if el_firstline <= linenumber <= el_lastline:
         ll = termcolor.colored(ll, 'yellow')
       text.append(ll)
-
-    if to_line != parent_lastline:
-      text.append("     ...")
-      text.append("%4d: %s" % (parent_lastline, lines[-1]))
 
     super().__init__("\n\n%s\n\n%s:\nline %d: <%s>: %s" % ('\n'.join(text), src_file,el.sourceline, el.tag, msg))
     
@@ -132,7 +124,7 @@ class ActionParser(XmlParser):
   def __init__(self):
     super().__init__()
     self.globals = XmlParser.Context("globals")
-    self.datamodel = XmlParser.Context("datamodel")
+    self.scope = XmlParser.Context("scope")
     self.actions = XmlParser.Context("actions")
 
   def end_raise(self, el):
@@ -151,10 +143,11 @@ class ActionParser(XmlParser):
 
   def end_code(self, el):
     globals = self.globals.require()
-    datamodel = self.datamodel.require()
+    scope = self.scope.require()
     actions = self.actions.require()
 
-    block = parse_block(globals, datamodel, block=el.text)
+    block = parse_block(globals, block=el.text)
+    block.init_stmt(scope)
     a = Code(block)
     actions.append(a)
 
@@ -267,14 +260,14 @@ class TreeParser(StateParser):
 
   def start_tree(self, el):
     statechart = self.statechart.require()
-    self.datamodel.push(statechart.datamodel)
+    self.scope.push(statechart.scope)
     self.transitions.push([])
     self.state_children.push({})
 
   def end_tree(self, el):
     statechart = self.statechart.require()
     globals = self.globals.require()
-    datamodel = self.datamodel.pop()
+    scope = self.scope.pop()
 
     root_states = self.state_children.pop()
     if len(root_states) == 0:
@@ -321,11 +314,19 @@ class TreeParser(StateParser):
 
       # Trigger
       if after is not None:
-        after_expr = parse_expression(globals, datamodel, expr=after)
-        # print(after_expr)
-        event = "_after%d" % next_after_id # transition gets unique event name
-        next_after_id += 1
-        trigger = AfterTrigger(globals.events.assign_id(event), event, after_expr)
+        try:
+          after_expr = parse_expression(globals, expr=after)
+          after_type = after_expr.init_rvalue(scope)
+          if after_type != Duration:
+            msg = "Expression is '%s' type. Expected 'Duration' type." % str(after_type)
+            if after_type == int:
+              msg += "\n Hint: Did you forget a duration unit sufix? ('s', 'ms', ...)"
+            raise Exception(msg)
+          event = "_after%d" % next_after_id # transition gets unique event name
+          next_after_id += 1
+          trigger = AfterTrigger(globals.events.assign_id(event), event, after_expr)
+        except Exception as e:
+          self._raise(t_el, "after=\"%s\": %s" % (after, str(e)), e)
       elif event is not None:
         trigger = Trigger(globals.events.assign_id(event), event, port)
         globals.inports.assign_id(port)
@@ -337,9 +338,10 @@ class TreeParser(StateParser):
       # Guard
       if cond is not None:
         try:
-          expr = parse_expression(globals, datamodel, expr=cond)
+          expr = parse_expression(globals, expr=cond)
+          expr.init_rvalue(scope)
         except Exception as e:
-          self._raise(t_el, "Condition '%s': %s" % (cond, str(e)), e)
+          self._raise(t_el, "cond=\"%s\": %s" % (cond, str(e)), e)
         transition.guard = expr
       source.transitions.append(transition)
 
@@ -378,19 +380,22 @@ class StatechartParser(TreeParser):
 
   def end_var(self, el):
     globals = self.globals.require()
-    datamodel = self.datamodel.require()
+    scope = self.scope.require()
 
     id = el.get("id")
     expr = el.get("expr")
-    parsed = parse_expression(globals, datamodel, expr=expr)
-    datamodel.create(id, parsed.eval([], datamodel))
+
+    parsed = parse_expression(globals, expr=expr)
+    rhs_type = parsed.init_rvalue(scope)
+    val = parsed.eval(None, [], None)
+    scope.put_lvalue_default(id, val)
 
   def start_datamodel(self, el):
     statechart = self.statechart.require()
-    self.datamodel.push(statechart.datamodel)
+    self.scope.push(statechart.scope)
 
   def end_datamodel(self, el):
-    self.datamodel.pop()
+    self.scope.pop()
 
   # <statechart>
 
@@ -399,8 +404,7 @@ class StatechartParser(TreeParser):
     ext_file = el.get("src")
     statechart = None
     if ext_file is None:
-      statechart = Statechart(
-        tree=None, semantics=Semantics(), datamodel=DataModel())
+      statechart = Statechart(tree=None, semantics=Semantics(), scope=Scope("instance", wider_scope=statechart_state.builtin_scope))
     elif self.load_external:
       ext_file_path = os.path.join(os.path.dirname(src_file), ext_file)
       self.statecharts.push([])

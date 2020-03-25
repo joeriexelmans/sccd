@@ -54,7 +54,7 @@ class Test(unittest.TestCase):
       thread.join()
       def repr(output):
         return '\n'.join("%d: %s" % (i, str(big_step)) for i, big_step in enumerate(output))
-      self.fail(msg + "\n\nActual:\n" + repr(actual) + ("\n(killed)" if kill else "") + "\n\nExpected:\n" + repr(expected))
+      self.fail(msg + "\n\nActual:\n" + repr(actual) + ("\n(possibly more output, instance killed)" if kill else "") + "\n\nExpected:\n" + repr(expected))
 
     while True:
       data = pipe.get(block=True, timeout=None)

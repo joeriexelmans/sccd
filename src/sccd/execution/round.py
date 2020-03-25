@@ -60,6 +60,7 @@ class Round(ABC):
     def __init__(self, name):
         self.name = name
         self.parent = None
+        
         self.memory = None
 
         self.remainder_events = [] # events enabled for the remainder of the current round
@@ -69,7 +70,7 @@ class Round(ABC):
         changed = self._internal_run(arenas_changed)
         if changed:
             if self.memory:
-                self.memory.rotate()
+                self.memory.flush_round()
             self.remainder_events = self.next_events
             self.next_events = []
             print_debug("completed "+self.name)

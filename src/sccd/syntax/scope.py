@@ -22,6 +22,7 @@ class Scope:
     else:
       self.start_offset = 0
     self.names: Dict[str, Variable] = {}
+    self.variables: List[str] = []
 
   def size(self) -> int:
     return self.start_offset + len(self.names)
@@ -31,6 +32,12 @@ class Scope:
       return itertools.chain(self.wider_scope.all(), self.names.items())
     else:
       return self.names.items()
+
+  def name(self, offset):
+    if offset >= self.start_offset:
+      return self.variables[offset - self.start_offset]
+    else:
+      return self.wider_scope.name(offset)
 
   def _internal_lookup(self, name: str) -> Optional[Tuple['Scope', Variable]]:
     try:
@@ -45,7 +52,7 @@ class Scope:
       scope, variable = found
       raise Exception("Name '%s' already in use in scope '%s'" % (name, scope.name))
 
-  def get_rvalue(self, name: str) -> Variable:
+  def get(self, name: str) -> Variable:
     found = self._internal_lookup(name)
     if not found:
       # return None
@@ -53,7 +60,7 @@ class Scope:
     else:
       return found[1]
 
-  def put_lvalue(self, name: str, expected_type: type) -> Variable:
+  def put(self, name: str, expected_type: type) -> Variable:
     found = self._internal_lookup(name)
 
     if found:
@@ -67,11 +74,12 @@ class Scope:
       # name still available: add it to this scope
       variable = Variable(offset=self.size(), type=expected_type)
       self.names[name] = variable
+      self.variables.append(name)
       return variable
 
-  def put_lvalue_default(self, name: str, default_value) -> Variable:
+  def add(self, name: str, default_value) -> Variable:
     self.assert_available(name)
     expected_type = type(default_value)
-    variable = self.put_lvalue(name, expected_type)
+    variable = self.put(name, expected_type)
     variable.default_value = default_value
     return variable

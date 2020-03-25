@@ -3,7 +3,8 @@
   <statechart src="statechart_enabledness.xml">
     <override_semantics
       big_step_maximality="take_one"
-      enabledness_memory_protocol="gc_big_step"/>
+      enabledness_memory_protocol="big_step"
+      assignment_memory_protocol="big_step"/>
   </statechart>
 
   <input>

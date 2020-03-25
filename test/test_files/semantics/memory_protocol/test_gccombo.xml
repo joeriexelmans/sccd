@@ -4,7 +4,8 @@
     <override_semantics
       big_step_maximality="take_many"
       input_event_lifeline="whole"
-      enabledness_memory_protocol="gc_combo_step"/>
+      enabledness_memory_protocol="combo_step"
+      assignment_memory_protocol="combo_step"/>
   </statechart>
 
   <input>

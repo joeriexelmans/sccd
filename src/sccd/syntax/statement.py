@@ -12,6 +12,10 @@ class Statement(ABC):
     def init_stmt(self, scope):
         pass
 
+    @abstractmethod
+    def render(self) -> str:
+        pass
+
 @dataclass
 class Assignment(Statement):
     lhs: LValue
@@ -50,6 +54,9 @@ class Assignment(Statement):
             "/=": divide,
         }[self.operator]()
 
+    def render(self) -> str:
+        return self.lhs.render() + ' ' + self.operator + ' ' + self.rhs.render()
+
 @dataclass
 class Block(Statement):
     stmts: List[Statement]
@@ -63,6 +70,12 @@ class Block(Statement):
         for stmt in self.stmts:
             stmt.exec(current_state, events, datamodel)
 
+    def render(self) -> str:
+        result = ""
+        for stmt in self.stmts:
+            result += stmt.render() + ' '
+        return result
+
 # e.g. a function call
 @dataclass
 class ExpressionStatement(Statement):
@@ -73,3 +86,6 @@ class ExpressionStatement(Statement):
 
     def exec(self, current_state, events, datamodel):
         self.expr.eval(current_state, events, datamodel)
+
+    def render(self) -> str:
+        return self.expr.render()

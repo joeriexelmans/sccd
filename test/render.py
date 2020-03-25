@@ -126,8 +126,7 @@ if __name__ == '__main__':
         if t.guard:
           label += ' ['+t.guard.render()+']'
         if t.actions:
-          raises = [a for a in t.actions if isinstance(a, RaiseEvent)]
-          label += ','.join([r.render() for r in raises])
+          label += ' '.join(a.render() for a in t.actions)
 
         if len(t.targets) == 1:
           w.write(name_to_name(t.source.gen.full_name) + ' -> ' + name_to_name(t.targets[0].gen.full_name))

@@ -44,13 +44,13 @@ class Identifier(LValue):
 
     def init_rvalue(self, scope) -> type:
         assert self.variable is None
-        self.variable = scope.get_rvalue(self.name)
+        self.variable = scope.get(self.name)
         # print("init rvalue", self.name, "as", self.variable)
         return self.variable.type
 
     def init_lvalue(self, scope, expected_type):
         assert self.variable is None
-        self.variable = scope.put_lvalue(self.name, expected_type)
+        self.variable = scope.put(self.name, expected_type)
         # print("init lvalue", self.name, "as", self.variable)
 
     def eval_lvalue(self, current_state, events, memory) -> Variable:

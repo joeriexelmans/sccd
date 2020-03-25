@@ -16,15 +16,16 @@ builtin_scope.names["INSTATE"] = Variable(offset=0, type=Callable[[List[str]], b
 # Set of current states etc.
 class StatechartState:
 
-  def __init__(self, statechart: Statechart, instance, memory, raise_internal):
+  def __init__(self, statechart: Statechart, instance, gc_memory, rhs_memory, raise_internal):
     self.model = statechart
     self.instance = instance
-    self.memory = memory
+    self.gc_memory = gc_memory
+    self.rhs_memory = rhs_memory
     self.raise_internal = raise_internal
 
     # these 2 fields have the same information
     self.configuration: List[State] = []
-    self.configuration_bitmap: Bitmap() = Bitmap()
+    self.configuration_bitmap: Bitmap = Bitmap()
 
     self.eventless_states = 0 # number of states in current configuration that have at least one eventless outgoing transition.
 
@@ -117,7 +118,9 @@ class StatechartState:
       if t.guard is None:
           return True
       else:
-          return t.guard.eval(self, events, self.memory)
+          result = t.guard.eval(self, events, self.gc_memory)
+          self.gc_memory.flush_temp()
+          return result
 
   def check_source(self, t) -> bool:
       return self.configuration_bitmap.has(t.source.gen.state_id)
@@ -132,11 +135,13 @@ class StatechartState:
                   OutputPortTarget(a.outport),
                   a.time_offset))
           elif isinstance(a, Code):
-              a.block.exec(self, events, self.memory)
+              a.block.exec(self, events, self.rhs_memory)
+              self.rhs_memory.flush_temp()
 
   def _start_timers(self, triggers: List[AfterTrigger]):
       for after in triggers:
-          delay: Duration = after.delay.eval(self, [], self.memory)
+          delay: Duration = after.delay.eval(self, [], self.gc_memory)
+          self.gc_memory.flush_temp()
           self.output.append(OutputEvent(
               Event(id=after.id, name=after.name, parameters=[after.nextTimerId()]),
               target=InstancesTarget([self.instance]),

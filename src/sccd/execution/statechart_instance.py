@@ -7,13 +7,11 @@ from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
 from sccd.execution.round import *
 from sccd.execution.statechart_state import *
-from sccd.execution.memory import *
+from sccd.execution.storage import *
 
 class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager):
         self.object_manager = object_manager
-
-        memory = Memory(scope=statechart.scope)
 
         semantics = statechart.semantics
 
@@ -66,16 +64,30 @@ class StatechartInstance(Instance):
             InternalEventLifeline.NEXT_SMALL_STEP: small_step.add_next_event
         }[semantics.internal_event_lifeline]
 
-        if semantics.enabledness_memory_protocol == EnablednessMemoryProtocol.GC_SMALL_STEP:
-            small_step.memory = memory
-        elif semantics.enabledness_memory_protocol == EnablednessMemoryProtocol.GC_COMBO_STEP:
-            combo_step.memory = memory
-        elif semantics.enabledness_memory_protocol == EnablednessMemoryProtocol.GC_BIG_STEP:
-            self._big_step.memory = memory
+        storage = Storage(statechart.scope)
+        gc_memory = DirtyStorage(storage)
+
+        if semantics.enabledness_memory_protocol == MemoryProtocol.BIG_STEP:
+            self._big_step.memory = gc_memory
+        elif semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP:
+            combo_step.memory = gc_memory
+        elif semantics.enabledness_memory_protocol == MemoryProtocol.SMALL_STEP:
+            small_step.memory = gc_memory
+
+        if semantics.assignment_memory_protocol == semantics.enabledness_memory_protocol:
+            rhs_memory = gc_memory
+        else:
+            rhs_memory = DirtyStorage(storage)
+            if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
+                self._big_step.memory = rhs_memory
+            elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:
+                combo_step.memory = rhs_memory
+            elif semantics.assignment_memory_protocol == MemoryProtocol.SMALL_STEP:
+                small_step.memory = rhs_memory
 
         print_debug("\nRound hierarchy: " + str(self._big_step) + '\n')
 
-        self.state = StatechartState(statechart, self, memory, raise_internal)
+        self.state = StatechartState(statechart, self, gc_memory, rhs_memory, raise_internal)
 
         small_step.state = self.state
 

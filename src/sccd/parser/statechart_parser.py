@@ -388,7 +388,7 @@ class StatechartParser(TreeParser):
     parsed = parse_expression(globals, expr=expr)
     rhs_type = parsed.init_rvalue(scope)
     val = parsed.eval(None, [], None)
-    scope.put_lvalue_default(id, val)
+    scope.add(id, val)
 
   def start_datamodel(self, el):
     statechart = self.statechart.require()

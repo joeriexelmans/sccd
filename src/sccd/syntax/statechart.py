@@ -28,15 +28,10 @@ class InputEventLifeline(SemanticOption, Enum):
   FIRST_COMBO_STEP = 1
   FIRST_SMALL_STEP = 2
 
-class EnablednessMemoryProtocol(SemanticOption, Enum):
-  GC_BIG_STEP = 0
-  GC_COMBO_STEP = 1
-  GC_SMALL_STEP = 2
-
-class AssignmentMemoryProtocol(SemanticOption, Enum):
-  RHS_BIG_STEP = 0
-  RHS_COMBO_STEP = 0
-  RHS_SMALL_STEP = 0
+class MemoryProtocol(SemanticOption, Enum):
+  BIG_STEP = 0
+  COMBO_STEP = 1
+  SMALL_STEP = 2
 
 class Priority(SemanticOption, Enum):
   SOURCE_PARENT = 0
@@ -52,8 +47,8 @@ class Semantics:
   combo_step_maximality: ComboStepMaximality = ComboStepMaximality.COMBO_TAKE_ONE
   internal_event_lifeline: InternalEventLifeline = InternalEventLifeline.NEXT_COMBO_STEP
   input_event_lifeline: InputEventLifeline = InputEventLifeline.FIRST_COMBO_STEP
-  enabledness_memory_protocol: EnablednessMemoryProtocol = EnablednessMemoryProtocol.GC_COMBO_STEP
-  assignment_memory_protocol: AssignmentMemoryProtocol = AssignmentMemoryProtocol.RHS_COMBO_STEP
+  enabledness_memory_protocol: MemoryProtocol = MemoryProtocol.COMBO_STEP
+  assignment_memory_protocol: MemoryProtocol = MemoryProtocol.COMBO_STEP
   priority: Priority = Priority.SOURCE_PARENT
   concurrency: Concurrency = Concurrency.SINGLE
 

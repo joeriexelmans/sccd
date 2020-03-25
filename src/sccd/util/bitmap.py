@@ -1,3 +1,4 @@
+from typing import *
 from functools import reduce
 import math
 
@@ -45,6 +46,12 @@ class Bitmap(int):
   def first_bit_pos(self):
     return math.floor(math.log2(x & -x))
 
+  def items(self) -> Iterable[int]:
+    pos = 0
+    while 2**pos <= self:
+      if self & 2**pos:
+        yield pos
+      pos += 1
 
 def bit(pos):
   return Bitmap(2 ** pos)

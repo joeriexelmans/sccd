@@ -1,11 +1,14 @@
 from typing import *
 from dataclasses import *
+from abc import *
 from sccd.syntax.expression import *
 from sccd.syntax.statement import *
 
 @dataclass
-class Action:
-    pass
+class Action(ABC):
+    @abstractmethod
+    def render(self) -> str:
+        pass
 
 @dataclass
 class RaiseEvent(Action):
@@ -31,3 +34,6 @@ class RaiseOutputEvent(RaiseEvent):
 @dataclass
 class Code(Action):
     block: Block
+
+    def render(self) -> str:
+        return '/'+self.block.render()

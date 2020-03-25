@@ -20,8 +20,8 @@ class DirtyStorage:
     # Dirty storage: Values copied to clean storage when rotated.
     self.dirty = list(self.clean)
 
-    self.temp_dirty = Bitmap() # dirty values written by current transition
-    self.round_dirty = Bitmap()
+    self.temp_dirty = Bitmap() # dirty values written by current transition, that also need to be read from dirty storage in RHS values while the transition's actions are executing.
+    self.round_dirty = Bitmap() # to keep track of the values that need to be copied to clean storage at the end of a round
 
     # Storage for local scope values. No values ever copied from here to 'clean' storage
     self.temp_stack = [None]*1024
@@ -43,10 +43,11 @@ class DirtyStorage:
       else:
         return self.clean[offset]
 
+  # Called after a block has executed.
   def flush_temp(self):
     race_conditions = self.temp_dirty & self.round_dirty
     if race_conditions:
-        raise Exception("Race condition for variables %s" % str(list(self.storage.scope.name(offset) for offset in race_conditions.items())))
+        raise Exception("Race condition for variables %s" % str(list(self.storage.scope.get_name(offset) for offset in race_conditions.items())))
 
     self.round_dirty |= self.temp_dirty
     self.temp_dirty = Bitmap()

@@ -6,21 +6,21 @@ class TestScope(unittest.TestCase):
 
   def test_scope(self):
     
-    builtin = Scope("builtin", wider_scope=None)
+    builtin = Scope("builtin", parent_scope=None)
 
     # Lookup LHS value (creating it in the current scope if not found)
 
     variable = builtin.put("in_state", Callable[[List[str]], bool])
     self.assertEqual(variable.offset, 0)
 
-    globals = Scope("globals", wider_scope=builtin)
+    globals = Scope("globals", parent_scope=builtin)
     variable = globals.put("x", int)
     self.assertEqual(variable.offset, 1)
 
     variable = globals.put("in_state", Callable[[List[str]], bool])
     self.assertEqual(variable.offset, 0)
 
-    local = Scope("local", wider_scope=globals)
+    local = Scope("local", parent_scope=globals)
     variable = local.put("x", int)
     self.assertEqual(variable.offset, 1)
 

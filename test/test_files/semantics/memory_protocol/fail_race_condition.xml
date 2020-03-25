@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics
+      big_step_maximality="take_one"
+      input_event_lifeline="whole"
+      assignment_memory_protocol="big_step"/>
+    <datamodel>
+      <var id="x" expr="0"/>
+    </datamodel>
+    <tree>
+      <state>
+        <parallel id="p">
+          <state id="a">
+            <state id="a1">
+              <transition port="in" event="e" target=".">
+                <code> x += 1; </code>
+              </transition>
+            </state>
+          </state>
+
+          <state id="b">
+            <state id="a1">
+              <transition port="in" event="e" target=".">
+                <code> x += 1; </code>
+              </transition>
+            </state>
+          </state>
+        </parallel>
+      </state>
+    </tree>
+  </statechart>
+  <input>
+    <input_event port="in" name="e" time="0 d"/>
+  </input>
+  <output>
+
+  </output>
+</test>

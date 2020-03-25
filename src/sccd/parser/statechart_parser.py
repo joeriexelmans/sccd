@@ -404,7 +404,7 @@ class StatechartParser(TreeParser):
     ext_file = el.get("src")
     statechart = None
     if ext_file is None:
-      statechart = Statechart(tree=None, semantics=Semantics(), scope=Scope("instance", wider_scope=statechart_state.builtin_scope))
+      statechart = Statechart(tree=None, semantics=Semantics(), scope=Scope("instance", parent_scope=statechart_state.builtin_scope))
     elif self.load_external:
       ext_file_path = os.path.join(os.path.dirname(src_file), ext_file)
       self.statecharts.push([])

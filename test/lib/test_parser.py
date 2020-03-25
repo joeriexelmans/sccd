@@ -4,6 +4,13 @@ from sccd.parser.expression_parser import *
 from lib.test import *
 from copy import deepcopy
 
+@dataclass
+class TestVariant:
+  name: str
+  model: Any
+  input: list
+  output: list
+
 # Parses <test> element and all its children (including <statechart>)
 class TestParser(StatechartParser):
 
@@ -89,12 +96,12 @@ class TestParser(StatechartParser):
     def variant_description(i, variant) -> str:
       if not variant:
         return ""
-      return " (variant %d: %s)" % (i, ", ".join(str(val) for val in variant.values()))
+      return "Variant %d: %s" % (i, ", ".join(str(val) for val in variant.values()))
 
     # Generate test variants for all semantic wildcards filled in
     tests.extend( 
-      Test(
-        name=src_file + variant_description(i, variant),
+      TestVariant(
+        name=variant_description(i, variant),
         model=SingleInstanceModel(
           globals,
           Statechart(tree=statechart.tree, scope=statechart.scope, semantics=dataclasses.replace(statechart.semantics, **variant))),

@@ -14,11 +14,11 @@ class Variable:
 
 # Stateless stuff we know about a scope (= set of variable names)
 class Scope:
-  def __init__(self, name: str, wider_scope: 'Scope'):
+  def __init__(self, name: str, parent_scope: 'Scope'):
     self.name = name
-    self.wider_scope = wider_scope
-    if wider_scope:
-      self.start_offset = wider_scope.start_offset + len(wider_scope.names)
+    self.parent_scope = parent_scope
+    if parent_scope:
+      self.start_offset = parent_scope.start_offset + len(parent_scope.names)
     else:
       self.start_offset = 0
     self.names: Dict[str, Variable] = {}
@@ -28,23 +28,23 @@ class Scope:
     return self.start_offset + len(self.names)
 
   def all(self):
-    if self.wider_scope:
-      return itertools.chain(self.wider_scope.all(), self.names.items())
+    if self.parent_scope:
+      return itertools.chain(self.parent_scope.all(), self.names.items())
     else:
       return self.names.items()
 
-  def name(self, offset):
+  def get_name(self, offset):
     if offset >= self.start_offset:
       return self.variables[offset - self.start_offset]
     else:
-      return self.wider_scope.name(offset)
+      return self.parent_scope.name(offset)
 
   def _internal_lookup(self, name: str) -> Optional[Tuple['Scope', Variable]]:
     try:
       return (self, self.names[name])
     except KeyError:
-      if self.wider_scope is not None:
-        return self.wider_scope._internal_lookup(name)
+      if self.parent_scope is not None:
+        return self.parent_scope._internal_lookup(name)
 
   def assert_available(self, name: str):
     found = self._internal_lookup(name)

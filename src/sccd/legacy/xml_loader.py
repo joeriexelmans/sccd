@@ -181,7 +181,7 @@ def load_statechart(scxml_node, namespace: Namespace) -> Statechart:
       next_after_id += 1
       trigger = AfterTrigger(namespace.assign_event_id(event), event, IntLiteral(int(after)))
     elif event is not None:
-      trigger = Trigger(namespace.assign_event_id(event), event, port)
+      trigger = EventTrigger(namespace.assign_event_id(event), event, port)
     else:
       trigger = None
     transition.setTrigger(trigger)

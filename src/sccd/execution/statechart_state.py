@@ -34,6 +34,11 @@ class StatechartState:
     # mapping from history state id to states to enter if history is target of transition
     self.history_values = {}
 
+    # For each AfterTrigger in the statechart tree, we keep an expected 'id' that is
+    # a parameter to a future 'after' event. This 'id' is incremented each time a timer
+    # is started, so we only respond to the most recent one.
+    self.timer_ids = [-1] * len(statechart.tree.after_triggers)
+
     # output events accumulate here until they are collected
     self.output = []
 
@@ -112,7 +117,7 @@ class StatechartState:
       # Special case: after trigger
       if isinstance(t.trigger, AfterTrigger):
         e = [e for e in events if e.id == t.trigger.id][0]
-        if t.trigger.expected_id != e.parameters[0]:
+        if self.timer_ids[t.trigger.after_id] != e.parameters[0]:
           return False
 
       if t.guard is None:
@@ -141,11 +146,16 @@ class StatechartState:
   def _start_timers(self, triggers: List[AfterTrigger]):
       for after in triggers:
           delay: Duration = after.delay.eval(self, [], self.gc_memory)
+          timer_id = self._next_timer_id(after)
           self.gc_memory.flush_temp()
           self.output.append(OutputEvent(
-              Event(id=after.id, name=after.name, parameters=[after.nextTimerId()]),
+              Event(id=after.id, name=after.name, parameters=[timer_id]),
               target=InstancesTarget([self.instance]),
               time_offset=delay))
+
+  def _next_timer_id(self, trigger: AfterTrigger):
+    self.timer_ids[trigger.after_id] += 1
+    return self.timer_ids[trigger.after_id]
 
   # Return whether the current configuration includes ALL the states given.
   def in_state(self, state_strings: List[str]) -> bool:

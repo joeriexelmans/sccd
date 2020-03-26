@@ -81,7 +81,7 @@ class ParallelState(State):
         return targets
 
 @dataclass
-class Trigger:
+class EventTrigger:
     id: int # event ID
     name: str # event name
     port: str
@@ -92,20 +92,13 @@ class Trigger:
         else:
             return self.name
 
-class AfterTrigger(Trigger):
+class AfterTrigger(EventTrigger):
     # id: unique within the statechart
-    def __init__(self, id: int, name: str, delay: Expression):
+    def __init__(self, id: int, name: str, after_id: int, delay: Expression):
+
         super().__init__(id=id, name=name, port="")
+        self.after_id = after_id # unique ID for AfterTrigger
         self.delay = delay
-
-        # Stateful variable, incremented each time a new future 'after' event is scheduled.
-        # This is to distinguish multiple scheduled future events for the same after-transition.
-        # Only one scheduled event should be responded to, i.e. the latest one.
-        self.expected_id = -1
-
-    def nextTimerId(self) -> int:
-        self.expected_id += 1
-        return self.expected_id
 
     def render(self) -> str:
         return "after("+self.delay.render()+")"
@@ -118,7 +111,7 @@ class Transition:
 
     guard: Optional[Expression] = None
     actions: List[Action] = field(default_factory=list)
-    trigger: Optional[Trigger] = None
+    trigger: Optional[EventTrigger] = None
 
     gen: Optional['TransitionOptimization'] = None        
                     
@@ -140,6 +133,7 @@ class StateTree:
         self.state_dict = {} # mapping from 'full name' to State
         self.state_list = [] # depth-first list of states
         self.transition_list = [] # all transitions in the tree, sorted by source state, depth-first
+        self.after_triggers = []
 
         next_id = 0
 
@@ -170,6 +164,7 @@ class StateTree:
                     has_eventless_transitions = True
                 elif isinstance(t.trigger, AfterTrigger):
                     after_triggers.append(t.trigger)
+                    self.after_triggers.append(t.trigger)
 
             for c in state.children:
                 init_state(c, full_name, [state] + ancestors)

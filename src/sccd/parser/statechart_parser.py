@@ -326,12 +326,12 @@ class TreeParser(StateParser):
               msg += "\n Hint: Did you forget a duration unit sufix? ('s', 'ms', ...)"
             raise Exception(msg)
           event = "_after%d" % next_after_id # transition gets unique event name
+          trigger = AfterTrigger(globals.events.assign_id(event), event, next_after_id, after_expr)
           next_after_id += 1
-          trigger = AfterTrigger(globals.events.assign_id(event), event, after_expr)
         except Exception as e:
           self._raise(t_el, "after=\"%s\": %s" % (after, str(e)), e)
       elif event is not None:
-        trigger = Trigger(globals.events.assign_id(event), event, port)
+        trigger = EventTrigger(globals.events.assign_id(event), event, port)
         globals.inports.assign_id(port)
       else:
         trigger = None

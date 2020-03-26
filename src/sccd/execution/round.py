@@ -11,7 +11,7 @@ class CandidatesGenerator:
 
 class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
     def generate(self, state, enabled_events: List[Event], arenas_changed: Bitmap) -> Iterable[Transition]:
-        # events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
+        events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
         key = (state.configuration_bitmap, arenas_changed)
 
         try:
@@ -19,22 +19,14 @@ class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
         except KeyError:
             candidates = self.cache[key] = [
                 t for s in state.configuration
-                    if (not arenas_changed.has(s.gen.state_id))
+                    if (not arenas_changed & s.gen.state_id_bitmap)
                     for t in s.transitions
                 ]
             if self.reverse:
                 candidates.reverse()
 
-        def check_trigger(t, enabled_events):
-            if not t.trigger:
-                return True
-            for e in enabled_events:
-                if t.trigger.id == e.id:
-                    return True
-            return False
-
         def filter_f(t):
-            return check_trigger(t, enabled_events) and state.check_guard(t, enabled_events)
+            return (not t.trigger or t.trigger.check(events_bitmap)) and state.check_guard(t, enabled_events)
         return filter(filter_f, candidates)
 
 class CandidatesGeneratorEventBased(CandidatesGenerator):
@@ -47,8 +39,8 @@ class CandidatesGeneratorEventBased(CandidatesGenerator):
         except KeyError:
             candidates = self.cache[key] = [
                 t for t in state.model.tree.transition_list
-                    if (not t.trigger or events_bitmap.has(t.trigger.id)) # todo: check port?
-                    and (not arenas_changed.has(t.source.gen.state_id))
+                    if (not t.trigger or t.trigger.check(events_bitmap)) # todo: check port?
+                    and (not arenas_changed & t.source.gen.state_id_bitmap)
                 ]
             if self.reverse:
                 candidates.reverse()

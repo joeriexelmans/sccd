@@ -109,7 +109,7 @@ class StatechartState:
     try:
         self.configuration = self.config_mem[self.configuration_bitmap]
     except KeyError:
-        self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.model.tree.state_list if self.configuration_bitmap.has(s.gen.state_id)]
+        self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.model.tree.state_list if self.configuration_bitmap & s.gen.state_id_bitmap]
 
     return t.gen.arena_bitmap
 
@@ -128,7 +128,7 @@ class StatechartState:
           return result
 
   def check_source(self, t) -> bool:
-      return self.configuration_bitmap.has(t.source.gen.state_id)
+      return self.configuration_bitmap & t.source.gen.state_id_bitmap
 
   def _perform_actions(self, events, actions: List[Action]):
       for a in actions:

@@ -36,6 +36,7 @@ class State:
 @dataclass(frozen=True)
 class StateOptimization:
     state_id: int
+    state_id_bitmap: Bitmap
     full_name: str
     ancestors: List[State] # order: close to far away, i.e. first element is parent
     descendants: List[State]  # order: breadth-first
@@ -90,6 +91,9 @@ class EventTrigger:
 
     def __post_init__(self):
         self.bitmap = bit(self.id)
+
+    def check(self, events_bitmap: Bitmap) -> bool:
+        return (self.bitmap & events_bitmap) == self.bitmap
 
     def render(self) -> str:
         if self.port:
@@ -181,6 +185,7 @@ class StateTree:
 
             state.gen = StateOptimization(
                 state_id=state_id,
+                state_id_bitmap=bit(state_id),
                 full_name=full_name,
                 ancestors=ancestors,
                 descendants=descendants,

@@ -86,6 +86,11 @@ class EventTrigger:
     name: str # event name
     port: str
 
+    bitmap: Bitmap = None
+
+    def __post_init__(self):
+        self.bitmap = bit(self.id)
+
     def render(self) -> str:
         if self.port:
             return self.port+'.'+self.name
@@ -102,7 +107,6 @@ class AfterTrigger(EventTrigger):
 
     def render(self) -> str:
         return "after("+self.delay.render()+")"
-
 
 @dataclass
 class Transition:
@@ -191,7 +195,7 @@ class StateTree:
         init_state(root, "", [])
         self.root = root
 
-        def init_transition(t: Transition):
+        for t in self.transition_list:
             # the least-common ancestor can be computed statically
             if t.source in t.targets[0].gen.ancestors:
                 lca = t.source
@@ -207,6 +211,3 @@ class StateTree:
             t.gen = TransitionOptimization(
                 lca=lca,
                 arena_bitmap=lca.gen.descendant_bitmap.set(lca.gen.state_id))
-
-        for t in self.transition_list:
-            init_transition(t)

@@ -134,9 +134,11 @@ class ActionParser(XmlParser):
     name = el.get("event")
     port = el.get("port")
     if not port:
+      # internal event
       event_id = globals.events.assign_id(name)
       a = RaiseInternalEvent(name=name, parameters=[], event_id=event_id)
     else:
+      # output event - no ID in global namespace
       globals.outports.assign_id(port)
       a = RaiseOutputEvent(name=name, parameters=[], outport=port, time_offset=0)
     actions.append(a)
@@ -282,11 +284,14 @@ class TreeParser(StateParser):
     next_after_id = 0
     transitions = self.transitions.pop()
     for t_el, source, actions in transitions:
-      target_string = t_el.get("target", "")
+      target_string = t_el.get("target")
       event = t_el.get("event")
       port = t_el.get("port")
       after = t_el.get("after")
       cond = t_el.get("cond")
+
+      if target_string is None:
+        self._raise(t_el, "Missing mandatory attribute: 'target'.", None)
 
       try:
         # Parse and find target state
@@ -317,6 +322,8 @@ class TreeParser(StateParser):
 
       # Trigger
       if after is not None:
+        if event is not None:
+          self._raise(t_el, "Can only specify one of attributes 'after', 'event'.", None)
         try:
           after_expr = parse_expression(globals, expr=after)
           after_type = after_expr.init_rvalue(scope)
@@ -331,7 +338,11 @@ class TreeParser(StateParser):
         except Exception as e:
           self._raise(t_el, "after=\"%s\": %s" % (after, str(e)), e)
       elif event is not None:
-        trigger = EventTrigger(globals.events.assign_id(event), event, port)
+        if port is None:
+          event_id = globals.events.assign_id(event)
+        else:
+          event_id = globals.events.assign_id(port + '.' + event)
+        trigger = EventTrigger(event_id, event, port)
         globals.inports.assign_id(port)
       else:
         trigger = None

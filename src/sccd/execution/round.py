@@ -11,6 +11,7 @@ class CandidatesGenerator:
 
 class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
     def generate(self, state, enabled_events: List[Event], arenas_changed: Bitmap) -> Iterable[Transition]:
+        # events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
         key = (state.configuration_bitmap, arenas_changed)
 
         try:
@@ -28,7 +29,7 @@ class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
             if not t.trigger:
                 return True
             for e in enabled_events:
-                if t.trigger.id == e.id and (not t.trigger.port or t.trigger.port == e.port):
+                if t.trigger.id == e.id:
                     return True
             return False
 

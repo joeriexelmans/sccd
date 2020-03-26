@@ -1,9 +1,11 @@
 <?xml version="1.0" ?>
 <statechart>
-  <semantics />
+  <!-- day & atlee dictates "whole", had to add "next_small_step" myself-->
+  <semantics
+    input_event_lifeline="whole"
+    internal_event_lifeline="next_small_step"/>
 
   <datamodel>
-    <var id="c" expr="0"/>
   </datamodel>
 
   <tree>

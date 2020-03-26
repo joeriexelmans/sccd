@@ -25,23 +25,24 @@ class StatechartInstance(Instance):
 
         small_step = SmallStep(termcolor.colored("small", 'blue'), None, generator)
 
-        # Always add a layer of 'fairness' above our small steps, so
-        # orthogonal transitions take turns fairly.
-        combo_one = SuperRound(termcolor.colored("combo_one", 'magenta'), small_step, take_one=True)
 
         if semantics.big_step_maximality == BigStepMaximality.TAKE_ONE:
-            self._big_step = combo_step = combo_one # No combo steps
+            self._big_step = combo_step = SuperRound(termcolor.colored("big_one", 'red'), small_step, take_one=True) # No combo steps
 
         elif semantics.big_step_maximality == BigStepMaximality.TAKE_MANY:
+            # Always add a layer of 'fairness' above our small steps, so
+            # orthogonal transitions take turns fairly.
+            combo_one = SuperRound(termcolor.colored("combo_one", 'magenta'), small_step, take_one=True)
 
             if semantics.combo_step_maximality == ComboStepMaximality.COMBO_TAKE_ONE:
                 # Fairness round becomes our combo step round
                 combo_step = combo_one
+
             elif semantics.combo_step_maximality == ComboStepMaximality.COMBO_TAKE_MANY:
                 # Add even more layers, basically an onion at this point.
-                combo_step = SuperRound(termcolor.colored("combo_many", 'cyan'), combo_one, take_one=False)
+                combo_step = SuperRound(termcolor.colored("combo_many", 'cyan'), combo_one, take_one=False, limit=1000)
 
-            self._big_step = SuperRound(termcolor.colored("big_many", 'red'), combo_step, take_one=False)
+            self._big_step = SuperRound(termcolor.colored("big_many", 'red'), combo_step, take_one=False, limit=1000)
 
         def whole(input):
             self._big_step.remainder_events = input
@@ -59,6 +60,7 @@ class StatechartInstance(Instance):
         }[semantics.input_event_lifeline]
 
         raise_internal = {
+            # InternalEventLifeline.QUEUE: self._big_step.add_next_event,
             InternalEventLifeline.QUEUE: lambda e: self.state.output.append(OutputEvent(e, InstancesTarget([self]))),
             InternalEventLifeline.NEXT_COMBO_STEP: combo_step.add_next_event,
             InternalEventLifeline.NEXT_SMALL_STEP: small_step.add_next_event

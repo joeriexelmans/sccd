@@ -97,18 +97,23 @@ class Round(ABC):
 
 # Examples: Big step, combo step
 class SuperRound(Round):
-    def __init__(self, name, subround: Round, take_one: bool):
+    def __init__(self, name, subround: Round, take_one: bool, limit: Optional[int] = None):
         super().__init__(name)
         self.subround = subround
         subround.parent = self
         self.take_one = take_one
+        self.limit = limit
     
     def _internal_run(self, arenas_changed: Bitmap) -> Bitmap:
+        subrounds = 0
         while True:
             if self.take_one:
                 changed = self.subround.run(arenas_changed)
             else:
+                if self.limit and subrounds == self.limit:
+                    raise Exception("%s: Limit reached! (%d×%s) Possibly a never-ending big step." % (self.name, self.limit, self.subround.name))
                 changed = self.subround.run()
+                subrounds += 1
             if not changed:
                 break
             arenas_changed |= changed

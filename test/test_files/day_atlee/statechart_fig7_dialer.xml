@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<statechart>
+  <semantics input_event_lifeline="whole"/>
+
+  <datamodel>
+    <var id="c" expr="0"/>
+  </datamodel>
+
+  <tree>
+    <state initial="D">
+      <state id="D">
+        <transition port="in" event="dial" cond="c &lt; 10" target=".">
+          <parameter name="d" />
+          <code> c += 1; </code>
+          <raise port="out" event="out">
+            <parameter expr="d"/>
+          </raise>
+        </transition>
+      </state>
+    </state>
+  </tree>
+</statechart>

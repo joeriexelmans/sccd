@@ -15,14 +15,14 @@
 <text text-anchor="start" x="247.6646" y="-346.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">p</text>
 </g>
 <g id="clust2" class="cluster">
-<title>cluster__p_increment</title>
-<polygon fill="none" stroke="#000000" stroke-dasharray="5,2" points="158,-152 158,-327 486,-327 486,-152 158,-152"/>
-<text text-anchor="start" x="295.6648" y="-308.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">increment</text>
+<title>cluster__p_status</title>
+<polygon fill="none" stroke="#000000" stroke-dasharray="5,2" points="360,-16 360,-327 486,-327 486,-16 360,-16"/>
+<text text-anchor="start" x="406.9944" y="-308.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">status</text>
 </g>
 <g id="clust3" class="cluster">
-<title>cluster__p_status</title>
-<polygon fill="none" stroke="#000000" stroke-dasharray="5,2" points="24,-16 24,-327 150,-327 150,-16 24,-16"/>
-<text text-anchor="start" x="70.9944" y="-308.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">status</text>
+<title>cluster__p_increment</title>
+<polygon fill="none" stroke="#000000" stroke-dasharray="5,2" points="24,-152 24,-327 352,-327 352,-152 24,-152"/>
+<text text-anchor="start" x="161.6648" y="-308.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">increment</text>
 </g>
 <!-- __initial -->
 <g id="node1" class="node">
@@ -37,68 +37,68 @@
 <polygon fill="#000000" stroke="#000000" points="19.5001,-374.9971 16,-364.9971 12.5001,-374.9972 19.5001,-374.9971"/>
 <text text-anchor="middle" x="17.3895" y="-376" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000"> </text>
 </g>
-<!-- _p_increment -->
-<!-- _p_increment_initial -->
-<g id="node4" class="node">
-<title>_p_increment_initial</title>
-<ellipse fill="#000000" stroke="#000000" stroke-width="2" cx="194" cy="-283.5" rx="5.5" ry="5.5"/>
-</g>
-<!-- _p_increment_a -->
-<g id="node5" class="node">
-<title>_p_increment_a</title>
-<polygon fill="transparent" stroke="transparent" stroke-width="2" points="222,-196 166,-196 166,-160 222,-160 222,-196"/>
-<text text-anchor="start" x="190.6646" y="-174.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">a</text>
-<path fill="none" stroke="#000000" stroke-width="2" d="M178.3333,-161C178.3333,-161 209.6667,-161 209.6667,-161 215.3333,-161 221,-166.6667 221,-172.3333 221,-172.3333 221,-183.6667 221,-183.6667 221,-189.3333 215.3333,-195 209.6667,-195 209.6667,-195 178.3333,-195 178.3333,-195 172.6667,-195 167,-189.3333 167,-183.6667 167,-183.6667 167,-172.3333 167,-172.3333 167,-166.6667 172.6667,-161 178.3333,-161"/>
-</g>
-<!-- _p_increment_initial&#45;&gt;_p_increment_a -->
-<g id="edge2" class="edge">
-<title>_p_increment_initial&#45;&gt;_p_increment_a</title>
-<path fill="none" stroke="#000000" d="M194,-277.8288C194,-273.1736 194,-266.4097 194,-260.5 194,-260.5 194,-260.5 194,-213.5 194,-211.1079 194,-208.6252 194,-206.1342"/>
-<polygon fill="#000000" stroke="#000000" points="197.5001,-206.0597 194,-196.0598 190.5001,-206.0598 197.5001,-206.0597"/>
-<text text-anchor="middle" x="195.3895" y="-234" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000"> </text>
-</g>
-<!-- _p_increment_a&#45;&gt;_p_increment_a -->
-<g id="edge3" class="edge">
-<title>_p_increment_a&#45;&gt;_p_increment_a</title>
-<path fill="none" stroke="#000000" d="M222.0183,-182.8247C233.888,-183.1883 244,-181.5801 244,-178 244,-175.5387 239.2205,-174.0094 232.3762,-173.4121"/>
-<polygon fill="#000000" stroke="#000000" points="232.0957,-169.9049 222.0183,-173.1753 231.9356,-176.903 232.0957,-169.9049"/>
-<text text-anchor="start" x="244" y="-175" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">in.e [not INSTATE([&quot;/p/status/done&quot;])]^out.inc /i += 1 &#160;&#160;</text>
-</g>
 <!-- _p_status -->
 <!-- _p_status_initial -->
-<g id="node7" class="node">
+<g id="node4" class="node">
 <title>_p_status_initial</title>
-<ellipse fill="#000000" stroke="#000000" stroke-width="2" cx="87" cy="-283.5" rx="5.5" ry="5.5"/>
+<ellipse fill="#000000" stroke="#000000" stroke-width="2" cx="423" cy="-283.5" rx="5.5" ry="5.5"/>
 </g>
 <!-- _p_status_counting -->
-<g id="node8" class="node">
+<g id="node6" class="node">
 <title>_p_status_counting</title>
-<polygon fill="transparent" stroke="transparent" stroke-width="2" points="120.5,-196 53.5,-196 53.5,-160 120.5,-160 120.5,-196"/>
-<text text-anchor="start" x="64.8242" y="-174.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">counting</text>
-<path fill="none" stroke="#000000" stroke-width="2" d="M65.8333,-161C65.8333,-161 108.1667,-161 108.1667,-161 113.8333,-161 119.5,-166.6667 119.5,-172.3333 119.5,-172.3333 119.5,-183.6667 119.5,-183.6667 119.5,-189.3333 113.8333,-195 108.1667,-195 108.1667,-195 65.8333,-195 65.8333,-195 60.1667,-195 54.5,-189.3333 54.5,-183.6667 54.5,-183.6667 54.5,-172.3333 54.5,-172.3333 54.5,-166.6667 60.1667,-161 65.8333,-161"/>
+<polygon fill="transparent" stroke="transparent" stroke-width="2" points="456.5,-196 389.5,-196 389.5,-160 456.5,-160 456.5,-196"/>
+<text text-anchor="start" x="400.8242" y="-174.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">counting</text>
+<path fill="none" stroke="#000000" stroke-width="2" d="M401.8333,-161C401.8333,-161 444.1667,-161 444.1667,-161 449.8333,-161 455.5,-166.6667 455.5,-172.3333 455.5,-172.3333 455.5,-183.6667 455.5,-183.6667 455.5,-189.3333 449.8333,-195 444.1667,-195 444.1667,-195 401.8333,-195 401.8333,-195 396.1667,-195 390.5,-189.3333 390.5,-183.6667 390.5,-183.6667 390.5,-172.3333 390.5,-172.3333 390.5,-166.6667 396.1667,-161 401.8333,-161"/>
 </g>
 <!-- _p_status_initial&#45;&gt;_p_status_counting -->
-<g id="edge4" class="edge">
+<g id="edge2" class="edge">
 <title>_p_status_initial&#45;&gt;_p_status_counting</title>
-<path fill="none" stroke="#000000" d="M87,-277.8288C87,-273.1736 87,-266.4097 87,-260.5 87,-260.5 87,-260.5 87,-213.5 87,-211.1079 87,-208.6252 87,-206.1342"/>
-<polygon fill="#000000" stroke="#000000" points="90.5001,-206.0597 87,-196.0598 83.5001,-206.0598 90.5001,-206.0597"/>
-<text text-anchor="middle" x="88.3895" y="-234" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000"> </text>
+<path fill="none" stroke="#000000" d="M423,-277.8288C423,-273.1736 423,-266.4097 423,-260.5 423,-260.5 423,-260.5 423,-213.5 423,-211.1079 423,-208.6252 423,-206.1342"/>
+<polygon fill="#000000" stroke="#000000" points="426.5001,-206.0597 423,-196.0598 419.5001,-206.0598 426.5001,-206.0597"/>
+<text text-anchor="middle" x="424.3895" y="-234" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000"> </text>
 </g>
 <!-- _p_status_done -->
-<g id="node9" class="node">
+<g id="node5" class="node">
 <title>_p_status_done</title>
-<polygon fill="transparent" stroke="transparent" stroke-width="2" points="142.5,-70 31.5,-70 31.5,-24 142.5,-24 142.5,-70"/>
-<text text-anchor="start" x="74.1584" y="-53.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">done</text>
-<text text-anchor="start" x="37.9982" y="-33.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">onentry/ ^out.done</text>
-<polygon fill="#000000" stroke="#000000" points="32,-47 32,-47 143,-47 143,-47 32,-47"/>
-<path fill="none" stroke="#000000" stroke-width="2" d="M44.5,-25C44.5,-25 129.5,-25 129.5,-25 135.5,-25 141.5,-31 141.5,-37 141.5,-37 141.5,-57 141.5,-57 141.5,-63 135.5,-69 129.5,-69 129.5,-69 44.5,-69 44.5,-69 38.5,-69 32.5,-63 32.5,-57 32.5,-57 32.5,-37 32.5,-37 32.5,-31 38.5,-25 44.5,-25"/>
+<polygon fill="transparent" stroke="transparent" stroke-width="2" points="478.5,-70 367.5,-70 367.5,-24 478.5,-24 478.5,-70"/>
+<text text-anchor="start" x="410.1584" y="-53.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">done</text>
+<text text-anchor="start" x="373.9982" y="-33.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">onentry/ ^out.done</text>
+<polygon fill="#000000" stroke="#000000" points="368,-47 368,-47 479,-47 479,-47 368,-47"/>
+<path fill="none" stroke="#000000" stroke-width="2" d="M380.5,-25C380.5,-25 465.5,-25 465.5,-25 471.5,-25 477.5,-31 477.5,-37 477.5,-37 477.5,-57 477.5,-57 477.5,-63 471.5,-69 465.5,-69 465.5,-69 380.5,-69 380.5,-69 374.5,-69 368.5,-63 368.5,-57 368.5,-57 368.5,-37 368.5,-37 368.5,-31 374.5,-25 380.5,-25"/>
 </g>
 <!-- _p_status_counting&#45;&gt;_p_status_done -->
-<g id="edge5" class="edge">
+<g id="edge3" class="edge">
 <title>_p_status_counting&#45;&gt;_p_status_done</title>
-<path fill="none" stroke="#000000" d="M87,-159.7983C87,-152.007 87,-142.8073 87,-134.5 87,-134.5 87,-134.5 87,-87.5 87,-85.127 87,-82.6757 87,-80.2081"/>
-<polygon fill="#000000" stroke="#000000" points="90.5001,-80.1306 87,-70.1306 83.5001,-80.1306 90.5001,-80.1306"/>
-<text text-anchor="start" x="87" y="-108" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">[i == 2] &#160;&#160;</text>
+<path fill="none" stroke="#000000" d="M423,-159.7983C423,-152.007 423,-142.8073 423,-134.5 423,-134.5 423,-134.5 423,-87.5 423,-85.127 423,-82.6757 423,-80.2081"/>
+<polygon fill="#000000" stroke="#000000" points="426.5001,-80.1306 423,-70.1306 419.5001,-80.1306 426.5001,-80.1306"/>
+<text text-anchor="start" x="423" y="-108" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">[i == 2] &#160;&#160;</text>
+</g>
+<!-- _p_increment -->
+<!-- _p_increment_initial -->
+<g id="node8" class="node">
+<title>_p_increment_initial</title>
+<ellipse fill="#000000" stroke="#000000" stroke-width="2" cx="60" cy="-283.5" rx="5.5" ry="5.5"/>
+</g>
+<!-- _p_increment_a -->
+<g id="node9" class="node">
+<title>_p_increment_a</title>
+<polygon fill="transparent" stroke="transparent" stroke-width="2" points="88,-196 32,-196 32,-160 88,-160 88,-196"/>
+<text text-anchor="start" x="56.6646" y="-174.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">a</text>
+<path fill="none" stroke="#000000" stroke-width="2" d="M44.3333,-161C44.3333,-161 75.6667,-161 75.6667,-161 81.3333,-161 87,-166.6667 87,-172.3333 87,-172.3333 87,-183.6667 87,-183.6667 87,-189.3333 81.3333,-195 75.6667,-195 75.6667,-195 44.3333,-195 44.3333,-195 38.6667,-195 33,-189.3333 33,-183.6667 33,-183.6667 33,-172.3333 33,-172.3333 33,-166.6667 38.6667,-161 44.3333,-161"/>
+</g>
+<!-- _p_increment_initial&#45;&gt;_p_increment_a -->
+<g id="edge4" class="edge">
+<title>_p_increment_initial&#45;&gt;_p_increment_a</title>
+<path fill="none" stroke="#000000" d="M60,-277.8288C60,-273.1736 60,-266.4097 60,-260.5 60,-260.5 60,-260.5 60,-213.5 60,-211.1079 60,-208.6252 60,-206.1342"/>
+<polygon fill="#000000" stroke="#000000" points="63.5001,-206.0597 60,-196.0598 56.5001,-206.0598 63.5001,-206.0597"/>
+<text text-anchor="middle" x="61.3895" y="-234" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000"> </text>
+</g>
+<!-- _p_increment_a&#45;&gt;_p_increment_a -->
+<g id="edge5" class="edge">
+<title>_p_increment_a&#45;&gt;_p_increment_a</title>
+<path fill="none" stroke="#000000" d="M88.0183,-182.8247C99.888,-183.1883 110,-181.5801 110,-178 110,-175.5387 105.2205,-174.0094 98.3762,-173.4121"/>
+<polygon fill="#000000" stroke="#000000" points="98.0957,-169.9049 88.0183,-173.1753 97.9356,-176.903 98.0957,-169.9049"/>
+<text text-anchor="start" x="110" y="-175" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">in.e [not INSTATE([&quot;/p/status/done&quot;])]^out.inc /i += 1 &#160;&#160;</text>
 </g>
 </g>
 </svg>

@@ -35,122 +35,129 @@ if __name__ == '__main__':
       exit()
 
     def process(src):
-      parser = StatechartParser(load_external = False)
-      parser.globals.push(Globals(fixed_delta = None))
-      parser.statecharts.push([])
-      parser.parse(src)
-      statecharts = parser.statecharts.pop()
-      if len(statecharts) != 1:
-        return # no statechart here :(
+      try:
+        parser = StatechartParser(load_external = False)
+        parser.globals.push(Globals(fixed_delta = None))
+        parser.statecharts.push([])
+        parser.parse(src)
+        statecharts = parser.statecharts.pop()
+        if len(statecharts) != 1:
+          return # no statechart here :(
 
-      statechart = statecharts[0]
-      root = statechart.tree.root
+        statechart = statecharts[0]
+        root = statechart.tree.root
 
-      target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+ext)
-      smcat_target = target_path('.smcat')
-      svg_target = target_path('.svg')
-      
-      make_dirs(smcat_target)
+        target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+ext)
+        smcat_target = target_path('.smcat')
+        svg_target = target_path('.svg')
+        
+        make_dirs(smcat_target)
 
-      f = open(smcat_target, 'w')
-      w = IndentingWriter(f)
+        f = open(smcat_target, 'w')
+        w = IndentingWriter(f)
 
-      def name_to_label(name):
-        label = name.split('/')[-1]
-        return label if len(label) else "root"
-      def name_to_name(name):
-        return name.replace('/','_')
+        def name_to_label(name):
+          label = name.split('/')[-1]
+          return label if len(label) else "root"
+        def name_to_name(name):
+          return name.replace('/','_')
 
-      # Used for drawing initial state
-      class PseudoState:
-        @dataclass
-        class Gen:
-          full_name: str
-        def __init__(self, name):
-          self.gen = PseudoState.Gen(name)
-      # Used for drawing initial state
-      class PseudoTransition:
-        def __init__(self, source, targets):
-          self.source = source
-          self.targets = targets
-          self.guard = None
-          self.trigger = None
-          self.actions = []
+        # Used for drawing initial state
+        class PseudoState:
+          @dataclass
+          class Gen:
+            full_name: str
+          def __init__(self, name):
+            self.gen = PseudoState.Gen(name)
+        # Used for drawing initial state
+        class PseudoTransition:
+          def __init__(self, source, targets):
+            self.source = source
+            self.targets = targets
+            self.guard = None
+            self.trigger = None
+            self.actions = []
 
-      transitions = []
+        transitions = []
 
-      def write_state(s, hide=False):
-        if not hide:
-          w.write(name_to_name(s.gen.full_name))
-          w.extendWrite(' [label="')
-          w.extendWrite(name_to_label(s.gen.full_name))
-          w.extendWrite('"')
-          if isinstance(s, ParallelState):
-            w.extendWrite(' type=parallel')
-          elif isinstance(s, ShallowHistoryState):
-            w.extendWrite(' type=history')
-          elif isinstance(s, DeepHistoryState):
-            w.extendWrite(' type=deephistory')
-          else:
-            w.extendWrite(' type=regular')
-          w.extendWrite(']')
-        if s.enter or s.exit:
-          w.extendWrite(' :')
-          for a in s.enter:
-            w.write("onentry/ "+a.render())
-          for a in s.exit:
-            w.write("onexit/ "+a.render())
-          w.write()
-        if s.children:
+        def write_state(s, hide=False):
           if not hide:
-            w.extendWrite(' {')
-            w.indent()
-          if s.default_state:
-            w.write(name_to_name(s.gen.full_name)+'_initial [type=initial],')
-            transitions.append(PseudoTransition(source=PseudoState(s.gen.full_name+'/initial'), targets=[s.default_state]))
-          for i, c in enumerate(s.children):
-            write_state(c)
-            w.extendWrite(',' if i < len(s.children)-1 else ';')
-          if not hide:
-            w.dedent()
-            w.write('}')
-        transitions.extend(s.transitions)
+            w.write(name_to_name(s.gen.full_name))
+            w.extendWrite(' [label="')
+            w.extendWrite(name_to_label(s.gen.full_name))
+            w.extendWrite('"')
+            if isinstance(s, ParallelState):
+              w.extendWrite(' type=parallel')
+            elif isinstance(s, ShallowHistoryState):
+              w.extendWrite(' type=history')
+            elif isinstance(s, DeepHistoryState):
+              w.extendWrite(' type=deephistory')
+            else:
+              w.extendWrite(' type=regular')
+            w.extendWrite(']')
+          if s.enter or s.exit:
+            w.extendWrite(' :')
+            for a in s.enter:
+              w.write("onentry/ "+a.render())
+            for a in s.exit:
+              w.write("onexit/ "+a.render())
+            w.write()
+          if s.children:
+            if not hide:
+              w.extendWrite(' {')
+              w.indent()
+            if s.default_state:
+              w.write(name_to_name(s.gen.full_name)+'_initial [type=initial],')
+              transitions.append(PseudoTransition(source=PseudoState(s.gen.full_name+'/initial'), targets=[s.default_state]))
+            s.children.reverse() # this appears to put orthogonal components in the right order :)
+            for i, c in enumerate(s.children):
+              write_state(c)
+              w.extendWrite(',' if i < len(s.children)-1 else ';')
+            if not hide:
+              w.dedent()
+              w.write('}')
+          transitions.extend(s.transitions)
 
-      write_state(root, hide=True)
+        write_state(root, hide=True)
 
-      ctr = 0
-      for t in transitions:
-        label = ""
-        if t.trigger:
-          label += t.trigger.render()
-        if t.guard:
-          label += ' ['+t.guard.render()+']'
-        if t.actions:
-          label += ' '.join(a.render() for a in t.actions)
+        ctr = 0
+        for t in transitions:
+          label = ""
+          if t.trigger:
+            label += t.trigger.render()
+          if t.guard:
+            label += ' ['+t.guard.render()+']'
+          if t.actions:
+            label += ' '.join(a.render() for a in t.actions)
 
-        if len(t.targets) == 1:
-          w.write(name_to_name(t.source.gen.full_name) + ' -> ' + name_to_name(t.targets[0].gen.full_name))
-          if label:
-            w.extendWrite(': '+label)
-          w.extendWrite(';')
-        else:
-          w.write(name_to_name(t.source.gen.full_name) + ' -> ' + ']split'+str(ctr))
-          if label:
+          if len(t.targets) == 1:
+            w.write(name_to_name(t.source.gen.full_name) + ' -> ' + name_to_name(t.targets[0].gen.full_name))
+            if label:
               w.extendWrite(': '+label)
-          w.extendWrite(';')
-          for tt in t.targets:
-            w.write(']split'+str(ctr) + ' -> ' + name_to_name(tt.gen.full_name))
             w.extendWrite(';')
-          ctr += 1
+          else:
+            w.write(name_to_name(t.source.gen.full_name) + ' -> ' + ']split'+str(ctr))
+            if label:
+                w.extendWrite(': '+label)
+            w.extendWrite(';')
+            for tt in t.targets:
+              w.write(']split'+str(ctr) + ' -> ' + name_to_name(tt.gen.full_name))
+              w.extendWrite(';')
+            ctr += 1
 
-      f.close()
-      if args.keep_smcat:
-        print("Wrote "+smcat_target)
-      if not args.no_svg:
-        subprocess.run(["state-machine-cat", smcat_target, "-o", svg_target])
-        print("Wrote "+svg_target)
-      if not args.keep_smcat:
-        os.remove(smcat_target)
+        f.close()
+        if args.keep_smcat:
+          print("Wrote "+smcat_target)
+        if not args.no_svg:
+          subprocess.run(["state-machine-cat", smcat_target, "-o", svg_target])
+          print("Wrote "+svg_target)
+        if not args.keep_smcat:
+          os.remove(smcat_target)
+          
+      except Exception as e:
+        # import traceback
+        # traceback.print_exception(type(e), e, None)
+        print(e,'\n')
 
     pool_size = min(args.pool_size, len(srcs))
     with multiprocessing.Pool(processes=pool_size) as pool:

@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="statechart_fig7_dialer.xml">
+    <override_semantics big_step_maximality="take_one"/>
+  </statechart>
+
+  <input>
+    <input_event port="in" name="dial" time="0 d">
+    </input_event>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="out">
+        <!-- <parameter /> -->
+      </event>
+    </big_step>
+  </output>
+</test>

@@ -198,7 +198,10 @@ class StateParser(ActionParser):
 
     initial = el.get("initial", None)
     if initial is not None:
-      state.default_state = state_children[initial]
+      try:
+        state.default_state = state_children[initial]
+      except KeyError as e:
+        raise Exception("initial=\"%s\": not a child." % (initial)) from e
     elif len(state.children) == 1:
       state.default_state = state.children[0]
     elif len(state.children) > 1:

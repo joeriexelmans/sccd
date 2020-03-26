@@ -1,0 +1,18 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics/>
+    <datamodel/>
+
+    <tree>
+      <!-- initial doesn't exist -->
+      <state initial="c">
+        <state id="a"/>
+        <state id="b"/>
+      </state>
+    </tree>
+  </statechart>
+
+  <output>
+  </output>
+</test>

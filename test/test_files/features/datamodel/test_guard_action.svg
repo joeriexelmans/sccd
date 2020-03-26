@@ -15,7 +15,7 @@
 <ellipse fill="#000000" stroke="#000000" stroke-width="2" cx="55.5" cy="-143.5" rx="5.5" ry="5.5"/>
 </g>
 <!-- _counting -->
-<g id="node2" class="node">
+<g id="node3" class="node">
 <title>_counting</title>
 <polygon fill="transparent" stroke="transparent" stroke-width="2" points="89,-110 22,-110 22,-74 89,-74 89,-110"/>
 <text text-anchor="start" x="33.3242" y="-88.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">counting</text>
@@ -27,6 +27,22 @@
 <path fill="none" stroke="#000000" d="M55.5,-137.9886C55.5,-133.6293 55.5,-127.1793 55.5,-120.4801"/>
 <polygon fill="#000000" stroke="#000000" points="59.0001,-120.0122 55.5,-110.0122 52.0001,-120.0122 59.0001,-120.0122"/>
 <text text-anchor="middle" x="56.8895" y="-121" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000"> </text>
+</g>
+<!-- _done -->
+<g id="node2" class="node">
+<title>_done</title>
+<polygon fill="transparent" stroke="transparent" stroke-width="2" points="111,-46 0,-46 0,0 111,0 111,-46"/>
+<text text-anchor="start" x="42.6584" y="-29.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">done</text>
+<text text-anchor="start" x="6.4982" y="-9.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">onentry/ ^out.done</text>
+<polygon fill="#000000" stroke="#000000" points=".5,-23 .5,-23 111.5,-23 111.5,-23 .5,-23"/>
+<path fill="none" stroke="#000000" stroke-width="2" d="M13,-1C13,-1 98,-1 98,-1 104,-1 110,-7 110,-13 110,-13 110,-33 110,-33 110,-39 104,-45 98,-45 98,-45 13,-45 13,-45 7,-45 1,-39 1,-33 1,-33 1,-13 1,-13 1,-7 7,-1 13,-1"/>
+</g>
+<!-- _counting&#45;&gt;_done -->
+<g id="edge4" class="edge">
+<title>_counting&#45;&gt;_done</title>
+<path fill="none" stroke="#000000" d="M55.5,-73.8711C55.5,-68.4482 55.5,-62.3229 55.5,-56.2494"/>
+<polygon fill="#000000" stroke="#000000" points="59.0001,-56.21 55.5,-46.21 52.0001,-56.21 59.0001,-56.21"/>
+<text text-anchor="start" x="55.5" y="-57" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">[x == 3] &#160;&#160;</text>
 </g>
 <!-- _counting&#45;&gt;_counting -->
 <g id="edge2" class="edge">
@@ -41,22 +57,6 @@
 <path fill="none" stroke="#000000" d="M89.2372,-97.443C112.4222,-99.0331 135.453,-97.2188 135.453,-92 135.453,-87.5559 118.752,-85.5806 99.4768,-86.074"/>
 <polygon fill="#000000" stroke="#000000" points="99.0611,-82.5896 89.2372,-86.557 99.391,-89.5818 99.0611,-82.5896"/>
 <text text-anchor="start" x="135.453" y="-89" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">[x &lt; 3]/x += 1 &#160;^out.inc &#160;&#160;</text>
-</g>
-<!-- _done -->
-<g id="node3" class="node">
-<title>_done</title>
-<polygon fill="transparent" stroke="transparent" stroke-width="2" points="111,-46 0,-46 0,0 111,0 111,-46"/>
-<text text-anchor="start" x="42.6584" y="-29.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">done</text>
-<text text-anchor="start" x="6.4982" y="-9.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">onentry/ ^out.done</text>
-<polygon fill="#000000" stroke="#000000" points=".5,-23 .5,-23 111.5,-23 111.5,-23 .5,-23"/>
-<path fill="none" stroke="#000000" stroke-width="2" d="M13,-1C13,-1 98,-1 98,-1 104,-1 110,-7 110,-13 110,-13 110,-33 110,-33 110,-39 104,-45 98,-45 98,-45 13,-45 13,-45 7,-45 1,-39 1,-33 1,-33 1,-13 1,-13 1,-7 7,-1 13,-1"/>
-</g>
-<!-- _counting&#45;&gt;_done -->
-<g id="edge4" class="edge">
-<title>_counting&#45;&gt;_done</title>
-<path fill="none" stroke="#000000" d="M55.5,-73.8711C55.5,-68.4482 55.5,-62.3229 55.5,-56.2494"/>
-<polygon fill="#000000" stroke="#000000" points="59.0001,-56.21 55.5,-46.21 52.0001,-56.21 59.0001,-56.21"/>
-<text text-anchor="start" x="55.5" y="-57" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">[x == 3] &#160;&#160;</text>
 </g>
 </g>
 </svg>

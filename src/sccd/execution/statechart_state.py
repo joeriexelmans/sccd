@@ -91,7 +91,7 @@ class StatechartState:
         self.eventless_states -= s.gen.has_eventless_transitions
         # execute exit action(s)
         self._perform_actions(events, s.exit)
-        self.configuration_bitmap &= ~bit(s.gen.state_id)
+        self.configuration_bitmap &= ~s.gen.state_id_bitmap
             
     # execute transition action(s)
     self._perform_actions(events, t.actions)
@@ -102,7 +102,7 @@ class StatechartState:
     for s in enter_set:
         print_debug(termcolor.colored('  ENTER %s' % s.gen.full_name, 'green'))
         self.eventless_states += s.gen.has_eventless_transitions
-        self.configuration_bitmap |= bit(s.gen.state_id)
+        self.configuration_bitmap |= s.gen.state_id_bitmap
         # execute enter action(s)
         self._perform_actions(events, s.enter)
         self._start_timers(s.gen.after_triggers)
@@ -116,7 +116,7 @@ class StatechartState:
   def check_guard(self, t, events) -> bool:
       # Special case: after trigger
       if isinstance(t.trigger, AfterTrigger):
-        e = [e for e in events if e.id == t.trigger.id][0]
+        e = [e for e in events if bit(e.id) & t.trigger.bitmap][0]
         if self.timer_ids[t.trigger.after_id] != e.parameters[0]:
           return False
 

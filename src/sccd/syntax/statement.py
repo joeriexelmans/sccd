@@ -5,7 +5,7 @@ from sccd.syntax.expression import *
 class Statement(ABC):
     # Execution typically has side effects.
     @abstractmethod
-    def exec(self, current_state, events, datamodel):
+    def exec(self, current_state, events, memory):
         pass
 
     @abstractmethod
@@ -26,14 +26,14 @@ class Assignment(Statement):
         rhs_t = self.rhs.init_rvalue(scope)
         self.lhs.init_lvalue(scope, rhs_t)
 
-    def exec(self, current_state, events, datamodel):
-        val = self.rhs.eval(current_state, events, datamodel)
-        offset = self.lhs.eval_lvalue(current_state, events, datamodel).offset
+    def exec(self, current_state, events, memory):
+        val = self.rhs.eval(current_state, events, memory)
+        offset = self.lhs.eval_lvalue(current_state, events, memory).offset
 
         def load():
-            return datamodel.load(offset)
+            return memory.load(offset)
         def store(val):
-            datamodel.store(offset, val)
+            memory.store(offset, val)
 
         def assign():
             store(val)
@@ -66,9 +66,9 @@ class Block(Statement):
         for stmt in self.stmts:
             stmt.init_stmt(local_scope)
 
-    def exec(self, current_state, events, datamodel):
+    def exec(self, current_state, events, memory):
         for stmt in self.stmts:
-            stmt.exec(current_state, events, datamodel)
+            stmt.exec(current_state, events, memory)
 
     def render(self) -> str:
         result = ""
@@ -84,8 +84,8 @@ class ExpressionStatement(Statement):
     def init_stmt(self, scope):
         self.expr.init_rvalue(scope)
 
-    def exec(self, current_state, events, datamodel):
-        self.expr.eval(current_state, events, datamodel)
+    def exec(self, current_state, events, memory):
+        self.expr.eval(current_state, events, memory)
 
     def render(self) -> str:
         return self.expr.render()

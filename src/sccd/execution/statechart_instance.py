@@ -7,7 +7,7 @@ from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
 from sccd.execution.round import *
 from sccd.execution.statechart_state import *
-from sccd.execution.storage import *
+from sccd.execution.memory import *
 
 class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager):
@@ -63,29 +63,31 @@ class StatechartInstance(Instance):
             # InternalEventLifeline.QUEUE: self._big_step.add_next_event,
             InternalEventLifeline.QUEUE: lambda e: self.state.output.append(OutputEvent(e, InstancesTarget([self]))),
             InternalEventLifeline.NEXT_COMBO_STEP: combo_step.add_next_event,
-            InternalEventLifeline.NEXT_SMALL_STEP: small_step.add_next_event
+            InternalEventLifeline.NEXT_SMALL_STEP: small_step.add_next_event,
+
+            InternalEventLifeline.REMAINDER: self._big_step.add_remainder_event,
         }[semantics.internal_event_lifeline]
 
-        storage = Storage(statechart.scope)
-        gc_memory = DirtyStorage(storage)
+        memory = Memory(statechart.scope)
+        gc_memory = MemorySnapshot(memory)
 
         if semantics.enabledness_memory_protocol == MemoryProtocol.BIG_STEP:
-            self._big_step.memory = gc_memory
+            self._big_step.when_done(gc_memory.refresh)
         elif semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP:
-            combo_step.memory = gc_memory
+            combo_step.when_done(gc_memory.refresh)
         elif semantics.enabledness_memory_protocol == MemoryProtocol.SMALL_STEP:
-            small_step.memory = gc_memory
+            small_step.when_done(gc_memory.refresh)
 
         if semantics.assignment_memory_protocol == semantics.enabledness_memory_protocol:
             rhs_memory = gc_memory
         else:
-            rhs_memory = DirtyStorage(storage)
+            rhs_memory = MemorySnapshot(memory)
             if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
-                self._big_step.memory = rhs_memory
+                self._big_step.when_done(rhs_memory.refresh)
             elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:
-                combo_step.memory = rhs_memory
+                combo_step.when_done(rhs_memory.refresh)
             elif semantics.assignment_memory_protocol == MemoryProtocol.SMALL_STEP:
-                small_step.memory = rhs_memory
+                small_step.when_done(rhs_memory.refresh)
 
         print_debug("\nRound hierarchy: " + str(self._big_step) + '\n')
 

@@ -82,6 +82,20 @@ class ParallelState(State):
         return targets
 
 @dataclass
+class Trigger:
+    enabling: Bitmap
+
+    def check(self, events_bitmap: Bitmap) -> bool:
+        return (self.enabling & events_bitmap) == self.enabling
+
+@dataclass
+class NegatedTrigger(Trigger):
+    disabling: Bitmap
+
+    def check(self, events_bitmap: Bitmap) -> bool:
+        return Trigger.check(self, events_bitmap) and not (self.disabling & events_bitmap)
+
+@dataclass
 class EventTrigger:
     id: int # event ID
     name: str # event name
@@ -100,6 +114,9 @@ class EventTrigger:
             return self.port+'.'+self.name
         else:
             return self.name
+
+class NegatedEventTrigger(EventTrigger):
+    pass
 
 class AfterTrigger(EventTrigger):
     # id: unique within the statechart

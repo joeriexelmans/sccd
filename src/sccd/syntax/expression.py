@@ -1,15 +1,16 @@
 from abc import *
 from typing import *
 from dataclasses import *
-from sccd.syntax.scope import *
 from sccd.util.duration import *
+from sccd.syntax.scope import *
 
 # to inspect types in Python 3.7
 # Python 3.8 already has this built in
 import typing_inspect
 
 class Expression(ABC):
-    # Must be called exactly once on each expression. May throw.
+    # Must be called exactly once on each expression, before any call to eval is made.
+    # Determines the static type of the expression. May throw if there is a type error.
     # Returns static type of expression.
     @abstractmethod
     def init_rvalue(self, scope) -> type:
@@ -21,7 +22,11 @@ class Expression(ABC):
     def eval(self, current_state, events, memory):
         pass
 
+# The LValue type is any type that can serve as an expression OR an LValue (left hand of assignment)
+# Either 'init_rvalue' or 'init_lvalue' is called to initialize the LValue.
+# Then either 'eval' or 'eval_lvalue' can be called any number of times.
 class LValue(Expression):
+    # Initialize the LValue as an LValue. 
     @abstractmethod
     def init_lvalue(self, scope, expected_type: type):
         pass
@@ -30,7 +35,7 @@ class LValue(Expression):
     def eval_lvalue(self, current_state, events, memory) -> Variable:
         pass
 
-    # LValues are expressions too!
+    # LValues can also serve as expressions!
     def eval(self, current_state, events, memory):
         variable = self.eval_lvalue(current_state, events, memory)
         return memory.load(variable.offset)

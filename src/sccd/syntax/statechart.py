@@ -23,6 +23,8 @@ class InternalEventLifeline(SemanticOption, Enum):
   NEXT_COMBO_STEP = 1
   NEXT_SMALL_STEP = 2
 
+  REMAINDER = 3
+
 class InputEventLifeline(SemanticOption, Enum):
   WHOLE = 0
   FIRST_COMBO_STEP = 1

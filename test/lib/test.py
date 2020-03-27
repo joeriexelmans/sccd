@@ -27,8 +27,8 @@ class Test(unittest.TestCase):
 
     for test in test_variants:
       print_debug('\n'+test.name)
-      pipe = queue.SimpleQueue()
-      interrupt = queue.SimpleQueue()
+      pipe = queue.Queue()
+      # interrupt = queue.Queue()
 
       controller = Controller(test.model)
 
@@ -39,7 +39,7 @@ class Test(unittest.TestCase):
         try:
           # Run as-fast-as-possible, always advancing time to the next item in event queue, no sleeping.
           # The call returns when the event queue is empty and therefore the simulation is finished.
-          controller.run_until(None, pipe, interrupt)
+          controller.run_until(None, pipe)
         except Exception as e:
           print_debug(e)
           pipe.put(e, block=True, timeout=None)
@@ -57,7 +57,8 @@ class Test(unittest.TestCase):
 
       def fail(msg, kill=False):
         if kill:
-          interrupt.put(None)
+          pass
+          # interrupt.put(None)
         thread.join()
         def repr(output):
           return '\n'.join("%d: %s" % (i, str(big_step)) for i, big_step in enumerate(output))

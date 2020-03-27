@@ -54,16 +54,19 @@ class Round(ABC):
         self.name = name
         self.parent = None
         
-        self.memory = None
+        self.callbacks: List[Callable] = []
 
         self.remainder_events = [] # events enabled for the remainder of the current round
         self.next_events = [] # events enabled for the entirety of the next round
 
+    def when_done(self, callback):
+        self.callbacks.append(callback)
+
     def run(self, arenas_changed: Bitmap = Bitmap()) -> Bitmap:
         changed = self._internal_run(arenas_changed)
         if changed:
-            if self.memory:
-                self.memory.flush_round()
+            for callback in self.callbacks:
+                callback()
             self.remainder_events = self.next_events
             self.next_events = []
             print_debug("completed "+self.name)

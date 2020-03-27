@@ -78,9 +78,9 @@ class Controller:
 
     # Run until the event queue has no more due events wrt given timestamp and until all instances are stable.
     # If no timestamp is given (now = None), run until event queue is empty.
-    def run_until(self, now: Optional[Timestamp], pipe: queue.Queue, interrupt: queue.Queue = queue.SimpleQueue()):
+    def run_until(self, now: Optional[Timestamp], pipe: queue.Queue):
 
-        unstable: List[Instance] = []
+        # unstable: List[Instance] = []
 
         # Helper. Put big step output events in the event queue or add them to the right output listeners.
         def process_big_step_output(events: List[OutputEvent]):
@@ -106,8 +106,8 @@ class Controller:
             for i in self.object_manager.instances:
                 stable, events = i.initialize(self.simulated_time)
                 process_big_step_output(events)
-                if not stable:
-                    unstable.append(i)
+                # if not stable:
+                #     unstable.append(i)
             print_debug("initialized. time is now %s" % str(self.get_simulated_duration()))
 
 

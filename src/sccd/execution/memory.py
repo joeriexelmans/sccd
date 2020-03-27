@@ -21,10 +21,8 @@ class MemorySnapshot:
     self.temp_dirty = Bitmap() # positions in actual memory written to before flush_temp
     self.round_dirty = Bitmap() # positions in actual memory written to after flush_temp and before flush_round
 
-    self.stack_use = 0
-    self.stack = [None]*1024 # Storage for local scope values. Always temporary: no memory protocol applies to them
-
     self.scope = [memory.scope]
+    self.stack = [] # Storage for local scope values. Always temporary: no memory protocol applies to them
 
   def refresh(self):
     self.snapshot = list(self.actual)
@@ -47,18 +45,15 @@ class MemorySnapshot:
 
   def grow_stack(self, scope):
     self.scope.append(scope)
-    self.stack_use += scope.size()
-    if self.stack_use > len(self.stack):
-      self.stack.extend([None]*len(self.stack)) # double stack
+    self.stack.extend([None]*scope.localsize())
 
   def shrink_stack(self):
     scope = self.scope.pop()
-    self.stack_use -= scope.size()
-    if self.stack_use < len(self.stack) // 4 and len(self.stack) > 1024:
-      del self.stack[len(self.stack)//2:] # half stack
+    del self.stack[-scope.localsize():]
 
   def flush_temp(self):
-    assert self.stack_use == 0 # only allowed to be called in between statement executions or expression evaluations
+    assert len(self.stack) == 0 # only allowed to be called in between statement executions or expression evaluations
+    
     race_conditions = self.temp_dirty & self.round_dirty
     if race_conditions:
         raise Exception("Race condition for variables %s" % str(list(self.scope[-1].get_name(offset) for offset in race_conditions.items())))
@@ -67,9 +62,8 @@ class MemorySnapshot:
     self.temp_dirty = Bitmap() # reset
 
   def refresh(self):
-    assert self.stack_use == 0 # only allowed to be called in between statement executions or expression evaluations
-    # The following looks more efficient, but may be in fact slower in Python:
-    # for i in self.round_dirty.items():
-    #   self.snapshot[i] = self.actual[i] # refresh snapshot
+    assert len(self.stack) == 0 # only allowed to be called in between statement executions or expression evaluations
+
+    # Probably quickest to just copy the entire list in Python
     self.snapshot = list(self.actual) # refresh
     self.round_dirty = Bitmap() # reset

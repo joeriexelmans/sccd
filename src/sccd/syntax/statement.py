@@ -60,15 +60,18 @@ class Assignment(Statement):
 @dataclass
 class Block(Statement):
     stmts: List[Statement]
+    scope: Optional[Scope] = None
 
     def init_stmt(self, scope):
-        local_scope = Scope("local", scope)
+        self.scope = Scope("local", scope)
         for stmt in self.stmts:
-            stmt.init_stmt(local_scope)
+            stmt.init_stmt(self.scope)
 
     def exec(self, current_state, events, memory):
+        memory.grow_stack(self.scope)
         for stmt in self.stmts:
             stmt.exec(current_state, events, memory)
+        memory.shrink_stack()
 
     def render(self) -> str:
         result = ""

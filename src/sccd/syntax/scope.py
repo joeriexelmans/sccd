@@ -24,8 +24,11 @@ class Scope:
     self.names: Dict[str, Variable] = {}
     self.variables: List[str] = []
 
+  def localsize(self) -> int:
+    return len(self.variables)
+
   def size(self) -> int:
-    return self.start_offset + len(self.names)
+    return self.start_offset + len(self.variables)
 
   def all(self):
     if self.parent_scope:

@@ -253,13 +253,13 @@ class StateParser(ActionParser):
     # and state tree constructed.
     transitions.append((el, source, actions))
 
-# Parses <statechart> element and all its children.
+# Parses <tree> element and all its children.
+# In practice, this can't really parse a <tree> element because any encountered expression may contain identifiers pointing to model variables declared outside the <tree> element. To parse a <tree>, either manually add those variables to the 'scope', or, more likely, use a StatechartParser instance which will do this for you while parsing the <datamodel> node.
 class TreeParser(StateParser):
 
   def __init__(self):
     super().__init__()
     self.statechart = XmlParser.Context("statechart")
-
 
   # <tree>
 
@@ -361,6 +361,7 @@ class TreeParser(StateParser):
 
     statechart.tree = StateTree(root)
 
+# Parses <statechart> element and all its children.
 class StatechartParser(TreeParser):
 
   def __init__(self, load_external = True):

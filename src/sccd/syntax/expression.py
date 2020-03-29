@@ -4,9 +4,11 @@ from dataclasses import *
 from sccd.util.duration import *
 from sccd.syntax.scope import *
 
-# to inspect types in Python 3.7
-# Python 3.8 already has this built in
-import typing_inspect
+# to inspect types in Python 3.6 and 3.7
+# Python 3.8 already has this in its 'typing' module
+import sys
+if sys.version_info.minor < 8:
+    from typing_inspect import get_args
 
 class Expression(ABC):
     # Must be called exactly once on each expression, before any call to eval is made.
@@ -76,7 +78,7 @@ class FunctionCall(Expression):
         function_type = self.function.init_rvalue(scope)
         if not isinstance(function_type, Callable):
             raise Exception("Function call: Expression '%s' is not callable" % self.function.render())
-        formal_types, return_type = typing_inspect.get_args(function_type)
+        formal_types, return_type = get_args(function_type)
         self.type = return_type
 
         actual_types = [p.init_rvalue(scope) for p in self.parameters]

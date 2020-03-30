@@ -15,9 +15,6 @@ class StatechartInstance(Instance):
 
         semantics = statechart.semantics
 
-        if semantics.has_wildcard():
-            raise Exception("Model semantics has unexpanded wildcard for some fields.")
-
         reverse = semantics.priority == Priority.SOURCE_CHILD
 
         generator = CandidatesGeneratorCurrentConfigBased(reverse)
@@ -42,7 +39,12 @@ class StatechartInstance(Instance):
                 # Add even more layers, basically an onion at this point.
                 combo_step = SuperRound(termcolor.colored("combo_many", 'cyan'), combo_one, take_one=False, limit=1000)
 
+            else:
+                raise Exception("Unsupported option: %s" % semantics.combo_step_maximality)
+
             self._big_step = SuperRound(termcolor.colored("big_many", 'red'), combo_step, take_one=False, limit=1000)
+        else:
+            raise Exception("Unsupported option: %s" % semantics.big_step_maximality)
 
         def whole(input):
             self._big_step.remainder_events = input

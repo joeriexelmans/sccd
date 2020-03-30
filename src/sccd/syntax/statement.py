@@ -28,12 +28,14 @@ class Assignment(Statement):
 
     def exec(self, current_state, events, memory):
         val = self.rhs.eval(current_state, events, memory)
-        offset = self.lhs.eval_lvalue(current_state, events, memory).offset
+        variable = self.lhs.eval_lvalue(current_state, events, memory)
 
         def load():
-            return memory.load(offset)
+            return variable.load(events, memory)
+            # return memory.load(offset)
         def store(val):
-            memory.store(offset, val)
+            variable.store(memory, val)
+            # memory.store(offset, val)
 
         def assign():
             store(val)

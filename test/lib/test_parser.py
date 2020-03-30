@@ -93,20 +93,25 @@ class TestParser(StatechartParser):
 
     globals.process_durations()
 
+    variants = statechart.semantics.generate_variants()
+
     def variant_description(i, variant) -> str:
       if not variant:
         return ""
-      return "Variant %d: %s" % (i, ", ".join(str(val) for val in variant.values()))
+      text = "Semantic variant %d of %d:" % (i+1, len(variants))
+      for f in fields(variant):
+        text += "\n  %s: %s" % (f.name, getattr(variant, f.name))
+      return text
 
     # Generate test variants for all semantic wildcards filled in
-    tests.extend( 
+    tests.extend(
       TestVariant(
         name=variant_description(i, variant),
         model=SingleInstanceModel(
           globals,
-          Statechart(tree=statechart.tree, scope=statechart.scope, semantics=dataclasses.replace(statechart.semantics, **variant))),
+          Statechart(tree=statechart.tree, scope=statechart.scope, semantics=variant)),
         input=input,
         output=output)
 
-      for i, variant in enumerate(statechart.semantics.wildcard_cart_product())
+      for i, variant in enumerate(variants)
     )

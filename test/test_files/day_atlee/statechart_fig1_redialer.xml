@@ -1,10 +1,13 @@
 <?xml version="1.0" ?>
 <statechart>
-  <semantics input_event_lifeline="whole"/>
+  <semantics
+    big_step_maximality="syntactic"
+    concurrency="many"
+    input_event_lifeline="whole"/>
 
   <datamodel>
     <var id="c" expr="0"/>
-    <var id="lp" expr="0"/>
+    <var id="lp" expr="1234567890"/>
     <var id="p" expr="0"/>
 
     <func id="digit(i:int, pos:int)">
@@ -20,7 +23,7 @@
     <state>
       <parallel id="Dialing">
         <state id="Dialer" initial="WaitForDial">
-          <state id="WaitForDial">
+          <state id="WaitForDial" stable="true">
             <!-- t1 -->
             <transition event="dial(d:int), not redial" cond="c &lt; 10" target=".">
               <code>
@@ -53,7 +56,7 @@
         </state>
 
         <state id="Redialer" initial="WaitForRedial">
-          <state id="WaitForRedial">
+          <state id="WaitForRedial" stable="true">
             <!-- t5 -->
             <transition event="redial" cond="c == 0" target="../RedialDigits">
               <code>

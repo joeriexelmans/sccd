@@ -13,6 +13,7 @@ class SemanticOption:
 class BigStepMaximality(SemanticOption, Enum):
   TAKE_ONE = 0
   TAKE_MANY = 1
+  SYNTACTIC = 2
 
 class ComboStepMaximality(SemanticOption, Enum):
   COMBO_TAKE_ONE = 0
@@ -24,6 +25,7 @@ class InternalEventLifeline(SemanticOption, Enum):
   NEXT_SMALL_STEP = 2
 
   REMAINDER = 3
+  SAME = 5
 
 class InputEventLifeline(SemanticOption, Enum):
   WHOLE = 0
@@ -54,23 +56,31 @@ class Semantics:
   priority: Priority = Priority.SOURCE_PARENT
   concurrency: Concurrency = Concurrency.SINGLE
 
-  # Check if any field has been set to None.
-  def has_wildcard(self):
-    for field in fields(self):
-      if getattr(self, field.name) is None:
-        return True
-    return False
+# Semantics with multiple options per field
+@dataclass
+class VariableSemantics:
+  big_step_maximality: List[BigStepMaximality] = field(default_factory=lambda:[BigStepMaximality.TAKE_MANY])
+  combo_step_maximality: List[ComboStepMaximality] = field(default_factory=lambda:[ComboStepMaximality.COMBO_TAKE_ONE])
+  internal_event_lifeline: List[InternalEventLifeline] = field(default_factory=lambda:[InternalEventLifeline.NEXT_COMBO_STEP])
+  input_event_lifeline: List[InputEventLifeline] = field(default_factory=lambda:[InputEventLifeline.FIRST_COMBO_STEP])
+  enabledness_memory_protocol: List[MemoryProtocol] = field(default_factory=lambda:[MemoryProtocol.COMBO_STEP])
+  assignment_memory_protocol: List[MemoryProtocol] = field(default_factory=lambda:[MemoryProtocol.COMBO_STEP])
+  priority: List[Priority] = field(default_factory=lambda:[Priority.SOURCE_PARENT])
+  concurrency: List[Concurrency] = field(default_factory=lambda:[Concurrency.SINGLE])
 
-  # List of mappings from field name to value for that field.
-  # Each mapping in the list can be used as parameter to the dataclasses.replace function
-  # to create a new semantic configuration with the changes applied.
-  def wildcard_cart_product(self) -> Iterable[Mapping[str, Any]]:
-    wildcard_fields = []
-    for field in fields(self):
-      if getattr(self, field.name) is None:
-        wildcard_fields.append(field)
-    types = (field.type for field in wildcard_fields)
-    return ({wildcard_fields[i].name: option for i,option in enumerate(configuration)} for configuration in itertools.product(*types))
+  # Get all possible combinations
+  def generate_variants(self) -> List[Semantics]:
+    my_fields = fields(self)
+    chosen_options = (getattr(self, f.name) for f in my_fields)
+    variants = itertools.product(*chosen_options)
+
+    return [Semantics(**{f.name: o for f,o in zip(my_fields, variant)}) for variant in variants]
+
+@dataclass
+class StatechartVariableSemantics:
+  tree: StateTree
+  semantics: VariableSemantics
+  scope: Scope
 
 @dataclass
 class Statechart:

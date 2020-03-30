@@ -5,18 +5,13 @@ from sccd.util.debug import *
 class Memory:
   def __init__(self, scope):
     self.scope = scope
-    self.memory = [None] * scope.size()
-
-    # Write default values to storage
-    for name, variable in scope.all():
-      self.memory[variable.offset] = variable.default_value
+    self.storage = [v.initial for v in scope.all_variables()]
 
 class MemorySnapshot:
   def __init__(self, memory: Memory):
-    # self.memory = memory
-    self.actual = memory.memory
-    self.snapshot = list(self.actual)
-    self.len = len(self.actual)
+    self.actual = memory.storage
+    self.snapshot = list(memory.storage)
+    self.len = len(memory.storage)
 
     self.temp_dirty = Bitmap() # positions in actual memory written to before flush_temp
     self.round_dirty = Bitmap() # positions in actual memory written to after flush_temp and before flush_round
@@ -45,18 +40,19 @@ class MemorySnapshot:
 
   def grow_stack(self, scope):
     self.scope.append(scope)
-    self.stack.extend([None]*scope.localsize())
+    self.stack.extend([None]*scope.local_size())
 
   def shrink_stack(self):
     scope = self.scope.pop()
-    del self.stack[-scope.localsize():]
+    del self.stack[-scope.local_size():]
 
   def flush_temp(self):
     assert len(self.stack) == 0 # only allowed to be called in between statement executions or expression evaluations
     
     race_conditions = self.temp_dirty & self.round_dirty
     if race_conditions:
-        raise Exception("Race condition for variables %s" % str(list(self.scope[-1].get_name(offset) for offset in race_conditions.items())))
+      # some variable written to twice before refresh
+      raise Exception("Race condition for variables %s" % str(list(self.scope[-1].get_name(offset) for offset in race_conditions.items())))
 
     self.round_dirty |= self.temp_dirty
     self.temp_dirty = Bitmap() # reset

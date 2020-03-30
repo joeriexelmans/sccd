@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="statechart_fig1_redialer.xml">
+    <override_semantics
+      internal_event_lifeline="same"/>
+  </statechart>
+
+  <input>
+    <input_event port="in" name="redial" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="done"/>
+    </big_step>
+  </output>
+</test>

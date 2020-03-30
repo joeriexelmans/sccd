@@ -50,7 +50,7 @@ class Controller:
                 raise Exception("No such port: '%s'" % input.port) from e
 
             try:
-                event_id = self.model.globals.events.get_id(input.port + '.' + input.name)
+                event_id = self.model.globals.events.get_id(input.name)
             except KeyError as e:
                 raise Exception("No such event: '%s'" % input.name) from e
 

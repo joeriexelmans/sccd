@@ -3,7 +3,7 @@
   <statechart>
     <!-- after events are always received as input events in a later big step -->
     <semantics
-        big_step_maximality="*"
+        big_step_maximality="take_one, take_many"
         combo_step_maximality="*"/>
     <tree>
       <state initial="s1">

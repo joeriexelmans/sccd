@@ -10,6 +10,8 @@ from sccd.execution import statechart_state
 # It will show a fragment of the source file and the line number of the error.
 class XmlLoadError(Exception):
   def __init__(self, src_file: str, el: etree.Element, msg):
+    # This is really dirty, but can't find a clean way to do this with lxml.
+
     parent = el.getparent()
     if parent is None:
       parent = el
@@ -239,19 +241,52 @@ class StateParser(ActionParser):
     self.state.require().exit = actions
 
   def start_transition(self, el):
+    parent_scope = self.scope.require()
+    globals = self.globals.require()
     if self.state.require().parent is None:
       raise Exception("Root <state> cannot be source of a transition.")
 
+    scope = Scope("transition", parent=parent_scope)
+
+    event = el.get("event")
+
+    if event is not None:
+      positive_events, negative_events = parse_events_decl(event)
+
+      positive_bitmap = Bitmap()
+      negative_bitmap = Bitmap()
+
+      def process_event_decl(e: EventDecl):
+        for i,p in enumerate(e.params):
+          scope.add_event_parameter(event_name=e.name, param_name=p.name, type=p.type, param_offset=i)
+
+      for e in positive_events:
+        event_id = globals.events.assign_id(e.name)
+        positive_bitmap |= bit(event_id)
+        process_event_decl(e)
+
+      for e in negative_events:
+        event_id = globals.events.assign_id(e.name)
+        negative_bitmap |= bit(event_id)
+        process_event_decl(e)
+
+      if not negative_bitmap:
+        trigger = Trigger(positive_bitmap)
+      else:
+        trigger = NegatedTrigger(positive_bitmap, negative_bitmap)
+
+    self.scope.push(scope)
     self.actions.push([])
 
   def end_transition(self, el):
     transitions = self.transitions.require()
+    scope = self.scope.pop()
     actions = self.actions.pop()
     source = self.state.require()
 
     # Parse <transition> element not until all states have been parsed,
     # and state tree constructed.
-    transitions.append((el, source, actions))
+    transitions.append((el, source, actions, scope))
 
 # Parses <tree> element and all its children.
 # In practice, this can't really parse a <tree> element because any encountered expression may contain identifiers pointing to model variables declared outside the <tree> element. To parse a <tree>, either manually add those variables to the 'scope', or, more likely, use a StatechartParser instance which will do this for you while parsing the <datamodel> node.
@@ -283,7 +318,7 @@ class TreeParser(StateParser):
     # Only now that our tree structure is complete can we resolve 'target' states of transitions.
     next_after_id = 0
     transitions = self.transitions.pop()
-    for t_el, source, actions in transitions:
+    for t_el, source, actions, t_scope in transitions:
       target_string = t_el.get("target")
       event = t_el.get("event")
       port = t_el.get("port")
@@ -326,7 +361,7 @@ class TreeParser(StateParser):
           self._raise(t_el, "Can only specify one of attributes 'after', 'event'.", None)
         try:
           after_expr = parse_expression(globals, expr=after)
-          after_type = after_expr.init_rvalue(scope)
+          after_type = after_expr.init_rvalue(t_scope)
           if after_type != Duration:
             msg = "Expression is '%s' type. Expected 'Duration' type." % str(after_type)
             if after_type == int:
@@ -338,10 +373,7 @@ class TreeParser(StateParser):
         except Exception as e:
           self._raise(t_el, "after=\"%s\": %s" % (after, str(e)), e)
       elif event is not None:
-        if port is None:
-          event_id = globals.events.assign_id(event)
-        else:
-          event_id = globals.events.assign_id(port + '.' + event)
+        event_id = globals.events.assign_id(event)
         trigger = EventTrigger(event_id, event, port)
         globals.inports.assign_id(port)
       else:
@@ -353,7 +385,7 @@ class TreeParser(StateParser):
       if cond is not None:
         try:
           expr = parse_expression(globals, expr=cond)
-          expr.init_rvalue(scope)
+          expr.init_rvalue(t_scope)
         except Exception as e:
           self._raise(t_el, "cond=\"%s\": %s" % (cond, str(e)), e)
         transition.guard = expr
@@ -376,13 +408,14 @@ class StatechartParser(TreeParser):
     statechart = self.statechart.require()
     # Use reflection to find the possible XML attributes and their values
     for aspect in dataclasses.fields(Semantics):
-      key = el.get(aspect.name)
-      if key is not None:
-        if key == "*":
-          setattr(statechart.semantics, aspect.name, None)
-        else:
-          value = aspect.type[key.upper()]
-          setattr(statechart.semantics, aspect.name, value)
+      text = el.get(aspect.name)
+      if text is not None:
+        result = parse_semantic_choice(text)
+        if result.data == "wildcard":
+          setattr(statechart.semantics, aspect.name, list(aspect.type))
+        elif result.data == "list":
+          options = [aspect.type[token.value.upper()] for token in result.children]
+          setattr(statechart.semantics, aspect.name, options)
 
   def end_semantics(self, el):
     self._internal_end_semantics(el)
@@ -403,7 +436,7 @@ class StatechartParser(TreeParser):
     parsed = parse_expression(globals, expr=expr)
     rhs_type = parsed.init_rvalue(scope)
     val = parsed.eval(None, [], None)
-    scope.add(id, val)
+    scope.add_variable_w_initial(name=id, initial=val)
 
   def start_datamodel(self, el):
     statechart = self.statechart.require()
@@ -419,7 +452,7 @@ class StatechartParser(TreeParser):
     ext_file = el.get("src")
     statechart = None
     if ext_file is None:
-      statechart = Statechart(tree=None, semantics=Semantics(), scope=Scope("instance", parent_scope=statechart_state.builtin_scope))
+      statechart = StatechartVariableSemantics(tree=None, semantics=VariableSemantics(), scope=Scope("instance", parent=statechart_state.builtin_scope))
     elif self.load_external:
       ext_file_path = os.path.join(os.path.dirname(src_file), ext_file)
       self.statecharts.push([])

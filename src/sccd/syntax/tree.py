@@ -82,6 +82,25 @@ class ParallelState(State):
         return targets
 
 @dataclass
+class Param:
+    name: str 
+    type: type
+
+    def render(self) -> str:
+        return self.name + ': ' + str(self.type)
+
+@dataclass
+class EventDecl:
+    name: str
+    params: List[Param]
+
+    def render(self) -> str:
+        if self.params:
+            return self.name + '(' + ', '.join(self.params) + ')'
+        else:
+            return self.name
+
+@dataclass
 class Trigger:
     enabling: Bitmap
 

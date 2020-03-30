@@ -40,7 +40,7 @@ class LValue(Expression):
     # LValues can also serve as expressions!
     def eval(self, current_state, events, memory):
         variable = self.eval_lvalue(current_state, events, memory)
-        return memory.load(variable.offset)
+        return variable.load(events, memory)
 
 
 @dataclass
@@ -57,7 +57,7 @@ class Identifier(LValue):
 
     def init_lvalue(self, scope, expected_type):
         assert self.variable is None
-        self.variable = scope.put(self.name, expected_type)
+        self.variable = scope.put_variable_assignment(self.name, expected_type)
         # print("init lvalue", self.name, "as", self.variable)
 
     def eval_lvalue(self, current_state, events, memory) -> Variable:

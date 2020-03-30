@@ -6,12 +6,11 @@ from sccd.util.bitmap import *
 from sccd.syntax.scope import *
 
 
-def _in_state(current_state, events, memory, state_list):
+def _in_state(current_state, events, memory, state_list: List[str]) -> bool:
   return StatechartState.in_state(current_state, state_list)
 
 builtin_scope = Scope("builtin", None)
-builtin_scope.names["INSTATE"] = Variable(offset=0, type=Callable[[List[str]], bool], default_value=_in_state)
-
+builtin_scope.add_function("INSTATE", _in_state)
 
 # Set of current states etc.
 class StatechartState:

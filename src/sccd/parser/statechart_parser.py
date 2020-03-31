@@ -4,7 +4,9 @@ from sccd.parser.expression_parser import *
 from sccd.syntax.statechart import *
 from sccd.syntax.tree import *
 from sccd.execution.event import *
-from sccd.execution import statechart_state
+from sccd.execution import builtin_scope
+
+_blank_eval_context = EvalContext(current_state=None, events=[], memory=None)
 
 # An Exception that occured while visiting an XML element.
 # It will show a fragment of the source file and the line number of the error.
@@ -435,7 +437,7 @@ class StatechartParser(TreeParser):
 
     parsed = parse_expression(globals, expr=expr)
     rhs_type = parsed.init_rvalue(scope)
-    val = parsed.eval(None, [], None)
+    val = parsed.eval(_blank_eval_context)
     scope.add_variable_w_initial(name=id, initial=val)
 
   def start_datamodel(self, el):
@@ -452,7 +454,7 @@ class StatechartParser(TreeParser):
     ext_file = el.get("src")
     statechart = None
     if ext_file is None:
-      statechart = StatechartVariableSemantics(tree=None, semantics=VariableSemantics(), scope=Scope("instance", parent=statechart_state.builtin_scope))
+      statechart = StatechartVariableSemantics(tree=None, semantics=VariableSemantics(), scope=Scope("instance", parent=builtin_scope.builtin_scope))
     elif self.load_external:
       ext_file_path = os.path.join(os.path.dirname(src_file), ext_file)
       self.statecharts.push([])

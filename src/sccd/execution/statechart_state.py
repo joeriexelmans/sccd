@@ -6,12 +6,6 @@ from sccd.util.bitmap import *
 from sccd.syntax.scope import *
 
 
-def _in_state(current_state, events, memory, state_list: List[str]) -> bool:
-  return StatechartState.in_state(current_state, state_list)
-
-builtin_scope = Scope("builtin", None)
-builtin_scope.add_function("INSTATE", _in_state)
-
 # Set of current states etc.
 class StatechartState:
 
@@ -122,7 +116,8 @@ class StatechartState:
       if t.guard is None:
           return True
       else:
-          result = t.guard.eval(self, events, self.gc_memory)
+          result = t.guard.eval(
+            EvalContext(current_state=self, events=events, memory=self.gc_memory))
           self.gc_memory.flush_temp()
           return result
 
@@ -139,12 +134,14 @@ class StatechartState:
                   OutputPortTarget(a.outport),
                   a.time_offset))
           elif isinstance(a, Code):
-              a.block.exec(self, events, self.rhs_memory)
+              a.block.exec(
+                EvalContext(current_state=self, events=events, memory=self.rhs_memory))
               self.rhs_memory.flush_temp()
 
   def _start_timers(self, triggers: List[AfterTrigger]):
       for after in triggers:
-          delay: Duration = after.delay.eval(self, [], self.gc_memory)
+          delay: Duration = after.delay.eval(
+            EvalContext(current_state=self, events=[], memory=self.gc_memory))
           timer_id = self._next_timer_id(after)
           self.gc_memory.flush_temp()
           self.output.append(OutputEvent(

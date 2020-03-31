@@ -4,24 +4,25 @@ from dataclasses import *
 from sccd.util.duration import *
 from sccd.syntax.scope import *
 
-# to inspect types in Python 3.6 and 3.7
+# to inspect types in Python 3.6 and 3.7, we rely on a backporting package
 # Python 3.8 already has this in its 'typing' module
 import sys
 if sys.version_info.minor < 8:
     from typing_inspect import get_args
+
 
 class Expression(ABC):
     # Must be called exactly once on each expression, before any call to eval is made.
     # Determines the static type of the expression. May throw if there is a type error.
     # Returns static type of expression.
     @abstractmethod
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         pass
 
     # Evaluation should NOT have side effects.
     # Motivation is that the evaluation of a guard condition cannot have side effects.
     @abstractmethod
-    def eval(self, current_state, events, memory):
+    def eval(self, ctx: EvalContext):
         pass
 
 # The LValue type is any type that can serve as an expression OR an LValue (left hand of assignment)
@@ -30,42 +31,39 @@ class Expression(ABC):
 class LValue(Expression):
     # Initialize the LValue as an LValue. 
     @abstractmethod
-    def init_lvalue(self, scope, expected_type: type):
+    def init_lvalue(self, scope: Scope, expected_type: type):
         pass
 
     @abstractmethod
-    def eval_lvalue(self, current_state, events, memory) -> Variable:
+    def eval_lvalue(self, ctx: EvalContext) -> Variable:
         pass
 
     # LValues can also serve as expressions!
-    def eval(self, current_state, events, memory):
-        variable = self.eval_lvalue(current_state, events, memory)
-        return variable.load(events, memory)
-
+    def eval(self, ctx: EvalContext):
+        variable = self.eval_lvalue(ctx)
+        return variable.load(ctx)
 
 @dataclass
 class Identifier(LValue):
     name: str
-
     variable: Optional[Variable] = None
 
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         assert self.variable is None
         self.variable = scope.get(self.name)
         # print("init rvalue", self.name, "as", self.variable)
         return self.variable.type
 
-    def init_lvalue(self, scope, expected_type):
+    def init_lvalue(self, scope: Scope, expected_type):
         assert self.variable is None
         self.variable = scope.put_variable_assignment(self.name, expected_type)
         # print("init lvalue", self.name, "as", self.variable)
 
-    def eval_lvalue(self, current_state, events, memory) -> Variable:
+    def eval_lvalue(self, ctx: EvalContext) -> Variable:
         return self.variable
 
     def render(self):
         return self.name
-
 
 @dataclass
 class FunctionCall(Expression):
@@ -74,7 +72,7 @@ class FunctionCall(Expression):
 
     type: Optional[type] = None
 
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         function_type = self.function.init_rvalue(scope)
         if not isinstance(function_type, Callable):
             raise Exception("Function call: Expression '%s' is not callable" % self.function.render())
@@ -87,11 +85,11 @@ class FunctionCall(Expression):
                 raise Exception("Function call: Actual types '%s' differ from formal types '%s'" % (actual_types, formal_types))
         return self.type
 
-    def eval(self, current_state, events, memory):
+    def eval(self, ctx: EvalContext):
         # print(self.function)
-        f = self.function.eval(current_state, events, memory)
-        p = [p.eval(current_state, events, memory) for p in self.parameters]
-        return f(current_state, events, memory, *p)
+        f = self.function.eval(ctx)
+        p = [p.eval(ctx) for p in self.parameters]
+        return f(ctx, *p)
 
     def render(self):
         return self.function.render()+'('+','.join([p.render() for p in self.parameters])+')'
@@ -101,10 +99,10 @@ class FunctionCall(Expression):
 class StringLiteral(Expression):
     string: str
 
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         return str
 
-    def eval(self, current_state, events, memory):
+    def eval(self, ctx: EvalContext):
         return self.string
 
     def render(self):
@@ -115,10 +113,10 @@ class StringLiteral(Expression):
 class IntLiteral(Expression):
     i: int 
 
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         return int
 
-    def eval(self, current_state, events, memory):
+    def eval(self, ctx: EvalContext):
         return self.i
 
     def render(self):
@@ -128,10 +126,10 @@ class IntLiteral(Expression):
 class BoolLiteral(Expression):
     b: bool 
 
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         return bool
 
-    def eval(self, current_state, events, memory):
+    def eval(self, ctx: EvalContext):
         return self.b
 
     def render(self):
@@ -141,10 +139,10 @@ class BoolLiteral(Expression):
 class DurationLiteral(Expression):
     d: Duration
 
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         return Duration
 
-    def eval(self, current_state, events, memory):
+    def eval(self, ctx: EvalContext):
         return self.d
 
     def render(self):
@@ -156,7 +154,7 @@ class Array(Expression):
 
     type: Optional[type] = None
 
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         for e in self.elements:
             t = e.init_rvalue(scope)
             if self.type and self.type != t:
@@ -165,8 +163,8 @@ class Array(Expression):
 
         return List[self.type]
 
-    def eval(self, current_state, events, memory):
-        return [e.eval(current_state, events, memory) for e in self.elements]
+    def eval(self, ctx: EvalContext):
+        return [e.eval(ctx) for e in self.elements]
 
     def render(self):
         return '['+','.join([e.render() for e in self.elements])+']'
@@ -177,11 +175,11 @@ class Array(Expression):
 class Group(Expression):
     subexpr: Expression
 
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         return self.subexpr.init_rvalue(scope)
 
-    def eval(self, current_state, events, memory):
-        return self.subexpr.eval(current_state, events, memory)
+    def eval(self, ctx: EvalContext):
+        return self.subexpr.eval(ctx)
 
     def render(self):
         return '('+self.subexpr.render()+')'
@@ -192,14 +190,14 @@ class BinaryExpression(Expression):
     operator: str # token name from the grammar.
     rhs: Expression
 
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         lhs_t = self.lhs.init_rvalue(scope)
         rhs_t = self.rhs.init_rvalue(scope)
         if lhs_t != rhs_t:
             raise Exception("Mixed LHS and RHS types in '%s' expression: %s and %s" % (self.operator, str(lhs_t), str(rhs_t)))
         return lhs_t
 
-    def eval(self, current_state, events, memory):
+    def eval(self, ctx: EvalContext):
         
         return {
             # "AND": lambda x,y: x and y,
@@ -218,21 +216,21 @@ class BinaryExpression(Expression):
             # "MOD": lambda x,y: x % y,
             # "EXP": lambda x,y: x ** y,
 
-            "and": lambda x,y: x.eval(current_state, events, memory) and y.eval(current_state, events, memory),
-            "or": lambda x,y: x.eval(current_state, events, memory) or y.eval(current_state, events, memory),
-            "==": lambda x,y: x.eval(current_state, events, memory) == y.eval(current_state, events, memory),
-            "!=": lambda x,y: x.eval(current_state, events, memory) != y.eval(current_state, events, memory),
-            ">": lambda x,y: x.eval(current_state, events, memory) > y.eval(current_state, events, memory),
-            ">=": lambda x,y: x.eval(current_state, events, memory) >= y.eval(current_state, events, memory),
-            "<": lambda x,y: x.eval(current_state, events, memory) < y.eval(current_state, events, memory),
-            "<=": lambda x,y: x.eval(current_state, events, memory) <= y.eval(current_state, events, memory),
-            "+": lambda x,y: x.eval(current_state, events, memory) + y.eval(current_state, events, memory),
-            "-": lambda x,y: x.eval(current_state, events, memory) - y.eval(current_state, events, memory),
-            "*": lambda x,y: x.eval(current_state, events, memory) * y.eval(current_state, events, memory),
-            "/": lambda x,y: x.eval(current_state, events, memory) / y.eval(current_state, events, memory),
-            "//": lambda x,y: x.eval(current_state, events, memory) // y.eval(current_state, events, memory),
-            "%": lambda x,y: x.eval(current_state, events, memory) % y.eval(current_state, events, memory),
-            "**": lambda x,y: x.eval(current_state, events, memory) ** y.eval(current_state, events, memory),
+            "and": lambda x,y: x.eval(ctx) and y.eval(ctx),
+            "or": lambda x,y: x.eval(ctx) or y.eval(ctx),
+            "==": lambda x,y: x.eval(ctx) == y.eval(ctx),
+            "!=": lambda x,y: x.eval(ctx) != y.eval(ctx),
+            ">": lambda x,y: x.eval(ctx) > y.eval(ctx),
+            ">=": lambda x,y: x.eval(ctx) >= y.eval(ctx),
+            "<": lambda x,y: x.eval(ctx) < y.eval(ctx),
+            "<=": lambda x,y: x.eval(ctx) <= y.eval(ctx),
+            "+": lambda x,y: x.eval(ctx) + y.eval(ctx),
+            "-": lambda x,y: x.eval(ctx) - y.eval(ctx),
+            "*": lambda x,y: x.eval(ctx) * y.eval(ctx),
+            "/": lambda x,y: x.eval(ctx) / y.eval(ctx),
+            "//": lambda x,y: x.eval(ctx) // y.eval(ctx),
+            "%": lambda x,y: x.eval(ctx) % y.eval(ctx),
+            "**": lambda x,y: x.eval(ctx) ** y.eval(ctx),
         }[self.operator](self.lhs, self.rhs) # Borrow Python's lazy evaluation
 
     def render(self):
@@ -243,13 +241,13 @@ class UnaryExpression(Expression):
     operator: str # token value from the grammar.
     expr: Expression
 
-    def init_rvalue(self, scope) -> type:
+    def init_rvalue(self, scope: Scope) -> type:
         return self.expr.init_rvalue(scope)
 
-    def eval(self, current_state, events, memory):
+    def eval(self, ctx: EvalContext):
         return {
-            "not": lambda x: not x.eval(current_state, events, memory),
-            "-": lambda x: - x.eval(current_state, events, memory),
+            "not": lambda x: not x.eval(ctx),
+            "-": lambda x: - x.eval(ctx),
         }[self.operator](self.expr)
 
     def render(self):

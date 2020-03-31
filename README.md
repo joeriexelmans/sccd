@@ -4,7 +4,7 @@
 
 ### Mandatory
 
-* Python >= 3.6 or PyPy >= 7.3.0 (Compatible with Python 3.6)
+* CPython >= 3.6 or PyPy >= 7.3.0 (Compatible with Python 3.6)
 * The following packages from PyPi:
   * [lark-parser](https://github.com/lark-parser/lark) for parsing state references and action code
   * [lxml](https://lxml.de/) for parsing the SCCD XML input format
@@ -14,4 +14,4 @@
 
 ### Optional
 
-* [state-machine-cat](https://github.com/sverweij/state-machine-cat) to render statecharts as SVG images.
+* [state-machine-cat](https://github.com/sverweij/state-machine-cat) to render statecharts as SVG images. Runs on NodeJS, installable from NPM.

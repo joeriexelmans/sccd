@@ -4,6 +4,11 @@ from dataclasses import *
 from inspect import signature
 import itertools
 
+@dataclass
+class EvalContext:
+    current_state: 'StatechartState'
+    events: List['Event']
+    memory: 'MemorySnapshot'
 
 @dataclass
 class Value(ABC):
@@ -15,11 +20,11 @@ class Value(ABC):
     pass
 
   @abstractmethod
-  def load(self, events, memory) -> Any:
+  def load(self, ctx: EvalContext) -> Any:
     pass
     
   @abstractmethod
-  def store(self, memory, value):
+  def store(self, ctx: EvalContext, value):
     pass
 
 # Stateless stuff we know about a variable
@@ -31,11 +36,11 @@ class Variable(Value):
   def is_read_only(self) -> bool:
     return False
 
-  def load(self, events, memory) -> Any:
-    return memory.load(self.offset)
+  def load(self, ctx: EvalContext) -> Any:
+    return ctx.memory.load(self.offset)
 
-  def store(self, memory, value):
-    memory.store(self.offset, value)
+  def store(self, ctx: EvalContext, value):
+    ctx.memory.store(self.offset, value)
 
 class EventParam(Variable):
   def __init__(self, name, type, offset, event_name, param_offset):
@@ -46,20 +51,20 @@ class EventParam(Variable):
   def is_read_only(self) -> bool:
     return True
 
-  def load(self, events, memory) -> Any:
-    from_stack = Variable.load(self, events, memory)
+  def load(self, ctx: EvalContext) -> Any:
+    from_stack = Variable.load(self, ctx)
     if from_stack is not None:
       return from_stack
     else:
       # find event in event list and get the parameter we're looking for
-      e = [e for e in events if e.name == self.event_name][0]
+      e = [e for e in ctx.events if e.name == self.event_name][0]
       value = e.params[self.param_offset]
       # "cache" the parameter value on our reserved stack position so the next
       # 'load' will be faster
-      Variable.store(self, memory, value)
+      Variable.store(self, ctx)
       return value
 
-  def store(self, memory, value):
+  def store(self, ctx: EvalContext, value):
     # Bug in the code: should never attempt to write to EventParam
     assert False
 
@@ -72,10 +77,10 @@ class Constant(Value):
   def is_read_only(self) -> bool:
     return True
 
-  def load(self, events, memory) -> Any:
+  def load(self, ctx: EvalContext) -> Any:
     return self.value
 
-  def store(self, memory, value):
+  def store(self, ctx: EvalContext, value):
     # Bug in the code: should never attempt to write to Constant
     assert False
 
@@ -185,7 +190,7 @@ class Scope:
   def add_function(self, name: str, function: Callable) -> Constant:
     sig = signature(function)
     return_type = sig.return_annotation
-    args = list(sig.parameters.values())[3:]
+    args = list(sig.parameters.values())[1:] # hide 'EvalContext' parameter to user
     param_types = [a.annotation for a in args]
     function_type = Callable[param_types, return_type]
     

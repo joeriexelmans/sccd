@@ -6,6 +6,7 @@ import math
 # Methods that return a Bitmap return a new bitmap and leave the arguments untouched.
 # To change a bitmap, use an assignment operator ('=', '|=', '&=', ...)
 class Bitmap(int):
+  # Create from int
   def __new__(cls, value=0, *args, **kwargs):
     return super(cls, cls).__new__(cls, value)
 
@@ -30,12 +31,6 @@ class Bitmap(int):
   def __invert__(self):
     return self.__class__(super().__invert__())
 
-  def set(self, pos):
-    return self.__or__(2**pos)
-
-  def unset(self, pos):
-    return self.__and__(~2**pos)
-
   def has(self, pos):
     return self & 2**pos
 
@@ -53,5 +48,6 @@ class Bitmap(int):
         yield pos
       pos += 1
 
+# Create a bitmap with a single bit set.
 def bit(pos):
   return Bitmap(2 ** pos)

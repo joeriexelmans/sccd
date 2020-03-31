@@ -9,8 +9,10 @@ class State:
     short_name: str # value of 'id' attribute in XML
     parent: Optional['State'] # only None if root state
 
+    stable: bool = False # whether this is a stable stabe. this field is ignored if maximality semantics is not set to SYNTACTIC
+
     children: List['State'] = field(default_factory=list)
-    default_state = None
+    default_state = None # child state pointed to by 'initial' attribute
 
     transitions: List['Transition'] = field(default_factory=list)
 
@@ -170,6 +172,7 @@ class StateTree:
         self.state_list = [] # depth-first list of states
         self.transition_list = [] # all transitions in the tree, sorted by source state, depth-first
         self.after_triggers = []
+        self.stable_bitmap = Bitmap() # bitmap of state IDs of states that are stable. Only used for SYNTACTIC-maximality semantics.
 
         next_id = 0
 
@@ -222,6 +225,9 @@ class StateTree:
                 has_eventless_transitions=has_eventless_transitions,
                 after_triggers=after_triggers)
 
+            if state.stable:
+                self.stable_bitmap |= bit(state_id)
+
             # print("state:", full_name)
             # print("ancestors:", len(ancestors))
 
@@ -243,4 +249,4 @@ class StateTree:
 
             t.gen = TransitionOptimization(
                 lca=lca,
-                arena_bitmap=lca.gen.descendant_bitmap.set(lca.gen.state_id))
+                arena_bitmap=lca.gen.descendant_bitmap | lca.gen.state_id_bitmap)

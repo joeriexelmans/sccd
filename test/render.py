@@ -56,8 +56,10 @@ if __name__ == '__main__':
         f = open(smcat_target, 'w')
         w = IndentingWriter(f)
 
-        def name_to_label(name):
-          label = name.split('/')[-1]
+        def name_to_label(state):
+          label = state.gen.full_name.split('/')[-1]
+          if state.stable:
+            label += " ✓"
           return label if len(label) else "root"
         def name_to_name(name):
           return name.replace('/','_')
@@ -68,6 +70,7 @@ if __name__ == '__main__':
           class Gen:
             full_name: str
           def __init__(self, name):
+            self.stable = False
             self.gen = PseudoState.Gen(name)
         # Used for drawing initial state
         class PseudoTransition:
@@ -84,7 +87,7 @@ if __name__ == '__main__':
           if not hide:
             w.write(name_to_name(s.gen.full_name))
             w.extendWrite(' [label="')
-            w.extendWrite(name_to_label(s.gen.full_name))
+            w.extendWrite(name_to_label(s))
             w.extendWrite('"')
             if isinstance(s, ParallelState):
               w.extendWrite(' type=parallel')

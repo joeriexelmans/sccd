@@ -9,6 +9,10 @@ from sccd.execution.round import *
 from sccd.execution.statechart_state import *
 from sccd.execution.memory import *
 
+# Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
+# TODO: make this configurable
+LIMIT = 1000
+
 class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager):
         self.object_manager = object_manager
@@ -24,12 +28,12 @@ class StatechartInstance(Instance):
 
 
         if semantics.big_step_maximality == BigStepMaximality.TAKE_ONE:
-            self._big_step = combo_step = SuperRound(termcolor.colored("big_one", 'red'), small_step, take_one=True) # No combo steps
+            self._big_step = combo_step = SuperRound(termcolor.colored("big_one", 'red'), small_step, maximality=TakeOne()) # No combo steps
 
-        elif semantics.big_step_maximality == BigStepMaximality.TAKE_MANY:
+        elif semantics.big_step_maximality == BigStepMaximality.TAKE_MANY or semantics.big_step_maximality == BigStepMaximality.SYNTACTIC:
             # Always add a layer of 'fairness' above our small steps, so
             # orthogonal transitions take turns fairly.
-            combo_one = SuperRound(termcolor.colored("combo_one", 'magenta'), small_step, take_one=True)
+            combo_one = SuperRound(termcolor.colored("combo_one", 'magenta'), small_step, maximality=TakeOne())
 
             if semantics.combo_step_maximality == ComboStepMaximality.COMBO_TAKE_ONE:
                 # Fairness round becomes our combo step round
@@ -37,12 +41,16 @@ class StatechartInstance(Instance):
 
             elif semantics.combo_step_maximality == ComboStepMaximality.COMBO_TAKE_MANY:
                 # Add even more layers, basically an onion at this point.
-                combo_step = SuperRound(termcolor.colored("combo_many", 'cyan'), combo_one, take_one=False, limit=1000)
+                combo_step = SuperRoundWithLimit(termcolor.colored("combo_many", 'cyan'), combo_one, maximality=TakeMany(), limit=LIMIT)
 
             else:
                 raise Exception("Unsupported option: %s" % semantics.combo_step_maximality)
 
-            self._big_step = SuperRound(termcolor.colored("big_many", 'red'), combo_step, take_one=False, limit=1000)
+            if semantics.big_step_maximality == BigStepMaximality.TAKE_MANY:
+                self._big_step = SuperRoundWithLimit(termcolor.colored("big_many", 'red'), combo_step, maximality=TakeMany(), limit=LIMIT)
+            else:
+                self._big_step = SuperRoundWithLimit(termcolor.colored("big_syntactic", 'red'), combo_step, maximality=Syntactic(), limit=LIMIT)
+
         else:
             raise Exception("Unsupported option: %s" % semantics.big_step_maximality)
 
@@ -68,6 +76,7 @@ class StatechartInstance(Instance):
             InternalEventLifeline.NEXT_SMALL_STEP: small_step.add_next_event,
 
             InternalEventLifeline.REMAINDER: self._big_step.add_remainder_event,
+            InternalEventLifeline.SAME: small_step.add_remainder_event,
         }[semantics.internal_event_lifeline]
 
         memory = Memory(statechart.scope)

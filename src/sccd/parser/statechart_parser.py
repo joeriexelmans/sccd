@@ -188,6 +188,9 @@ class StateParser(ActionParser):
       else:
         raise Exception("Only 1 root <state> allowed.")
 
+    if el.get("stable", "") == "true":
+      state.stable = True
+
     self.state.push(state)
     self.state_children.push({})
 

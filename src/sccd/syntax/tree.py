@@ -82,14 +82,6 @@ class ParallelState(State):
         return targets
 
 @dataclass
-class Param:
-    name: str 
-    type: type
-
-    def render(self) -> str:
-        return self.name + ': ' + str(self.type)
-
-@dataclass
 class EventDecl:
     name: str
     params: List[Param]

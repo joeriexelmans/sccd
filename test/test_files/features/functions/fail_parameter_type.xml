@@ -1,0 +1,33 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics
+      big_step_maximality="take_many"
+      concurrency="single"
+      input_event_lifeline="first_combo_step"/>
+
+    <datamodel>
+      <func id="digit(i:int, pos:int)">
+        pow = 10 ** pos;
+        return i // pow % 10;
+      </func>
+
+      <func id="numdigits(i:int)">
+        return float_to_int(log10(i)) + 1;
+      </func>
+    </datamodel>
+
+    <tree>
+      <state initial="ready">
+        <state id="ready">
+          <!-- illegal condition: sole parameter of numdigits is 'int', however string is given -->
+          <transition port="in" event="start" target="../final" cond='numdigits("123") == 3'>
+            <raise port="out" event="ok"/>
+          </transition>
+        </state>
+
+        <state id="final"/>
+      </state>
+    </tree>
+  </statechart>
+</test>

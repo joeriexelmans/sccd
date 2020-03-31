@@ -29,14 +29,19 @@ event_decl_list: neg_event_decl ("," neg_event_decl)*
 ?neg_event_decl: event_decl -> pos
                | "not" event_decl -> neg
 
-?event_decl: IDENTIFIER event_params
+?event_decl: IDENTIFIER params_decl
 
-event_params: ( "(" event_param_decl ("," event_param_decl)* ")" )?
+params_decl: ( "(" param_decl ("," param_decl)* ")" )?
 
-?event_param_decl: IDENTIFIER ":" TYPE
+// param_decl rule shared with function declaration
+?param_decl: IDENTIFIER ":" TYPE
 
 TYPE: "int" | "str" | "Duration"
 
+
+// Function declaration parsing
+
+func_decl: IDENTIFIER params_decl
 
 // Expression parsing
 
@@ -130,10 +135,12 @@ TIME_D: "d" // for zero-duration
 
 // Statement parsing
 
-block: (stmt ";")*
+?block: (stmt ";")*
 
 ?stmt: assignment
      | expr -> expression_stmt
+     | "return" expr -> return_stmt
+     | "{" block "}" -> block
 
 assignment: lhs assign_operator expr
 

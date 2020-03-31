@@ -17,6 +17,8 @@ class _ExpressionTransformer(Transformer):
     super().__init__()
     self.globals: Globals = None
 
+  # Expression and statement parsing
+
   array = Array
 
   block = Block
@@ -79,6 +81,12 @@ class _ExpressionTransformer(Transformer):
   def expression_stmt(self, node):
     return ExpressionStatement(node[0])
 
+  def return_stmt(self, node):
+    return ReturnStatement(node[0])
+
+
+  # Event declaration parsing
+
   def event_decl_list(self, node):
     pos_events = []
     neg_events = []
@@ -94,40 +102,46 @@ class _ExpressionTransformer(Transformer):
   def event_decl(self, node):
     return EventDecl(name=node[0], params=node[1])
 
-  event_params = list
+  params_decl = list
 
-  def event_param_decl(self, node):
+  def param_decl(self, node):
     type = {
       "int": int,
       "str": str,
       "Duration": Duration
     }[node[1]]
-    return Param(name=node[0], type=type)
+    return Param(name=node[0].value, type=type)
+
+  def func_decl(self, node):
+    return (node[0], node[1])
 
 # Global variables so we don't have to rebuild our parser every time
 # Obviously not thread-safe
 _transformer = _ExpressionTransformer()
-_parser = Lark(_action_lang_grammar, parser="lalr", start=["expr", "block", "duration", "event_decl_list", "state_ref", "semantic_choice"], transformer=_transformer)
+_parser = Lark(_action_lang_grammar, parser="lalr", start=["expr", "block", "duration", "event_decl_list", "func_decl", "state_ref", "semantic_choice"], transformer=_transformer)
 
 # Exported functions:
 
-def parse_expression(globals: Globals, expr: str) -> Expression:
+def parse_expression(globals: Globals, text: str) -> Expression:
   _transformer.globals = globals
-  return _parser.parse(expr, start="expr")
+  return _parser.parse(text, start="expr")
 
-def parse_duration(globals: Globals, expr:str) -> Duration:
+def parse_duration(globals: Globals, text: str) -> Duration:
   _transformer.globals = globals
-  return _parser.parse(expr, start="duration")
+  return _parser.parse(text, start="duration")
 
-def parse_block(globals: Globals, block: str) -> Statement:
+def parse_block(globals: Globals, text: str) -> Statement:
   _transformer.globals = globals
-  return _parser.parse(block, start="block")
+  return _parser.parse(text, start="block")
 
-def parse_events_decl(events_decl: str):
-  return _parser.parse(events_decl, start="event_decl_list")
+def parse_events_decl(text: str):
+  return _parser.parse(text, start="event_decl_list")
 
-def parse_state_ref(state_ref: str):
-  return _parser.parse(state_ref, start="state_ref")
+def parse_func_decl(text: str) -> Tuple[str, List[Param]]:
+  return _parser.parse(text, start="func_decl")
+
+def parse_state_ref(text: str):
+  return _parser.parse(text, start="state_ref")
 
 def parse_semantic_choice(choice: str):
   return _parser.parse(choice, start="semantic_choice")

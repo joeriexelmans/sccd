@@ -152,7 +152,7 @@ class ActionParser(XmlParser):
     scope = self.scope.require()
     actions = self.actions.require()
 
-    block = parse_block(globals, block=el.text)
+    block = parse_block(globals, el.text)
     block.init_stmt(scope)
     a = Code(block)
     actions.append(a)
@@ -362,7 +362,7 @@ class TreeParser(StateParser):
         if event is not None:
           self._raise(t_el, "Can only specify one of attributes 'after', 'event'.", None)
         try:
-          after_expr = parse_expression(globals, expr=after)
+          after_expr = parse_expression(globals, after)
           after_type = after_expr.init_rvalue(t_scope)
           if after_type != Duration:
             msg = "Expression is '%s' type. Expected 'Duration' type." % str(after_type)
@@ -386,7 +386,7 @@ class TreeParser(StateParser):
       # Guard
       if cond is not None:
         try:
-          expr = parse_expression(globals, expr=cond)
+          expr = parse_expression(globals, cond)
           expr.init_rvalue(t_scope)
         except Exception as e:
           self._raise(t_el, "cond=\"%s\": %s" % (cond, str(e)), e)
@@ -435,10 +435,28 @@ class StatechartParser(TreeParser):
     id = el.get("id")
     expr = el.get("expr")
 
-    parsed = parse_expression(globals, expr=expr)
+    parsed = parse_expression(globals, expr)
     rhs_type = parsed.init_rvalue(scope)
     val = parsed.eval(_blank_eval_context)
     scope.add_variable_w_initial(name=id, initial=val)
+
+  def end_func(self, el):
+    globals = self.globals.require()
+    scope = self.scope.require()
+
+    id = el.get("id")
+    text = el.text
+
+    name, params = parse_func_decl(id)
+
+    # print("name:", name)
+    # print("params:", params)
+
+    body = parse_block(globals, text)
+    func = Function(params, body)
+    func.init_stmt(scope)
+
+    scope.add_function(name, func)
 
   def start_datamodel(self, el):
     statechart = self.statechart.require()

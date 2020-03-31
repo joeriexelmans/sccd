@@ -1,15 +1,25 @@
 from typing import *
 from sccd.syntax.expression import *
 
+@dataclass
+class Return:
+    ret: bool
+    val: Any = None
+
+@dataclass
+class ReturnType:
+    ret: bool
+    type: Optional[type] = None
+
 # A statement is NOT an expression.
 class Statement(ABC):
     # Execution typically has side effects.
     @abstractmethod
-    def exec(self, ctx: EvalContext):
+    def exec(self, ctx: EvalContext) -> Return:
         pass
 
     @abstractmethod
-    def init_stmt(self, scope: Scope):
+    def init_stmt(self, scope: Scope) -> ReturnType:
         pass
 
     @abstractmethod
@@ -22,11 +32,12 @@ class Assignment(Statement):
     operator: str # token value from the grammar.
     rhs: Expression
 
-    def init_stmt(self, scope: Scope):
+    def init_stmt(self, scope: Scope) -> ReturnType:
         rhs_t = self.rhs.init_rvalue(scope)
         self.lhs.init_lvalue(scope, rhs_t)
+        return ReturnType(False)
 
-    def exec(self, ctx: EvalContext):
+    def exec(self, ctx: EvalContext) -> Return:
         rhs_val = self.rhs.eval(ctx)
         variable = self.lhs.eval_lvalue(ctx)
 
@@ -54,6 +65,8 @@ class Assignment(Statement):
             "/=": divide,
         }[self.operator]()
 
+        return Return(False)
+
     def render(self) -> str:
         return self.lhs.render() + ' ' + self.operator + ' ' + self.rhs.render()
 
@@ -62,16 +75,22 @@ class Block(Statement):
     stmts: List[Statement]
     scope: Optional[Scope] = None
 
-    def init_stmt(self, scope: Scope):
+    def init_stmt(self, scope: Scope) -> ReturnType:
         self.scope = Scope("local", scope)
         for stmt in self.stmts:
-            stmt.init_stmt(self.scope)
+            ret = stmt.init_stmt(self.scope)
+            if ret.ret:
+                break
+        return ret
 
-    def exec(self, ctx: EvalContext):
+    def exec(self, ctx: EvalContext) -> Return:
         ctx.memory.grow_stack(self.scope)
         for stmt in self.stmts:
-            stmt.exec(ctx)
+            ret = stmt.exec(ctx)
+            if ret.ret:
+                break
         ctx.memory.shrink_stack()
+        return ret
 
     def render(self) -> str:
         result = ""
@@ -84,11 +103,13 @@ class Block(Statement):
 class ExpressionStatement(Statement):
     expr: Expression
 
-    def init_stmt(self, scope: Scope):
+    def init_stmt(self, scope: Scope) -> ReturnType:
         self.expr.init_rvalue(scope)
+        return ReturnType(False)
 
-    def exec(self, ctx: EvalContext):
+    def exec(self, ctx: EvalContext) -> Return:
         self.expr.eval(ctx)
+        return Return(False)
 
     def render(self) -> str:
         return self.expr.render()
@@ -97,5 +118,57 @@ class ExpressionStatement(Statement):
 class ReturnStatement(Statement):
     expr: Expression
 
-    def init_stmt(self, scope: Scope):
-        pass
+    def init_stmt(self, scope: Scope) -> ReturnType:
+        t = self.expr.init_rvalue(scope)
+        return ReturnType(True, t)
+
+    def exec(self, ctx: EvalContext):
+        val = self.expr.eval(ctx)
+        return Return(True, val)
+
+    def render(self) -> str:
+        return "return " + self.expr.render()
+
+# Used in EventDecl and Function
+@dataclass
+class Param:
+    name: str
+    type: type
+
+    variable: Optional[Variable] = None
+
+    def init_param(self, scope: Scope):
+        self.variable = scope.add_variable(self.name, self.type)
+
+@dataclass
+class Function(Statement):
+    params: List[Param]
+    body: Block
+    scope: Optional[Scope] = None
+    return_type: Optional[type] = None
+
+    def init_stmt(self, scope: Scope) -> ReturnType:
+        self.scope = Scope("function_params", scope)
+        # Reserve space for arguments on stack
+        for p in self.params:
+            p.init_param(self.scope)
+        self.return_type = self.body.init_stmt(self.scope).type
+
+        # Execution of function declaration doesn't do anything
+        return ReturnType(False)
+
+    def exec(self, ctx: EvalContext) -> Return:
+        # Execution of function declaration doesn't do anything
+        return Return(False)
+
+    def __call__(self, ctx: EvalContext, *params) -> Any:
+        ctx.memory.grow_stack(self.scope)
+        # Copy arguments to stack
+        for val, p in zip(params, self.params):
+            p.variable.store(ctx, val)
+        ret = self.body.exec(ctx)
+        ctx.memory.shrink_stack()
+        return ret.val
+
+    def render(self) -> str:
+        return "" # todo

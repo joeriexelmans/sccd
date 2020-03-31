@@ -80,9 +80,10 @@ class FunctionCall(Expression):
         self.type = return_type
 
         actual_types = [p.init_rvalue(scope) for p in self.parameters]
-        for formal, actual in zip(formal_types, actual_types):
+        for i, (formal, actual) in enumerate(zip(formal_types, actual_types)):
             if formal != actual:
-                raise Exception("Function call: Actual types '%s' differ from formal types '%s'" % (actual_types, formal_types))
+                print(self.function)
+                raise Exception("Function call, argument %d: %s is not expected type %s, instead is %s" % (i, self.parameters[i].render(), str(formal), str(actual)))
         return self.type
 
     def eval(self, ctx: EvalContext):

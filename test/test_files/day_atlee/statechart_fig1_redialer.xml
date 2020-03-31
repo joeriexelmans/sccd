@@ -15,7 +15,7 @@
     </func>
 
     <func id="numdigits(i:int)">
-      return int(log10(i)) + 1;
+      return float_to_int(log10(i)) + 1;
     </func>
   </datamodel>
 

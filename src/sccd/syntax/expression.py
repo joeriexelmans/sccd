@@ -79,10 +79,13 @@ class FunctionCall(Expression):
         formal_types, return_type = get_args(function_type)
         self.type = return_type
 
+        # We always secretly pass an EvalContext object with every function call
+        # Not visible to the user.
+        assert formal_types[0] == EvalContext
+
         actual_types = [p.init_rvalue(scope) for p in self.parameters]
-        for i, (formal, actual) in enumerate(zip(formal_types, actual_types)):
+        for i, (formal, actual) in enumerate(zip(formal_types[1:], actual_types)):
             if formal != actual:
-                print(self.function)
                 raise Exception("Function call, argument %d: %s is not expected type %s, instead is %s" % (i, self.parameters[i].render(), str(formal), str(actual)))
         return self.type
 

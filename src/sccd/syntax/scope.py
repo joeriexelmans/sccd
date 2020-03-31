@@ -198,8 +198,7 @@ class Scope:
   def add_python_function(self, name: str, function: Callable) -> Constant:
     sig = signature(function)
     return_type = sig.return_annotation
-    args = list(sig.parameters.values())[1:] # hide 'EvalContext' parameter to user
-    param_types = [a.annotation for a in args]
+    param_types = [a.annotation for a in sig.parameters.values()]
     function_type = Callable[param_types, return_type]
     
     c = Constant(name=name, type=function_type, value=function)
@@ -208,7 +207,7 @@ class Scope:
 
   def add_function(self, name: str, function: 'Function') -> Constant:
     return_type = function.return_type
-    param_types = [p.type for p in function.params]
+    param_types = [EvalContext] + [p.type for p in function.params]
     function_type = Callable[param_types, return_type]
 
     c = Constant(name=name, type=function_type, value=function)

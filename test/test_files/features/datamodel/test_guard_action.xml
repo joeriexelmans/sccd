@@ -7,24 +7,22 @@
       <var id="x" expr="0"/>
       <!-- <var id="y" expr="x"/>this is allowed, y is also 0 -->
     </datamodel>
-    <tree>
-      <state initial="counting">
-        <state id="counting">
-          <transition event="e" port="in" target="."/>
-          <transition cond="x &lt; 3" target=".">
-            <code> x += 1; </code>
-            <raise event="inc" port="out"/>
-          </transition>
-          <transition cond="x == 3" target="../done"/>
-        </state>
-        <state id="done">
-          <onentry><raise event="done" port="out"/></onentry>
-        </state>
+    <root initial="counting">
+      <state id="counting">
+        <transition event="e" port="in" target="."/>
+        <transition cond="x &lt; 3" target=".">
+          <code> x += 1; </code>
+          <raise event="inc" port="out"/>
+        </transition>
+        <transition cond="x == 3" target="../done"/>
       </state>
-    </tree>
+      <state id="done">
+        <onentry><raise event="done" port="out"/></onentry>
+      </state>
+    </root>
   </statechart>
   <input>
-    <input_event name="e" port="in" time="0 d"/>
+    <event name="e" port="in" time="0 d"/>
   </input>
   <output>
     <big_step>

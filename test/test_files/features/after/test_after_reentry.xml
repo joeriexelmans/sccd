@@ -4,35 +4,33 @@
     <semantics
         big_step_maximality="take_many"
         combo_step_maximality="combo_take_one"/>
-    <tree>
-      <state>
-        <parallel id="p">
-          <state id="o0" initial="a">
-            <state id="a">
-              <transition after="100 ms" cond='INSTATE(["/p/o1/x"])' target="../b"/>
-              <transition after="150 ms" target="../c"/>
-            </state>
-            <state id="b">
-              <onentry>
-                <raise event="in_b" port="out"/>
-              </onentry>
-              <transition target="../a"/>
-            </state>
-            <state id="c">
-              <onentry>
-                <raise event="in_c" port="out"/>
-              </onentry>
-            </state>
+    <root>
+      <parallel id="p">
+        <state id="o0" initial="a">
+          <state id="a">
+            <transition after="100 ms" cond='INSTATE(["/p/o1/x"])' target="../b"/>
+            <transition after="150 ms" target="../c"/>
           </state>
-          <state id="o1" initial="x">
-            <state id="x">
-              <transition after="250 ms" target="../y"/>
-            </state>
-            <state id="y"/>
+          <state id="b">
+            <onentry>
+              <raise event="in_b" port="out"/>
+            </onentry>
+            <transition target="../a"/>
           </state>
-        </parallel>
-      </state>
-    </tree>
+          <state id="c">
+            <onentry>
+              <raise event="in_c" port="out"/>
+            </onentry>
+          </state>
+        </state>
+        <state id="o1" initial="x">
+          <state id="x">
+            <transition after="250 ms" target="../y"/>
+          </state>
+          <state id="y"/>
+        </state>
+      </parallel>
+    </root>
   </statechart>
   <output>
     <big_step>

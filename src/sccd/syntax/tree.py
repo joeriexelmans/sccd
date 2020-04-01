@@ -85,6 +85,7 @@ class ParallelState(State):
 
 @dataclass
 class EventDecl:
+    id: int
     name: str
     params: List[Param]
 
@@ -96,17 +97,31 @@ class EventDecl:
 
 @dataclass
 class Trigger:
-    enabling: Bitmap
+    enabling: List[EventDecl]
+
+    def __post_init__(self):
+        self.enabling_bitmap = Bitmap.from_list(e.id for e in self.enabling)
 
     def check(self, events_bitmap: Bitmap) -> bool:
-        return (self.enabling & events_bitmap) == self.enabling
+        return (self.enabling_bitmap & events_bitmap) == self.enabling_bitmap
+
+    def render(self) -> str:
+        return ' ∧ '.join(e.name for e in self.enabling)
 
 @dataclass
-class NegatedTrigger(Trigger):
-    disabling: Bitmap
+class NegatedTrigger:
+    enabling: List[EventDecl]
+    disabling: List[EventDecl]
+
+    def __post_init__(self):
+        self.enabling_bitmap = Bitmap.from_list(e.id for e in self.enabling)
+        self.disabling_bitmap = Bitmap.from_list(e.id for e in self.disabling)
 
     def check(self, events_bitmap: Bitmap) -> bool:
-        return Trigger.check(self, events_bitmap) and not (self.disabling & events_bitmap)
+        return (self.enabling_bitmap & events_bitmap) == self.enabling_bitmap and not (self.disabling_bitmap & events_bitmap)
+
+    def render(self) -> str:
+        return ' ∧ '.join(e.name for e in self.enabling) + ' ∧ ' + ' ∧ '.join('¬'+e.name for e in self.disabling)
 
 @dataclass
 class EventTrigger:
@@ -146,6 +161,9 @@ class AfterTrigger(EventTrigger):
 class Transition:
     source: State
     targets: List[State]
+    scope: Scope
+
+    target_string: Optional[str] = None
 
     guard: Optional[Expression] = None
     actions: List[Action] = field(default_factory=list)

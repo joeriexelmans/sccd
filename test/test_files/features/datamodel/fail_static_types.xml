@@ -7,18 +7,16 @@
       <var id="x" expr="5"/>
     </datamodel>
 
-    <tree>
-      <state initial="a">
-        <state id="a">
-          <onentry>
-            <code>
-              greeting = "hello";
-              x = greeting; <!-- 'x' is already declared as integer at instance level -->
-            </code>
-          </onentry>
-        </state>
+    <root initial="a">
+      <state id="a">
+        <onentry>
+          <code>
+            greeting = "hello";
+            x = greeting; <!-- 'x' is already declared as integer at instance level -->
+          </code>
+        </onentry>
       </state>
-    </tree>
+    </root>
   </statechart>
 
   <output>

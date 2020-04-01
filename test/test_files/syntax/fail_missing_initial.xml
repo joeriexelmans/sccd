@@ -4,13 +4,11 @@
     <semantics/>
     <datamodel/>
 
-    <tree>
+    <root>
       <!-- missing initial -->
-      <state>
-        <state id="a"/>
-        <state id="b"/>
-      </state>
-    </tree>
+      <state id="a"/>
+      <state id="b"/>
+    </root>
   </statechart>
 
   <output>

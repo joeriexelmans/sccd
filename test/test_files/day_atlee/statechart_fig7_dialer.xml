@@ -6,17 +6,14 @@
     <var id="c" expr="0"/>
   </datamodel>
 
-  <tree>
-    <state initial="D">
-      <state id="D">
-        <transition port="in" event="dial" cond="c &lt; 10" target=".">
-          <parameter name="d" />
-          <code> c += 1; </code>
-          <raise port="out" event="out">
-            <parameter expr="d"/>
-          </raise>
-        </transition>
-      </state>
+  <root initial="D">
+    <state id="D">
+      <transition port="in" event="dial(d:int)" cond="c &lt; 10" target=".">
+        <code> c += 1; </code>
+        <raise port="out" event="out">
+          <!-- <parameter expr="d"/> -->
+        </raise>
+      </transition>
     </state>
-  </tree>
+  </root>
 </statechart>

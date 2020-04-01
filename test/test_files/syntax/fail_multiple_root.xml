@@ -4,11 +4,13 @@
     <semantics/>
     <datamodel/>
 
-    <tree>
-      <!-- not allowed: more than one root state -->
-      <state/>
-      <state/>
-    </tree>
+    <root>
+      <state id="a"/>
+    </root>
+    <!-- not allowed: more than one root state -->
+    <root>
+      <state id="b"/>
+    </root>
   </statechart>
 
   <output>

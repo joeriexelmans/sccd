@@ -8,7 +8,7 @@
       input_event_lifeline="*"/>
   </statechart>
   <input>
-    <input_event name="e" port="in" time="0 d"/>
+    <event name="e" port="in" time="0 d"/>
   </input>
   <output>
     <big_step>

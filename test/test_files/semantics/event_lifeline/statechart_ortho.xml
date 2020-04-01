@@ -1,37 +1,35 @@
 <?xml version="1.0" ?>
 <statechart>
-  <tree>
-    <state>
-      <parallel id="p">
-        <state id="o0" initial="a">
-          <state id="a">
-            <transition event="e" port="in" target="../b">
-              <raise event="f"/>
-            </transition>
-          </state>
-          <state id="b">
-            <onentry>
-              <raise event="in_b" port="out"/>
-            </onentry>
-            <transition event="f" target="../c"/>
-          </state>
-          <state id="c">
-            <onentry>
-              <raise event="in_c" port="out"/>
-            </onentry>
-          </state>
+  <root>
+    <parallel id="p">
+      <state id="o0" initial="a">
+        <state id="a">
+          <transition event="e" port="in" target="../b">
+            <raise event="f"/>
+          </transition>
         </state>
-        <state id="o1" initial="d">
-          <state id="d">
-            <transition event="f" target="../e"/>
-          </state>
-          <state id="e">
-            <onentry>
-              <raise event="in_e" port="out"/>
-            </onentry>
-          </state>
+        <state id="b">
+          <onentry>
+            <raise event="in_b" port="out"/>
+          </onentry>
+          <transition event="f" target="../c"/>
         </state>
-      </parallel>
-    </state>
-  </tree>
+        <state id="c">
+          <onentry>
+            <raise event="in_c" port="out"/>
+          </onentry>
+        </state>
+      </state>
+      <state id="o1" initial="d">
+        <state id="d">
+          <transition event="f" target="../e"/>
+        </state>
+        <state id="e">
+          <onentry>
+            <raise event="in_e" port="out"/>
+          </onentry>
+        </state>
+      </state>
+    </parallel>
+  </root>
 </statechart>

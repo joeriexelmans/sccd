@@ -100,7 +100,9 @@ class _ExpressionTransformer(Transformer):
     return (pos_events, neg_events)
 
   def event_decl(self, node):
-    return EventDecl(name=node[0], params=node[1])
+    event_name = node[0]
+    event_id = self.globals.events.assign_id(event_name)
+    return EventDecl(id=event_id, name=event_name, params=node[1])
 
   params_decl = list
 
@@ -134,7 +136,8 @@ def parse_block(globals: Globals, text: str) -> Statement:
   _transformer.globals = globals
   return _parser.parse(text, start="block")
 
-def parse_events_decl(text: str):
+def parse_events_decl(globals: Globals, text: str):
+  _transformer.globals = globals
   return _parser.parse(text, start="event_decl_list")
 
 def parse_func_decl(text: str) -> Tuple[str, List[Param]]:

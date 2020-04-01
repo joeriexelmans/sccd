@@ -5,30 +5,28 @@
     <semantics
         big_step_maximality="take_one, take_many"
         combo_step_maximality="*"/>
-    <tree>
-      <state initial="s1">
-        <state id="s1">
-          <transition after="100 ms" target="/s2"/>
-          <transition after="200 ms" target="/s3"/>
-        </state>
-        <state id="s2">
-          <onentry>
-            <raise event="in_2" port="out" />
-          </onentry>
-          <transition after="150 ms" target="/s4"/>
-        </state>
-        <state id="s3">
-          <onentry>
-            <raise event="in_3" port="out"/>
-          </onentry>
-        </state>
-        <state id="s4">
-          <onentry>
-            <raise event="in_4" port="out"/>
-          </onentry>
-        </state>
+    <root initial="s1">
+      <state id="s1">
+        <transition after="100 ms" target="/s2"/>
+        <transition after="200 ms" target="/s3"/>
       </state>
-    </tree>
+      <state id="s2">
+        <onentry>
+          <raise event="in_2" port="out" />
+        </onentry>
+        <transition after="150 ms" target="/s4"/>
+      </state>
+      <state id="s3">
+        <onentry>
+          <raise event="in_3" port="out"/>
+        </onentry>
+      </state>
+      <state id="s4">
+        <onentry>
+          <raise event="in_4" port="out"/>
+        </onentry>
+      </state>
+    </root>
   </statechart>
   <output>
     <big_step>

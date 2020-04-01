@@ -36,15 +36,13 @@ if __name__ == '__main__':
 
     def process(src):
       try:
-        parser = StatechartParser(load_external = False)
-        parser.globals.push(Globals(fixed_delta = None))
-        parser.statecharts.push([])
-        parser.parse(src)
-        statecharts = parser.statecharts.pop()
-        if len(statecharts) != 1:
+        parser = create_statechart_parser(Globals(), src, load_external=False)
+        statechart = parse(src, parser,
+          ignore_unmatched=True, disable_multiplicities=True)
+
+        if statechart is None:
           return # no statechart here :(
 
-        statechart = statecharts[0]
         root = statechart.tree.root
 
         target_path = lambda ext: os.path.join(args.output_dir, dropext(src)+ext)
@@ -156,10 +154,12 @@ if __name__ == '__main__':
           print("Wrote "+svg_target)
         if not args.keep_smcat:
           os.remove(smcat_target)
-          
+      
+      except SkipFile:
+        pass
       except Exception as e:
-        # import traceback
-        # traceback.print_exception(type(e), e, None)
+        import traceback
+        traceback.print_exception(type(e), e, None)
         print(e,'\n')
 
     pool_size = min(args.pool_size, len(srcs))

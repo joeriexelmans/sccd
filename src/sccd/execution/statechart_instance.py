@@ -19,6 +19,9 @@ class StatechartInstance(Instance):
 
         semantics = statechart.semantics
 
+        if isinstance(semantics, VariableSemantics):
+            raise Exception("Cannot execute model with variable semantics.")
+
         reverse = semantics.priority == Priority.SOURCE_CHILD
 
         generator = CandidatesGeneratorCurrentConfigBased(reverse)

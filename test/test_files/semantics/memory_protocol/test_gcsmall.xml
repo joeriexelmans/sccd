@@ -9,7 +9,7 @@
   </statechart>
   
   <input>
-    <input_event port="in" name="e" time="0 d"/>
+    <event port="in" name="e" time="0 d"/>
   </input>
 
   <output>

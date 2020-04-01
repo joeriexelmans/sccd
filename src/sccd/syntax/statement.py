@@ -95,7 +95,7 @@ class Block(Statement):
     def render(self) -> str:
         result = ""
         for stmt in self.stmts:
-            result += stmt.render() + ' '
+            result += stmt.render() + '⁏ '
         return result
 
 # e.g. a function call

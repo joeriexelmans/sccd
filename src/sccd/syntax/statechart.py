@@ -76,14 +76,12 @@ class VariableSemantics:
 
     return [Semantics(**{f.name: o for f,o in zip(my_fields, variant)}) for variant in variants]
 
-@dataclass
-class StatechartVariableSemantics:
-  tree: StateTree
-  semantics: VariableSemantics
-  scope: Scope
 
 @dataclass
 class Statechart:
+  inport_events: Dict[str, Set[int]] # mapping from inport to set of event IDs
+  event_outport: Dict[str, str] # mapping from event name to outport
+
+  semantics: Union[VariableSemantics, Semantics]
   tree: StateTree
-  semantics: Semantics
   scope: Scope

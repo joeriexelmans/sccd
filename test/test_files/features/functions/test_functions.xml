@@ -17,22 +17,20 @@
       </func>
     </datamodel>
 
-    <tree>
-      <state initial="ready">
-        <state id="ready">
-          <transition port="in" event="start" target="../final"
-            cond="numdigits(123) == 3 and digit(123, 1) == 2">
-            <raise port="out" event="ok"/>
-          </transition>
-        </state>
-
-        <state id="final"/>
+    <root initial="ready">
+      <state id="ready">
+        <transition port="in" event="start" target="../final"
+          cond="numdigits(123) == 3 and digit(123, 1) == 2">
+          <raise port="out" event="ok"/>
+        </transition>
       </state>
-    </tree>
+
+      <state id="final"/>
+    </root>
   </statechart>
 
   <input>
-    <input_event port="in" name="start" time="0 d"/>
+    <event port="in" name="start" time="0 d"/>
   </input>
 
   <output>

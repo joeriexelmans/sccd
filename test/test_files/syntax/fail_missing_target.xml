@@ -4,13 +4,11 @@
     <semantics/>
     <datamodel/>
 
-    <tree>
-      <state>
-        <state id="a">
-          <transition event="e"/>
-        </state>
+    <root>
+      <state id="a">
+        <transition event="e"/>
       </state>
-    </tree>
+    </root>
   </statechart>
 
   <output>

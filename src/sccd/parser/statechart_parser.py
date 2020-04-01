@@ -1,16 +1,21 @@
-import dataclasses
+from typing import *
 from lxml import etree
-from sccd.parser.expression_parser import *
 from sccd.syntax.statechart import *
 from sccd.syntax.tree import *
-from sccd.execution.event import *
 from sccd.execution import builtin_scope
+from sccd.parser.expression_parser import *
 
-_blank_eval_context = EvalContext(current_state=None, events=[], memory=None)
+class XmlError(Exception):
+  pass
+
+class XmlErrorElement(Exception):
+  def __init__(self, el: etree.Element, msg):
+    super().__init__(msg)
+    self.el = el
 
 # An Exception that occured while visiting an XML element.
 # It will show a fragment of the source file and the line number of the error.
-class XmlLoadError(Exception):
+class XmlDecoratedError(Exception):
   def __init__(self, src_file: str, el: etree.Element, msg):
     # This is really dirty, but can't find a clean way to do this with lxml.
 
@@ -52,442 +57,412 @@ class XmlLoadError(Exception):
     # self.el = el
     # self.err = err
 
+ParseElementF = Callable[[etree.Element], Optional['Parser']]
+OrderedElements = List[Tuple[str, ParseElementF]]
+UnorderedElements = Dict[str, ParseElementF]
+Parser = Union[OrderedElements, UnorderedElements]
+ParserWDone = Union[Parser, Tuple[Parser,Callable]]
 
-class XmlParser:
+def parse(src_file, rules: ParserWDone, ignore_unmatched = False, disable_multiplicities = False):
 
-  # Stack-like data structure extensively used for event-driven parsing.
-  # Typically, when visiting the opening tag of a parent XML element, a context value is *pushed*, and when visiting the matching closing tag, that value is popped. Child XML elements will be able to "peek" or, more often, "require" a context value to "be there". This way, child XML elements can express only being allowed as children of certain parent XML elements that push/pop these contexts, otherwise raising an exception.
-  class Context:
-    def __init__(self, name):
-      self.data = []
-      self.name = name
+  class Multiplicity(Flag):
+    AT_LEAST_ONCE = auto()
+    AT_MOST_ONCE = auto()
 
-    def push(self, value):
-      self.data.append(value)
+    ANY = 0
+    ONCE = AT_LEAST_ONCE | AT_MOST_ONCE
+    OPTIONAL = AT_MOST_ONCE
+    MULTIPLE = AT_LEAST_ONCE
 
-    def pop(self):
-      return self.data.pop()
-
-    def peek(self, default=None):
-      try:
-        return self.data[-1]
-      except IndexError:
-        return default
-
-    # Same as peek, but raises exception of stack is empty
-    def require(self):
-      try:
-        return self.data[-1]
-      except IndexError as e:
-        raise Exception("Element expected only within context: %s" % self.name) from e
-
-
-  def __init__(self):
-    self.src_file = XmlParser.Context("src_file")
-
-  def parse(self, src_file):
-    self.src_file.push(src_file)
-
-    for event, el in etree.iterparse(src_file, events=("start", "end")):
-      # print(event, el.tag)
-      try:
-        if event == "start":
-          start_method = getattr(self, "start_"+el.tag, None)
-          if start_method:
-            start_method(el)
-
-        elif event == "end":
-          end_method = getattr(self, "end_"+el.tag, None)
-          if end_method:
-            end_method(el)
-
-      except XmlLoadError:
-        raise
-      except Exception as e:
-        # An advantage of this event-driven parsing is that if an exception is thrown during the visiting of an XML node, we can automatically decorate it with info about the tag where the error occured, the line number in the source file, etc.
-        self._raise(el, str(e), e)
-
-      # We don't need anything from this element anymore, so we clear it to save memory.
-      # This is a technique mentioned in the lxml documentation:
-      # https://lxml.de/tutorial.html#event-driven-parsing
-      # el.clear()
-      # Currently disabled for 2 reasons:
-      # 1) Because we store <transition> elements and need to read their attributes later on.
-      # 2) To be able to pretty-print XML data later on, if a future error occurs.
-      
-    self.src_file.pop()
-
-  def _raise(self, el, msg, err: Exception):
-    src_file = self.src_file.require()
-    raise XmlLoadError(src_file, el, msg) from err
-
-
-# Parses action elements: <raise>, <code>
-class ActionParser(XmlParser):
-
-  def __init__(self):
-    super().__init__()
-    self.globals = XmlParser.Context("globals")
-    self.scope = XmlParser.Context("scope")
-    self.actions = XmlParser.Context("actions")
-
-  def end_raise(self, el):
-    globals = self.globals.require()
-    actions = self.actions.require()
-
-    name = el.get("event")
-    port = el.get("port")
-    if not port:
-      # internal event
-      event_id = globals.events.assign_id(name)
-      a = RaiseInternalEvent(name=name, parameters=[], event_id=event_id)
-    else:
-      # output event - no ID in global namespace
-      globals.outports.assign_id(port)
-      a = RaiseOutputEvent(name=name, parameters=[], outport=port, time_offset=0)
-    actions.append(a)
-
-  def end_code(self, el):
-    globals = self.globals.require()
-    scope = self.scope.require()
-    actions = self.actions.require()
-
-    block = parse_block(globals, el.text)
-    block.init_stmt(scope)
-    a = Code(block)
-    actions.append(a)
-
-# Parses state elements: <state>, <parallel>, <history>,
-# and all its children (transitions, entry/exit actions)
-class StateParser(ActionParser):
-
-  def __init__(self):
-    super().__init__()
-    self.state = XmlParser.Context("state")
-    self.state_children = XmlParser.Context("state_children")
-    self.transitions = XmlParser.Context("transitions")
-
-  def _internal_start_state(self, el, constructor):
-    parent = self.state.peek(default=None)
-
-    short_name = el.get("id", "")
-    if parent is None:
-      if short_name:
-        raise Exception("Root <state> must not have 'id' attribute.")
-    else:
-      if not short_name:
-        raise Exception("Non-root <state> must have 'id' attribute.")
-
-    state = constructor(short_name, parent)
-
-    parent_children = self.state_children.require()
-    already_there = parent_children.setdefault(short_name, state)
-    if already_there is not state:
-      if parent:
-        raise Exception("Sibling state with the same id exists.")
+    @staticmethod
+    def parse_suffix(tag: str) -> Tuple[str, 'Multiplicity']:
+      if tag.endswith("*"):
+        m = Multiplicity.ANY
+        tag = tag[:-1]
+      elif tag.endswith("?"):
+        m = Multiplicity.OPTIONAL
+        tag = tag[:-1]
+      elif tag.endswith("+"):
+        m = Multiplicity.MULTIPLE
+        tag = tag[:-1]
       else:
-        raise Exception("Only 1 root <state> allowed.")
+        m = Multiplicity.ONCE
+      return tag, m
 
-    if el.get("stable", "") == "true":
-      state.stable = True
+    def unparse_suffix(self, tag: str) -> str:
+      return tag + {
+        Multiplicity.ANY: "*",
+        Multiplicity.ONCE: "",
+        Multiplicity.OPTIONAL: "?",
+        Multiplicity.MULTIPLE: "+"
+      }[self]
 
-    self.state.push(state)
-    self.state_children.push({})
+  rules_stack = [rules]
+  results_stack = [[]]
 
-  def _internal_end_state(self):
-    state_children = self.state_children.pop()
-    state = self.state.pop()
-    return (state, state_children)
+  for event, el in etree.iterparse(src_file, events=("start", "end")):
+    try:
+      if event == "start":
+        # print("start", el.tag)
+        allowed_tags = []
+        when_done = None
+        pair = rules_stack[-1]
+        if isinstance(pair, tuple):
+          rules, when_done = pair
+        else:
+          rules = pair
 
-  def start_state(self, el):
-    self._internal_start_state(el, State)
+        parse_function = None
+        if isinstance(rules, dict):
+          # print("rules:", list(rules.keys()))
+          try:
+            parse_function = rules[el.tag]
+          except KeyError as e:
+            pass
 
-  def end_state(self, el):
-    state, state_children = self._internal_end_state()
+        elif isinstance(rules, list):
+          # print("rules:", [rule[0] for rule in rules])
+          # Expecting elements in certain order and with certain multiplicities
+          while len(rules) > 0:
+            tag_w_suffix, func = rules[0]
+            tag, m = Multiplicity.parse_suffix(tag_w_suffix)
+            if tag == el.tag:
+              if m & Multiplicity.AT_MOST_ONCE:
+                # We don't allow this element next time
+                rules = rules[1:]
+                rules_stack[-1] = (rules, when_done)
 
-    initial = el.get("initial", None)
-    if initial is not None:
-      try:
-        state.default_state = state_children[initial]
-      except KeyError as e:
-        raise Exception("initial=\"%s\": not a child." % (initial)) from e
-    elif len(state.children) == 1:
-      state.default_state = state.children[0]
-    elif len(state.children) > 1:
-      raise Exception("More than 1 child state: must set 'initial' attribute.")
+              elif m & Multiplicity.AT_LEAST_ONCE:
+                # We don't require this element next time
+                m &= ~Multiplicity.AT_LEAST_ONCE
+                rules = list(rules) # copy list before editing
+                rules[0] = (m.unparse_suffix(tag), func) # edit rule
+                rules_stack[-1] = (rules, when_done)
 
-  def start_parallel(self, el):
-    self._internal_start_state(el, ParallelState)
+              parse_function = func
+              break
+            else:
+              if not disable_multiplicities and m & Multiplicity.AT_LEAST_ONCE:
+                raise XmlError("Expected required element <%s>" % tag)
+              else:
+                # Element is skipable
+                rules = rules[1:]
+                rules_stack[-1] = (rules, when_done)
+        else:
+          assert False # rule should always be a dict or list
 
-  def end_parallel(self, el):
-    self._internal_end_state()
+        if parse_function:
+          children_rules = parse_function(el)
+          if children_rules:
+            rules_stack.append(children_rules)
+          else:
+            rules_stack.append([])
+        else:
+          if not ignore_unmatched:
+            raise XmlError("Unexpected element.")
+          else:
+            rules_stack.append([])
+        results_stack.append([])
 
-  def start_history(self, el):
-    if el.get("type", "shallow") == "deep":
-      self._internal_start_state(el, DeepHistoryState)
-    else:
-      self._internal_start_state(el, ShallowHistoryState)
+      elif event == "end":
+        children_results = results_stack.pop()
+        when_done = None
+        pair = rules_stack.pop()
+        if isinstance(pair, tuple):
+          rules, when_done = pair
+        else:
+          rules = pair
 
-  def end_history(self, el):
-    return self._internal_end_state()
+        if when_done:
+          result = when_done(*children_results)
+          # print("end", el.tag, "with result=", result)
+          if result:
+            results_stack[-1].append(result)
+        # else:
+        #   print("end", el.tag)
 
-  def start_onentry(self, el):
-    self.actions.push([])
 
-  def end_onentry(self, el):
-    actions = self.actions.pop()
-    self.state.require().enter = actions
 
-  def start_onexit(self, el):
-    self.actions.push([])
+    except XmlError as e:
+      raise XmlDecoratedError(src_file, el, str(e)) from e
+    except XmlErrorElement as e:
+      raise XmlDecoratedError(src_file, e.el, str(e)) from e
 
-  def end_onexit(self, el):
-    actions = self.actions.pop()
-    self.state.require().exit = actions
+  results = results_stack[0] # sole stack frame remaining
+  if len(results) > 0:
+    return results[0] # return first item, since we expect at most one item since an XML file has only one root node
 
-  def start_transition(self, el):
-    parent_scope = self.scope.require()
-    globals = self.globals.require()
-    if self.state.require().parent is None:
-      raise Exception("Root <state> cannot be source of a transition.")
+class SkipFile(Exception):
+  pass
 
-    scope = Scope("transition", parent=parent_scope)
+_blank_eval_context = EvalContext(current_state=None, events=[], memory=None)
 
-    event = el.get("event")
+def require_attribute(el, attr):
+  val = el.get(attr)
+  if val is None:
+    raise XmlError("missing required attribute '%s'" % attr)
+  return val
 
-    if event is not None:
-      positive_events, negative_events = parse_events_decl(event)
-
-      positive_bitmap = Bitmap()
-      negative_bitmap = Bitmap()
-
-      def process_event_decl(e: EventDecl):
-        for i,p in enumerate(e.params):
-          scope.add_event_parameter(event_name=e.name, param_name=p.name, type=p.type, param_offset=i)
-
-      for e in positive_events:
-        event_id = globals.events.assign_id(e.name)
-        positive_bitmap |= bit(event_id)
-        process_event_decl(e)
-
-      for e in negative_events:
-        event_id = globals.events.assign_id(e.name)
-        negative_bitmap |= bit(event_id)
-        process_event_decl(e)
-
-      if not negative_bitmap:
-        trigger = Trigger(positive_bitmap)
-      else:
-        trigger = NegatedTrigger(positive_bitmap, negative_bitmap)
-
-    self.scope.push(scope)
-    self.actions.push([])
-
-  def end_transition(self, el):
-    transitions = self.transitions.require()
-    scope = self.scope.pop()
-    actions = self.actions.pop()
-    source = self.state.require()
-
-    # Parse <transition> element not until all states have been parsed,
-    # and state tree constructed.
-    transitions.append((el, source, actions, scope))
-
-# Parses <tree> element and all its children.
-# In practice, this can't really parse a <tree> element because any encountered expression may contain identifiers pointing to model variables declared outside the <tree> element. To parse a <tree>, either manually add those variables to the 'scope', or, more likely, use a StatechartParser instance which will do this for you while parsing the <datamodel> node.
-class TreeParser(StateParser):
-
-  def __init__(self):
-    super().__init__()
-    self.statechart = XmlParser.Context("statechart")
-
-  # <tree>
-
-  def start_tree(self, el):
-    statechart = self.statechart.require()
-    self.scope.push(statechart.scope)
-    self.transitions.push([])
-    self.state_children.push({})
-
-  def end_tree(self, el):
-    statechart = self.statechart.require()
-    globals = self.globals.require()
-    scope = self.scope.pop()
-
-    root_states = self.state_children.pop()
-    if len(root_states) == 0:
-      raise Exception("Missing root <state> !")
-    root = list(root_states.values())[0]
-
-    # Add transitions.
-    # Only now that our tree structure is complete can we resolve 'target' states of transitions.
-    next_after_id = 0
-    transitions = self.transitions.pop()
-    for t_el, source, actions, t_scope in transitions:
-      target_string = t_el.get("target")
-      event = t_el.get("event")
-      port = t_el.get("port")
-      after = t_el.get("after")
-      cond = t_el.get("cond")
-
-      if target_string is None:
-        self._raise(t_el, "Missing mandatory attribute: 'target'.", None)
-
-      try:
-        # Parse and find target state
-        parse_tree = parse_state_ref(target_string)
-      except Exception as e:
-        self._raise(t_el, "Parsing target '%s': %s" % (target_string, str(e)), e)
-
-      def find_state(sequence) -> State:
-        if sequence.data == "relative_path":
-          state = source
-        elif sequence.data == "absolute_path":
-          state = root
-        for item in sequence.children:
-          if item.type == "PARENT_NODE":
-            state = state.parent
-          elif item.type == "CURRENT_NODE":
-            continue
-          elif item.type == "IDENTIFIER":
-            state = [x for x in state.children if x.short_name == item.value][0]
-        return state
-
-      try:
-        targets = [find_state(seq) for seq in parse_tree.children]
-      except Exception as e:
-        self._raise(t_el, "Could not find target '%s'." % (target_string), e)
-
-      transition = Transition(source, targets)
-
-      # Trigger
-      if after is not None:
-        if event is not None:
-          self._raise(t_el, "Can only specify one of attributes 'after', 'event'.", None)
-        try:
-          after_expr = parse_expression(globals, after)
-          after_type = after_expr.init_rvalue(t_scope)
-          if after_type != Duration:
-            msg = "Expression is '%s' type. Expected 'Duration' type." % str(after_type)
-            if after_type == int:
-              msg += "\n Hint: Did you forget a duration unit sufix? ('s', 'ms', ...)"
-            raise Exception(msg)
-          event = "_after%d" % next_after_id # transition gets unique event name
-          trigger = AfterTrigger(globals.events.assign_id(event), event, next_after_id, after_expr)
-          next_after_id += 1
-        except Exception as e:
-          self._raise(t_el, "after=\"%s\": %s" % (after, str(e)), e)
-      elif event is not None:
-        event_id = globals.events.assign_id(event)
-        trigger = EventTrigger(event_id, event, port)
-        globals.inports.assign_id(port)
-      else:
-        trigger = None
-      transition.trigger = trigger
-      # Actions
-      transition.actions = actions
-      # Guard
-      if cond is not None:
-        try:
-          expr = parse_expression(globals, cond)
-          expr.init_rvalue(t_scope)
-        except Exception as e:
-          self._raise(t_el, "cond=\"%s\": %s" % (cond, str(e)), e)
-        transition.guard = expr
-      source.transitions.append(transition)
-
-    statechart.tree = StateTree(root)
-
-# Parses <statechart> element and all its children.
-class StatechartParser(TreeParser):
-
-  def __init__(self, load_external = True):
-    super().__init__()
-    self.load_external = load_external
-
-    self.statecharts = XmlParser.Context("statecharts")
-
-  # <semantics>
-
-  def _internal_end_semantics(self, el):
-    statechart = self.statechart.require()
-    # Use reflection to find the possible XML attributes and their values
-    for aspect in dataclasses.fields(Semantics):
-      text = el.get(aspect.name)
-      if text is not None:
-        result = parse_semantic_choice(text)
-        if result.data == "wildcard":
-          setattr(statechart.semantics, aspect.name, list(aspect.type))
-        elif result.data == "list":
-          options = [aspect.type[token.value.upper()] for token in result.children]
-          setattr(statechart.semantics, aspect.name, options)
-
-  def end_semantics(self, el):
-    self._internal_end_semantics(el)
-
-  def end_override_semantics(self, el):
-    if self.load_external:
-      self._internal_end_semantics(el)
-
-  # <datamodel>
-
-  def end_var(self, el):
-    globals = self.globals.require()
-    scope = self.scope.require()
-
-    id = el.get("id")
-    expr = el.get("expr")
-
-    parsed = parse_expression(globals, expr)
-    rhs_type = parsed.init_rvalue(scope)
-    val = parsed.eval(_blank_eval_context)
-    scope.add_variable_w_initial(name=id, initial=val)
-
-  def end_func(self, el):
-    globals = self.globals.require()
-    scope = self.scope.require()
-
-    id = el.get("id")
-    text = el.text
-
-    name, params = parse_func_decl(id)
-
-    # print("name:", name)
-    # print("params:", params)
-
-    body = parse_block(globals, text)
-    func = Function(params, body)
-    func.init_stmt(scope)
-
-    scope.add_function(name, func)
-
-  def start_datamodel(self, el):
-    statechart = self.statechart.require()
-    self.scope.push(statechart.scope)
-
-  def end_datamodel(self, el):
-    self.scope.pop()
-
-  # <statechart>
-
-  def start_statechart(self, el):
-    src_file = self.src_file.require()
+def create_statechart_parser(globals, src_file, load_external = True):
+  def parse_statechart(el):
     ext_file = el.get("src")
-    statechart = None
     if ext_file is None:
-      statechart = StatechartVariableSemantics(tree=None, semantics=VariableSemantics(), scope=Scope("instance", parent=builtin_scope.builtin_scope))
-    elif self.load_external:
+      statechart = Statechart(
+        inport_events={},
+        event_outport={},
+        semantics=VariableSemantics(),
+        tree=None,
+        scope=Scope("instance", parent=builtin_scope.builtin_scope))
+    else:
+      if not load_external:
+        raise SkipFile("Parser configured not to load statecharts from external files.")
+      import os
       ext_file_path = os.path.join(os.path.dirname(src_file), ext_file)
-      self.statecharts.push([])
-      self.parse(ext_file_path)
-      statecharts = self.statecharts.pop()
-      if len(statecharts) != 1:
-        raise Exception("Expected exactly 1 <statechart> node, got %d." % len(statecharts))
-      statechart = statecharts[0]
-    self.statechart.push(statechart)
+      statechart = parse(ext_file_path, create_statechart_parser(globals, ext_file_path))
 
-  def end_statechart(self, el):
-    statecharts = self.statecharts.require()
-    sc = self.statechart.pop()
-    if sc is not None:
-      statecharts.append(sc)
+    def parse_semantics(el):
+      import dataclasses
+      # Use reflection to find the possible XML attributes and their values
+      for aspect in dataclasses.fields(Semantics):
+        text = el.get(aspect.name)
+        if text is not None:
+          result = parse_semantic_choice(text)
+          if result.data == "wildcard":
+            setattr(statechart.semantics, aspect.name, list(aspect.type))
+          elif result.data == "list":
+            options = [aspect.type[token.value.upper()] for token in result.children]
+            setattr(statechart.semantics, aspect.name, options)
+
+    def parse_datamodel(el):
+      def parse_var(el):
+        id = el.get("id")
+        expr = el.get("expr")
+
+        parsed = parse_expression(globals, expr)
+        rhs_type = parsed.init_rvalue(statechart.scope)
+        val = parsed.eval(_blank_eval_context)
+        statechart.scope.add_variable_w_initial(name=id, initial=val)
+
+      def parse_func(el):
+        id = el.get("id")
+        text = el.text
+
+        name, params = parse_func_decl(id)
+        body = parse_block(globals, text)
+        func = Function(params, body)
+        func.init_stmt(statechart.scope)
+        statechart.scope.add_function(name, func)
+
+      return {"var": parse_var, "func": parse_func}
+
+    def parse_inport(el):
+      port_name = require_attribute(el, "name")
+      def parse_event(el):
+        event_name = require_attribute(el, "name")
+        event_id = globals.events.assign_id(event_name)
+        port_events = statechart.inport_events.setdefault(port_name, set())
+        port_events.add(event_id)
+      return [("event+", parse_event)]
+
+    def parse_outport(el):
+      port_name = require_attribute(el, "name")
+      def parse_event(el):
+        event_name = require_attribute(el, "name")
+        statechart.event_outport[event_name] = port_name
+      return [("event+", parse_event)]
+
+    def parse_root(el):
+      root = State("", parent=None)
+      children_dict = {}
+      transitions = []
+      next_after_id = 0
+
+      def create_actions_parser(scope):
+
+        def parse_raise(el):
+          def when_done():
+            event_name = require_attribute(el, "event")
+            try:
+              port = statechart.event_outport[event_name]
+            except KeyError:
+              # Legacy fallback: read port from attribute
+              port = el.get("port")
+            if port is None:
+              # internal event
+              event_id = globals.events.assign_id(event_name)
+              return RaiseInternalEvent(name=event_name, parameters=[], event_id=event_id)
+            else:
+              # output event - no ID in global namespace
+              globals.outports.assign_id(port)
+              return RaiseOutputEvent(name=event_name, parameters=[], outport=port, time_offset=0)
+          return ([], when_done)
+
+        def parse_code(el):
+          def when_done():
+            block = parse_block(globals, el.text)
+            block.init_stmt(scope)
+            return Code(block)
+          return ([], when_done)
+
+        return {"raise": parse_raise, "code": parse_code}
+
+      def deal_with_initial(el, state, children_dict):
+        initial = el.get("initial")
+        if initial is not None:
+          try:
+            state.default_state = children_dict[initial]
+          except KeyError as e:
+            print("children:", children_dict.keys())
+            raise XmlError("initial=\"%s\": not a child." % (initial)) from e
+        elif len(state.children) == 1:
+          state.default_state = state.children[0]
+        elif len(state.children) > 1:
+          raise XmlError("More than 1 child state: must set 'initial' attribute.")
+
+      def create_state_parser(parent, sibling_dict):
+
+        def common(el, constructor):
+          short_name = require_attribute(el, "id")
+          state = constructor(short_name, parent)
+
+          already_there = sibling_dict.setdefault(short_name, state)
+          if already_there is not state:
+            raise XmlError("Sibling state with the same id exists.")
+          return state
+
+        def common_nonpseudo(el, constructor):
+          state = common(el, constructor)
+          if el.get("stable", "") == "true":
+            state.stable = True
+          return state
+
+        def parse_state(el):
+          state = common_nonpseudo(el, State)
+          children_dict = {}
+          def when_done():
+            deal_with_initial(el, state, children_dict)
+          return (create_state_parser(parent=state, sibling_dict=children_dict), when_done)
+
+        def parse_parallel(el):
+          state = common_nonpseudo(el, ParallelState)
+          return create_state_parser(parent=state, sibling_dict={})
+
+        def parse_history(el):
+          history_type = el.get("type", "shallow")
+          if history_type == "deep":
+            common(el, DeepHistoryState)
+          elif history_type == "shallow":
+            common(el, ShallowHistoryState)
+          else:
+            raise XmlError("attribute 'type' must be \"shallow\" or \"deep\".")
+
+        def parse_onentry(el):
+          def when_done(*actions):
+            parent.enter = actions
+          return (create_actions_parser(statechart.scope), when_done)
+
+        def parse_onexit(el):
+          def when_done(*actions):
+            parent.exit = actions
+          return (create_actions_parser(statechart.scope), when_done)
+
+        def parse_transition(el):
+          nonlocal next_after_id
+          
+          if parent is root:
+            raise XmlError("Root <state> cannot be source of a transition.")
+
+          target_string = require_attribute(el, "target")
+          scope = Scope("transition", parent=statechart.scope)
+          transition = Transition(parent, [], scope, target_string)
+
+          event = el.get("event")
+          if event is not None:
+            positive_events, negative_events = parse_events_decl(globals, event)
+
+            def process_event_decl(e: EventDecl):
+              for i,p in enumerate(e.params):
+                scope.add_event_parameter(event_name=e.name, param_name=p.name, type=p.type, param_offset=i)
+
+            for e in itertools.chain(positive_events, negative_events):
+              process_event_decl(e)
+
+            if not negative_events:
+              transition.trigger = Trigger(positive_events)
+            else:
+              transition.trigger = NegatedTrigger(positive_events, negative_events)
+
+          after = el.get("after")
+          if after is not None:
+            if event is not None:
+              raise XmlError("Cannot specify 'after' and 'event' at the same time.")
+            try:
+              after_expr = parse_expression(globals, after)
+              after_type = after_expr.init_rvalue(scope)
+              if after_type != Duration:
+                msg = "Expression is '%s' type. Expected 'Duration' type." % str(after_type)
+                if after_type == int:
+                  msg += "\n Hint: Did you forget a duration unit sufix? ('s', 'ms', ...)"
+                raise Exception(msg)
+              event = "_after%d" % next_after_id # transition gets unique event name
+              transition.trigger = AfterTrigger(globals.events.assign_id(event), event, next_after_id, after_expr)
+              next_after_id += 1
+            except Exception as e:
+              raise XmlError("after=\"%s\": %s" % (after, str(e))) from e
+
+          cond = el.get("cond")
+          if cond is not None:
+            try:
+              expr = parse_expression(globals, cond)
+              expr.init_rvalue(scope)
+            except Exception as e:
+              raise XmlError("cond=\"%s\": %s" % (cond, str(e))) from e
+            transition.guard = expr
+
+          def when_done(*actions):
+            transition.actions = actions
+            transitions.append(transition)
+            parent.transitions.append(transition)
+
+          return (create_actions_parser(scope), when_done)
+
+        return {"state": parse_state, "parallel": parse_parallel, "history": parse_history, "onentry": parse_onentry, "onexit": parse_onexit, "transition": parse_transition}
+
+      def when_done():
+        deal_with_initial(el, root, children_dict)
+
+        for transition in transitions:
+          try:
+            parse_tree = parse_state_ref(transition.target_string)
+          except Exception as e:
+            raise XmlErrorElement(t_el, "Parsing target '%s': %s" % (target_string, str(e))) from e
+
+          def find_state(sequence) -> State:
+            if sequence.data == "relative_path":
+              state = transition.source
+            elif sequence.data == "absolute_path":
+              state = root
+            for item in sequence.children:
+              if item.type == "PARENT_NODE":
+                state = state.parent
+              elif item.type == "CURRENT_NODE":
+                continue
+              elif item.type == "IDENTIFIER":
+                state = [x for x in state.children if x.short_name == item.value][0]
+            return state
+
+          try:
+            transition.targets = [find_state(seq) for seq in parse_tree.children]
+          except Exception as e:
+            raise XmlErrorElement(t_el, "Could not find target '%s'." % (target_string)) from e
+
+        statechart.tree = StateTree(root)
+
+      return (create_state_parser(root, sibling_dict=children_dict), when_done)
+
+    def when_done():
+      return statechart
+
+    return ([("semantics?", parse_semantics), ("override_semantics?", parse_semantics), ("datamodel?", parse_datamodel), ("inport*", parse_inport), ("outport*", parse_outport), ("root", parse_root)], when_done)
+
+  return ([("statechart", parse_statechart)])

@@ -2,42 +2,40 @@
 <statechart>
   <semantics/>
   <datamodel/>
-  <tree>
-    <state>
-      <parallel id="p">
-        <state id="o0" initial="a">
-          <state id="a">
-            <transition event="e" port="in" target="../b"/>
-          </state>
-          <state id="b">
-            <onentry>
-              <raise event="in_b" port="out"/>
-            </onentry>
-            <transition target="../c"/>
-          </state>
-          <state id="c">
-            <onentry>
-              <raise event="in_c" port="out"/>
-            </onentry>
-          </state>
+  <root>
+    <parallel id="p">
+      <state id="o0" initial="a">
+        <state id="a">
+          <transition event="e" port="in" target="../b"/>
         </state>
-        <state id="o1" initial="d">
-          <state id="d">
-            <transition target="../e"/>
-          </state>
-          <state id="e">
-            <onentry>
-              <raise event="in_e" port="out"/>
-            </onentry>
-            <transition target="../f"/>
-          </state>
-          <state id="f">
-            <onentry>
-              <raise event="in_f" port="out"/>
-            </onentry>
-          </state>
+        <state id="b">
+          <onentry>
+            <raise event="in_b" port="out"/>
+          </onentry>
+          <transition target="../c"/>
         </state>
-      </parallel>
-    </state>
-  </tree>
+        <state id="c">
+          <onentry>
+            <raise event="in_c" port="out"/>
+          </onentry>
+        </state>
+      </state>
+      <state id="o1" initial="d">
+        <state id="d">
+          <transition target="../e"/>
+        </state>
+        <state id="e">
+          <onentry>
+            <raise event="in_e" port="out"/>
+          </onentry>
+          <transition target="../f"/>
+        </state>
+        <state id="f">
+          <onentry>
+            <raise event="in_f" port="out"/>
+          </onentry>
+        </state>
+      </state>
+    </parallel>
+  </root>
 </statechart>

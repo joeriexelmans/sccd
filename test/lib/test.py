@@ -16,14 +16,12 @@ class Test(unittest.TestCase):
     return self.src
 
   def runTest(self):
-    parser = TestParser()
-    parser.tests.push([])
+    parser = create_test_parser(self.src)
     try:
-      statechart = parser.parse(self.src)
+      test_variants = parse(self.src, parser)
     except Exception as e:
       print_debug(e)
-      raise
-    test_variants = parser.tests.pop()
+      raise e
 
     for test in test_variants:
       print_debug('\n'+test.name)

@@ -10,9 +10,7 @@
       <var id="x" expr="43"/>
     </datamodel>
 
-    <tree>
-      <state/>
-    </tree>
+    <root/>
   </statechart>
 
   <output>

@@ -4,9 +4,9 @@
     <semantics/>
     <datamodel/>
 
-    <tree>
+    <state>
       <!-- not allowed: no root state -->
-    </tree>
+    </state>
   </statechart>
 
   <output>

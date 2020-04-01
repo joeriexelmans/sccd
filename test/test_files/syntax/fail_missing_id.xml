@@ -4,12 +4,10 @@
     <semantics/>
     <datamodel/>
 
-    <tree>
-      <state>
-        <state><!-- non-root state must have 'id' -->
-        </state>
+    <root>
+      <state><!-- non-root state must have 'id' -->
       </state>
-    </tree>
+    </root>
   </statechart>
 
   <output>

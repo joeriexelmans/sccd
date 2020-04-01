@@ -8,31 +8,29 @@
   <datamodel>
   </datamodel>
 
-  <tree>
-    <state>
-      <parallel id="Counter">
-        <state id="Bit_1" initial="Bit_11">
-          <state id="Bit_11">
-            <transition port="in" event="tk0" target="../Bit_12"/>
-          </state>
-          <state id="Bit_12">
-            <transition port="in" event="tk0" target="../Bit_11">
-              <raise event="tk1"/>
-            </transition>
-          </state>
+  <root>
+    <parallel id="Counter">
+      <state id="Bit_1" initial="Bit_11">
+        <state id="Bit_11">
+          <transition port="in" event="tk0" target="../Bit_12"/>
         </state>
+        <state id="Bit_12">
+          <transition port="in" event="tk0" target="../Bit_11">
+            <raise event="tk1"/>
+          </transition>
+        </state>
+      </state>
 
-        <state id="Bit_2" initial="Bit_21">
-          <state id="Bit_21">
-            <transition event="tk1" target="../Bit_22"/>
-          </state>
-          <state id="Bit_22">
-            <transition event="tk1" target="../Bit_21">
-              <raise port="out" event="done"/>
-            </transition>
-          </state>
+      <state id="Bit_2" initial="Bit_21">
+        <state id="Bit_21">
+          <transition event="tk1" target="../Bit_22"/>
         </state>
-      </parallel>
-    </state>
-  </tree>
+        <state id="Bit_22">
+          <transition event="tk1" target="../Bit_21">
+            <raise port="out" event="done"/>
+          </transition>
+        </state>
+      </state>
+    </parallel>
+  </root>
 </statechart>

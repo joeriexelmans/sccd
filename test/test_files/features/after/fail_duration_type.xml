@@ -5,15 +5,13 @@
     <semantics
         big_step_maximality="*"
         combo_step_maximality="*"/>
-    <tree>
-      <state initial="s1">
-        <state id="s1">
-          <!-- '100' is not a duration -->
-          <transition after="100" target="/s2"/>
-        </state>
-        <state id="s2"/>
+    <root initial="s1">
+      <state id="s1">
+        <!-- '100' is not a duration -->
+        <transition after="100" target="/s2"/>
       </state>
-    </tree>
+      <state id="s2"/>
+    </root>
   </statechart>
   <output/>
 </test>

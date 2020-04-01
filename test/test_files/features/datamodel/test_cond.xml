@@ -6,19 +6,17 @@
       <var id="x" expr="42"/>
       <!-- <var id="y" expr="x"/>this is allowed, value of x copied to y -->
     </datamodel>
-    <tree>
-      <state initial="start">
-        <state id="start">
-          <transition event="e" port="in" target="/done" cond="x == 42">
-            <raise event="done" port="out"/>
-          </transition>
-        </state>
-        <state id="done"/>
+    <root initial="start">
+      <state id="start">
+        <transition event="e" port="in" target="/done" cond="x == 42">
+          <raise event="done" port="out"/>
+        </transition>
       </state>
-    </tree>
+      <state id="done"/>
+    </root>
   </statechart>
   <input>
-    <input_event name="e" port="in" time="0 d"/>
+    <event name="e" port="in" time="0 d"/>
   </input>
   <output>
     <big_step>

@@ -123,7 +123,7 @@
 <title>_p_o0_a&#45;&gt;_p_o0_b</title>
 <path fill="none" stroke="#000000" d="M85,-287.9402C85,-282.3497 85,-276.1701 85,-270.5 85,-270.5 85,-270.5 85,-223.5 85,-221.127 85,-218.6757 85,-216.2081"/>
 <polygon fill="#000000" stroke="#000000" points="88.5001,-216.1306 85,-206.1306 81.5001,-216.1306 88.5001,-216.1306"/>
-<text text-anchor="start" x="85" y="-244" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">in.e^f &#160;&#160;</text>
+<text text-anchor="start" x="85" y="-244" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">e^f &#160;&#160;</text>
 </g>
 </g>
 </svg>

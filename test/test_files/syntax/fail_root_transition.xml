@@ -4,12 +4,10 @@
     <semantics/>
     <datamodel/>
 
-    <tree>
-      <state>
-        <!-- not allowed: transition with source: root -->
-        <transition target="."/>
-      </state>
-    </tree>
+    <root>
+      <!-- not allowed: transition with source: root -->
+      <transition target="."/>
+    </root>
   </statechart>
 
   <output>

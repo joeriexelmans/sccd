@@ -19,63 +19,61 @@
     </func>
   </datamodel>
 
-  <tree>
-    <state>
-      <parallel id="Dialing">
-        <state id="Dialer" initial="WaitForDial">
-          <state id="WaitForDial" stable="true">
-            <!-- t1 -->
-            <transition event="dial(d:int), not redial" cond="c &lt; 10" target=".">
-              <code>
-                c += 1;
-                lp = lp * 10 + d;
-              </code>
-              <raise port="out" event="out(d)"/>
-            </transition>
-            <!-- t2 -->
-            <transition event="dial(d:int), redial" cond="c == 0" target="../DialDigits">
-              <code>
-                lp = d;
-                c = 1;
-              </code>
-              <raise port="out" event="out(d)"/>
-            </transition>
-          </state>
-          <state id="DialDigits">
-            <!-- t3 -->
-            <transition event="dial(d:int)" cond="c &lt; 10" target=".">
-              <code>
-                lp = lp * 10 + d;
-                c += 1;
-              </code>
-              <raise port="out" event="out(d)"/>
-            </transition>
-            <!-- t4 -->
-            <transition cond="c == 10" target="../WaitForDial"/>
-          </state>
+  <root>
+    <parallel id="Dialing">
+      <state id="Dialer" initial="WaitForDial">
+        <state id="WaitForDial" stable="true">
+          <!-- t1 -->
+          <transition event="dial(d:int), not redial" cond="c &lt; 10" target=".">
+            <code>
+              c += 1;
+              lp = lp * 10 + d;
+            </code>
+            <raise port="out" event="out(d)"/>
+          </transition>
+          <!-- t2 -->
+          <transition event="dial(d:int), redial" cond="c == 0" target="../DialDigits">
+            <code>
+              lp = d;
+              c = 1;
+            </code>
+            <raise port="out" event="out(d)"/>
+          </transition>
         </state>
-
-        <state id="Redialer" initial="WaitForRedial">
-          <state id="WaitForRedial" stable="true">
-            <!-- t5 -->
-            <transition event="redial" cond="c == 0" target="../RedialDigits">
-              <code>
-                p = lp;
-              </code>
-              <raise event="dial(digit(lp, 1))"/>
-            </transition>
-          </state>
-          <state id="RedialDigits">
-            <!-- t6 -->
-            <transition cond="c &lt; numdigits(p)" target=".">
-              <raise event="dial(digit(p, c+1))"/>
-            </transition>
-            <!-- t7 -->
-            <transition cond="c == numdigits(p)" target="../WaitForRedial"/>
-          </state>
+        <state id="DialDigits">
+          <!-- t3 -->
+          <transition event="dial(d:int)" cond="c &lt; 10" target=".">
+            <code>
+              lp = lp * 10 + d;
+              c += 1;
+            </code>
+            <raise port="out" event="out(d)"/>
+          </transition>
+          <!-- t4 -->
+          <transition cond="c == 10" target="../WaitForDial"/>
         </state>
+      </state>
 
-      </parallel>
-    </state>
-  </tree>
+      <state id="Redialer" initial="WaitForRedial">
+        <state id="WaitForRedial" stable="true">
+          <!-- t5 -->
+          <transition event="redial" cond="c == 0" target="../RedialDigits">
+            <code>
+              p = lp;
+            </code>
+            <raise event="dial(digit(lp, 1))"/>
+          </transition>
+        </state>
+        <state id="RedialDigits">
+          <!-- t6 -->
+          <transition cond="c &lt; numdigits(p)" target=".">
+            <raise event="dial(digit(p, c+1))"/>
+          </transition>
+          <!-- t7 -->
+          <transition cond="c == numdigits(p)" target="../WaitForRedial"/>
+        </state>
+      </state>
+
+    </parallel>
+  </root>
 </statechart>

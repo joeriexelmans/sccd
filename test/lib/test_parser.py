@@ -1,8 +1,8 @@
-import os
 from sccd.parser.statechart_parser import *
-from sccd.parser.expression_parser import *
-from lib.test import *
-from copy import deepcopy
+from sccd.model.globals import *
+from sccd.controller.controller import InputEvent
+from sccd.execution.event import Event
+from sccd.model.model import *
 
 @dataclass
 class TestVariant:
@@ -11,107 +11,77 @@ class TestVariant:
   input: list
   output: list
 
-# Parses <test> element and all its children (including <statechart>)
-class TestParser(StatechartParser):
+def create_test_parser(src_file, load_external = True):
+  globals = Globals(fixed_delta=None)
+  parse_statechart = create_statechart_parser(globals, src_file, load_external)
+  input = []
+  output = []
 
-  def __init__(self):
-    super().__init__()
-    self.tests = XmlParser.Context("tests")
-    self.globals = XmlParser.Context("globals")
-    self.test_input = XmlParser.Context("test_input")
-    self.test_output = XmlParser.Context("test_output")
-    self.big_step = XmlParser.Context("big_step")
+  def parse_test(el):
+    def parse_input(el):
+      def parse_input_event(el):
+        name = el.get("name")
+        port = el.get("port")
+        time = el.get("time")
 
-  def end_event(self, el):
-    big_step = self.big_step.require()
-    name = el.get("name")
-    port = el.get("port")
+        if name is None:
+          raise XmlError("missing attribute 'name'")
+        if port is None:
+          raise XmlError("missing attribute 'port'")
+        if time is None:
+          raise XmlError("missing attribute 'time'")
 
-    if name is None:
-      raise Exception("missing attribute 'name'")
-    if port is None:
-      raise Exception("missing attribute 'port'")
-      
-    big_step.append(Event(id=0, name=name, port=port, parameters=[]))
+        duration = parse_duration(globals, time)
+        input.append(InputEvent(name=name, port=port, parameters=[], time_offset=duration))
 
-  def start_big_step(self, el):
-    self.test_output.require()
-    self.big_step.push([])
+      return [("event+", parse_input_event)]
 
-  def end_big_step(self, el):
-    output = self.test_output.require()
-    big_step = self.big_step.pop()
-    output.append(big_step)
+    def parse_output(el):
+      def parse_big_step(el):
+        big_step = []
+        output.append(big_step)
 
-  def end_input_event(self, el):
-    input = self.test_input.require()
-    globals = self.globals.require()
-    name = el.get("name")
-    port = el.get("port")
-    time = el.get("time")
+        def parse_output_event(el):
+          name = el.get("name")
+          port = el.get("port")
 
-    if name is None:
-      raise Exception("missing attribute 'name'")
-    if port is None:
-      raise Exception("missing attribute 'port'")
-    if time is None:
-      raise Exception("missing attribute 'time'")
+          if name is None:
+            raise XmlError("missing attribute 'name'")
+          if port is None:
+            raise XmlError("missing attribute 'port'")
 
-    duration = parse_duration(globals, time)
-    input.append(InputEvent(name=name, port=port, parameters=[], time_offset=duration))
+          big_step.append(Event(id=0, name=name, port=port, parameters=[]))
 
-  def start_input(self, el):
-    self.test_input.require()
+        return [("event+", parse_output_event)]
 
-  def end_input(self, el):
-    pass
+      return [("big_step+", parse_big_step)]
 
-  def start_output(self, el):
-    self.test_output.require()
+    def when_done(statechart):
+      globals.process_durations()
+      variants = statechart.semantics.generate_variants()
 
-  def end_output(self, el):
-    pass
+      def variant_description(i, variant) -> str:
+        if not variant:
+          return ""
+        text = "Semantic variant %d of %d:" % (i+1, len(variants))
+        for f in fields(variant):
+          text += "\n  %s: %s" % (f.name, getattr(variant, f.name))
+        return text
 
-  def start_test(self, el):
-    self.globals.push(Globals(fixed_delta = None))
-    self.test_input.push([])
-    self.test_output.push([])
-    self.statecharts.push([])
-
-  def end_test(self, el):
-    tests = self.tests.require()
-    src_file = self.src_file.require()
-
-    statecharts = self.statecharts.pop()
-    input = self.test_input.pop()
-    output = self.test_output.pop()
-    globals = self.globals.pop()
-
-    if len(statecharts) != 1:
-      raise Exception("Expected exactly 1 <statechart> node, got %d." % len(statecharts))
-    statechart = statecharts[0]
-
-    globals.process_durations()
-
-    variants = statechart.semantics.generate_variants()
-
-    def variant_description(i, variant) -> str:
-      if not variant:
-        return ""
-      text = "Semantic variant %d of %d:" % (i+1, len(variants))
-      for f in fields(variant):
-        text += "\n  %s: %s" % (f.name, getattr(variant, f.name))
-      return text
-
-    # Generate test variants for all semantic wildcards filled in
-    tests.extend(
-      TestVariant(
+      return [TestVariant(
         name=variant_description(i, variant),
         model=SingleInstanceModel(
           globals,
-          Statechart(tree=statechart.tree, scope=statechart.scope, semantics=variant)),
+          Statechart(
+            inport_events={},
+            event_outport={},
+            tree=statechart.tree,
+            scope=statechart.scope,
+            semantics=variant)),
         input=input,
         output=output)
+      for i, variant in enumerate(variants)]
 
-      for i, variant in enumerate(variants)
-    )
+    return (parse_statechart + [("input?", parse_input), ("output?", parse_output)], when_done)
+
+  return [("test", parse_test)]

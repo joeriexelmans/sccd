@@ -5,8 +5,7 @@
   </statechart>
 
   <input>
-    <input_event port="in" name="dial" time="0 d">
-    </input_event>
+    <event port="in" name="dial" time="0 d"/>
   </input>
 
   <output>

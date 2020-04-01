@@ -7,10 +7,10 @@
   </statechart>
 
   <input>
-    <input_event port="in" name="tk0" time="0 d"/>
-    <input_event port="in" name="tk0" time="0 d"/>
-    <input_event port="in" name="tk0" time="0 d"/>
-    <input_event port="in" name="tk0" time="0 d"/>
+    <event port="in" name="tk0" time="0 d"/>
+    <event port="in" name="tk0" time="0 d"/>
+    <event port="in" name="tk0" time="0 d"/>
+    <event port="in" name="tk0" time="0 d"/>
   </input>
 
   <output>

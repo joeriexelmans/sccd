@@ -17,17 +17,15 @@
       </func>
     </datamodel>
 
-    <tree>
-      <state initial="ready">
-        <state id="ready">
-          <!-- illegal condition: return type of numdigits inferred to be 'int', however RHS of '=='-expression is string -->
-          <transition port="in" event="start" target="../final" cond='numdigits(123) == "3"'>
-            <raise port="out" event="ok"/>
-          </transition>
-        </state>
-
-        <state id="final"/>
+    <root initial="ready">
+      <state id="ready">
+        <!-- illegal condition: return type of numdigits inferred to be 'int', however RHS of '=='-expression is string -->
+        <transition port="in" event="start" target="../final" cond='numdigits(123) == "3"'>
+          <raise port="out" event="ok"/>
+        </transition>
       </state>
-    </tree>
+
+      <state id="final"/>
+    </root>
   </statechart>
 </test>

@@ -1,209 +1,16 @@
 from typing import *
-from lxml import etree
 from sccd.syntax.statechart import *
 from sccd.syntax.tree import *
 from sccd.execution import builtin_scope
+from sccd.parser.xml_parser import *
 from sccd.parser.expression_parser import *
-
-class XmlError(Exception):
-  pass
-
-class XmlErrorElement(Exception):
-  def __init__(self, el: etree.Element, msg):
-    super().__init__(msg)
-    self.el = el
-
-# An Exception that occured while visiting an XML element.
-# It will show a fragment of the source file and the line number of the error.
-class XmlDecoratedError(Exception):
-  def __init__(self, src_file: str, el: etree.Element, msg):
-    # This is really dirty, but can't find a clean way to do this with lxml.
-
-    parent = el.getparent()
-    if parent is None:
-      parent = el
-
-    with open(src_file, 'r') as file:
-      lines = file.read().split('\n')
-      numbered_lines = list(enumerate(lines, 1))
-
-    parent_lines = etree.tostring(parent).decode('utf-8').strip().split('\n')
-    el_lines = etree.tostring(el).decode('utf-8').strip().split('\n')
-    text = []
-
-    parent_firstline = parent.sourceline
-    parent_lastline = parent.sourceline + len(parent_lines) - 1
-
-    el_firstline = el.sourceline
-    el_lastline = el.sourceline + len(el_lines) - 1
-
-    # numbered_lines = list(zip(range(parent.sourceline, parent.sourceline + len(lines)), lines))
-
-    from_line = max(parent_firstline, el_firstline - 4)
-    to_line = min(parent_lastline, el_lastline + 4)
-
-    def f(tup):
-      return from_line <= tup[0] <= to_line
-
-    for linenumber, line in filter(f, numbered_lines):
-      ll = "%4d: %s" % (linenumber, line)
-      if el_firstline <= linenumber <= el_lastline:
-        ll = termcolor.colored(ll, 'yellow')
-      text.append(ll)
-
-    super().__init__("\n\n%s\n\n%s:\nline %d: <%s>: %s" % ('\n'.join(text), src_file,el.sourceline, el.tag, msg))
-    
-    # self.src_file = src_file
-    # self.el = el
-    # self.err = err
-
-ParseElementF = Callable[[etree.Element], Optional['RulesWDone']]
-OrderedElements = List[Tuple[str, ParseElementF]]
-UnorderedElements = Dict[str, ParseElementF]
-Rules = Union[OrderedElements, UnorderedElements]
-RulesWDone = Union[Rules, Tuple[Rules,Callable]]
-
-def parse(src_file, rules: RulesWDone, ignore_unmatched = False, disable_multiplicities = False):
-
-  class Multiplicity(Flag):
-    AT_LEAST_ONCE = auto()
-    AT_MOST_ONCE = auto()
-
-    ANY = 0
-    ONCE = AT_LEAST_ONCE | AT_MOST_ONCE
-    OPTIONAL = AT_MOST_ONCE
-    MULTIPLE = AT_LEAST_ONCE
-
-    @staticmethod
-    def parse_suffix(tag: str) -> Tuple[str, 'Multiplicity']:
-      if tag.endswith("*"):
-        m = Multiplicity.ANY
-        tag = tag[:-1]
-      elif tag.endswith("?"):
-        m = Multiplicity.OPTIONAL
-        tag = tag[:-1]
-      elif tag.endswith("+"):
-        m = Multiplicity.MULTIPLE
-        tag = tag[:-1]
-      else:
-        m = Multiplicity.ONCE
-      return tag, m
-
-    def unparse_suffix(self, tag: str) -> str:
-      return tag + {
-        Multiplicity.ANY: "*",
-        Multiplicity.ONCE: "",
-        Multiplicity.OPTIONAL: "?",
-        Multiplicity.MULTIPLE: "+"
-      }[self]
-
-  rules_stack = [rules]
-  results_stack = [[]]
-
-  for event, el in etree.iterparse(src_file, events=("start", "end")):
-    try:
-      if event == "start":
-        # print("start", el.tag)
-        allowed_tags = []
-        when_done = None
-        pair = rules_stack[-1]
-        if isinstance(pair, tuple):
-          rules, when_done = pair
-        else:
-          rules = pair
-
-        parse_function = None
-        if isinstance(rules, dict):
-          # print("rules:", list(rules.keys()))
-          try:
-            parse_function = rules[el.tag]
-          except KeyError as e:
-            pass
-
-        elif isinstance(rules, list):
-          # print("rules:", [rule[0] for rule in rules])
-          # Expecting elements in certain order and with certain multiplicities
-          while len(rules) > 0:
-            tag_w_suffix, func = rules[0]
-            tag, m = Multiplicity.parse_suffix(tag_w_suffix)
-            if tag == el.tag:
-              if m & Multiplicity.AT_MOST_ONCE:
-                # We don't allow this element next time
-                rules = rules[1:]
-                rules_stack[-1] = (rules, when_done)
-
-              elif m & Multiplicity.AT_LEAST_ONCE:
-                # We don't require this element next time
-                m &= ~Multiplicity.AT_LEAST_ONCE
-                rules = list(rules) # copy list before editing
-                rules[0] = (m.unparse_suffix(tag), func) # edit rule
-                rules_stack[-1] = (rules, when_done)
-
-              parse_function = func
-              break
-            else:
-              if not disable_multiplicities and m & Multiplicity.AT_LEAST_ONCE:
-                raise XmlError("Expected required element <%s>" % tag)
-              else:
-                # Element is skipable
-                rules = rules[1:]
-                rules_stack[-1] = (rules, when_done)
-        else:
-          assert False # rule should always be a dict or list
-
-        if parse_function:
-          children_rules = parse_function(el)
-          if children_rules:
-            rules_stack.append(children_rules)
-          else:
-            rules_stack.append([])
-        else:
-          if not ignore_unmatched:
-            raise XmlError("Unexpected element.")
-          else:
-            rules_stack.append([])
-        results_stack.append([])
-
-      elif event == "end":
-        children_results = results_stack.pop()
-        when_done = None
-        pair = rules_stack.pop()
-        if isinstance(pair, tuple):
-          rules, when_done = pair
-        else:
-          rules = pair
-
-        if when_done:
-          result = when_done(*children_results)
-          # print("end", el.tag, "with result=", result)
-          if result:
-            results_stack[-1].append(result)
-        # else:
-        #   print("end", el.tag)
-
-
-
-    except XmlError as e:
-      raise XmlDecoratedError(src_file, el, str(e)) from e
-    except XmlErrorElement as e:
-      raise XmlDecoratedError(src_file, e.el, str(e)) from e
-
-  results = results_stack[0] # sole stack frame remaining
-  if len(results) > 0:
-    return results[0] # return first item, since we expect at most one item since an XML file has only one root node
 
 class SkipFile(Exception):
   pass
 
 _blank_eval_context = EvalContext(current_state=None, events=[], memory=None)
 
-def require_attribute(el, attr):
-  val = el.get(attr)
-  if val is None:
-    raise XmlError("missing required attribute '%s'" % attr)
-  return val
-
-def create_statechart_parser(globals, src_file, load_external = True):
+def create_statechart_parser(globals, src_file, load_external = True) -> Rules:
   def parse_statechart(el):
     ext_file = el.get("src")
     if ext_file is None:
@@ -429,7 +236,7 @@ def create_statechart_parser(globals, src_file, load_external = True):
 
           def when_done(*actions):
             transition.actions = actions
-            transitions.append(transition)
+            transitions.append((transition, el))
             parent.transitions.append(transition)
 
           return (create_actions_parser(scope), when_done)
@@ -439,7 +246,7 @@ def create_statechart_parser(globals, src_file, load_external = True):
       def when_done():
         deal_with_initial(el, root, children_dict)
 
-        for transition in transitions:
+        for transition, t_el in transitions:
           try:
             parse_tree = parse_state_ref(transition.target_string)
           except Exception as e:
@@ -462,7 +269,7 @@ def create_statechart_parser(globals, src_file, load_external = True):
           try:
             transition.targets = [find_state(seq) for seq in parse_tree.children]
           except Exception as e:
-            raise XmlErrorElement(t_el, "Could not find target '%s'." % (target_string)) from e
+            raise XmlErrorElement(t_el, "Could not find target '%s'." % (transition.target_string)) from e
 
         statechart.tree = StateTree(root)
 
@@ -473,4 +280,4 @@ def create_statechart_parser(globals, src_file, load_external = True):
 
     return ([("semantics?", parse_semantics), ("override_semantics?", parse_semantics), ("datamodel?", parse_datamodel), ("inport*", parse_inport), ("outport*", parse_outport), ("root", parse_root)], when_done)
 
-  return ([("statechart", parse_statechart)])
+  return [("statechart", parse_statechart)]

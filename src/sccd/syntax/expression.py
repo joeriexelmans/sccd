@@ -10,6 +10,9 @@ import sys
 if sys.version_info.minor < 8:
     from typing_inspect import get_args
 
+# Thrown if the type checker encountered something illegal
+class StaticTypeError(Exception):
+    pass
 
 class Expression(ABC):
     # Must be called exactly once on each expression, before any call to eval is made.
@@ -75,7 +78,7 @@ class FunctionCall(Expression):
     def init_rvalue(self, scope: Scope) -> type:
         function_type = self.function.init_rvalue(scope)
         if not isinstance(function_type, Callable):
-            raise Exception("Function call: Expression '%s' is not callable" % self.function.render())
+            raise StaticTypeError("Function call: Expression '%s' is not callable" % self.function.render())
         formal_types, return_type = get_args(function_type)
         self.type = return_type
 
@@ -86,7 +89,7 @@ class FunctionCall(Expression):
         actual_types = [p.init_rvalue(scope) for p in self.params]
         for i, (formal, actual) in enumerate(zip(formal_types[1:], actual_types)):
             if formal != actual:
-                raise Exception("Function call, argument %d: %s is not expected type %s, instead is %s" % (i, self.params[i].render(), str(formal), str(actual)))
+                raise StaticTypeError("Function call, argument %d: %s is not expected type %s, instead is %s" % (i, self.params[i].render(), str(formal), str(actual)))
         return self.type
 
     def eval(self, ctx: EvalContext):
@@ -161,7 +164,7 @@ class Array(Expression):
         for e in self.elements:
             t = e.init_rvalue(scope)
             if self.type and self.type != t:
-                raise Exception("Mixed element types in Array expression: %s and %s" % (str(self.type), str(t)))
+                raise StaticTypeError("Mixed element types in Array expression: %s and %s" % (str(self.type), str(t)))
             self.type = t
 
         return List[self.type]
@@ -197,7 +200,7 @@ class BinaryExpression(Expression):
         lhs_t = self.lhs.init_rvalue(scope)
         rhs_t = self.rhs.init_rvalue(scope)
         if lhs_t != rhs_t:
-            raise Exception("Mixed LHS and RHS types in '%s' expression: %s and %s" % (self.operator, str(lhs_t), str(rhs_t)))
+            raise StaticTypeError("Mixed LHS and RHS types in '%s' expression: %s and %s" % (self.operator, str(lhs_t), str(rhs_t)))
         return lhs_t
 
     def eval(self, ctx: EvalContext):

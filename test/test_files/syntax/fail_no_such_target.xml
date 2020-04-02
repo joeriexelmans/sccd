@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics/>
+    <datamodel/>
+
+    <root>
+      <state id="a">
+        <transition event="e" target="../b"/>
+      </state>
+    </root>
+  </statechart>
+
+  <output>
+  </output>
+</test>

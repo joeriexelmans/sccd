@@ -85,7 +85,10 @@ class _ExpressionTransformer(Transformer):
     return ReturnStatement(node[0])
 
   def if_stmt(self, node):
-    return IfStatement(node[0], node[1])
+    if len(node) == 2:
+      return IfStatement(cond=node[0], if_body=node[1])
+    else:
+      return IfStatement(cond=node[0], if_body=node[1], else_body=node[2])
 
   # Event declaration parsing
 

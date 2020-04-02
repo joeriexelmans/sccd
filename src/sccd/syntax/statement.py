@@ -6,7 +6,7 @@ class Return:
     ret: bool
     val: Any = None
 
-@dataclass
+@dataclass(frozen=True)
 class ReturnType:
 
     class When(Enum):
@@ -16,6 +16,45 @@ class ReturnType:
 
     when: When
     type: Optional[type] = None
+
+    def may_return(self) -> bool:
+        return self.when == When.ALWAYS or self.when == When.SOME_BRANCHES
+
+    # Check if two branches have combinable ReturnTypes and if so, combine them.
+    @staticmethod
+    def combine_branches(one: 'ReturnType', two: 'ReturnType') -> 'ReturnType':
+        if one == two:
+            # Whether ALWAYS/SOME_BRANCHES/NEVER, when both branches
+            # have the same 'when' and the same type, the combination
+            # is valid and has that type too :)
+            return one
+        if one.when == ReturnType.When.NEVER:
+            # two will not be NEVER
+            return ReturnType(ReturnType.When.SOME_BRANCHES, two.type)
+        if two.when == ReturnType.When.NEVER:
+            # one will not be NEVER
+            return ReturnType(ReturnType.When.SOME_BRANCHES, one.type)
+        # Only remaining case: ALWAYS & SOME_BRANCHES.
+        # Now the types must match:
+        if one.type != two.type:
+            raise StaticTypeError("Branches have different return types: %s and %s" % (str(one.type), str(two.type)))
+        return ReturnType(ReturnType.When.SOME_BRANCHES, one.type)
+
+    @staticmethod
+    def sequence(earlier: 'ReturnType', later: 'ReturnType') -> 'ReturnType':
+        if earlier.when == ReturnType.When.NEVER:
+            return later
+        if earlier.when == ReturnType.When.SOME_BRANCHES:
+            if later.when == ReturnType.When.NEVER:
+                return earlier
+            if later.when == ReturnType.When.SOME_BRANCHES:
+                if earlier.type != later.type:
+                    raise StaticTypeError("Earlier statement may return %s, later statement may return %s" % (str(earlier.type), str(later.type)))
+                return earlier
+            if earlier.type != later.type:
+                raise StaticTypeError("Earlier statement may return %s, later statement returns %s" % (str(earlier.type), str(later.type)))
+            return later
+        raise StaticTypeError("Earlier statement returns %s, cannot be followed by another statement" % str(earlier.type))
 
 # A statement is NOT an expression.
 class Statement(ABC):
@@ -83,24 +122,11 @@ class Block(Statement):
 
     def init_stmt(self, scope: Scope) -> ReturnType:
         self.scope = Scope("local", scope)
-        earlier_return_type = ReturnType(ReturnType.When.NEVER)
+        earlier = ReturnType(ReturnType.When.NEVER)
         for i, stmt in enumerate(self.stmts):
-            ret = stmt.init_stmt(self.scope)
-            if ret.when == ReturnType.When.ALWAYS:
-                if earlier_return_type.when == ReturnType.When.SOME_BRANCHES:
-                    if earlier_return_type.type != ret.type:
-                        raise Exception("Not all branches have same return type: %s and %s" % (str(ret.type), str(earlier_return_type.type)))
-                # A return statement is encountered, don't init the rest of the statements since they are unreachable
-                if i < len(self.stmts)-1:
-                    print_debug("Warning: statements after return statement ignored.")
-                return ret
-            elif ret.when == ReturnType.When.SOME_BRANCHES:
-                if earlier_return_type.when == ReturnType.When.SOME_BRANCHES:
-                    if earlier_return_type.type != ret.type:
-                        raise Exception("Not all branches have same return type: %s and %s" % (str(ret.type), str(earlier_return_type.type)))
-                earlier_return_type = ret
-
-        return earlier_return_type
+            later = stmt.init_stmt(self.scope)
+            earlier = ReturnType.sequence(earlier, later)
+        return earlier
 
     def exec(self, ctx: EvalContext) -> Return:
         ctx.memory.grow_stack(self.scope)
@@ -151,25 +177,26 @@ class ReturnStatement(Statement):
 @dataclass
 class IfStatement(Statement):
     cond: Expression
-    body: Statement
+    if_body: Statement
+    else_body: Optional[Statement] = None
 
     def init_stmt(self, scope: Scope) -> ReturnType:
         cond_t = self.cond.init_rvalue(scope)
-        # todo: assert cond_t is bool
-        ret = self.body.init_stmt(scope) # return type is only if cond evaluates to True...
-        if ret.when == ReturnType.When.NEVER:
-            return ReturnType(ReturnType.When.NEVER)
+        if_ret = self.if_body.init_stmt(scope)
+        if self.else_body is None:
+            else_ret = ReturnType(ReturnType.When.NEVER)
         else:
-            return ReturnType(ReturnType.When.SOME_BRANCHES, ret.type)
+            else_ret = self.else_body.init_stmt(scope)
+        return ReturnType.combine_branches(if_ret, else_ret)
 
     def exec(self, ctx: EvalContext) -> Return:
         val = self.cond.eval(ctx)
         if val:
-            return self.body.exec(ctx)
+            return self.if_body.exec(ctx)
         return Return(False)
 
     def render(self) -> str:
-        return "if (%s) [[" % self.cond.render() + self.body.render() + "]]"
+        return "if (%s) [[" % self.cond.render() + self.if_body.render() + "]]"
 
 # Used in EventDecl and Function
 @dataclass
@@ -198,7 +225,7 @@ class Function(Statement):
         if ret.when == ReturnType.When.ALWAYS:
             self.return_type = ret.type
         elif ret.when == ReturnType.When.SOME_BRANCHES:
-            raise Exception("Cannot statically infer function return type: Some branches return %s, others return nothing." % str(ret.type))
+            raise StaticTypeError("Cannot statically infer function return type: Some branches return %s, others return nothing." % str(ret.type))
 
         # Execution of function declaration doesn't return (or do) anything
         return ReturnType(ReturnType.When.NEVER)

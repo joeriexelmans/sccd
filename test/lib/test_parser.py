@@ -13,7 +13,7 @@ class TestVariant:
 
 def create_test_parser(src_file, load_external = True):
   globals = Globals(fixed_delta=None)
-  parse_statechart = create_statechart_parser(globals, src_file, load_external)
+  statechart_parser = create_statechart_parser(globals, src_file, load_external)
   input = []
   output = []
 
@@ -82,6 +82,6 @@ def create_test_parser(src_file, load_external = True):
         output=output)
       for i, variant in enumerate(variants)]
 
-    return (parse_statechart + [("input?", parse_input), ("output?", parse_output)], when_done)
+    return (statechart_parser + [("input?", parse_input), ("output?", parse_output)], when_done)
 
   return [("test", parse_test)]

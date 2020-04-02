@@ -18,7 +18,7 @@ class Test(unittest.TestCase):
   def runTest(self):
     parser = create_test_parser(self.src)
     try:
-      test_variants = parse(self.src, parser)
+      test_variants = parse(self.src, parser, decorate_exceptions=(StaticTypeError))
     except Exception as e:
       print_debug(e)
       raise e

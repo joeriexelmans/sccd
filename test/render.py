@@ -36,12 +36,24 @@ if __name__ == '__main__':
 
     def process(src):
       try:
-        parser = create_statechart_parser(Globals(), src, load_external=False)
-        statechart = parse(src, parser,
-          ignore_unmatched=True, disable_multiplicities=True)
+        parse_statechart = create_statechart_parser(Globals(), src, load_external=False)[0][1]
 
-        if statechart is None:
-          return # no statechart here :(
+        def parse_test(el):
+          def when_done(*statecharts):
+            return statecharts[0]
+          # When parsing <test>, only look for <statechart> node in it.
+          # All other nodes will be ignored.
+          return ([("statechart", parse_statechart)], when_done)
+
+        statechart = parse(src,
+          # Match both <test> and <statechart> root nodes:
+          [
+            ("test?", parse_test),
+            ("statechart?", parse_statechart)
+          ],
+          ignore_unmatched=True)
+
+        assert isinstance(statechart, Statechart)
 
         root = statechart.tree.root
 
@@ -156,11 +168,14 @@ if __name__ == '__main__':
           os.remove(smcat_target)
       
       except SkipFile:
+        # Raised for test files that have their statechart defined in an external file.
+        # We skip these files because we parse that external file already directly.
+        # print("Skip", src)
         pass
       except Exception as e:
         import traceback
-        traceback.print_exception(type(e), e, None)
-        print(e,'\n')
+        exc_info = sys.exc_info()
+        traceback.print_exception(*exc_info)
 
     pool_size = min(args.pool_size, len(srcs))
     with multiprocessing.Pool(processes=pool_size) as pool:

@@ -1,18 +1,20 @@
 <?xml version="1.0" ?>
 <test>
   <statechart>
-    <datamodel>
-      digit = func(i:int, pos:int) {
-        pow = 10 ** pos;
-        return i // pow % 10;      
+    <datamodel><![CDATA[
+
+      factorial = func(i:int) {
+        return 0;
       };
 
-      numdigits = func(i:int) {
-        return float_to_int(log10(i)) + 1;
+      factorial = func(i:int) {
+        if (i <= 0) return 1;
+        return i*factorial(i-1);
       };
 
-      ok = numdigits(123) == 3 and digit(123, 1) == 2;
-    </datamodel>
+      ok = factorial(14) == 87178291200;
+
+    ]]></datamodel>
 
     <root initial="ready">
       <state id="ready">

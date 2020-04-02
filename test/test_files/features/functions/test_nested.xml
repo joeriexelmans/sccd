@@ -1,18 +1,22 @@
 <?xml version="1.0" ?>
 <test>
   <statechart>
-    <datamodel>
-      digit = func(i:int, pos:int) {
-        pow = 10 ** pos;
-        return i // pow % 10;      
+    <datamodel><![CDATA[
+
+      ok = False;
+
+      outer = func(i:int) {
+        inner = func(j:int) {
+          if (i > j) {
+            ok = True;
+          };
+        };
+        inner(i-1);
       };
 
-      numdigits = func(i:int) {
-        return float_to_int(log10(i)) + 1;
-      };
+      outer(5);
 
-      ok = numdigits(123) == 3 and digit(123, 1) == 2;
-    </datamodel>
+    ]]></datamodel>
 
     <root initial="ready">
       <state id="ready">

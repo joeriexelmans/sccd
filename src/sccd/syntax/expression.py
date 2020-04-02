@@ -10,7 +10,8 @@ import sys
 if sys.version_info.minor < 8:
     from typing_inspect import get_args
 
-# Thrown if the type checker encountered something illegal
+# Thrown if the type checker encountered something illegal.
+# Not to be confused with Python's TypeError exception.
 class StaticTypeError(Exception):
     pass
 
@@ -199,29 +200,48 @@ class BinaryExpression(Expression):
     def init_rvalue(self, scope: Scope) -> type:
         lhs_t = self.lhs.init_rvalue(scope)
         rhs_t = self.rhs.init_rvalue(scope)
-        if lhs_t != rhs_t:
-            raise StaticTypeError("Mixed LHS and RHS types in '%s' expression: %s and %s" % (self.operator, str(lhs_t), str(rhs_t)))
-        return lhs_t
+
+        def comparison_type():
+            same_type()
+            return bool
+
+        def same_type():
+            if lhs_t != rhs_t:
+                raise StaticTypeError("Mixed LHS and RHS types in '%s' expression: %s and %s" % (self.operator, str(lhs_t), str(rhs_t)))
+            return lhs_t
+
+        def mult_type():
+            if lhs_t == rhs_t:
+                if lhs_t == Duration:
+                    raise StaticTypeError("Cannot multiply 'Duration' and 'Duration'")
+                return lhs_t
+            key = lambda x: {int: 1, float: 2, Duration: 3}[x]
+            [smallest_type, largest_type] = sorted([lhs_t, rhs_t], key=key)
+            if largest_type == Duration and smallest_type == float:
+                raise StaticTypeError("Cannot multiply 'float' and 'Duration'")
+            return largest_type
+
+        return {
+            "and": bool,
+            "or":  bool,
+            "==":  comparison_type(),
+            "!=":  comparison_type(),
+            ">":   comparison_type(),
+            ">=":  comparison_type(),
+            "<":   comparison_type(),
+            "<=":  comparison_type(),
+            "+":   same_type(),
+            "-":   same_type(),
+            "*":   mult_type(),
+            "/":   float,
+            "//":  same_type(),
+            "%":   same_type(),
+            "**":  same_type(),
+        }[self.operator]
 
     def eval(self, ctx: EvalContext):
         
         return {
-            # "AND": lambda x,y: x and y,
-            # "OR": lambda x,y: x or y,
-            # "EQ": lambda x,y: x == y,
-            # "NEQ": lambda x,y: x != y,
-            # "GT": lambda x,y: x > y,
-            # "GEQ": lambda x,y: x >= y,
-            # "LT": lambda x,y: x < y,
-            # "LEQ": lambda x,y: x <= y,
-            # "PLUS": lambda x,y: x + y,
-            # "MINUS": lambda x,y: x - y,
-            # "MULT": lambda x,y: x * y,
-            # "DIV": lambda x,y: x / y,
-            # "FLOORDIV": lambda x,y: x // y,
-            # "MOD": lambda x,y: x % y,
-            # "EXP": lambda x,y: x ** y,
-
             "and": lambda x,y: x.eval(ctx) and y.eval(ctx),
             "or": lambda x,y: x.eval(ctx) or y.eval(ctx),
             "==": lambda x,y: x.eval(ctx) == y.eval(ctx),
@@ -248,7 +268,11 @@ class UnaryExpression(Expression):
     expr: Expression
 
     def init_rvalue(self, scope: Scope) -> type:
-        return self.expr.init_rvalue(scope)
+        expr_type = self.expr.init_rvalue(scope)
+        return {
+            "not": bool,
+            "-":   expr_type,
+        }[self.operator]
 
     def eval(self, ctx: EvalContext):
         return {

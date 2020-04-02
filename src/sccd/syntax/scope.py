@@ -61,7 +61,7 @@ class EventParam(Variable):
       value = e.params[self.param_offset]
       # "cache" the parameter value on our reserved stack position so the next
       # 'load' will be faster
-      Variable.store(self, ctx)
+      Variable.store(self, ctx, value)
       return value
 
   def store(self, ctx: EvalContext, value):
@@ -101,7 +101,7 @@ class Scope:
     self.named_values: Dict[str, Value] = {}
 
     # All non-constant values, ordered by memory position
-    self.variables: List[Value] = []
+    self.variables: List[Variable] = []
 
   def local_size(self) -> int:
     return len(self.variables)
@@ -120,6 +120,17 @@ class Scope:
       return [self.name] + self.parent.list_scope_names()
     else:
       return [self.name]
+
+  def __str__(self):
+    s = "Scope: %s\n" % self.name
+    for v in reversed(self.variables):
+      s += "  %d: %s: %s\n" % (v.offset, v.name, str(v.type))
+    constants = [v for v in self.named_values.values() if v not in self.variables]
+    for c in constants:
+      s += " (constant) %s: %s\n" % (c.name, str(c.type))
+    if self.parent:
+      s += self.parent.__str__()
+    return s
 
   def _internal_lookup(self, name: str) -> Optional[Tuple['Scope', Value]]:
     try:

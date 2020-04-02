@@ -11,7 +11,7 @@ from sccd.execution.memory import *
 
 # Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
 # TODO: make this configurable
-LIMIT = 20
+LIMIT = 1000
 
 class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager):

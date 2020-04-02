@@ -88,9 +88,9 @@ class Test(unittest.TestCase):
 
           # Sort both expected and actual lists of events before comparing.
           # In theory the set of events at the end of a big step is unordered.
-          key_f = lambda e: "%s.%s"%(e.port, e.name)
-          actual_bag.sort(key=key_f)
-          expected_bag.sort(key=key_f)
+          # key_f = lambda e: "%s.%s"%(e.port, e.name)
+          # actual_bag.sort(key=key_f)
+          # expected_bag.sort(key=key_f)
 
           for (act_event, exp_event) in zip(actual_bag, expected_bag):
             if act_event != exp_event:

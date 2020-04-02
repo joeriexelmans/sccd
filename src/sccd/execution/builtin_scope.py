@@ -22,7 +22,7 @@ def _float_to_int(ctx: EvalContext, x: float) -> int:
 
 builtin_scope.add_python_function("float_to_int", _float_to_int)
 
-def _log(ctx: EvalContext, s: str):
+def _log(ctx: EvalContext, s: str) -> None:
   print_debug(termcolor.colored("log: ",'blue')+s)
 
 builtin_scope.add_python_function("log", _log)

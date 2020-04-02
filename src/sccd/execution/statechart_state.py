@@ -44,6 +44,7 @@ class StatechartState:
             print_debug(termcolor.colored('  ENTER %s'%state.gen.full_name, 'green'))
             self.eventless_states += state.gen.has_eventless_transitions
             self._perform_actions([], state.enter)
+            self.rhs_memory.flush_temp()
             self._start_timers(state.gen.after_triggers)
 
     def fire_transition(self, events, t: Transition):
@@ -77,17 +78,21 @@ class StatechartState:
                 if isinstance(h, DeepHistoryState):
                     f = lambda s0: not s0.gen.descendants and s0 in s.gen.descendants
                 self.history_values[h.gen.state_id] = list(filter(f, self.configuration))
-        # print_debug('')
+
+        ctx = EvalContext(current_state=self, events=events, memory=self.rhs_memory)
+
         print_debug("fire " + str(t))
         for s in exit_set:
             print_debug(termcolor.colored('  EXIT %s' % s.gen.full_name, 'green'))
             self.eventless_states -= s.gen.has_eventless_transitions
             # execute exit action(s)
-            self._perform_actions(events, s.exit)
+            self._perform_actions(ctx, s.exit)
             self.configuration_bitmap &= ~s.gen.state_id_bitmap
                 
         # execute transition action(s)
-        self._perform_actions(events, t.actions)
+        self.rhs_memory.grow_stack(t.scope) # make room for event parameters on stack
+        self._perform_actions(ctx, t.actions)
+        self.rhs_memory.shrink_stack()
             
         # enter states...
         targets = __getEffectiveTargetStates()
@@ -97,12 +102,14 @@ class StatechartState:
             self.eventless_states += s.gen.has_eventless_transitions
             self.configuration_bitmap |= s.gen.state_id_bitmap
             # execute enter action(s)
-            self._perform_actions(events, s.enter)
+            self._perform_actions(ctx, s.enter)
             self._start_timers(s.gen.after_triggers)
         try:
             self.configuration = self.config_mem[self.configuration_bitmap]
         except KeyError:
             self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.model.tree.state_list if self.configuration_bitmap & s.gen.state_id_bitmap]
+
+        self.rhs_memory.flush_temp()
 
     def check_guard(self, t, events) -> bool:
         # Special case: after trigger
@@ -122,18 +129,17 @@ class StatechartState:
     def check_source(self, t) -> bool:
         return self.configuration_bitmap & t.source.gen.state_id_bitmap
 
-    def _perform_actions(self, events, actions: List[Action]):
-        ctx = EvalContext(current_state=self, events=events, memory=self.rhs_memory)
+    @staticmethod
+    def _perform_actions(ctx: EvalContext, actions: List[Action]):
         for a in actions:
             a.exec(ctx)
-        self.rhs_memory.flush_temp()
 
     def _start_timers(self, triggers: List[AfterTrigger]):
         for after in triggers:
             delay: Duration = after.delay.eval(
                 EvalContext(current_state=self, events=[], memory=self.gc_memory))
-            timer_id = self._next_timer_id(after)
             self.gc_memory.flush_temp()
+            timer_id = self._next_timer_id(after)
             self.output.append(OutputEvent(
                 Event(id=after.id, name=after.name, params=[timer_id]),
                 target=InstancesTarget([self.instance]),

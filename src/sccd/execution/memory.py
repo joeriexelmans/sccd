@@ -44,7 +44,8 @@ class MemorySnapshot:
 
   def shrink_stack(self):
     scope = self.scope.pop()
-    del self.stack[-scope.local_size():]
+    if scope.local_size() > 0:
+      del self.stack[-scope.local_size():]
 
   def flush_temp(self):
     assert len(self.stack) == 0 # only allowed to be called in between statement executions or expression evaluations

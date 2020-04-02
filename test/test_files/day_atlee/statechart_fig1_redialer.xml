@@ -33,7 +33,9 @@
               c += 1;
               lp = lp * 10 + d;
             </code>
-            <raise port="out" event="out(d)"/>
+            <raise port="out" event="out">
+              <param expr="d"/>
+            </raise>
           </transition>
           <!-- t2 -->
           <transition event="dial(d:int), redial" cond="c == 0" target="../DialDigits">
@@ -41,7 +43,9 @@
               lp = d;
               c = 1;
             </code>
-            <raise port="out" event="out(d)"/>
+            <raise port="out" event="out">
+              <param expr="d"/>
+            </raise>
           </transition>
         </state>
         <state id="DialDigits">
@@ -51,7 +55,9 @@
               lp = lp * 10 + d;
               c += 1;
             </code>
-            <raise port="out" event="out(d)"/>
+            <raise port="out" event="out">
+              <param expr="d"/>
+            </raise>
           </transition>
           <!-- t4 -->
           <transition cond="c == 10" target="../WaitForDial"/>
@@ -64,11 +70,12 @@
           <transition event="redial" cond="c == 0" target="../RedialDigits">
             <code>
               p = lp;
-              log("p: " + int_to_str(p));
+              log("p:  " + int_to_str(p));
               log("lp: " + int_to_str(lp));
+              log("c:  " + int_to_str(c));
             </code>
             <raise event="dial">
-              <param expr="digit(lp, 1)"/>
+              <param expr="digit(lp, 0)"/>
             </raise>
           </transition>
         </state>

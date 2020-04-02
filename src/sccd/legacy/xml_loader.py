@@ -76,7 +76,7 @@ def load_model(src_file) -> Tuple[MultiInstanceModel, Optional[Test]]:
         name = e.get("name")
         port = e.get("port")
         params = [] # todo: read params
-        slot.append(Event(id=0, name=name, port=port, parameters=params))
+        slot.append(Event(id=0, name=name, port=port, params=params))
       expected_events.append(slot)
     test = Test(input_events, expected_events)
 
@@ -90,9 +90,9 @@ def load_statechart(scxml_node, namespace: Namespace) -> Statechart:
       event = action_node.get("event")
       port = action_node.get("port")
       if not port:
-        return RaiseInternalEvent(name=event, parameters=[], event_id=namespace.assign_event_id(event))
+        return RaiseInternalEvent(name=event, params=[], event_id=namespace.assign_event_id(event))
       else:
-        return RaiseOutputEvent(name=event, parameters=[], outport=port, time_offset=0)
+        return RaiseOutputEvent(name=event, params=[], outport=port, time_offset=0)
     else:
       raise None
 
@@ -228,8 +228,8 @@ class ParseError(Exception):
 def load_expression(parse_node) -> Expression:
   if parse_node.data == "func_call":
     function = load_expression(parse_node.children[0])
-    parameters = [load_expression(e) for e in parse_node.children[1].children]
-    return FunctionCall(function, parameters)
+    params = [load_expression(e) for e in parse_node.children[1].children]
+    return FunctionCall(function, params)
   elif parse_node.data == "string":
     return StringLiteral(parse_node.children[0].value[1:-1])
   elif parse_node.data == "identifier":

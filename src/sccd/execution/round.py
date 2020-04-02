@@ -173,10 +173,11 @@ class SuperRoundWithLimit(SuperRound):
 
 
 class SmallStep(Round):
-    def __init__(self, name, state, generator: CandidatesGenerator):
+    def __init__(self, name, state, generator: CandidatesGenerator, concurrency=False):
         super().__init__(name)
         self.state = state
         self.generator = generator
+        self.concurrency = concurrency
 
     def _internal_run(self, forbidden_arenas: Bitmap) -> RoundResult:
         enabled_events = self.enabled_events()
@@ -190,14 +191,32 @@ class SmallStep(Round):
                     print_debug("events: " + str(enabled_events))
                 print_debug("candidates: " + str(candidates))
 
+        arenas = Bitmap()
+        stable_arenas = Bitmap()
         for t in candidates:
-            arena = self.state.fire_transition(enabled_events, t)
+            arena = t.gen.arena_bitmap
+            if not (arenas & arena):
+                self.state.fire_transition(enabled_events, t)
 
-            # Return after first transition execution
+            arenas |= arena
             if t.targets[0].stable:
-                return (arena, arena)
-            else:
-                return (arena, Bitmap())
+                stable_arenas |= arena
 
-        # There were no transition candidates
-        return (Bitmap(), Bitmap())
+            if not self.concurrency:
+                # Return after first transition execution
+                break
+
+            enabled_events = self.enabled_events()
+            candidates = self.generator.generate(self.state, enabled_events, forbidden_arenas)
+
+            if is_debug():
+                candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
+                if candidates:
+                    print_debug("")
+                    if enabled_events:
+                        print_debug("events: " + str(enabled_events))
+                    print_debug("candidates: " + str(candidates))
+
+        return (arenas, stable_arenas)
+
+

@@ -5,83 +5,92 @@ import itertools
 from sccd.syntax.tree import *
 from sccd.syntax.scope import *
 
-class SemanticOption:
-
+class SemanticAspect:
   def __str__(self):
+    # Override default: only print field, not the type (e.g. "TAKE_ONE" instead of "BigStepMaximality.TAKE_ONE")
     return self.name
 
-class BigStepMaximality(SemanticOption, Enum):
-  TAKE_ONE = 0
-  TAKE_MANY = 1
-  SYNTACTIC = 2
+class BigStepMaximality(SemanticAspect, Enum):
+  TAKE_ONE = auto()
+  TAKE_MANY = auto()
+  SYNTACTIC = auto()
 
-class ComboStepMaximality(SemanticOption, Enum):
-  COMBO_TAKE_ONE = 0
-  COMBO_TAKE_MANY = 1
+class ComboStepMaximality(SemanticAspect, Enum):
+  COMBO_TAKE_ONE = auto()
+  COMBO_TAKE_MANY = auto()
 
-class InternalEventLifeline(SemanticOption, Enum):
-  QUEUE = 0
-  NEXT_COMBO_STEP = 1
-  NEXT_SMALL_STEP = 2
+class InternalEventLifeline(SemanticAspect, Enum):
+  QUEUE = auto()
+  NEXT_COMBO_STEP = auto()
+  NEXT_SMALL_STEP = auto()
 
-  REMAINDER = 3
-  SAME = 5
+  REMAINDER = auto()
+  SAME = auto()
 
-class InputEventLifeline(SemanticOption, Enum):
-  WHOLE = 0
-  FIRST_COMBO_STEP = 1
-  FIRST_SMALL_STEP = 2
+class InputEventLifeline(SemanticAspect, Enum):
+  WHOLE = auto()
+  FIRST_COMBO_STEP = auto()
+  FIRST_SMALL_STEP = auto()
 
-class MemoryProtocol(SemanticOption, Enum):
-  BIG_STEP = 0
-  COMBO_STEP = 1
-  SMALL_STEP = 2
+class MemoryProtocol(SemanticAspect, Enum):
+  BIG_STEP = auto()
+  COMBO_STEP = auto()
+  SMALL_STEP = auto()
 
-class Priority(SemanticOption, Enum):
-  SOURCE_PARENT = 0
-  SOURCE_CHILD = 1
+class Priority(SemanticAspect, Enum):
+  SOURCE_PARENT = auto()
+  SOURCE_CHILD = auto()
 
-class Concurrency(SemanticOption, Enum):
-  SINGLE = 0
-  MANY = 1
+class Concurrency(SemanticAspect, Enum):
+  SINGLE = auto()
+  MANY = auto()
+
+_T = TypeVar('T', bound=SemanticAspect)
+SemanticChoice = Union[_T, List[_T]]
 
 @dataclass
-class Semantics:
-  big_step_maximality: BigStepMaximality = BigStepMaximality.TAKE_MANY
-  combo_step_maximality: ComboStepMaximality = ComboStepMaximality.COMBO_TAKE_ONE
-  internal_event_lifeline: InternalEventLifeline = InternalEventLifeline.NEXT_COMBO_STEP
-  input_event_lifeline: InputEventLifeline = InputEventLifeline.FIRST_COMBO_STEP
-  enabledness_memory_protocol: MemoryProtocol = MemoryProtocol.COMBO_STEP
-  assignment_memory_protocol: MemoryProtocol = MemoryProtocol.COMBO_STEP
-  priority: Priority = Priority.SOURCE_PARENT
-  concurrency: Concurrency = Concurrency.SINGLE
+class SemanticConfiguration:
+  # All semantic aspects and their default values.
+  # Every field can be set to a list of multiple options, or just a value.
+  big_step_maximality: SemanticChoice[BigStepMaximality] = BigStepMaximality.TAKE_MANY
+  combo_step_maximality: SemanticChoice[ComboStepMaximality] = ComboStepMaximality.COMBO_TAKE_ONE
+  internal_event_lifeline: SemanticChoice[InternalEventLifeline] = InternalEventLifeline.NEXT_COMBO_STEP
+  input_event_lifeline: SemanticChoice[InputEventLifeline] = InputEventLifeline.FIRST_COMBO_STEP
+  enabledness_memory_protocol: SemanticChoice[MemoryProtocol] = MemoryProtocol.COMBO_STEP
+  assignment_memory_protocol: SemanticChoice[MemoryProtocol] = MemoryProtocol.COMBO_STEP
+  priority: SemanticChoice[Priority] = Priority.SOURCE_PARENT
+  concurrency: SemanticChoice[Concurrency] = Concurrency.SINGLE
 
-# Semantics with multiple options per field
-@dataclass
-class VariableSemantics:
-  big_step_maximality: List[BigStepMaximality] = field(default_factory=lambda:[BigStepMaximality.TAKE_MANY])
-  combo_step_maximality: List[ComboStepMaximality] = field(default_factory=lambda:[ComboStepMaximality.COMBO_TAKE_ONE])
-  internal_event_lifeline: List[InternalEventLifeline] = field(default_factory=lambda:[InternalEventLifeline.NEXT_COMBO_STEP])
-  input_event_lifeline: List[InputEventLifeline] = field(default_factory=lambda:[InputEventLifeline.FIRST_COMBO_STEP])
-  enabledness_memory_protocol: List[MemoryProtocol] = field(default_factory=lambda:[MemoryProtocol.COMBO_STEP])
-  assignment_memory_protocol: List[MemoryProtocol] = field(default_factory=lambda:[MemoryProtocol.COMBO_STEP])
-  priority: List[Priority] = field(default_factory=lambda:[Priority.SOURCE_PARENT])
-  concurrency: List[Concurrency] = field(default_factory=lambda:[Concurrency.SINGLE])
+  @classmethod
+  def get_fields(cls) -> Iterator[Tuple[str, SemanticAspect]]:
+    # Python < 3.8:
+    import sys
+    if sys.version_info.minor < 8:
+      from typing_inspect import get_args
 
-  # Get all possible combinations
-  def generate_variants(self) -> List[Semantics]:
+    return ((f.name, get_args(f.type)[0]) for  f in fields(cls))
+
+  # Whether multiple options are set for any aspect.
+  def has_multiple_variants(self) -> bool:
+    for f in fields(self):
+      if isinstance(getattr(self, f.name), list):
+        return True
+    return False
+
+  # Get all possible combinations for aspects with multiple options set.
+  # Calling has_multiple_variants on resulting objects will return False.
+  def generate_variants(self) -> List['SemanticConfiguration']:
     my_fields = fields(self)
-    chosen_options = (getattr(self, f.name) for f in my_fields)
+    chosen_options = ([item] if not isinstance(item,list) else item for item in (getattr(self, f.name) for f in my_fields))
     variants = itertools.product(*chosen_options)
 
-    return [Semantics(**{f.name: o for f,o in zip(my_fields, variant)}) for variant in variants]
-
+    return [SemanticConfiguration(**{f.name: o for f,o in zip(my_fields, variant)}) for variant in variants]
 
 @dataclass
 class Statechart:
   inport_events: Dict[str, Set[int]] # mapping from inport to set of event IDs
   event_outport: Dict[str, str] # mapping from event name to outport
 
-  semantics: Union[VariableSemantics, Semantics]
+  semantics: SemanticConfiguration
   tree: StateTree
   scope: Scope

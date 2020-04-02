@@ -11,7 +11,7 @@ from sccd.execution.memory import *
 
 # Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
 # TODO: make this configurable
-LIMIT = 1000
+LIMIT = 20
 
 class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager):
@@ -19,15 +19,16 @@ class StatechartInstance(Instance):
 
         semantics = statechart.semantics
 
-        if isinstance(semantics, VariableSemantics):
-            raise Exception("Cannot execute model with variable semantics.")
+        if semantics.has_multiple_variants():
+            raise Exception("Cannot execute model with multiple semantics.")
 
         reverse = semantics.priority == Priority.SOURCE_CHILD
 
         generator = CandidatesGeneratorCurrentConfigBased(reverse)
         # generator = CandidatesGeneratorEventBased(reverse)
 
-        small_step = SmallStep(termcolor.colored("small", 'blue'), None, generator)
+        small_step = SmallStep(termcolor.colored("small", 'blue'), None, generator,
+            concurrency=semantics.concurrency==Concurrency.MANY)
 
 
         if semantics.big_step_maximality == BigStepMaximality.TAKE_ONE:

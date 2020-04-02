@@ -141,6 +141,7 @@ TIME_D: "d" // for zero-duration
      | expr -> expression_stmt
      | "return" expr -> return_stmt
      | "{" block "}" -> block
+     | "if" "(" expr ")" stmt -> if_stmt
 
 assignment: lhs assign_operator expr
 

@@ -53,14 +53,11 @@ class Test(unittest.TestCase):
       expected = test.output
       actual = []
 
-      def fail(msg, kill=False):
-        if kill:
-          pass
-          # interrupt.put(None)
+      def fail(msg):
         thread.join()
         def repr(output):
           return '\n'.join("%d: %s" % (i, str(big_step)) for i, big_step in enumerate(output))
-        self.fail('\n'+test.name + '\n'+msg + "\n\nActual:\n" + repr(actual) + ("\n(possibly more output, instance killed)" if kill else "") + "\n\nExpected:\n" + repr(expected))
+        self.fail('\n'+test.name + '\n'+msg + "\n\nActual:\n" + repr(actual) + "\n\nExpected:\n" + repr(expected))
 
       while True:
         data = pipe.get(block=True, timeout=None)
@@ -81,13 +78,13 @@ class Test(unittest.TestCase):
           actual.append(big_step)
 
           if len(actual) > len(expected):
-            fail("More output than expected.", kill=True)
+            fail("More output than expected.")
 
           actual_bag = actual[big_step_index]
           expected_bag = expected[big_step_index]
 
           if len(actual_bag) != len(expected_bag):
-            fail("Big step %d: output differs." % big_step_index, kill=True)
+            fail("Big step %d: output differs." % big_step_index)
 
           # Sort both expected and actual lists of events before comparing.
           # In theory the set of events at the end of a big step is unordered.
@@ -96,18 +93,8 @@ class Test(unittest.TestCase):
           expected_bag.sort(key=key_f)
 
           for (act_event, exp_event) in zip(actual_bag, expected_bag):
-            matches = True
-            if exp_event.name != act_event.name :
-              matches = False
-            if exp_event.port != act_event.port :
-              matches = False
-            if len(exp_event.parameters) != len(act_event.parameters) :
-              matches = False
-            for index in range(len(exp_event.parameters)) :
-              if exp_event.parameters[index] !=  act_event.parameters[index]:
-                matches = False
-            if not matches:
-              fail("Big step %d: output differs." % big_step_index, kill=True)
+            if act_event != exp_event:
+              fail("Big step %d: output differs." % big_step_index)
 
 
 class FailingTest(Test):

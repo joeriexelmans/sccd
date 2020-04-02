@@ -32,7 +32,7 @@ def create_test_parser(src_file, load_external = True):
           raise XmlError("missing attribute 'time'")
 
         duration = parse_duration(globals, time)
-        input.append(InputEvent(name=name, port=port, parameters=[], time_offset=duration))
+        input.append(InputEvent(name=name, port=port, params=[], time_offset=duration))
 
       return [("event+", parse_input_event)]
 
@@ -50,7 +50,7 @@ def create_test_parser(src_file, load_external = True):
           if port is None:
             raise XmlError("missing attribute 'port'")
 
-          big_step.append(Event(id=0, name=name, port=port, parameters=[]))
+          big_step.append(Event(id=0, name=name, port=port, params=[]))
 
         return [("event+", parse_output_event)]
 

@@ -57,13 +57,13 @@ class XmlDecoratedError(Exception):
     # self.el = el
     # self.err = err
 
-ParseElementF = Callable[[etree.Element], Optional['Parser']]
+ParseElementF = Callable[[etree.Element], Optional['RulesWDone']]
 OrderedElements = List[Tuple[str, ParseElementF]]
 UnorderedElements = Dict[str, ParseElementF]
-Parser = Union[OrderedElements, UnorderedElements]
-ParserWDone = Union[Parser, Tuple[Parser,Callable]]
+Rules = Union[OrderedElements, UnorderedElements]
+RulesWDone = Union[Rules, Tuple[Rules,Callable]]
 
-def parse(src_file, rules: ParserWDone, ignore_unmatched = False, disable_multiplicities = False):
+def parse(src_file, rules: RulesWDone, ignore_unmatched = False, disable_multiplicities = False):
 
   class Multiplicity(Flag):
     AT_LEAST_ONCE = auto()
@@ -210,7 +210,7 @@ def create_statechart_parser(globals, src_file, load_external = True):
       statechart = Statechart(
         inport_events={},
         event_outport={},
-        semantics=VariableSemantics(),
+        semantics=SemanticConfiguration(),
         tree=None,
         scope=Scope("instance", parent=builtin_scope.builtin_scope))
     else:
@@ -221,17 +221,18 @@ def create_statechart_parser(globals, src_file, load_external = True):
       statechart = parse(ext_file_path, create_statechart_parser(globals, ext_file_path))
 
     def parse_semantics(el):
-      import dataclasses
       # Use reflection to find the possible XML attributes and their values
-      for aspect in dataclasses.fields(Semantics):
-        text = el.get(aspect.name)
+      for aspect_name, aspect_type in SemanticConfiguration.get_fields():
+        text = el.get(aspect_name)
         if text is not None:
           result = parse_semantic_choice(text)
           if result.data == "wildcard":
-            setattr(statechart.semantics, aspect.name, list(aspect.type))
+            semantic_choice = list(aspect_type) # all options
           elif result.data == "list":
-            options = [aspect.type[token.value.upper()] for token in result.children]
-            setattr(statechart.semantics, aspect.name, options)
+            semantic_choice = [aspect_type[token.value.upper()] for token in result.children]
+          if len(semantic_choice) == 1:
+            semantic_choice = semantic_choice[0]
+          setattr(statechart.semantics, aspect_name, semantic_choice)
 
     def parse_datamodel(el):
       def parse_var(el):
@@ -280,6 +281,13 @@ def create_statechart_parser(globals, src_file, load_external = True):
       def create_actions_parser(scope):
 
         def parse_raise(el):
+          params = []
+          def parse_param(el):
+            expr_text = require_attribute(el, "expr")
+            expr = parse_expression(globals, expr_text)
+            expr.init_rvalue(scope)
+            params.append(expr)
+
           def when_done():
             event_name = require_attribute(el, "event")
             try:
@@ -290,12 +298,12 @@ def create_statechart_parser(globals, src_file, load_external = True):
             if port is None:
               # internal event
               event_id = globals.events.assign_id(event_name)
-              return RaiseInternalEvent(name=event_name, parameters=[], event_id=event_id)
+              return RaiseInternalEvent(name=event_name, params=params, event_id=event_id)
             else:
               # output event - no ID in global namespace
               globals.outports.assign_id(port)
-              return RaiseOutputEvent(name=event_name, parameters=[], outport=port, time_offset=0)
-          return ([], when_done)
+              return RaiseOutputEvent(name=event_name, params=params, outport=port, time_offset=0)
+          return ([("param*", parse_param)], when_done)
 
         def parse_code(el):
           def when_done():

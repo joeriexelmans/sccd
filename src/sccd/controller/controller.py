@@ -11,7 +11,7 @@ from sccd.model.model import *
 class InputEvent:
   name: str
   port: str
-  parameters: List[Any]
+  params: List[Any]
   time_offset: Duration
 
 # The Controller class is a primitive that can be used to build backends of any kind:
@@ -60,7 +60,7 @@ class Controller:
                 id=event_id,
                 name=input.name,
                 port=input.port,
-                parameters=input.parameters)
+                params=input.params)
 
             # For now, add events received on input ports to all instances.
             # In the future, we can optimize this by keeping a mapping from port name to a list of instances

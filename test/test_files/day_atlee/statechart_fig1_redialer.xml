@@ -3,7 +3,9 @@
   <semantics
     big_step_maximality="syntactic"
     concurrency="many"
-    input_event_lifeline="whole"/>
+    input_event_lifeline="whole"
+    enabledness_memory_protocol="small_step"
+    assignment_memory_protocol="small_step"/>
 
   <datamodel>
     <var id="c" expr="0"/>
@@ -15,6 +17,8 @@
     </func>
 
     <func id="numdigits(i:int)">
+      if (i == 0)
+        return 0;
       return float_to_int(log10(i)) + 1;
     </func>
   </datamodel>
@@ -60,14 +64,26 @@
           <transition event="redial" cond="c == 0" target="../RedialDigits">
             <code>
               p = lp;
+              log("p: " + int_to_str(p));
+              log("lp: " + int_to_str(lp));
             </code>
-            <raise event="dial(digit(lp, 1))"/>
+            <raise event="dial">
+              <param expr="digit(lp, 1)"/>
+            </raise>
           </transition>
         </state>
         <state id="RedialDigits">
+          <onentry>
+            <code>
+              log("p: " + int_to_str(p));
+              log("lp: " + int_to_str(lp));
+            </code>
+          </onentry>
           <!-- t6 -->
           <transition cond="c &lt; numdigits(p)" target=".">
-            <raise event="dial(digit(p, c+1))"/>
+            <raise event="dial">
+              <param expr="digit(p, c+1)"/>
+            </raise>
           </transition>
           <!-- t7 -->
           <transition cond="c == numdigits(p)" target="../WaitForRedial"/>

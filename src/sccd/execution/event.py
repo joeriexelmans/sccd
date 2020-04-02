@@ -10,15 +10,15 @@ class Event:
     id: int
     name: str
     port: str = ""
-    parameters: List[Any] = field(default_factory=list)
+    params: List[Any] = field(default_factory=list)
 
     def __str__(self):
         if self.port:
             s = "Event("+self.port+"."+self.name
         else:
             s = "Event("+self.name
-        if self.parameters:
-            s += str(self.parameters)
+        if self.params:
+            s += str(self.params)
         s += ")"
         return termcolor.colored(s, 'yellow')
 

@@ -122,12 +122,32 @@ class ReturnStatement(Statement):
         t = self.expr.init_rvalue(scope)
         return ReturnType(True, t)
 
-    def exec(self, ctx: EvalContext):
+    def exec(self, ctx: EvalContext) -> Return:
         val = self.expr.eval(ctx)
         return Return(True, val)
 
     def render(self) -> str:
         return "return " + self.expr.render()
+
+@dataclass
+class IfStatement(Statement):
+    cond: Expression
+    body: Statement
+
+    def init_stmt(self, scope: Scope) -> ReturnType:
+        cond_t = self.cond.init_rvalue(scope)
+        # todo: assert cond_t is bool
+        ret = self.body.init_stmt(scope) # return type is only if cond evaluates to True...
+        return Return(False)
+
+    def exec(self, ctx: EvalContext) -> Return:
+        val = self.cond.eval(ctx)
+        if val:
+            return self.body.exec(ctx)
+        return Return(False)
+
+    def render(self) -> str:
+        return "if (%s) [[" % self.cond.render() + self.body.render() + "]]"
 
 # Used in EventDecl and Function
 @dataclass

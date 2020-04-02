@@ -68,7 +68,7 @@ class Identifier(LValue):
 @dataclass
 class FunctionCall(Expression):
     function: Expression
-    parameters: List[Expression]
+    params: List[Expression]
 
     type: Optional[type] = None
 
@@ -83,20 +83,19 @@ class FunctionCall(Expression):
         # Not visible to the user.
         assert formal_types[0] == EvalContext
 
-        actual_types = [p.init_rvalue(scope) for p in self.parameters]
+        actual_types = [p.init_rvalue(scope) for p in self.params]
         for i, (formal, actual) in enumerate(zip(formal_types[1:], actual_types)):
             if formal != actual:
-                raise Exception("Function call, argument %d: %s is not expected type %s, instead is %s" % (i, self.parameters[i].render(), str(formal), str(actual)))
+                raise Exception("Function call, argument %d: %s is not expected type %s, instead is %s" % (i, self.params[i].render(), str(formal), str(actual)))
         return self.type
 
     def eval(self, ctx: EvalContext):
-        # print(self.function)
         f = self.function.eval(ctx)
-        p = [p.eval(ctx) for p in self.parameters]
+        p = [p.eval(ctx) for p in self.params]
         return f(ctx, *p)
 
     def render(self):
-        return self.function.render()+'('+','.join([p.render() for p in self.parameters])+')'
+        return self.function.render()+'('+','.join([p.render() for p in self.params])+')'
 
 
 @dataclass

@@ -49,8 +49,9 @@ class MemorySnapshot:
     
     race_conditions = self.temp_dirty & self.round_dirty
     if race_conditions:
+      variables = list(self.scope[-1].all_variables())
       # some variable written to twice before refresh
-      raise Exception("Race condition for variables %s" % str(list(self.scope[-1].get_name(offset) for offset in race_conditions.items())))
+      raise Exception("Race condition for variables %s" % str(list(variables[offset].name for offset in race_conditions.items())))
 
     self.round_dirty |= self.temp_dirty
     self.temp_dirty = Bitmap() # reset

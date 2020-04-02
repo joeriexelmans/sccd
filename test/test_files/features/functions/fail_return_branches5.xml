@@ -2,10 +2,10 @@
 <test>
   <statechart>
     <datamodel>
-      <func id="illegal_func(i: int)">
+      illegal_func = func(i:int) {
         if (i &gt; 10) return 1;
         if (i &lt; 5) return "hello";
-      </func>
+      };
     </datamodel>
 
     <root/>

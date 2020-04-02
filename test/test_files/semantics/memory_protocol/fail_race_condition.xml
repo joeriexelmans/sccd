@@ -6,9 +6,10 @@
       input_event_lifeline="whole"
       assignment_memory_protocol="big_step"/>
     <datamodel>
-      <var id="x" expr="0"/>
+      x = 0;
     </datamodel>
     <root>
+      <!-- both transitions execute in the same big step, both writing to 'x' (one overwriting the other's result) -->
       <parallel id="p">
         <state id="a">
           <state id="a1">
@@ -31,7 +32,4 @@
   <input>
     <event port="in" name="e" time="0 d"/>
   </input>
-  <output>
-
-  </output>
 </test>

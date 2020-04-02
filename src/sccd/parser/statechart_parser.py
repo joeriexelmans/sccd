@@ -10,18 +10,20 @@ class SkipFile(Exception):
 
 _blank_eval_context = EvalContext(current_state=None, events=[], memory=None)
 
-parse_f = functools.partial(parse, decorate_exceptions=(StaticTypeError,))
+parse_f = functools.partial(parse, decorate_exceptions=(ModelError,))
 
 def create_statechart_parser(globals, src_file, load_external = True, parse = parse_f) -> Rules:
   def parse_statechart(el):
     ext_file = el.get("src")
     if ext_file is None:
       statechart = Statechart(
+        semantics=SemanticConfiguration(),
+        scope=Scope("instance", parent=builtin_scope.builtin_scope),
+        datamodel=None,
         inport_events={},
         event_outport={},
-        semantics=SemanticConfiguration(),
         tree=None,
-        scope=Scope("instance", parent=builtin_scope.builtin_scope))
+      )
     else:
       if not load_external:
         raise SkipFile("Parser configured not to load statecharts from external files.")
@@ -44,26 +46,9 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           setattr(statechart.semantics, aspect_name, semantic_choice)
 
     def parse_datamodel(el):
-      def parse_var(el):
-        id = el.get("id")
-        expr = el.get("expr")
-
-        parsed = parse_expression(globals, expr)
-        rhs_type = parsed.init_rvalue(statechart.scope)
-        val = parsed.eval(_blank_eval_context)
-        statechart.scope.add_variable_w_initial(name=id, initial=val)
-
-      def parse_func(el):
-        id = el.get("id")
-        text = el.text
-
-        name, params = parse_func_decl(id)
-        body = parse_block(globals, text)
-        func = Function(params, body)
-        func.init_stmt(statechart.scope)
-        statechart.scope.add_function(name, func)
-
-      return {"var": parse_var, "func": parse_func}
+      body = parse_block(globals, el.text)
+      body.init_stmt(statechart.scope)
+      statechart.datamodel = body
 
     def parse_inport(el):
       port_name = require_attribute(el, "name")
@@ -117,7 +102,8 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
         def parse_code(el):
           def when_done():
             block = parse_block(globals, el.text)
-            block.init_stmt(scope)
+            local_scope = Scope("local", scope)
+            block.init_stmt(local_scope)
             return Code(block)
           return ([], when_done)
 
@@ -129,7 +115,6 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           try:
             state.default_state = children_dict[initial]
           except KeyError as e:
-            print("children:", children_dict.keys())
             raise XmlError("initial=\"%s\": not a child." % (initial)) from e
         elif len(state.children) == 1:
           state.default_state = state.children[0]
@@ -198,8 +183,9 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
             positive_events, negative_events = parse_events_decl(globals, event)
 
             def process_event_decl(e: EventDecl):
-              for i,p in enumerate(e.params):
-                scope.add_event_parameter(event_name=e.name, param_name=p.name, type=p.type, param_offset=i)
+              for i,p in enumerate(e.params_decl):
+                scope.add_event_parameter(param_name=p.name, type=p.type,
+                  event_name=e.name, param_offset=i)
 
             for e in itertools.chain(positive_events, negative_events):
               process_event_decl(e)

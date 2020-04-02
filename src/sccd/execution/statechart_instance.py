@@ -87,22 +87,22 @@ class StatechartInstance(Instance):
         gc_memory = MemorySnapshot(memory)
 
         if semantics.enabledness_memory_protocol == MemoryProtocol.BIG_STEP:
-            self._big_step.when_done(gc_memory.refresh)
+            self._big_step.when_done(gc_memory.flush_round)
         elif semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP:
-            combo_step.when_done(gc_memory.refresh)
+            combo_step.when_done(gc_memory.flush_round)
         elif semantics.enabledness_memory_protocol == MemoryProtocol.SMALL_STEP:
-            small_step.when_done(gc_memory.refresh)
+            small_step.when_done(gc_memory.flush_round)
 
         if semantics.assignment_memory_protocol == semantics.enabledness_memory_protocol:
             rhs_memory = gc_memory
         else:
             rhs_memory = MemorySnapshot(memory)
             if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
-                self._big_step.when_done(rhs_memory.refresh)
+                self._big_step.when_done(rhs_memory.flush_round)
             elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:
-                combo_step.when_done(rhs_memory.refresh)
+                combo_step.when_done(rhs_memory.flush_round)
             elif semantics.assignment_memory_protocol == MemoryProtocol.SMALL_STEP:
-                small_step.when_done(rhs_memory.refresh)
+                small_step.when_done(rhs_memory.flush_round)
 
         print_debug("\nRound hierarchy: " + str(self._big_step) + '\n')
 

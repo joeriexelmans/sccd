@@ -40,12 +40,19 @@ class StatechartState:
         states = self.model.tree.root.getEffectiveTargetStates(self)
         self.configuration.extend(states)
         self.configuration_bitmap = Bitmap.from_list(s.gen.state_id for s in states)
+
+        ctx = EvalContext(current_state=self, events=[], memory=self.rhs_memory)
+        if self.model.datamodel is not None:
+            self.model.datamodel.exec(ctx)
+
         for state in states:
             print_debug(termcolor.colored('  ENTER %s'%state.gen.full_name, 'green'))
             self.eventless_states += state.gen.has_eventless_transitions
-            self._perform_actions([], state.enter)
-            self.rhs_memory.flush_temp()
+            self._perform_actions(ctx, state.enter)
             self._start_timers(state.gen.after_triggers)
+
+        self.rhs_memory.flush_transition()
+        self.rhs_memory.flush_round()
 
     def fire_transition(self, events, t: Transition):
         def __exitSet():
@@ -109,7 +116,7 @@ class StatechartState:
         except KeyError:
             self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.model.tree.state_list if self.configuration_bitmap & s.gen.state_id_bitmap]
 
-        self.rhs_memory.flush_temp()
+        self.rhs_memory.flush_transition()
 
     def check_guard(self, t, events) -> bool:
         # Special case: after trigger
@@ -123,7 +130,7 @@ class StatechartState:
         else:
             result = t.guard.eval(
                 EvalContext(current_state=self, events=events, memory=self.gc_memory))
-            self.gc_memory.flush_temp()
+            self.gc_memory.flush_transition()
             return result
 
     def check_source(self, t) -> bool:
@@ -138,7 +145,7 @@ class StatechartState:
         for after in triggers:
             delay: Duration = after.delay.eval(
                 EvalContext(current_state=self, events=[], memory=self.gc_memory))
-            self.gc_memory.flush_temp()
+            self.gc_memory.flush_transition()
             timer_id = self._next_timer_id(after)
             self.output.append(OutputEvent(
                 Event(id=after.id, name=after.name, params=[timer_id]),

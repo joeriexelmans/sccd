@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <statechart>
   <datamodel>
-    <var id="i" expr="0"/>
+    i = 0;
   </datamodel>
   <root>
     <parallel id="p">

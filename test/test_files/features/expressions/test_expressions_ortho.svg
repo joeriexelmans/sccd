@@ -216,7 +216,7 @@
 <title>_p_arithmetic_s4&#45;&gt;_p_arithmetic_s5</title>
 <path fill="none" stroke="#000000" d="M202.1698,-423.9402C202.1698,-418.3497 202.1698,-412.1701 202.1698,-406.5 202.1698,-406.5 202.1698,-406.5 202.1698,-359.5 202.1698,-355.6152 202.1698,-351.5209 202.1698,-347.4883"/>
 <polygon fill="#000000" stroke="#000000" points="205.6699,-347.1447 202.1698,-337.1447 198.6699,-347.1448 205.6699,-347.1447"/>
-<text text-anchor="start" x="202.1698" y="-380" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">[21 / 3 == 7] &#160;&#160;</text>
+<text text-anchor="start" x="202.1698" y="-380" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">[21 // 3 == 7] &#160;&#160;</text>
 </g>
 <!-- _p_arithmetic_s3 -->
 <g id="node18" class="node">

@@ -7,14 +7,14 @@
       input_event_lifeline="first_combo_step"/>
 
     <datamodel>
-      <func id="digit(i:int, pos:int)">
+      digit = func(i:int, pos:int) {
         pow = 10 ** pos;
-        return i // pow % 10;
-      </func>
+        return i // pow % 10;      
+      };
 
-      <func id="numdigits(i:int)">
+      numdigits = func(i:int) {
         return float_to_int(log10(i)) + 1;
-      </func>
+      };
     </datamodel>
 
     <root initial="ready">

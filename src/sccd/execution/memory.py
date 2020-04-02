@@ -19,9 +19,6 @@ class MemorySnapshot:
     self.scope = [memory.scope]
     self.stack = [] # Storage for local scope values. Always temporary: no memory protocol applies to them
 
-  def refresh(self):
-    self.snapshot = list(self.actual)
-
   def store(self, offset: int, value: Any):
     if offset >= self.len:
       self.stack[offset - self.len] = value
@@ -47,7 +44,7 @@ class MemorySnapshot:
     if scope.local_size() > 0:
       del self.stack[-scope.local_size():]
 
-  def flush_temp(self):
+  def flush_transition(self):
     assert len(self.stack) == 0 # only allowed to be called in between statement executions or expression evaluations
     
     race_conditions = self.temp_dirty & self.round_dirty
@@ -58,8 +55,9 @@ class MemorySnapshot:
     self.round_dirty |= self.temp_dirty
     self.temp_dirty = Bitmap() # reset
 
-  def refresh(self):
+  def flush_round(self):
     assert len(self.stack) == 0 # only allowed to be called in between statement executions or expression evaluations
+    assert not self.temp_dirty # only allowed to be called right after flush_temp
 
     # Probably quickest to just copy the entire list in Python
     self.snapshot = list(self.actual) # refresh

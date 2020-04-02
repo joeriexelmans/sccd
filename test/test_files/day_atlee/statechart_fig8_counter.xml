@@ -5,9 +5,6 @@
     input_event_lifeline="whole"
     internal_event_lifeline="next_small_step"/>
 
-  <datamodel>
-  </datamodel>
-
   <root>
     <parallel id="Counter">
       <state id="Bit_1" initial="Bit_11">

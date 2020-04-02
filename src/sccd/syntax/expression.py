@@ -4,16 +4,16 @@ from dataclasses import *
 from sccd.util.duration import *
 from sccd.syntax.scope import *
 
+# Thrown if the type checker encountered something illegal.
+# Not to be confused with Python's TypeError exception.
+class StaticTypeError(ModelError):
+    pass
+
 # to inspect types in Python 3.6 and 3.7, we rely on a backporting package
 # Python 3.8 already has this in its 'typing' module
 import sys
 if sys.version_info.minor < 8:
     from typing_inspect import get_args
-
-# Thrown if the type checker encountered something illegal.
-# Not to be confused with Python's TypeError exception.
-class StaticTypeError(Exception):
-    pass
 
 class Expression(ABC):
     # Must be called exactly once on each expression, before any call to eval is made.
@@ -101,6 +101,46 @@ class FunctionCall(Expression):
     def render(self):
         return self.function.render()+'('+','.join([p.render() for p in self.params])+')'
 
+# Used in EventDecl and FunctionDeclaration
+@dataclass
+class ParamDecl:
+    name: str
+    type: type
+
+    variable: Optional[Variable] = None
+
+    def init_param(self, scope: Scope):
+        self.variable = scope.add_variable(self.name, self.type)
+
+@dataclass
+class FunctionDeclaration(Expression):
+    params_decl: List[ParamDecl]
+    body: 'Statement'
+    scope: Optional[Scope] = None
+
+    def init_rvalue(self, scope: Scope) -> type:
+        self.scope = Scope("function", scope)
+        # Reserve space for arguments on stack
+        for p in self.params_decl:
+            p.init_param(self.scope)
+        ret = self.body.init_stmt(self.scope)
+        return_type = ret.get_return_type()
+        return Callable[[EvalContext,*[p.type for p in self.params_decl]], return_type]
+
+    def eval(self, ctx: EvalContext):
+        def FUNCTION(ctx: EvalContext, *params):
+            ctx.memory.grow_stack(self.scope)
+            # Copy arguments to stack
+            for val, p in zip(params, self.params_decl):
+                p.variable.store(ctx, val)
+            ret = self.body.exec(ctx)
+            ctx.memory.shrink_stack()
+            return ret.val
+        return FUNCTION
+
+    def render(self) -> str:
+        return "" # todo
+        
 
 @dataclass
 class StringLiteral(Expression):

@@ -2,7 +2,7 @@
 <test>
   <statechart>
     <semantics/>
-    <datamodel/>
+    
 
     <root initial="a">
       <state id="a"/>

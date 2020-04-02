@@ -4,7 +4,7 @@
     <semantics
       big_step_maximality="syntactic"
       input_event_lifeline="whole"/>
-    <datamodel/>
+    
     <root initial="a">
       <state id="a">
         <transition port="in" event="e" target="/b"/>

@@ -87,11 +87,11 @@ class ParallelState(State):
 class EventDecl:
     id: int
     name: str
-    params: List[Param]
+    params_decl: List[ParamDecl]
 
     def render(self) -> str:
-        if self.params:
-            return self.name + '(' + ', '.join(self.params) + ')'
+        if self.params_decl:
+            return self.name + '(' + ', '.join(self.params_decl) + ')'
         else:
             return self.name
 

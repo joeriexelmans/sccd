@@ -4,7 +4,7 @@
     <semantics/>
 
     <datamodel>
-      <var id="x" expr="5"/>
+      x = 5;
     </datamodel>
 
     <root initial="a">

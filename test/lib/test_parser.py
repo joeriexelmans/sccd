@@ -68,11 +68,12 @@ def create_test_parser(create_statechart_parser):
         model=SingleInstanceModel(
           globals,
           Statechart(
-            inport_events={},
-            event_outport={},
-            tree=statechart.tree,
+            semantics=variant,
             scope=statechart.scope,
-            semantics=variant)),
+            datamodel=statechart.datamodel,
+            inport_events=statechart.inport_events,
+            event_outport=statechart.event_outport,
+            tree=statechart.tree)),
         input=input,
         output=output)
       for i, variant in enumerate(variants)]

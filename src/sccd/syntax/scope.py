@@ -4,6 +4,13 @@ from dataclasses import *
 from inspect import signature
 import itertools
 
+# Superclass for all "user errors", errors in the model being loaded.
+class ModelError(Exception):
+  pass
+
+class ScopeError(ModelError):
+  pass
+
 @dataclass
 class EvalContext:
     current_state: 'StatechartState'
@@ -30,23 +37,30 @@ class Value(ABC):
 # Stateless stuff we know about a variable
 @dataclass
 class Variable(Value):
-  offset: int
+  scope: 'Scope'
+  offset: int # wrt. scope variable belongs to
   initial: Any = None
 
   def is_read_only(self) -> bool:
     return False
 
+  def _calc_offset(self):
+    return self.scope.offset() + self.offset
+
   def load(self, ctx: EvalContext) -> Any:
-    return ctx.memory.load(self.offset)
+    return ctx.memory.load(self._calc_offset())
 
   def store(self, ctx: EvalContext, value):
-    ctx.memory.store(self.offset, value)
+    ctx.memory.store(self._calc_offset(), value)
+
+  def __str__(self):
+    return "Variable(%s, type=%s, offset=%s+%d)" %(self.name, str(self.type), self.scope.name, self.offset)
 
 class EventParam(Variable):
-  def __init__(self, name, type, offset, event_name, param_offset):
-    super().__init__(name, type, offset)
+  def __init__(self, name, type, scope, offset, event_name, param_offset):
+    super().__init__(name, type, scope, offset)
     self.event_name: str = event_name
-    self.param_offset: int = param_offset
+    self.param_offset: int = param_offset # offset within event parameters
 
   def is_read_only(self) -> bool:
     return True
@@ -89,11 +103,9 @@ class Scope:
   def __init__(self, name: str, parent: 'Scope'):
     self.name = name
     self.parent = parent
-    self.frozen = False
 
     if parent:
       self.parent_offset = parent.total_size()
-      self.parent.frozen = True
     else:
       self.parent_offset = 0
 
@@ -105,6 +117,12 @@ class Scope:
 
   def local_size(self) -> int:
     return len(self.variables)
+
+  def offset(self) -> int:
+    if self.parent:
+      return self.parent.total_size()
+    else:
+      return 0
 
   def total_size(self) -> int:
     return self.parent_offset + len(self.variables)
@@ -145,24 +163,23 @@ class Scope:
     found = self._internal_lookup(name)
     if not found:
       # return None
-      raise Exception("No variable with name '%s' found in any of scopes: %s" % (name, str(self.list_scope_names())))
+      raise ScopeError("No variable with name '%s' found in any of scopes: %s" % (name, str(self.list_scope_names())))
     else:
       return found[1]
 
   # Add name to scope if it does not exist yet, otherwise return existing Variable for name.
   # This is done when encountering an assignment statement in a block.
   def put_variable_assignment(self, name: str, expected_type: type) -> Variable:
-    assert not self.frozen
-
     found = self._internal_lookup(name)
     if found:
       scope, variable = found
       if variable.is_read_only():
-        raise Exception("Cannot assign to name '%s': Is read-only value of type '%s' in scope '%s'" %(name, str(variable.type), scope.name))
-      if variable.type == expected_type:
-        return variable
+        raise ScopeError("Cannot assign to name '%s': Is read-only value of type '%s' in scope '%s'" %(name, str(variable.type), scope.name))
+      if variable.type != expected_type:
+        raise ScopeError("Cannot assign type %s to variable of type %s" % (expected_type, variable.type))
+      return variable
     else:
-      variable = Variable(name=name, type=expected_type, offset=self.total_size())
+      variable = Variable(scope=self, name=name, type=expected_type, offset=self.local_size())
       self.named_values[name] = variable
       self.variables.append(variable)
       return variable
@@ -171,36 +188,32 @@ class Scope:
     found = self._internal_lookup(name)
     if found:
       scope, variable = found
-      raise Exception("Name '%s' already in use in scope '%s'" % (name, scope.name))
+      raise ScopeError("Name '%s' already in use in scope '%s'" % (name, scope.name))
 
   def add_constant(self, name: str, value) -> Constant:
-    assert not self.frozen
     self._assert_name_available(name)
     c = Constant(name=name, type=type(value), value=value)
     self.named_values[name] = c
     return c
 
   def add_variable(self, name: str, expected_type: type) -> Variable:
-    assert not self.frozen
     self._assert_name_available(name)
-    variable = Variable(name=name, type=expected_type, offset=self.total_size())
+    variable = Variable(scope=self, name=name, type=expected_type, offset=self.local_size())
     self.named_values[name] = variable
     self.variables.append(variable)
     return variable
 
   def add_variable_w_initial(self, name: str, initial: Any) -> Variable:
-    assert not self.frozen
     self._assert_name_available(name)
-    variable = Variable(name=name, type=type(initial), offset=self.total_size(), initial=initial)
+    variable = Variable(scope=self, name=name, type=type(initial), offset=self.local_size(), initial=initial)
     self.named_values[name] = variable
     self.variables.append(variable)
     return variable
 
   def add_event_parameter(self, event_name: str, param_name: str, type: type, param_offset=int) -> EventParam:
-    assert not self.frozen
     self._assert_name_available(param_name)
-    param = EventParam(
-      name=param_name, type=type, offset=self.total_size(),
+    param = EventParam(scope=self,
+      name=param_name, type=type, offset=self.local_size(),
       event_name=event_name, param_offset=param_offset)
     self.named_values[param_name] = param
     self.variables.append(param)
@@ -212,15 +225,6 @@ class Scope:
     param_types = [a.annotation for a in sig.parameters.values()]
     function_type = Callable[param_types, return_type]
     
-    c = Constant(name=name, type=function_type, value=function)
-    self.named_values[name] = c
-    return c
-
-  def add_function(self, name: str, function: 'Function') -> Constant:
-    return_type = function.return_type
-    param_types = [EvalContext] + [p.type for p in function.params]
-    function_type = Callable[param_types, return_type]
-
     c = Constant(name=name, type=function_type, value=function)
     self.named_values[name] = c
     return c

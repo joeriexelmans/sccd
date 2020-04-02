@@ -3,7 +3,7 @@
   <semantics input_event_lifeline="whole"/>
 
   <datamodel>
-    <var id="c" expr="0"/>
+    c = 0;
   </datamodel>
 
   <root initial="D">

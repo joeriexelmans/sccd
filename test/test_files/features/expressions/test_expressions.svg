@@ -224,7 +224,7 @@
 <title>_arithmetic_s4&#45;&gt;_arithmetic_s5</title>
 <path fill="none" stroke="#000000" d="M99.5,-904.8015C99.5,-894.3976 99.5,-881.1215 99.5,-869.3768"/>
 <polygon fill="#000000" stroke="#000000" points="103.0001,-869.1476 99.5,-859.1476 96.0001,-869.1476 103.0001,-869.1476"/>
-<text text-anchor="start" x="99.5" y="-879" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">[21 / 3 == 7] &#160;&#160;</text>
+<text text-anchor="start" x="99.5" y="-879" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">[21 // 3 == 7] &#160;&#160;</text>
 </g>
 <!-- _arithmetic_s3 -->
 <g id="node18" class="node">

@@ -3,8 +3,7 @@
   <statechart>
     <semantics/>
     <datamodel>
-      <var id="x" expr="42"/>
-      <!-- <var id="y" expr="x"/>this is allowed, value of x copied to y -->
+      x = 42;
     </datamodel>
     <root initial="start">
       <state id="start">

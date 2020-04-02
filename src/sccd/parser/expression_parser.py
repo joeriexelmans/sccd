@@ -113,7 +113,7 @@ class _ExpressionTransformer(Transformer):
   def event_decl(self, node):
     event_name = node[0]
     event_id = self.globals.events.assign_id(event_name)
-    return EventDecl(id=event_id, name=event_name, params=node[1])
+    return EventDecl(id=event_id, name=event_name, params_decl=node[1])
 
   params_decl = list
 
@@ -121,12 +121,13 @@ class _ExpressionTransformer(Transformer):
     type = {
       "int": int,
       "str": str,
+      "float": float,
       "Duration": Duration
     }[node[1]]
-    return Param(name=node[0].value, type=type)
+    return ParamDecl(name=node[0].value, type=type)
 
   def func_decl(self, node):
-    return (node[0], node[1])
+    return FunctionDeclaration(params_decl=node[0], body=node[1])
 
 # Global variables so we don't have to rebuild our parser every time
 # Obviously not thread-safe
@@ -151,8 +152,8 @@ def parse_events_decl(globals: Globals, text: str):
   _transformer.globals = globals
   return _parser.parse(text, start="event_decl_list")
 
-def parse_func_decl(text: str) -> Tuple[str, List[Param]]:
-  return _parser.parse(text, start="func_decl")
+# def parse_func_decl(text: str) -> Tuple[str, List[Param]]:
+#   return _parser.parse(text, start="func_decl")
 
 def parse_state_ref(text: str):
   return _parser.parse(text, start="state_ref")

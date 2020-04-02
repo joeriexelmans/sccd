@@ -88,9 +88,12 @@ class SemanticConfiguration:
 
 @dataclass
 class Statechart:
+  semantics: SemanticConfiguration
+
+  scope: Scope
+  datamodel: Optional[Block] # block of statements setting up the datamodel (variables in instance scope)
+
   inport_events: Dict[str, Set[int]] # mapping from inport to set of event IDs
   event_outport: Dict[str, str] # mapping from event name to outport
 
-  semantics: SemanticConfiguration
   tree: StateTree
-  scope: Scope

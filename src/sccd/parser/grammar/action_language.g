@@ -31,17 +31,12 @@ event_decl_list: neg_event_decl ("," neg_event_decl)*
 
 ?event_decl: IDENTIFIER params_decl
 
+// params_decl rule shared with function declaration
 params_decl: ( "(" param_decl ("," param_decl)* ")" )?
 
-// param_decl rule shared with function declaration
 ?param_decl: IDENTIFIER ":" TYPE
 
 TYPE: "int" | "str" | "Duration"
-
-
-// Function declaration parsing
-
-func_decl: IDENTIFIER params_decl
 
 // Expression parsing
 
@@ -77,10 +72,13 @@ func_decl: IDENTIFIER params_decl
      | "(" expr ")"             -> group
      | literal
      | func_call
+     | func_decl
      | array
 
 func_call: atom "(" param_list ")"
 param_list: ( expr ("," expr)* )?  -> params
+
+func_decl: "func" params_decl stmt
 
 array: "[" (expr ("," expr)*)? "]"
 

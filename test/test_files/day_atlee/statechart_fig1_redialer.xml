@@ -8,21 +8,21 @@
     assignment_memory_protocol="small_step"/>
 
   <datamodel>
-    <var id="c" expr="0"/>
-    <var id="lp" expr="1234567890"/>
-    <var id="p" expr="0"/>
+    c = 0;
+    lp = 1234567890;
+    p = 0;
 
-    <func id="digit(i:int, pos:int)">
+    digit = func(i:int, pos:int) {
       result = i // 10**pos % 10;
       log("digit " + int_to_str(pos) + " of " + int_to_str(i) + " is " + int_to_str(result));
       return result;
-    </func>
+    };
 
-    <func id="numdigits(i:int)">
+    numdigits = func(i:int) {
       if (i == 0)
         return 0;
       return float_to_int(log10(i)) + 1;
-    </func>
+    };
   </datamodel>
 
   <root>

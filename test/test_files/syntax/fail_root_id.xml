@@ -2,7 +2,7 @@
 <test>
   <statechart>
     <semantics/>
-    <datamodel/>
+    
 
     <tree>
       <!-- not allowed: root with id -->

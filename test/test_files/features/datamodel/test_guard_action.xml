@@ -4,8 +4,7 @@
     <semantics
       big_step_maximality="take_many"/>
     <datamodel>
-      <var id="x" expr="0"/>
-      <!-- <var id="y" expr="x"/>this is allowed, y is also 0 -->
+      x = 0;
     </datamodel>
     <root initial="counting">
       <state id="counting">

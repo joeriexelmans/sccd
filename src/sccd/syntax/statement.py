@@ -106,7 +106,9 @@ class Assignment(Statement):
         return DontReturn
 
     def render(self) -> str:
-        return self.lhs.render() + ' ' + self.operator + ' ' + self.rhs.render()
+        return self.lhs.render() + ' = ' + self.rhs.render()
+
+
 
 @dataclass
 class Block(Statement):
@@ -114,7 +116,7 @@ class Block(Statement):
     scope: Optional[Scope] = None
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
-        self.scope = Scope("local", scope)
+        self.scope = scope
 
         so_far = NeverReturns
         for i, stmt in enumerate(self.stmts):
@@ -193,48 +195,3 @@ class IfStatement(Statement):
 
     def render(self) -> str:
         return "if (%s) [[" % self.cond.render() + self.if_body.render() + "]]"
-
-# Used in EventDecl and Function
-@dataclass
-class Param:
-    name: str
-    type: type
-
-    variable: Optional[Variable] = None
-
-    def init_param(self, scope: Scope):
-        self.variable = scope.add_variable(self.name, self.type)
-
-@dataclass
-class Function(Statement):
-    params: List[Param]
-    body: Block
-    scope: Optional[Scope] = None
-    return_type: Optional[type] = None
-
-    def init_stmt(self, scope: Scope) -> ReturnBehavior:
-        self.scope = Scope("function_params", scope)
-        # Reserve space for arguments on stack
-        for p in self.params:
-            p.init_param(self.scope)
-        ret = self.body.init_stmt(self.scope)
-        self.return_type = ret.get_return_type()
-
-        # Execution of function declaration doesn't return (or do) anything
-        return NeverReturns
-
-    def exec(self, ctx: EvalContext) -> Return:
-        # Execution of function declaration doesn't do anything
-        return DontReturn
-
-    def __call__(self, ctx: EvalContext, *params) -> Any:
-        ctx.memory.grow_stack(self.scope)
-        # Copy arguments to stack
-        for val, p in zip(params, self.params):
-            p.variable.store(ctx, val)
-        ret = self.body.exec(ctx)
-        ctx.memory.shrink_stack()
-        return ret.val
-
-    def render(self) -> str:
-        return "" # todo

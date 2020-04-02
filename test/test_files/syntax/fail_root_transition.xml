@@ -2,7 +2,7 @@
 <test>
   <statechart>
     <semantics/>
-    <datamodel/>
+    
 
     <root>
       <!-- not allowed: transition with source: root -->

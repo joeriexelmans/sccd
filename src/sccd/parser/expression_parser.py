@@ -52,7 +52,13 @@ class _ExpressionTransformer(Transformer):
     return Group(node[0])
 
   def assignment(self, node):
-    return Assignment(node[0], node[1].value, node[2])
+    operator = node[1].value
+    if operator == "=":
+      return Assignment(node[0], node[2])
+    else:
+      # Increment, decrement etc. operators are just syntactic sugar
+      bin_operator = {"+=": "+", "-=": "-", "*=": "*", "/=": "/", "//=": "//"}[operator]
+      return Assignment(node[0], BinaryExpression(node[0], bin_operator, node[2]))
 
   def duration_literal(self, node):
     return DurationLiteral(node[0])

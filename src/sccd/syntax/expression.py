@@ -53,13 +53,13 @@ class Identifier(LValue):
     variable: Optional[Variable] = None
 
     def init_rvalue(self, scope: Scope) -> type:
-        assert self.variable is None
+        # assert self.variable is None
         self.variable = scope.get(self.name)
         # print("init rvalue", self.name, "as", self.variable)
         return self.variable.type
 
     def init_lvalue(self, scope: Scope, expected_type):
-        assert self.variable is None
+        # assert self.variable is None
         self.variable = scope.put_variable_assignment(self.name, expected_type)
         # print("init lvalue", self.name, "as", self.variable)
 

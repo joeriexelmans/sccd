@@ -1,10 +1,16 @@
 from typing import *
 from sccd.syntax.expression import *
 
-@dataclass
+@dataclass(frozen=True)
 class Return:
     ret: bool
     val: Any = None
+
+    def __post_init__(self):
+        assert self.ret == (self.val is not None)
+
+DontReturn = Return(False)
+DoReturn = lambda v: Return(True, v)
 
 @dataclass(frozen=True)
 class ReturnBehavior:
@@ -19,6 +25,12 @@ class ReturnBehavior:
 
     def __post_init__(self):
         assert (self.when == ReturnBehavior.When.NEVER) == (self.type is None)
+
+    def get_return_type(self) -> type:
+        if self.when == ReturnBehavior.When.ALWAYS:
+            return self.type
+        elif self.when == ReturnBehavior.When.SOME_BRANCHES:
+            raise StaticTypeError("Cannot statically infer return type: Some branches return %s, others return nothing." % str(self.type))
 
     # Check if two branches have combinable ReturnBehaviors and if so, combine them.
     @staticmethod
@@ -57,6 +69,9 @@ class ReturnBehavior:
             return later
         raise StaticTypeError("Earlier statement always returns %s, cannot be followed by another statement" % str(earlier.type))
 
+NeverReturns = ReturnBehavior(ReturnBehavior.When.NEVER)
+AlwaysReturns = lambda t: ReturnBehavior(ReturnBehavior.When.ALWAYS, t)
+
 # A statement is NOT an expression.
 class Statement(ABC):
     # Execution typically has side effects.
@@ -75,43 +90,20 @@ class Statement(ABC):
 @dataclass
 class Assignment(Statement):
     lhs: LValue
-    operator: str # token value from the grammar.
     rhs: Expression
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
         rhs_t = self.rhs.init_rvalue(scope)
         self.lhs.init_lvalue(scope, rhs_t)
-        return ReturnBehavior(ReturnBehavior.When.NEVER)
+        return NeverReturns
 
     def exec(self, ctx: EvalContext) -> Return:
         rhs_val = self.rhs.eval(ctx)
         variable = self.lhs.eval_lvalue(ctx)
 
-        def load():
-            return variable.load(ctx)
-        def store(val):
-            variable.store(ctx, val)
+        variable.store(ctx, rhs_val)
 
-        def assign():
-            store(rhs_val)
-        def increment():
-            store(load() + rhs_val)
-        def decrement():
-            store(load() - rhs_val)
-        def multiply():
-            store(load() * rhs_val)
-        def divide():
-            store(load() / rhs_val)
-
-        {
-            "=": assign,
-            "+=": increment,
-            "-=": decrement,
-            "*=": multiply,
-            "/=": divide,
-        }[self.operator]()
-
-        return Return(False)
+        return DontReturn
 
     def render(self) -> str:
         return self.lhs.render() + ' ' + self.operator + ' ' + self.rhs.render()
@@ -123,11 +115,12 @@ class Block(Statement):
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
         self.scope = Scope("local", scope)
-        earlier = ReturnBehavior(ReturnBehavior.When.NEVER)
+
+        so_far = NeverReturns
         for i, stmt in enumerate(self.stmts):
-            later = stmt.init_stmt(self.scope)
-            earlier = ReturnBehavior.sequence(earlier, later)
-        return earlier
+            now_what = stmt.init_stmt(self.scope)
+            so_far = ReturnBehavior.sequence(so_far, now_what)            
+        return so_far
 
     def exec(self, ctx: EvalContext) -> Return:
         ctx.memory.grow_stack(self.scope)
@@ -151,11 +144,11 @@ class ExpressionStatement(Statement):
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
         self.expr.init_rvalue(scope)
-        return ReturnBehavior(ReturnBehavior.When.NEVER)
+        return NeverReturns
 
     def exec(self, ctx: EvalContext) -> Return:
         self.expr.eval(ctx)
-        return Return(False)
+        return DontReturn
 
     def render(self) -> str:
         return self.expr.render()
@@ -166,11 +159,11 @@ class ReturnStatement(Statement):
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
         t = self.expr.init_rvalue(scope)
-        return ReturnBehavior(ReturnBehavior.When.ALWAYS, t)
+        return AlwaysReturns(t)
 
     def exec(self, ctx: EvalContext) -> Return:
         val = self.expr.eval(ctx)
-        return Return(True, val)
+        return DoReturn(val)
 
     def render(self) -> str:
         return "return " + self.expr.render()
@@ -185,7 +178,7 @@ class IfStatement(Statement):
         cond_t = self.cond.init_rvalue(scope)
         if_ret = self.if_body.init_stmt(scope)
         if self.else_body is None:
-            else_ret = ReturnBehavior(ReturnBehavior.When.NEVER)
+            else_ret = NeverReturns
         else:
             else_ret = self.else_body.init_stmt(scope)
         return ReturnBehavior.combine_branches(if_ret, else_ret)
@@ -194,7 +187,9 @@ class IfStatement(Statement):
         val = self.cond.eval(ctx)
         if val:
             return self.if_body.exec(ctx)
-        return Return(False)
+        elif self.else_body is not None:
+            return self.else_body.exec(ctx)
+        return DontReturn
 
     def render(self) -> str:
         return "if (%s) [[" % self.cond.render() + self.if_body.render() + "]]"
@@ -223,17 +218,14 @@ class Function(Statement):
         for p in self.params:
             p.init_param(self.scope)
         ret = self.body.init_stmt(self.scope)
-        if ret.when == ReturnBehavior.When.ALWAYS:
-            self.return_type = ret.type
-        elif ret.when == ReturnBehavior.When.SOME_BRANCHES:
-            raise StaticTypeError("Cannot statically infer function return type: Some branches return %s, others return nothing." % str(ret.type))
+        self.return_type = ret.get_return_type()
 
         # Execution of function declaration doesn't return (or do) anything
-        return ReturnBehavior(ReturnBehavior.When.NEVER)
+        return NeverReturns
 
     def exec(self, ctx: EvalContext) -> Return:
         # Execution of function declaration doesn't do anything
-        return Return(False)
+        return DontReturn
 
     def __call__(self, ctx: EvalContext, *params) -> Any:
         ctx.memory.grow_stack(self.scope)

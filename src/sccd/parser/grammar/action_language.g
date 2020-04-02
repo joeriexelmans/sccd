@@ -156,7 +156,7 @@ INCREMENT: "+="
 DECREMENT: "-="
 MULTIPLY: "*="
 DIVIDE: "/="
-
+FLOORDIVIDE: "//="
 
 
 // Semantic option parsing

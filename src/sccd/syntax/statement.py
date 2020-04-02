@@ -37,9 +37,10 @@ class ReturnBehavior:
         # Only remaining case: ALWAYS & SOME_BRANCHES.
         # Now the types must match:
         if one.type != two.type:
-            raise StaticTypeError("Branches have different return types: %s and %s" % (str(one.type), str(two.type)))
+            raise StaticTypeError("Return types differ: One branch returns %s, the other %s" % (str(one.type), str(two.type)))
         return ReturnBehavior(ReturnBehavior.When.SOME_BRANCHES, one.type)
 
+    # If a statement with known ReturnBehavior is followed by another statement with known ReturnBehavior, what is the ReturnBehavior of their sequence? Also, raises if their sequence is illegal.
     @staticmethod
     def sequence(earlier: 'ReturnBehavior', later: 'ReturnBehavior') -> 'ReturnBehavior':
         if earlier.when == ReturnBehavior.When.NEVER:
@@ -49,12 +50,12 @@ class ReturnBehavior:
                 return earlier
             if later.when == ReturnBehavior.When.SOME_BRANCHES:
                 if earlier.type != later.type:
-                    raise StaticTypeError("Earlier statement may return %s, later statement may return %s" % (str(earlier.type), str(later.type)))
+                    raise StaticTypeError("Return types differ: Earlier statement may return %s, later statement may return %s" % (str(earlier.type), str(later.type)))
                 return earlier
             if earlier.type != later.type:
-                raise StaticTypeError("Earlier statement may return %s, later statement returns %s" % (str(earlier.type), str(later.type)))
+                raise StaticTypeError("Return types differ: Earlier statement may return %s, later statement returns %s" % (str(earlier.type), str(later.type)))
             return later
-        raise StaticTypeError("Earlier statement returns %s, cannot be followed by another statement" % str(earlier.type))
+        raise StaticTypeError("Earlier statement always returns %s, cannot be followed by another statement" % str(earlier.type))
 
 # A statement is NOT an expression.
 class Statement(ABC):

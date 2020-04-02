@@ -10,7 +10,9 @@ class SkipFile(Exception):
 
 _blank_eval_context = EvalContext(current_state=None, events=[], memory=None)
 
-def create_statechart_parser(globals, src_file, load_external = True) -> Rules:
+parse_f = functools.partial(parse, decorate_exceptions=(StaticTypeError,))
+
+def create_statechart_parser(globals, src_file, load_external = True, parse = parse_f) -> Rules:
   def parse_statechart(el):
     ext_file = el.get("src")
     if ext_file is None:

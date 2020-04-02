@@ -11,7 +11,36 @@
 
   <output>
     <big_step>
-      <event port="out" name="done"/>
+      <event port="out" name="out">
+        <param val="0"/>
+      </event>
+      <event port="out" name="out">
+        <param val="9"/>
+      </event>
+      <event port="out" name="out">
+        <param val="8"/>
+      </event>
+      <event port="out" name="out">
+        <param val="7"/>
+      </event>
+      <event port="out" name="out">
+        <param val="6"/>
+      </event>
+      <event port="out" name="out">
+        <param val="5"/>
+      </event>
+      <event port="out" name="out">
+        <param val="4"/>
+      </event>
+      <event port="out" name="out">
+        <param val="3"/>
+      </event>
+      <event port="out" name="out">
+        <param val="2"/>
+      </event>
+      <event port="out" name="out">
+        <param val="1"/>
+      </event>
     </big_step>
   </output>
 </test>

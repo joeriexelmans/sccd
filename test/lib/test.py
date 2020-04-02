@@ -1,4 +1,5 @@
 import unittest
+import functools
 from dataclasses import *
 from sccd.model.model import *
 from sccd.controller.controller import *
@@ -16,9 +17,10 @@ class Test(unittest.TestCase):
     return self.src
 
   def runTest(self):
-    parser = create_test_parser(self.src)
+    statechart_parser = functools.partial(create_statechart_parser, src_file=self.src)
+    test_parser = create_test_parser(statechart_parser)
     try:
-      test_variants = parse(self.src, parser, decorate_exceptions=(StaticTypeError))
+      test_variants = parse_f(self.src, test_parser)
     except Exception as e:
       print_debug(e)
       raise e

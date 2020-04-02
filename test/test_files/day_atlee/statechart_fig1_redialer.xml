@@ -13,7 +13,9 @@
     <var id="p" expr="0"/>
 
     <func id="digit(i:int, pos:int)">
-      return i // 10**pos % 10;
+      result = i // 10**pos % 10;
+      log("digit " + int_to_str(pos) + " of " + int_to_str(i) + " is " + int_to_str(result));
+      return result;
     </func>
 
     <func id="numdigits(i:int)">
@@ -70,9 +72,6 @@
           <transition event="redial" cond="c == 0" target="../RedialDigits">
             <code>
               p = lp;
-              log("p:  " + int_to_str(p));
-              log("lp: " + int_to_str(lp));
-              log("c:  " + int_to_str(c));
             </code>
             <raise event="dial">
               <param expr="digit(lp, 0)"/>
@@ -80,16 +79,10 @@
           </transition>
         </state>
         <state id="RedialDigits">
-          <onentry>
-            <code>
-              log("p: " + int_to_str(p));
-              log("lp: " + int_to_str(lp));
-            </code>
-          </onentry>
           <!-- t6 -->
           <transition cond="c &lt; numdigits(p)" target=".">
             <raise event="dial">
-              <param expr="digit(p, c+1)"/>
+              <param expr="digit(p, c)"/>
             </raise>
           </transition>
           <!-- t7 -->

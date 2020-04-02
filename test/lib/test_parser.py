@@ -11,26 +11,18 @@ class TestVariant:
   input: list
   output: list
 
-def create_test_parser(src_file, load_external = True):
+def create_test_parser(create_statechart_parser):
   globals = Globals(fixed_delta=None)
-  statechart_parser = create_statechart_parser(globals, src_file, load_external)
+  statechart_parser = create_statechart_parser(globals)
   input = []
   output = []
 
   def parse_test(el):
     def parse_input(el):
       def parse_input_event(el):
-        name = el.get("name")
-        port = el.get("port")
-        time = el.get("time")
-
-        if name is None:
-          raise XmlError("missing attribute 'name'")
-        if port is None:
-          raise XmlError("missing attribute 'port'")
-        if time is None:
-          raise XmlError("missing attribute 'time'")
-
+        name = require_attribute(el, "name")
+        port = require_attribute(el, "port")
+        time = require_attribute(el, "time")
         duration = parse_duration(globals, time)
         input.append(InputEvent(name=name, port=port, params=[], time_offset=duration))
 
@@ -42,15 +34,18 @@ def create_test_parser(src_file, load_external = True):
         output.append(big_step)
 
         def parse_output_event(el):
-          name = el.get("name")
-          port = el.get("port")
+          name = require_attribute(el, "name")
+          port = require_attribute(el, "port")
+          params = []
+          big_step.append(Event(id=0, name=name, port=port, params=params))
 
-          if name is None:
-            raise XmlError("missing attribute 'name'")
-          if port is None:
-            raise XmlError("missing attribute 'port'")
+          def parse_param(el):
+            val_text = require_attribute(el, "val")
+            val_expr = parse_expression(globals, val_text)
+            val = val_expr.eval(EvalContext(current_state=None, events=[], memory=None))
+            params.append(val)
 
-          big_step.append(Event(id=0, name=name, port=port, params=[]))
+          return [("param*", parse_param)]
 
         return [("event+", parse_output_event)]
 

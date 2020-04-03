@@ -10,7 +10,8 @@ class ModelError(Exception):
   pass
 
 class ScopeError(ModelError):
-  pass
+  def __init__(self, scope, msg):
+    super().__init__(msg + '\n\nCurrent scope:\n' + str(scope))
 
 @dataclass
 class EvalContext:
@@ -18,10 +19,16 @@ class EvalContext:
     events: List['Event']
     memory: 'MemorySnapshot'
 
-@dataclass
+@dataclass(frozen=True)
 class Value(ABC):
-  name: str
+  _name: str
   type: SCCDType
+
+  @property
+  def name(self):
+    import termcolor
+    return termcolor.colored(self._name, 'yellow')
+  
 
   @abstractmethod
   def is_read_only(self) -> bool:
@@ -36,23 +43,19 @@ class Value(ABC):
     pass
 
 # Stateless stuff we know about a variable
-@dataclass
+@dataclass(frozen=True)
 class Variable(Value):
   scope: 'Scope'
   offset: int # wrt. scope variable belongs to
-  initial: Any = None
 
   def is_read_only(self) -> bool:
     return False
 
-  def _calc_offset(self):
-    return self.scope.offset() + self.offset
-
   def load(self, ctx: EvalContext) -> Any:
-    return ctx.memory.load(self._calc_offset())
+    return ctx.memory.load(self.scope, self.offset)
 
   def store(self, ctx: EvalContext, value):
-    ctx.memory.store(self._calc_offset(), value)
+    ctx.memory.store(self.scope, self.offset, value)
 
   def __str__(self):
     return "Variable(%s, type=%s, offset=%s+%d)" %(self.name, str(self.type), self.scope.name, self.offset)
@@ -85,7 +88,7 @@ class EventParam(Variable):
 
 # Constants are special: their values are stored in the object itself, not in
 # any instance's "memory"
-@dataclass
+@dataclass(frozen=True)
 class Constant(Value):
   value: Any
 
@@ -141,12 +144,17 @@ class Scope:
       return [self.name]
 
   def __str__(self):
-    s = "Scope: %s\n" % self.name
+    s = "  scope: '%s'\n" % self.name
+    is_empty = True
     for v in reversed(self.variables):
-      s += "  %d: %s: %s\n" % (v.offset, v.name, str(v.type))
+      s += "    %s: %s\n" % (v.name, str(v.type))
+      is_empty = False
     constants = [v for v in self.named_values.values() if v not in self.variables]
     for c in constants:
-      s += " (constant) %s: %s\n" % (c.name, str(c.type))
+      s += "    %s (constant): %s\n" % (c.name, str(c.type))
+      is_empty = False
+    if is_empty:
+      s += "   (empty)\n"
     if self.parent:
       s += self.parent.__str__()
     return s
@@ -164,7 +172,7 @@ class Scope:
     found = self._internal_lookup(name)
     if not found:
       # return None
-      raise ScopeError("No variable with name '%s' found in any of scopes: %s" % (name, str(self.list_scope_names())))
+      raise ScopeError(self, "No variable with name '%s' found in any of scopes: %s" % (name, str(self.list_scope_names())))
     else:
       return found[1]
 
@@ -175,12 +183,12 @@ class Scope:
     if found:
       scope, variable = found
       if variable.is_read_only():
-        raise ScopeError("Cannot assign to name '%s': Is read-only value of type '%s' in scope '%s'" %(name, str(variable.type), scope.name))
+        raise ScopeError(self, "Cannot assign to name '%s': Is read-only value of type '%s' in scope '%s'" %(name, str(variable.type), scope.name))
       if variable.type != expected_type:
-        raise ScopeError("Cannot assign type %s to variable of type %s" % (expected_type, variable.type))
+        raise ScopeError(self, "Cannot assign type %s to variable of type %s" % (expected_type, variable.type))
       return variable
     else:
-      variable = Variable(scope=self, name=name, type=expected_type, offset=self.local_size())
+      variable = Variable(name, expected_type, scope=self,offset=self.local_size())
       self.named_values[name] = variable
       self.variables.append(variable)
       return variable
@@ -189,43 +197,26 @@ class Scope:
     found = self._internal_lookup(name)
     if found:
       scope, variable = found
-      raise ScopeError("Name '%s' already in use in scope '%s'" % (name, scope.name))
+      raise ScopeError(self, "Name '%s' already in use in scope '%s'" % (name, scope.name))
 
   def add_constant(self, name: str, value: Any, type: SCCDType) -> Constant:
     self._assert_name_available(name)
-    c = Constant(name=name, type=type, value=value)
+    c = Constant(name, type, value=value)
     self.named_values[name] = c
     return c
 
   def add_variable(self, name: str, expected_type: SCCDType) -> Variable:
     self._assert_name_available(name)
-    variable = Variable(scope=self, name=name, type=expected_type, offset=self.local_size())
-    self.named_values[name] = variable
-    self.variables.append(variable)
-    return variable
-
-  def add_variable_w_initial(self, name: str, initial: Any) -> Variable:
-    self._assert_name_available(name)
-    variable = Variable(scope=self, name=name, type=type(initial), offset=self.local_size(), initial=initial)
+    variable = Variable(name, expected_type, scope=self, offset=self.local_size())
     self.named_values[name] = variable
     self.variables.append(variable)
     return variable
 
   def add_event_parameter(self, event_name: str, param_name: str, type: SCCDType, param_offset=int) -> EventParam:
     self._assert_name_available(param_name)
-    param = EventParam(scope=self,
-      name=param_name, type=type, offset=self.local_size(),
+    param = EventParam(param_name, type,
+      scope=self, offset=self.local_size(),
       event_name=event_name, param_offset=param_offset)
     self.named_values[param_name] = param
     self.variables.append(param)
     return param
-
-  # def add_python_function(self, name: str, function: Callable) -> Constant:
-  #   sig = signature(function)
-  #   return_type = sig.return_annotation
-  #   param_types = [a.annotation for a in sig.parameters.values()]
-  #   function_type = Callable[param_types, return_type]
-    
-  #   c = Constant(name=name, type=function_type, value=function)
-  #   self.named_values[name] = c
-  #   return c

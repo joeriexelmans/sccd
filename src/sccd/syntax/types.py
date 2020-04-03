@@ -4,14 +4,18 @@ from typing import *
 
 class SCCDType(ABC):
     @abstractmethod
-    def __str__(self):
+    def _str(self):
         pass
+        
+    def __str__(self):
+        import termcolor
+        return termcolor.colored(self._str(), 'blue')
 
 @dataclass(frozen=True)
 class SCCDSimpleType(SCCDType):
     name: str
 
-    def __str__(self):
+    def _str(self):
         return self.name
 
 @dataclass(frozen=True)
@@ -19,21 +23,21 @@ class SCCDFunction(SCCDType):
     param_types: List[SCCDType]
     return_type: Optional[SCCDType] = None
 
-    def __str__(self):
-        if self.params:
-            s = "func(" + ",".join(str(p) for p in self.params) + ")"
+    def _str(self):
+        if self.param_types:
+            s = "func(" + ",".join(str(p) for p in self.param_types) + ")"
         else:
             s = "func"
-        if self.ret:
-            s += " -> " + str(self.ret)
+        if self.return_type:
+            s += " -> " + str(self.return_type)
         return s
 
 @dataclass(frozen=True)
 class SCCDArray(SCCDType):
     element_type: SCCDType
 
-    def __str__(self):
-        return "[" + str(element_type) + "]"
+    def _str(self):
+        return "[" + str(self.element_type) + "]"
 
 SCCDBool = SCCDSimpleType("bool")
 SCCDInt = SCCDSimpleType("int")

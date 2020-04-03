@@ -48,6 +48,7 @@ class StatechartState:
         for state in states:
             print_debug(termcolor.colored('  ENTER %s'%state.gen.full_name, 'green'))
             self.eventless_states += state.gen.has_eventless_transitions
+            self.rhs_memory.push_local_scope(state.scope)
             self._perform_actions(ctx, state.enter)
             self._start_timers(state.gen.after_triggers)
 
@@ -94,12 +95,13 @@ class StatechartState:
             self.eventless_states -= s.gen.has_eventless_transitions
             # execute exit action(s)
             self._perform_actions(ctx, s.exit)
+            self.rhs_memory.pop_local_scope(s.scope)
             self.configuration_bitmap &= ~s.gen.state_id_bitmap
                 
         # execute transition action(s)
-        self.rhs_memory.grow_stack(t.scope) # make room for event parameters on stack
+        self.rhs_memory.push_local_scope(t.scope) # make room for event parameters on stack
         self._perform_actions(ctx, t.actions)
-        self.rhs_memory.shrink_stack()
+        self.rhs_memory.pop_local_scope(t.scope)
             
         # enter states...
         targets = __getEffectiveTargetStates()
@@ -109,6 +111,7 @@ class StatechartState:
             self.eventless_states += s.gen.has_eventless_transitions
             self.configuration_bitmap |= s.gen.state_id_bitmap
             # execute enter action(s)
+            self.rhs_memory.push_local_scope(s.scope)
             self._perform_actions(ctx, s.enter)
             self._start_timers(s.gen.after_triggers)
         try:

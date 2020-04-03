@@ -124,12 +124,12 @@ class FunctionDeclaration(Expression):
 
     def eval(self, ctx: EvalContext):
         def FUNCTION(ctx: EvalContext, *params):
-            ctx.memory.grow_stack(self.scope)
+            ctx.memory.push_local_scope(self.scope)
             # Copy arguments to stack
             for val, p in zip(params, self.params_decl):
                 p.variable.store(ctx, val)
             ret = self.body.exec(ctx)
-            ctx.memory.shrink_stack()
+            ctx.memory.pop_local_scope(self.scope)
             return ret.val
         return FUNCTION
 

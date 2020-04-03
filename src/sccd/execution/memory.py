@@ -5,7 +5,7 @@ from sccd.util.debug import *
 class Memory:
   def __init__(self, scope):
     self.scope = scope
-    self.storage = [v.initial for v in scope.all_variables()]
+    self.storage = [None]*scope.total_size()
 
 class MemorySnapshot:
   def __init__(self, memory: Memory):
@@ -13,52 +13,49 @@ class MemorySnapshot:
     self.snapshot = list(memory.storage)
     self.len = len(memory.storage)
 
-    self.temp_dirty = Bitmap() # positions in actual memory written to before flush_temp
+    self.trans_dirty = Bitmap() # positions in actual memory written to before flush_transition
     self.round_dirty = Bitmap() # positions in actual memory written to after flush_temp and before flush_round
 
-    self.scope = [memory.scope]
-    self.stack = [] # Storage for local scope values. Always temporary: no memory protocol applies to them
+    self.local_storage: Dict[Scope, List[List[Any]]] = {}
 
-  def store(self, offset: int, value: Any):
-    if offset >= self.len:
-      self.stack[offset - self.len] = value
-    else:
+  def store(self, scope, offset: int, value: Any):
+    try:
+      scope_stack = self.local_storage[scope]
+      scope_stack[-1][offset] = value
+    except KeyError:
       self.actual[offset] = value
-      self.temp_dirty |= bit(offset)
+      self.trans_dirty |= bit(offset)
 
-  def load(self, offset: int) -> Any:
-    if offset >= self.len:
-      return self.stack[offset - self.len]
-    else:
-      if self.temp_dirty.has(offset):
+  def load(self, scope, offset: int) -> Any:
+    try:
+      scope_stack = self.local_storage[scope]
+      return scope_stack[-1][offset]
+    except KeyError:
+      if self.trans_dirty.has(offset):
         return self.actual[offset]
       else:
         return self.snapshot[offset]
 
-  def grow_stack(self, scope):
-    self.scope.append(scope)
-    self.stack.extend([None]*scope.local_size())
+  def push_local_scope(self, scope):
+    scope_stack = self.local_storage.setdefault(scope, [])
+    scope_stack.append([None]*scope.local_size()) # append stack frame
 
-  def shrink_stack(self):
-    scope = self.scope.pop()
-    if scope.local_size() > 0:
-      del self.stack[-scope.local_size():]
+  def pop_local_scope(self, scope):
+    scope_stack = self.local_storage[scope]
+    scope_stack.pop() # pop stack frame
 
-  def flush_transition(self):
-    assert len(self.stack) == 0 # only allowed to be called in between statement executions or expression evaluations
-    
-    race_conditions = self.temp_dirty & self.round_dirty
+  def flush_transition(self):  
+    race_conditions = self.trans_dirty & self.round_dirty
     if race_conditions:
       variables = list(self.scope[-1].all_variables())
       # some variable written to twice before refresh
       raise Exception("Race condition for variables %s" % str(list(variables[offset].name for offset in race_conditions.items())))
 
-    self.round_dirty |= self.temp_dirty
-    self.temp_dirty = Bitmap() # reset
+    self.round_dirty |= self.trans_dirty
+    self.trans_dirty = Bitmap() # reset
 
   def flush_round(self):
-    assert len(self.stack) == 0 # only allowed to be called in between statement executions or expression evaluations
-    assert not self.temp_dirty # only allowed to be called right after flush_temp
+    assert not self.trans_dirty # only allowed to be called right after flush_temp
 
     # Probably quickest to just copy the entire list in Python
     self.snapshot = list(self.actual) # refresh

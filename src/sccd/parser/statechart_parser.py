@@ -67,7 +67,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
       return [("event+", parse_event)]
 
     def parse_root(el):
-      root = State("", parent=None)
+      root = State("", parent=None, scope=Scope("root", parent=statechart.scope))
       children_dict = {}
       transitions = []
       next_after_id = 0
@@ -102,8 +102,8 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
         def parse_code(el):
           def when_done():
             block = parse_block(globals, el.text)
-            local_scope = Scope("local", scope)
-            block.init_stmt(local_scope)
+            # local_scope = Scope("local", scope)
+            block.init_stmt(scope)
             return Code(block)
           return ([], when_done)
 
@@ -125,7 +125,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
 
         def common(el, constructor):
           short_name = require_attribute(el, "id")
-          state = constructor(short_name, parent)
+          state = constructor(short_name, parent, Scope("state_"+short_name, statechart.scope))
 
           already_there = sibling_dict.setdefault(short_name, state)
           if already_there is not state:
@@ -161,12 +161,12 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
         def parse_onentry(el):
           def when_done(*actions):
             parent.enter = actions
-          return (create_actions_parser(statechart.scope), when_done)
+          return (create_actions_parser(parent.scope), when_done)
 
         def parse_onexit(el):
           def when_done(*actions):
             parent.exit = actions
-          return (create_actions_parser(statechart.scope), when_done)
+          return (create_actions_parser(parent.scope), when_done)
 
         def parse_transition(el):
           nonlocal next_after_id
@@ -175,7 +175,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
             raise XmlError("Root <state> cannot be source of a transition.")
 
           target_string = require_attribute(el, "target")
-          scope = Scope("transition", parent=statechart.scope)
+          scope = Scope("event_params", parent=parent.scope)
           transition = Transition(parent, [], scope, target_string)
 
           event = el.get("event")

@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <test>
   <statechart>
-    <semantics/>
     <datamodel>
       x = 42;
     </datamodel>
@@ -14,9 +13,11 @@
       <state id="done"/>
     </root>
   </statechart>
+
   <input>
     <event name="e" port="in" time="0 d"/>
   </input>
+
   <output>
     <big_step>
       <event name="done" port="out"/>

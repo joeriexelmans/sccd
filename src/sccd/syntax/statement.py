@@ -125,12 +125,10 @@ class Block(Statement):
         return so_far
 
     def exec(self, ctx: EvalContext) -> Return:
-        ctx.memory.grow_stack(self.scope)
         for stmt in self.stmts:
             ret = stmt.exec(ctx)
             if ret.ret:
                 break
-        ctx.memory.shrink_stack()
         return ret
 
     def render(self) -> str:

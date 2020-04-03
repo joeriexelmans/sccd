@@ -8,6 +8,7 @@ from sccd.util.bitmap import *
 class State:
     short_name: str # value of 'id' attribute in XML
     parent: Optional['State'] # only None if root state
+    scope: Scope # states have their own scope: variables can be declared in <onentry>, subsequently read in guard conditions and actions.
 
     stable: bool = False # whether this is a stable stabe. this field is ignored if maximality semantics is not set to SYNTACTIC
 

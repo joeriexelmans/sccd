@@ -1,0 +1,67 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <!-- closures are currently not supported -->
+    <!-- TODO: support them OR statically detect them and throw a ModelError indicating they're not supported -->
+    <datamodel><![CDATA[
+
+      counter = func(i:int) {
+        return func {
+          i += 1;
+          return i;
+        };
+      };
+
+      increment = counter(0);
+
+      x = 0;
+
+    ]]></datamodel>
+
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+
+    <outport name="out">
+      <event name="done"/>
+    </outport>
+
+    <root initial="s1">
+      <state id="s1">
+        <onentry>
+          <!-- calling 'increment', the statement "i += 1" will cause a runtime error
+               since the stack frame of 'counter', containing variable 'i' is no longer there -->
+          <code>
+            x = increment();
+          </code>
+        </onentry>
+        <transition cond="x == 1" target="/s2"/>
+      </state>
+
+      <state id="s2">
+        <onentry>
+          <code>
+            x = increment();
+          </code>
+        </onentry>
+        <transition cond="x == 2" target="/s3"/>
+      </state>
+
+      <state id="s3">
+        <onentry>
+          <raise event="done"/>
+        </onentry>
+      </state>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="done"/>
+    </big_step>
+  </output>
+</test>

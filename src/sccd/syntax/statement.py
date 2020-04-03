@@ -21,7 +21,7 @@ class ReturnBehavior:
         NEVER = auto()
 
     when: When
-    type: Optional[type] = None
+    type: Optional[SCCDType] = None
 
     def __post_init__(self):
         assert (self.when == ReturnBehavior.When.NEVER) == (self.type is None)

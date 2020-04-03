@@ -119,10 +119,10 @@ class _ExpressionTransformer(Transformer):
 
   def param_decl(self, node):
     type = {
-      "int": int,
-      "str": str,
-      "float": float,
-      "Duration": Duration
+      "int": SCCDInt,
+      "str": SCCDString,
+      "float": SCCDFloat,
+      "dur": SCCDDuration
     }[node[1]]
     return ParamDecl(name=node[0].value, type=type)
 

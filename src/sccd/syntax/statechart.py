@@ -63,12 +63,7 @@ class SemanticConfiguration:
 
   @classmethod
   def get_fields(cls) -> Iterator[Tuple[str, SemanticAspect]]:
-    # Python < 3.8:
-    import sys
-    if sys.version_info.minor < 8:
-      from typing_inspect import get_args
-
-    return ((f.name, get_args(f.type)[0]) for  f in fields(cls))
+    return ((f.name, type(f.default)) for  f in fields(cls))
 
   # Whether multiple options are set for any aspect.
   def has_multiple_variants(self) -> bool:

@@ -36,7 +36,7 @@ params_decl: ( "(" param_decl ("," param_decl)* ")" )?
 
 ?param_decl: IDENTIFIER ":" TYPE
 
-TYPE: "int" | "str" | "Duration"
+TYPE: "int" | "str" | "dur" | "float"
 
 // Expression parsing
 

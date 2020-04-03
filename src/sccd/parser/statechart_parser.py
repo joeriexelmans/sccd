@@ -202,7 +202,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
             try:
               after_expr = parse_expression(globals, after)
               after_type = after_expr.init_rvalue(scope)
-              if after_type != Duration:
+              if after_type != SCCDDuration:
                 msg = "Expression is '%s' type. Expected 'Duration' type." % str(after_type)
                 if after_type == int:
                   msg += "\n Hint: Did you forget a duration unit sufix? ('s', 'ms', ...)"

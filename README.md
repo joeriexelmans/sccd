@@ -9,8 +9,7 @@
   * [lark-parser](https://github.com/lark-parser/lark) for parsing state references and action code
   * [lxml](https://lxml.de/) for parsing the SCCD XML input format
   * [termcolor](https://pypi.org/project/termcolor/) for colored terminal output
-  * [dataclasses](https://pypi.org/project/dataclasses/) (not needed if using Python >= 3.7)
-  * [typing-inspect](https://github.com/ilevkivskyi/typing_inspect) (not needed if using Python >= 3.8)
+  * [dataclasses](https://pypi.org/project/dataclasses/) (not needed for Python >= 3.7)
 
 ### Optional
 

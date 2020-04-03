@@ -2,6 +2,7 @@ from abc import *
 from typing import *
 from dataclasses import *
 from inspect import signature
+from sccd.syntax.types import *
 import itertools
 
 # Superclass for all "user errors", errors in the model being loaded.
@@ -20,7 +21,7 @@ class EvalContext:
 @dataclass
 class Value(ABC):
   name: str
-  type: type
+  type: SCCDType
 
   @abstractmethod
   def is_read_only(self) -> bool:
@@ -169,7 +170,7 @@ class Scope:
 
   # Add name to scope if it does not exist yet, otherwise return existing Variable for name.
   # This is done when encountering an assignment statement in a block.
-  def put_variable_assignment(self, name: str, expected_type: type) -> Variable:
+  def put_variable_assignment(self, name: str, expected_type: SCCDType) -> Variable:
     found = self._internal_lookup(name)
     if found:
       scope, variable = found
@@ -190,13 +191,13 @@ class Scope:
       scope, variable = found
       raise ScopeError("Name '%s' already in use in scope '%s'" % (name, scope.name))
 
-  def add_constant(self, name: str, value) -> Constant:
+  def add_constant(self, name: str, value: Any, type: SCCDType) -> Constant:
     self._assert_name_available(name)
-    c = Constant(name=name, type=type(value), value=value)
+    c = Constant(name=name, type=type, value=value)
     self.named_values[name] = c
     return c
 
-  def add_variable(self, name: str, expected_type: type) -> Variable:
+  def add_variable(self, name: str, expected_type: SCCDType) -> Variable:
     self._assert_name_available(name)
     variable = Variable(scope=self, name=name, type=expected_type, offset=self.local_size())
     self.named_values[name] = variable
@@ -210,7 +211,7 @@ class Scope:
     self.variables.append(variable)
     return variable
 
-  def add_event_parameter(self, event_name: str, param_name: str, type: type, param_offset=int) -> EventParam:
+  def add_event_parameter(self, event_name: str, param_name: str, type: SCCDType, param_offset=int) -> EventParam:
     self._assert_name_available(param_name)
     param = EventParam(scope=self,
       name=param_name, type=type, offset=self.local_size(),
@@ -219,12 +220,12 @@ class Scope:
     self.variables.append(param)
     return param
 
-  def add_python_function(self, name: str, function: Callable) -> Constant:
-    sig = signature(function)
-    return_type = sig.return_annotation
-    param_types = [a.annotation for a in sig.parameters.values()]
-    function_type = Callable[param_types, return_type]
+  # def add_python_function(self, name: str, function: Callable) -> Constant:
+  #   sig = signature(function)
+  #   return_type = sig.return_annotation
+  #   param_types = [a.annotation for a in sig.parameters.values()]
+  #   function_type = Callable[param_types, return_type]
     
-    c = Constant(name=name, type=function_type, value=function)
-    self.named_values[name] = c
-    return c
+  #   c = Constant(name=name, type=function_type, value=function)
+  #   self.named_values[name] = c
+  #   return c

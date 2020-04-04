@@ -25,8 +25,11 @@ class StatechartInstance(Instance):
 
         reverse = semantics.priority == Priority.SOURCE_CHILD
 
+        # 2 transition candidate generation algorithms to choose from!
         generator = CandidatesGeneratorCurrentConfigBased(reverse)
         # generator = CandidatesGeneratorEventBased(reverse)
+
+        # Big step + combo step maximality semantics
 
         small_step = SmallStep(termcolor.colored("small", 'blue'), None, generator,
             concurrency=semantics.concurrency==Concurrency.MANY)
@@ -59,6 +62,8 @@ class StatechartInstance(Instance):
         else:
             raise Exception("Unsupported option: %s" % semantics.big_step_maximality)
 
+        # Event lifeline semantics
+
         def whole(input):
             self._big_step.remainder_events = input
 
@@ -84,61 +89,46 @@ class StatechartInstance(Instance):
             InternalEventLifeline.SAME: small_step.add_remainder_event,
         }[semantics.internal_event_lifeline]
 
+        # Memory protocol semantics
+
         memory = Memory()
         load_builtins(memory)
         memory.push_frame(statechart.scope)
 
-        if semantics.enabledness_memory_protocol == MemoryProtocol.NONE:
-            gc_memory = memory
-        else:
-            gc_memory = MemoryPartialSnapshot(memory)
+        rhs_memory = MemoryPartialSnapshot("RHS", memory)
 
-            if semantics.enabledness_memory_protocol == MemoryProtocol.BIG_STEP:
-                self._big_step.when_done(gc_memory.flush_round)
-            elif semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP:
-                combo_step.when_done(gc_memory.flush_round)
-            elif semantics.enabledness_memory_protocol == MemoryProtocol.SMALL_STEP:
-                small_step.when_done(gc_memory.flush_round)
+        if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
+            self._big_step.when_done(rhs_memory.flush_round)
+        elif semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP:
+            combo_step.when_done(rhs_memory.flush_round)
+        elif semantics.enabledness_memory_protocol == MemoryProtocol.SMALL_STEP:
+            small_step.when_done(rhs_memory.flush_round)
 
+        gc_memory = MemoryPartialSnapshot("GC", memory, read_only=True)
 
-        if semantics.assignment_memory_protocol == semantics.enabledness_memory_protocol:
-            rhs_memory = gc_memory
-        else:
-            rhs_memory = MemoryPartialSnapshot(memory)
-
-            if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
-                self._big_step.when_done(rhs_memory.flush_round)
-            elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:
-                combo_step.when_done(rhs_memory.flush_round)
-            elif semantics.assignment_memory_protocol == MemoryProtocol.SMALL_STEP:
-                small_step.when_done(rhs_memory.flush_round)
+        if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
+            self._big_step.when_done(gc_memory.flush_round)
+        elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:
+            combo_step.when_done(gc_memory.flush_round)
+        elif semantics.assignment_memory_protocol == MemoryProtocol.SMALL_STEP:
+            small_step.when_done(gc_memory.flush_round)
 
         print_debug("\nRound hierarchy: " + str(self._big_step) + '\n')
 
         self.state = StatechartState(statechart, self, gc_memory, rhs_memory, raise_internal)
 
+        # Chicken and egg problem
         small_step.state = self.state
 
 
     # enter default states, generating a set of output events
-    def initialize(self, now: Timestamp) -> Tuple[bool, List[OutputEvent]]:
+    def initialize(self, now: Timestamp) -> List[OutputEvent]:
         self.state.initialize()
-        stable, output = self.state.collect_output()
-
-        return (stable, output)
+        return self.state.collect_output()
 
     # perform a big step. generating a set of output events
-    def big_step(self, now: Timestamp, input_events: List[Event]) -> Tuple[bool, List[OutputEvent]]:
-
+    def big_step(self, now: Timestamp, input_events: List[Event]) -> List[OutputEvent]:
         # print_debug('attempting big step, input_events='+str(input_events))
-
         self.set_input(input_events)
-
-        arenas_changed = self._big_step.run()
-
-        stable, output = self.state.collect_output()
-
-        # can the next big step still contain transitions, even if there are no input events?
-        stable |= not input_events and not arenas_changed
-
-        return (stable, output)
+        self._big_step.run_and_cycle_events()
+        return self.state.collect_output()

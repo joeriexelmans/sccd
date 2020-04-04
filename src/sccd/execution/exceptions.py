@@ -1,0 +1,3 @@
+
+class SCCDRuntimeException(Exception):
+  pass

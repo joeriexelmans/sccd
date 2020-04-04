@@ -36,7 +36,7 @@ class MemoryProtocol(SemanticAspect, Enum):
   BIG_STEP = auto()
   COMBO_STEP = auto()
   SMALL_STEP = auto()
-  NONE = auto()
+  # NONE = auto()
 
 class Priority(SemanticAspect, Enum):
   SOURCE_PARENT = auto()
@@ -73,7 +73,7 @@ class SemanticConfiguration:
         return True
     return False
 
-  # Get all possible combinations for aspects with multiple options set.
+  # Get all possible combinations for aspects with multiple options (as a list) set.
   # Calling has_multiple_variants on resulting objects will return False.
   def generate_variants(self) -> List['SemanticConfiguration']:
     my_fields = fields(self)

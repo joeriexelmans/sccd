@@ -3,6 +3,7 @@ from sccd.execution.event import *
 from sccd.util.bitmap import *
 from sccd.syntax.tree import *
 from sccd.util.debug import *
+from sccd.execution.exceptions import *
 
 class CandidatesGenerator:
     def __init__(self, reverse: bool):
@@ -66,8 +67,8 @@ class Round(ABC):
     def when_done(self, callback):
         self.callbacks.append(callback)
 
-    def run(self, forbidden_arenas: Bitmap = Bitmap()) -> RoundResult:
-        changed, stable = self._internal_run(forbidden_arenas)
+    def run_and_cycle_events(self, forbidden_arenas: Bitmap = Bitmap()) -> RoundResult:
+        changed, stable = self._run(forbidden_arenas)
         if changed:
             # notify round observers
             for callback in self.callbacks:
@@ -79,7 +80,7 @@ class Round(ABC):
         return (changed, stable)
 
     @abstractmethod
-    def _internal_run(self, forbidden_arenas: Bitmap) -> RoundResult:
+    def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
         pass
 
     def add_remainder_event(self, event: Event):
@@ -129,13 +130,13 @@ class SuperRound(Round):
     def __repr__(self):
         return self.name + " > " + self.subround.__repr__()
 
-    def _internal_run(self, forbidden_arenas: Bitmap) -> RoundResult:
+    def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
         arenas_changed = Bitmap()
         arenas_stabilized = Bitmap()
 
         while True:
             forbidden = self.maximality.forbidden_arenas(forbidden_arenas, arenas_changed, arenas_stabilized)
-            changed, stabilized = self.subround.run(forbidden) # no forbidden arenas in subround
+            changed, stabilized = self.subround.run_and_cycle_events(forbidden) # no forbidden arenas in subround
             if not changed:
                 break # no more transitions could be executed, done!
 
@@ -151,20 +152,20 @@ class SuperRoundWithLimit(SuperRound):
         super().__init__(name, subround, maximality)
         self.limit = limit
 
-    def _internal_run(self, forbidden_arenas: Bitmap) -> RoundResult:
+    def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
         arenas_changed = Bitmap()
         arenas_stabilized = Bitmap()
 
         subrounds = 0
         while True:
             forbidden = self.maximality.forbidden_arenas(forbidden_arenas, arenas_changed, arenas_stabilized)
-            changed, stabilized = self.subround.run(forbidden) # no forbidden arenas in subround
+            changed, stabilized = self.subround.run_and_cycle_events(forbidden) # no forbidden arenas in subround
             if not changed:
                 break # no more transitions could be executed, done!
 
             subrounds += 1
             if subrounds >= self.limit:
-                raise Exception("%s: Limit reached! (%d×%s) Possibly a never-ending big step." % (self.name, subrounds, self.subround.name))
+                raise SCCDRuntimeException("%s: Limit reached! (%d×%s) Possibly a never-ending big step." % (self.name, subrounds, self.subround.name))
 
             arenas_changed |= changed
             arenas_stabilized |= stabilized
@@ -179,7 +180,7 @@ class SmallStep(Round):
         self.generator = generator
         self.concurrency = concurrency
 
-    def _internal_run(self, forbidden_arenas: Bitmap) -> RoundResult:
+    def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
         enabled_events = None
         def get_candidates(extra_forbidden):
             nonlocal enabled_events

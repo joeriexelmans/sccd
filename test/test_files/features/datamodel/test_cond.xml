@@ -4,18 +4,28 @@
     <datamodel>
       x = 42;
     </datamodel>
+
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+
+    <outport name="out">
+      <event name="done"/>
+    </outport>
+
     <root initial="start">
       <state id="start">
-        <transition event="e" port="in" target="/done" cond="x == 42">
-          <raise event="done" port="out"/>
+        <transition target="/done" cond="x == 42">
+          <raise event="done"/>
         </transition>
       </state>
+
       <state id="done"/>
     </root>
   </statechart>
 
   <input>
-    <event name="e" port="in" time="0 d"/>
+    <event name="start" port="in" time="0 d"/>
   </input>
 
   <output>

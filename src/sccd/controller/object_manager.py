@@ -25,11 +25,11 @@ class ObjectManager(Instance):
         self.instances.append(i)
         return i
 
-    def initialize(self, now: Timestamp) -> Tuple[bool, List[OutputEvent]]:
-        return True, []
+    def initialize(self, now: Timestamp) -> List[OutputEvent]:
+        return []
 
     # Implementation of super class: Instance
-    def big_step(self, timestamp: Timestamp, input_events: List[Event]) -> Tuple[bool, List[OutputEvent]]:
+    def big_step(self, timestamp: Timestamp, input_events: List[Event]) -> List[OutputEvent]:
         output = []
         for e in input_events:
             try:
@@ -40,7 +40,7 @@ class ObjectManager(Instance):
                     output.extend(o)
             except KeyError:
                 pass
-        return True, output
+        return output
 
     # def _assoc_ref(self, input_string) -> List[Tuple[str,int]]:
     #     if len(input_string) == 0:

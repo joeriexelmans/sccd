@@ -3,6 +3,7 @@ from dataclasses import *
 from sccd.util.bitmap import *
 from sccd.util.debug import *
 from sccd.syntax.scope import *
+from sccd.execution.exceptions import *
 
 @dataclass(frozen=True)
 class StackFrame:
@@ -55,6 +56,13 @@ class MemoryInterface(ABC):
   def store(self, offset: int, value: Any):
     pass
 
+  @abstractmethod
+  def flush_transition(self, read_only: bool = False):
+    pass
+
+  @abstractmethod
+  def flush_round(self):
+    pass
 
 class Memory(MemoryInterface):
 
@@ -97,11 +105,19 @@ class Memory(MemoryInterface):
     frame, offset = self._get_frame(offset)
     frame.storage[offset] = value
 
+  def flush_transition(self, read_only: bool = False):
+    pass
+
+  def flush_round(self):
+    pass
 
 class MemoryPartialSnapshot(MemoryInterface):
 
-  def __init__(self, memory: Memory):
+  def __init__(self, description: str, memory: Memory, read_only: bool = False):
+    self.description = description
     self.memory = memory
+    self.read_only = read_only
+
     self.frame = memory.current_frame()
 
     self.actual: List[Any] = self.frame.storage
@@ -142,21 +158,24 @@ class MemoryPartialSnapshot(MemoryInterface):
 
   def store(self, offset: int, value: Any):
     frame, offset = self.memory._get_frame(offset)
-    # Always write to 'actual' storage
-    frame.storage[offset] = value
-
     if frame is self.frame:
+      if self.read_only:
+        raise SCCDRuntimeException("Attempt to write to read-only %s memory." % self.description)
       # "our" frame! :)
       # Remember that we wrote, such that next read during same transition will be the value we wrote.
       self.trans_dirty |= bit(offset)
 
-  def flush_transition(self):  
+    # Always write to 'actual' storage
+    frame.storage[offset] = value
+
+
+  def flush_transition(self, read_only: bool = False):
     race_conditions = self.trans_dirty & self.round_dirty
     if race_conditions:
       variables = self.frame.scope.variables
       # some variable written to twice before refresh
-      raise Exception("Race condition for variables %s" %
-          ", ".join(variables[offset].name for offset in race_conditions.items()))
+      raise SCCDRuntimeException("Race condition in %s memory: More than one transition assigned a new value to variables: %s" %
+          (self.description, ", ".join(variables[offset].name for offset in race_conditions.items())))
 
     self.round_dirty |= self.trans_dirty
     self.trans_dirty = Bitmap() # reset

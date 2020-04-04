@@ -80,8 +80,6 @@ class Controller:
     # If no timestamp is given (now = None), run until event queue is empty.
     def run_until(self, now: Optional[Timestamp], pipe: queue.Queue):
 
-        # unstable: List[Instance] = []
-
         # Helper. Put big step output events in the event queue or add them to the right output listeners.
         def process_big_step_output(events: List[OutputEvent]):
             pipe_events = []
@@ -104,39 +102,21 @@ class Controller:
             # initialize the object manager, in turn initializing our default class
             # and adding the generated events to the queue
             for i in self.object_manager.instances:
-                stable, events = i.initialize(self.simulated_time)
+                events = i.initialize(self.simulated_time)
                 process_big_step_output(events)
-                # if not stable:
-                #     unstable.append(i)
             print_debug("initialized. time is now %s" % str(self.get_simulated_duration()))
 
 
         # Actual "event loop"
-        # TODO: What is are the right semantics for this loop?
-        # Should we stabilize every object after it has made a big step?
-        # Should we only stabilize when there are no more events?
-        # Should we never stabilize?
-        # Should this be a semantic option?
-        # while unstable or self.queue.is_due(now):
-            # 1. Handle events
         for timestamp, entry in self.queue.due(now):
-            # check if there's a time leap
-            if timestamp is not self.simulated_time:
-                # before every "time leap", continue to run instances until they are stable.
-                # if not do_stabilize():
-                    # return
+            if timestamp != self.simulated_time:
                 # make time leap
                 self.simulated_time = timestamp
                 print_debug("\ntime is now %s" % str(self.get_simulated_duration()))
             # run all instances for whom there are events
             for instance in entry.targets:
-                stable, output = instance.big_step(timestamp, [entry.event])
+                output = instance.big_step(timestamp, [entry.event])
                 # print_debug("completed big step (time = %s)" % str(self.model.globals.delta * self.simulated_time))
                 process_big_step_output(output)
-                # if not stable:
-                    # unstable.append(instance)
-            # 2. No more due events -> stabilize
-            # if not do_stabilize():
-                # return
 
         self.simulated_time = now

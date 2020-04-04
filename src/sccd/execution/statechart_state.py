@@ -48,14 +48,14 @@ class StatechartState:
         for state in states:
             print_debug(termcolor.colored('  ENTER %s'%state.gen.full_name, 'green'))
             self.eventless_states += state.gen.has_eventless_transitions
-            self.rhs_memory.push_local_scope(state.scope)
             self._perform_actions(ctx, state.enter)
             self._start_timers(state.gen.after_triggers)
 
         self.rhs_memory.flush_transition()
         self.rhs_memory.flush_round()
 
-    def fire_transition(self, events, t: Transition):
+    # events: list SORTED by event id
+    def fire_transition(self, events: List[Event], t: Transition):
         def __exitSet():
             return [s for s in reversed(t.gen.lca.gen.descendants) if (s in self.configuration)]
         
@@ -95,13 +95,14 @@ class StatechartState:
             self.eventless_states -= s.gen.has_eventless_transitions
             # execute exit action(s)
             self._perform_actions(ctx, s.exit)
-            self.rhs_memory.pop_local_scope(s.scope)
+            # self.rhs_memory.pop_local_scope(s.scope)
             self.configuration_bitmap &= ~s.gen.state_id_bitmap
                 
         # execute transition action(s)
-        self.rhs_memory.push_local_scope(t.scope) # make room for event parameters on stack
+        self.rhs_memory.push_frame(t.scope) # make room for event parameters on stack
+        self._copy_event_params_to_stack(self.rhs_memory, t, events)
         self._perform_actions(ctx, t.actions)
-        self.rhs_memory.pop_local_scope(t.scope)
+        self.rhs_memory.pop_frame()
             
         # enter states...
         targets = __getEffectiveTargetStates()
@@ -111,7 +112,6 @@ class StatechartState:
             self.eventless_states += s.gen.has_eventless_transitions
             self.configuration_bitmap |= s.gen.state_id_bitmap
             # execute enter action(s)
-            self.rhs_memory.push_local_scope(s.scope)
             self._perform_actions(ctx, s.enter)
             self._start_timers(s.gen.after_triggers)
         try:
@@ -121,19 +121,45 @@ class StatechartState:
 
         self.rhs_memory.flush_transition()
 
+    @staticmethod
+    def _copy_event_params_to_stack(memory, t, events):
+        # Both 'events' and 't.trigger.enabling' are sorted by event ID...
+        # This way we have to iterate over each of both lists at most once.
+        if t.trigger and not isinstance(t.trigger, AfterTrigger):
+            event_decls = iter(t.trigger.enabling)
+            try:
+                event_decl = next(event_decls)
+                offset = 0
+                for e in events:
+                    if e.id < event_decl.id:
+                        continue
+                    else:
+                        while e.id > event_decl.id:
+                            event_decl = next(event_decls)
+                        for p in e.params:
+                            memory.store(offset, p)
+                            offset += 1
+            except StopIteration:
+                pass
+
     def check_guard(self, t, events) -> bool:
         # Special case: after trigger
         if isinstance(t.trigger, AfterTrigger):
-            e = [e for e in events if bit(e.id) & t.trigger.bitmap][0]
+            e = [e for e in events if bit(e.id) & t.trigger.enabling_bitmap][0] # it's safe to assume the list will contain one element cause we only check a transition's guard after we know it may be enabled given the set of events
             if self.timer_ids[t.trigger.after_id] != e.params[0]:
                 return False
 
         if t.guard is None:
             return True
         else:
+            # print("evaluating guard for ", str(t))
+            self.gc_memory.push_frame(t.scope)
+            self._copy_event_params_to_stack(self.gc_memory, t, events)
             result = t.guard.eval(
                 EvalContext(current_state=self, events=events, memory=self.gc_memory))
+            self.gc_memory.pop_frame()
             self.gc_memory.flush_transition()
+            # print("done with guard for ", str(t))
             return result
 
     def check_source(self, t) -> bool:

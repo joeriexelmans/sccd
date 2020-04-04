@@ -2,6 +2,7 @@ import termcolor
 import functools
 from typing import List, Tuple, Iterable
 from sccd.execution.instance import *
+from sccd.execution.builtin_scope import *
 from sccd.syntax.statechart import *
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
@@ -11,7 +12,7 @@ from sccd.execution.memory import *
 
 # Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
 # TODO: make this configurable
-LIMIT = 1000
+LIMIT = 100
 
 class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager):
@@ -83,20 +84,28 @@ class StatechartInstance(Instance):
             InternalEventLifeline.SAME: small_step.add_remainder_event,
         }[semantics.internal_event_lifeline]
 
-        memory = Memory(statechart.scope)
-        gc_memory = MemorySnapshot(memory)
+        memory = Memory()
+        load_builtins(memory)
+        memory.push_frame(statechart.scope)
 
-        if semantics.enabledness_memory_protocol == MemoryProtocol.BIG_STEP:
-            self._big_step.when_done(gc_memory.flush_round)
-        elif semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP:
-            combo_step.when_done(gc_memory.flush_round)
-        elif semantics.enabledness_memory_protocol == MemoryProtocol.SMALL_STEP:
-            small_step.when_done(gc_memory.flush_round)
+        if semantics.enabledness_memory_protocol == MemoryProtocol.NONE:
+            gc_memory = memory
+        else:
+            gc_memory = MemoryPartialSnapshot(memory)
+
+            if semantics.enabledness_memory_protocol == MemoryProtocol.BIG_STEP:
+                self._big_step.when_done(gc_memory.flush_round)
+            elif semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP:
+                combo_step.when_done(gc_memory.flush_round)
+            elif semantics.enabledness_memory_protocol == MemoryProtocol.SMALL_STEP:
+                small_step.when_done(gc_memory.flush_round)
+
 
         if semantics.assignment_memory_protocol == semantics.enabledness_memory_protocol:
             rhs_memory = gc_memory
         else:
-            rhs_memory = MemorySnapshot(memory)
+            rhs_memory = MemoryPartialSnapshot(memory)
+
             if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
                 self._big_step.when_done(rhs_memory.flush_round)
             elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:

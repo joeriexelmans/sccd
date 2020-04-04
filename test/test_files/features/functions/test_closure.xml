@@ -1,8 +1,7 @@
 <?xml version="1.0" ?>
 <test>
   <statechart>
-    <!-- closures are currently not supported -->
-    <!-- TODO: support them OR statically detect them and throw a ModelError indicating they're not supported -->
+    <!-- function closures are supported -->
     <datamodel><![CDATA[
 
       counter = func(i:int) {

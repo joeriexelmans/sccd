@@ -111,7 +111,7 @@ class _ExpressionTransformer(Transformer):
     return (pos_events, neg_events)
 
   def event_decl(self, node):
-    event_name = node[0]
+    event_name = node[0].value
     event_id = self.globals.events.assign_id(event_name)
     return EventDecl(id=event_id, name=event_name, params_decl=node[1])
 
@@ -124,7 +124,7 @@ class _ExpressionTransformer(Transformer):
       "float": SCCDFloat,
       "dur": SCCDDuration
     }[node[1]]
-    return ParamDecl(name=node[0].value, type=type)
+    return ParamDecl(name=node[0].value, formal_type=type)
 
   def func_decl(self, node):
     return FunctionDeclaration(params_decl=node[0], body=node[1])

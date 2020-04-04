@@ -4,6 +4,12 @@ from dataclasses import *
 from sccd.util.duration import *
 from sccd.syntax.scope import *
 
+@dataclass
+class EvalContext:
+    current_state: 'StatechartState'
+    events: List['Event']
+    memory: 'MemoryInterface'
+
 # Thrown if the type checker encountered something illegal.
 # Not to be confused with Python's TypeError exception.
 class StaticTypeError(ModelError):
@@ -29,36 +35,35 @@ class Expression(ABC):
 class LValue(Expression):
     # Initialize the LValue as an LValue. 
     @abstractmethod
-    def init_lvalue(self, scope: Scope, expected_type: SCCDType):
+    def init_lvalue(self, scope: Scope, rhs_type: SCCDType):
         pass
 
+    # Should return offset relative to current context stack frame.
+    #   offset ∈ [0, +∞[ : variable's memory address is within current scope
+    #   offset ∈ ]-∞, 0[ : variable's memory address is in a parent scope (or better: 'context scope')
     @abstractmethod
-    def eval_lvalue(self, ctx: EvalContext) -> Variable:
+    def eval_lvalue(self, ctx: EvalContext) -> int:
         pass
 
     # LValues can also serve as expressions!
     def eval(self, ctx: EvalContext):
-        variable = self.eval_lvalue(ctx)
-        return variable.load(ctx)
+        offset = self.eval_lvalue(ctx)
+        return ctx.memory.load(offset)
 
 @dataclass
 class Identifier(LValue):
     name: str
-    variable: Optional[Variable] = None
+    offset: Optional[int] = None
 
     def init_rvalue(self, scope: Scope) -> SCCDType:
-        # assert self.variable is None
-        self.variable = scope.get(self.name)
-        # print("init rvalue", self.name, "as", self.variable)
-        return self.variable.type
+        self.offset, type = scope.get_rvalue(self.name)
+        return type
 
-    def init_lvalue(self, scope: Scope, expected_type):
-        # assert self.variable is None
-        self.variable = scope.put_variable_assignment(self.name, expected_type)
-        # print("init lvalue", self.name, "as", self.variable)
+    def init_lvalue(self, scope: Scope, type):
+        self.offset = scope.put_lvalue(self.name, type)
 
-    def eval_lvalue(self, ctx: EvalContext) -> Variable:
-        return self.variable
+    def eval_lvalue(self, ctx: EvalContext) -> int:
+        return self.offset
 
     def render(self):
         return self.name
@@ -78,10 +83,6 @@ class FunctionCall(Expression):
         formal_types = function_type.param_types
         return_type = function_type.return_type
 
-        # We always secretly pass an EvalContext object with every function call
-        # Not visible to the user.
-        # assert formal_types[0] == EvalContext
-
         actual_types = [p.init_rvalue(scope) for p in self.params]
         for i, (formal, actual) in enumerate(zip(formal_types, actual_types)):
             if formal != actual:
@@ -100,12 +101,14 @@ class FunctionCall(Expression):
 @dataclass
 class ParamDecl:
     name: str
-    type: type
-
-    variable: Optional[Variable] = None
+    formal_type: SCCDType
+    offset: Optional[int] = None
 
     def init_param(self, scope: Scope):
-        self.variable = scope.add_variable(self.name, self.type)
+        self.offset = scope.declare(self.name, self.formal_type)
+
+    def render(self):
+        return self.name + ":" + str(self.formal_type)
 
 @dataclass
 class FunctionDeclaration(Expression):
@@ -120,21 +123,22 @@ class FunctionDeclaration(Expression):
             p.init_param(self.scope)
         ret = self.body.init_stmt(self.scope)
         return_type = ret.get_return_type()
-        return SCCDFunction([p.type for p in self.params_decl], return_type)
+        return SCCDFunction([p.formal_type for p in self.params_decl], return_type)
 
     def eval(self, ctx: EvalContext):
+        context: StackFrame = ctx.memory.current_frame()
         def FUNCTION(ctx: EvalContext, *params):
-            ctx.memory.push_local_scope(self.scope)
+            ctx.memory.push_frame_w_context(self.scope, context)
             # Copy arguments to stack
             for val, p in zip(params, self.params_decl):
-                p.variable.store(ctx, val)
+                ctx.memory.store(p.offset, val)
             ret = self.body.exec(ctx)
-            ctx.memory.pop_local_scope(self.scope)
+            ctx.memory.pop_frame()
             return ret.val
         return FUNCTION
 
     def render(self) -> str:
-        return "" # todo
+        return "<func_decl>" # todo
         
 
 @dataclass

@@ -1,7 +1,7 @@
 from typing import *
 from sccd.syntax.statechart import *
 from sccd.syntax.tree import *
-from sccd.execution import builtin_scope
+from sccd.execution.builtin_scope import *
 from sccd.parser.xml_parser import *
 from sccd.parser.expression_parser import *
 
@@ -18,7 +18,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
     if ext_file is None:
       statechart = Statechart(
         semantics=SemanticConfiguration(),
-        scope=Scope("instance", parent=builtin_scope.builtin_scope),
+        scope=Scope("instance", parent=BuiltIn),
         datamodel=None,
         inport_events={},
         event_outport={},
@@ -67,10 +67,10 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
       return [("event+", parse_event)]
 
     def parse_root(el):
-      root = State("", parent=None, scope=Scope("root", parent=statechart.scope))
+      root = State("", parent=None)
       children_dict = {}
-      transitions = []
-      next_after_id = 0
+      transitions = [] # All of the statechart's transitions accumulate here, cause we still need to find their targets, which we can't do before the entire state tree has been built. We find their targets when encoutering the </root> closing tag.
+      next_after_id = 0 # Counter for 'after' transitions within the statechart.
 
       def create_actions_parser(scope):
 
@@ -82,7 +82,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
             expr.init_rvalue(scope)
             params.append(expr)
 
-          def when_done():
+          def finish_raise():
             event_name = require_attribute(el, "event")
             try:
               port = statechart.event_outport[event_name]
@@ -97,15 +97,15 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
               # output event - no ID in global namespace
               globals.outports.assign_id(port)
               return RaiseOutputEvent(name=event_name, params=params, outport=port, time_offset=0)
-          return ([("param*", parse_param)], when_done)
+          return ([("param*", parse_param)], finish_raise)
 
         def parse_code(el):
-          def when_done():
+          def finish_code():
             block = parse_block(globals, el.text)
             # local_scope = Scope("local", scope)
             block.init_stmt(scope)
             return Code(block)
-          return ([], when_done)
+          return ([], finish_code)
 
         return {"raise": parse_raise, "code": parse_code}
 
@@ -121,11 +121,11 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
         elif len(state.children) > 1:
           raise XmlError("More than 1 child state: must set 'initial' attribute.")
 
-      def create_state_parser(parent, sibling_dict):
+      def create_state_parser(parent, sibling_dict: Dict[str, State]={}):
 
         def common(el, constructor):
           short_name = require_attribute(el, "id")
-          state = constructor(short_name, parent, Scope("state_"+short_name, statechart.scope))
+          state = constructor(short_name, parent)
 
           already_there = sibling_dict.setdefault(short_name, state)
           if already_there is not state:
@@ -141,13 +141,13 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
         def parse_state(el):
           state = common_nonpseudo(el, State)
           children_dict = {}
-          def when_done():
+          def finish_state():
             deal_with_initial(el, state, children_dict)
-          return (create_state_parser(parent=state, sibling_dict=children_dict), when_done)
+          return (create_state_parser(parent=state, sibling_dict=children_dict), finish_state)
 
         def parse_parallel(el):
           state = common_nonpseudo(el, ParallelState)
-          return create_state_parser(parent=state, sibling_dict={})
+          return create_state_parser(parent=state)
 
         def parse_history(el):
           history_type = el.get("type", "shallow")
@@ -159,14 +159,14 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
             raise XmlError("attribute 'type' must be \"shallow\" or \"deep\".")
 
         def parse_onentry(el):
-          def when_done(*actions):
+          def finish_onentry(*actions):
             parent.enter = actions
-          return (create_actions_parser(parent.scope), when_done)
+          return (create_actions_parser(statechart.scope), finish_onentry)
 
         def parse_onexit(el):
-          def when_done(*actions):
+          def finish_onexit(*actions):
             parent.exit = actions
-          return (create_actions_parser(parent.scope), when_done)
+          return (create_actions_parser(statechart.scope), finish_onexit)
 
         def parse_transition(el):
           nonlocal next_after_id
@@ -174,21 +174,24 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           if parent is root:
             raise XmlError("Root <state> cannot be source of a transition.")
 
+          scope = Scope("event_params", parent=statechart.scope)
           target_string = require_attribute(el, "target")
-          scope = Scope("event_params", parent=parent.scope)
           transition = Transition(parent, [], scope, target_string)
 
           event = el.get("event")
           if event is not None:
             positive_events, negative_events = parse_events_decl(globals, event)
 
-            def process_event_decl(e: EventDecl):
+            # Optimization: sort events by ID
+            # Allows us to save time later.
+            positive_events.sort(key=lambda e: e.id)
+
+            def add_event_params_to_scope(e: EventDecl):
               for i,p in enumerate(e.params_decl):
-                scope.add_event_parameter(param_name=p.name, type=p.type,
-                  event_name=e.name, param_offset=i)
+                p.init_param(scope)
 
             for e in itertools.chain(positive_events, negative_events):
-              process_event_decl(e)
+              add_event_params_to_scope(e)
 
             if not negative_events:
               transition.trigger = Trigger(positive_events)
@@ -204,11 +207,11 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
               after_type = after_expr.init_rvalue(scope)
               if after_type != SCCDDuration:
                 msg = "Expression is '%s' type. Expected 'Duration' type." % str(after_type)
-                if after_type == int:
+                if after_type == SCCDInt:
                   msg += "\n Hint: Did you forget a duration unit sufix? ('s', 'ms', ...)"
                 raise Exception(msg)
-              event = "_after%d" % next_after_id # transition gets unique event name
-              transition.trigger = AfterTrigger(globals.events.assign_id(event), event, next_after_id, after_expr)
+              event_name = "_after%d" % next_after_id # transition gets unique event name
+              transition.trigger = AfterTrigger(globals.events.assign_id(event_name), event_name, next_after_id, after_expr)
               next_after_id += 1
             except Exception as e:
               raise XmlError("after=\"%s\": %s" % (after, str(e))) from e
@@ -220,18 +223,19 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
               expr.init_rvalue(scope)
             except Exception as e:
               raise XmlError("cond=\"%s\": %s" % (cond, str(e))) from e
+              # raise except_msg("cond=\"%s\": " % cond, e)
             transition.guard = expr
 
-          def when_done(*actions):
+          def finish_transition(*actions):
             transition.actions = actions
             transitions.append((transition, el))
             parent.transitions.append(transition)
 
-          return (create_actions_parser(scope), when_done)
+          return (create_actions_parser(scope), finish_transition)
 
         return {"state": parse_state, "parallel": parse_parallel, "history": parse_history, "onentry": parse_onentry, "onexit": parse_onexit, "transition": parse_transition}
 
-      def when_done():
+      def finish_root():
         deal_with_initial(el, root, children_dict)
 
         for transition, t_el in transitions:
@@ -261,11 +265,11 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
 
         statechart.tree = StateTree(root)
 
-      return (create_state_parser(root, sibling_dict=children_dict), when_done)
+      return (create_state_parser(root, sibling_dict=children_dict), finish_root)
 
-    def when_done():
+    def finish_statechart():
       return statechart
 
-    return ([("semantics?", parse_semantics), ("override_semantics?", parse_semantics), ("datamodel?", parse_datamodel), ("inport*", parse_inport), ("outport*", parse_outport), ("root", parse_root)], when_done)
+    return ([("semantics?", parse_semantics), ("override_semantics?", parse_semantics), ("datamodel?", parse_datamodel), ("inport*", parse_inport), ("outport*", parse_outport), ("root", parse_root)], finish_statechart)
 
   return [("statechart", parse_statechart)]

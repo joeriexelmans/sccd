@@ -99,9 +99,9 @@ class Assignment(Statement):
 
     def exec(self, ctx: EvalContext) -> Return:
         rhs_val = self.rhs.eval(ctx)
-        variable = self.lhs.eval_lvalue(ctx)
+        offset = self.lhs.eval_lvalue(ctx)
 
-        variable.store(ctx, rhs_val)
+        ctx.memory.store(offset, rhs_val)
 
         return DontReturn
 

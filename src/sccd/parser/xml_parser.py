@@ -2,6 +2,7 @@ from enum import *
 from typing import *
 from lxml import etree
 import termcolor
+from sccd.util.debug import *
 
 class XmlError(Exception):
   pass
@@ -11,10 +12,8 @@ class XmlErrorElement(Exception):
     super().__init__(msg)
     self.el = el
 
-# An Exception that occured while visiting an XML element.
-# It will show a fragment of the source file and the line number of the error.
-class XmlDecoratedError(Exception):
-  def __init__(self, src_file: str, el: etree.Element, msg):
+# Returns multiline string containing fragment of src_file with 'el' XML element highlighted.
+def xml_fragment(src_file: str, el: etree.Element) -> str:
     # This is really dirty, but can't find a clean way to do this with lxml.
 
     parent = el.getparent()
@@ -47,7 +46,8 @@ class XmlDecoratedError(Exception):
         ll = termcolor.colored(ll, 'yellow')
       text.append(ll)
 
-    super().__init__("\n\n%s\n\n%s:\nline %d: <%s>: %s" % ('\n'.join(text), src_file,el.sourceline, el.tag, msg))
+    return "\n\n%s\n\n%s:\nline %d: <%s>: " % ('\n'.join(text), src_file,el.sourceline, el.tag)
+
     
 ParseElementF = Callable[[etree.Element], Optional['RulesWDone']]
 OrderedElements = List[Tuple[str, ParseElementF]]
@@ -149,6 +149,7 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
                 rules = rules[1:]
                 rules_stack[-1] = (rules, when_done)
         else:
+          print(rules)
           assert False # rule should always be a dict or list
 
         if parse_function:
@@ -177,12 +178,14 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
           # else:
           #   print("end", el.tag)
 
-    except decorate_exceptions as e:
-      raise XmlDecoratedError(src_file, el, str(e)) from e
-    except XmlError as e:
-      raise XmlDecoratedError(src_file, el, str(e)) from e
+    except (XmlError, *decorate_exceptions) as e:
+      # Assume exception occured while visiting current element 'el':
+      e.args = (xml_fragment(src_file, el) + str(e),)
+      raise
     except XmlErrorElement as e:
-      raise XmlDecoratedError(src_file, e.el, str(e)) from e
+      # Element where exception occured is part of exception object:
+      e.args = (xml_fragment(src_file, t.el) + str(e),)
+      raise
 
   results = results_stack[0] # sole stack frame remaining
   if len(results) > 0:

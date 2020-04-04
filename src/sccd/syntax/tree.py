@@ -8,7 +8,7 @@ from sccd.util.bitmap import *
 class State:
     short_name: str # value of 'id' attribute in XML
     parent: Optional['State'] # only None if root state
-    scope: Scope # states have their own scope: variables can be declared in <onentry>, subsequently read in guard conditions and actions.
+    # scope: Scope # states have their own scope: variables can be declared in <onentry>, subsequently read in guard conditions and actions.
 
     stable: bool = False # whether this is a stable stabe. this field is ignored if maximality semantics is not set to SYNTACTIC
 
@@ -92,7 +92,7 @@ class EventDecl:
 
     def render(self) -> str:
         if self.params_decl:
-            return self.name + '(' + ', '.join(self.params_decl) + ')'
+            return self.name + '(' + ', '.join(p.render() for p in self.params_decl) + ')'
         else:
             return self.name
 
@@ -101,57 +101,38 @@ class Trigger:
     enabling: List[EventDecl]
 
     def __post_init__(self):
+        # Optimization: Require 'enabling' to be sorted!
+        assert sorted(self.enabling, key=lambda e: e.id) == self.enabling
+
         self.enabling_bitmap = Bitmap.from_list(e.id for e in self.enabling)
 
     def check(self, events_bitmap: Bitmap) -> bool:
         return (self.enabling_bitmap & events_bitmap) == self.enabling_bitmap
 
     def render(self) -> str:
-        return ' ∧ '.join(e.name for e in self.enabling)
+        return ' ∧ '.join(e.render() for e in self.enabling)
 
 @dataclass
-class NegatedTrigger:
-    enabling: List[EventDecl]
+class NegatedTrigger(Trigger):
     disabling: List[EventDecl]
 
     def __post_init__(self):
-        self.enabling_bitmap = Bitmap.from_list(e.id for e in self.enabling)
+        Trigger.__post_init__(self)
         self.disabling_bitmap = Bitmap.from_list(e.id for e in self.disabling)
 
     def check(self, events_bitmap: Bitmap) -> bool:
-        return (self.enabling_bitmap & events_bitmap) == self.enabling_bitmap and not (self.disabling_bitmap & events_bitmap)
+        return Trigger.check(self, events_bitmap) and not (self.disabling_bitmap & events_bitmap)
 
     def render(self) -> str:
-        return ' ∧ '.join(e.name for e in self.enabling) + ' ∧ ' + ' ∧ '.join('¬'+e.name for e in self.disabling)
+        return Trigger.render(self) + ' ∧ ' + ' ∧ '.join('¬'+e.render() for e in self.disabling)
 
-@dataclass
-class EventTrigger:
-    id: int # event ID
-    name: str # event name
-    port: str
-
-    bitmap: Bitmap = None
-
-    def __post_init__(self):
-        self.bitmap = bit(self.id)
-
-    def check(self, events_bitmap: Bitmap) -> bool:
-        return (self.bitmap & events_bitmap) == self.bitmap
-
-    def render(self) -> str:
-        if self.port:
-            return self.port+'.'+self.name
-        else:
-            return self.name
-
-class NegatedEventTrigger(EventTrigger):
-    pass
-
-class AfterTrigger(EventTrigger):
-    # id: unique within the statechart
+class AfterTrigger(Trigger):
     def __init__(self, id: int, name: str, after_id: int, delay: Expression):
+        enabling = [EventDecl(id=id, name=name, params_decl=[])]
+        super().__init__(enabling)
 
-        super().__init__(id=id, name=name, port="")
+        self.id = id
+        self.name = name
         self.after_id = after_id # unique ID for AfterTrigger
         self.delay = delay
 
@@ -168,7 +149,7 @@ class Transition:
 
     guard: Optional[Expression] = None
     actions: List[Action] = field(default_factory=list)
-    trigger: Optional[EventTrigger] = None
+    trigger: Optional[Trigger] = None
 
     gen: Optional['TransitionOptimization'] = None        
                     

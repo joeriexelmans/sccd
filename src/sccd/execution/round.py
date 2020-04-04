@@ -184,6 +184,9 @@ class SmallStep(Round):
         def get_candidates(extra_forbidden):
             nonlocal enabled_events
             enabled_events = self.enabled_events()
+            # The cost of sorting our enabled events is smaller than the benefit gained by having to loop less often over it in our transition execution code:
+            enabled_events.sort(key=lambda e: e.id)
+
             candidates = self.generator.generate(self.state, enabled_events, forbidden_arenas |  extra_forbidden)
 
             if is_debug():

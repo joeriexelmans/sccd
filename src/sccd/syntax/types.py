@@ -9,10 +9,11 @@ class SCCDType(ABC):
         
     def __str__(self):
         import termcolor
-        return termcolor.colored(self._str(), 'blue')
+        # return termcolor.colored(self._str(), 'blue')
+        return self._str()
 
 @dataclass(frozen=True)
-class SCCDSimpleType(SCCDType):
+class _SCCDSimpleType(SCCDType):
     name: str
 
     def _str(self):
@@ -39,8 +40,8 @@ class SCCDArray(SCCDType):
     def _str(self):
         return "[" + str(self.element_type) + "]"
 
-SCCDBool = SCCDSimpleType("bool")
-SCCDInt = SCCDSimpleType("int")
-SCCDFloat = SCCDSimpleType("float")
-SCCDDuration = SCCDSimpleType("dur")
-SCCDString = SCCDSimpleType("str")
+SCCDBool = _SCCDSimpleType("bool")
+SCCDInt = _SCCDSimpleType("int")
+SCCDFloat = _SCCDSimpleType("float")
+SCCDDuration = _SCCDSimpleType("dur")
+SCCDString = _SCCDSimpleType("str")

@@ -36,6 +36,7 @@ class MemoryProtocol(SemanticAspect, Enum):
   BIG_STEP = auto()
   COMBO_STEP = auto()
   SMALL_STEP = auto()
+  NONE = auto()
 
 class Priority(SemanticAspect, Enum):
   SOURCE_PARENT = auto()

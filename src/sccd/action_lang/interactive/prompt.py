@@ -1,4 +1,5 @@
 import sys
+import readline
 from sccd.action_lang.dynamic.memory import *
 from sccd.action_lang.parser.text import *
 from lark.exceptions import *
@@ -7,13 +8,11 @@ if __name__ == "__main__":
   scope = Scope("interactive", parent=None)
   memory = Memory()
   memory.push_frame(scope)
+  readline.set_history_length(1000)
 
   while True:
-    sys.stdout.write("> ")
-    sys.stdout.flush()
-    line = sys.stdin.readline()
-
     try:
+      line = input("> ")
       stmt = parse_stmt(line)
       stmt.init_stmt(scope)
 
@@ -30,3 +29,6 @@ if __name__ == "__main__":
 
     except (LarkError, ModelError, SCCDRuntimeException) as e:
       print(e)
+    except KeyboardInterrupt:
+      print()
+      exit()

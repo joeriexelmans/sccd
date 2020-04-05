@@ -14,6 +14,8 @@ class InputEvent:
   params: List[Any]
   time_offset: Duration
 
+Timestamp = int
+
 # The Controller class is a primitive that can be used to build backends of any kind:
 # Threads, integration with existing event loop, game loop, test framework, ...
 # The Controller class itself is NOT thread-safe.
@@ -27,7 +29,7 @@ class Controller:
     def __init__(self, model: AbstractModel):
         self.model = model
         self.object_manager = ObjectManager(model)
-        self.queue: EventQueue[EventQueueEntry] = EventQueue()
+        self.queue: EventQueue[Timestamp, EventQueueEntry] = EventQueue()
 
         self.simulated_time = 0 # integer
         self.initialized = False
@@ -102,10 +104,9 @@ class Controller:
             # initialize the object manager, in turn initializing our default class
             # and adding the generated events to the queue
             for i in self.object_manager.instances:
-                events = i.initialize(self.simulated_time)
+                events = i.initialize()
                 process_big_step_output(events)
             print_debug("initialized. time is now %s" % str(self.get_simulated_duration()))
-
 
         # Actual "event loop"
         for timestamp, entry in self.queue.due(now):
@@ -115,7 +116,7 @@ class Controller:
                 print_debug("\ntime is now %s" % str(self.get_simulated_duration()))
             # run all instances for whom there are events
             for instance in entry.targets:
-                output = instance.big_step(timestamp, [entry.event])
+                output = instance.big_step([entry.event])
                 # print_debug("completed big step (time = %s)" % str(self.model.globals.delta * self.simulated_time))
                 process_big_step_output(output)
 

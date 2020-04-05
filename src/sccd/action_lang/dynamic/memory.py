@@ -3,7 +3,7 @@ from dataclasses import *
 from sccd.util.bitmap import *
 from sccd.util.debug import *
 from sccd.action_lang.static.scope import *
-from sccd.execution.exceptions import *
+from sccd.action_lang.dynamic.exceptions import *
 from sccd.action_lang.static.expression import *
 
 @dataclass(frozen=True)

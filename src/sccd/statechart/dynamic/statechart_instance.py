@@ -1,7 +1,6 @@
 import termcolor
 import functools
 from typing import List, Tuple, Iterable
-from sccd.execution.instance import *
 from sccd.statechart.dynamic.builtin_scope import *
 from sccd.statechart.static.statechart import *
 from sccd.util.debug import print_debug
@@ -9,6 +8,16 @@ from sccd.util.bitmap import *
 from sccd.statechart.dynamic.round import *
 from sccd.statechart.dynamic.statechart_execution import *
 from sccd.action_lang.dynamic.memory import *
+
+# Interface for all instances and also the Object Manager
+class Instance(ABC):
+    @abstractmethod
+    def initialize(self) -> List[OutputEvent]:
+        pass
+
+    @abstractmethod
+    def big_step(self, input_events: List[Event]) -> List[OutputEvent]:
+        pass
 
 # Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
 # TODO: make this configurable
@@ -126,12 +135,12 @@ class StatechartInstance(Instance):
 
 
     # enter default states, generating a set of output events
-    def initialize(self, now: Timestamp) -> List[OutputEvent]:
+    def initialize(self) -> List[OutputEvent]:
         self.execution.initialize()
         return self.execution.collect_output()
 
     # perform a big step. generating a set of output events
-    def big_step(self, now: Timestamp, input_events: List[Event]) -> List[OutputEvent]:
+    def big_step(self, input_events: List[Event]) -> List[OutputEvent]:
         # print_debug('attempting big step, input_events='+str(input_events))
         self.set_input(input_events)
         self._big_step.run_and_cycle_events()

@@ -25,11 +25,11 @@ class ObjectManager(Instance):
         self.instances.append(i)
         return i
 
-    def initialize(self, now: Timestamp) -> List[OutputEvent]:
+    def initialize(self) -> List[OutputEvent]:
         return []
 
     # Implementation of super class: Instance
-    def big_step(self, timestamp: Timestamp, input_events: List[Event]) -> List[OutputEvent]:
+    def big_step(self, input_events: List[Event]) -> List[OutputEvent]:
         output = []
         for e in input_events:
             try:

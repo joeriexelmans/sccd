@@ -4,7 +4,7 @@ from sccd.statechart.dynamic.event import *
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
 from sccd.action_lang.static.scope import *
-from sccd.execution.exceptions import *
+from sccd.action_lang.dynamic.exceptions import *
 
 # Set of current states etc.
 class StatechartExecution:

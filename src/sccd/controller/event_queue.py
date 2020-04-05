@@ -3,11 +3,11 @@ from abc import ABC
 from typing import List, Set, Tuple, Deque, Any, TypeVar, Generic, Generator, Optional
 from collections import deque
 
-Timestamp = int
+Timestamp = TypeVar('Timestamp')
 
 Item = TypeVar('Item')
 
-class EventQueue(Generic[Item]):
+class EventQueue(Generic[Timestamp, Item]):
     def __init__(self):
         self.queue: List[Tuple[Timestamp, int, Item]] = []
         self.counters = {} # mapping from timestamp to number of items at timestamp
@@ -61,7 +61,7 @@ class EventQueue(Generic[Item]):
             yield self.pop()
 
 # Alternative implementation: A heapq with unique entries for each timestamp, and a deque with items for each timestamp.
-class EventQueueDeque(Generic[Item]):
+class EventQueueDeque(Generic[Timestamp, Item]):
 
     def __init__(self):
         self.queue: List[Tuple[Timestamp, Deque[Item]]] = []

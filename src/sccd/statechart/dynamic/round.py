@@ -3,7 +3,7 @@ from sccd.statechart.dynamic.event import *
 from sccd.util.bitmap import *
 from sccd.statechart.static.tree import *
 from sccd.util.debug import *
-from sccd.execution.exceptions import *
+from sccd.action_lang.dynamic.exceptions import *
 
 class CandidatesGenerator:
     def __init__(self, reverse: bool):

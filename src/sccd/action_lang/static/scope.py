@@ -66,6 +66,9 @@ class Scope:
 
     return s
 
+  def __repr__(self):
+    return "Scope(%s)" % self.name
+
   def _internal_lookup(self, name, offset=0) -> Optional[Tuple['Scope', int, _Variable]]:
     try:
       return (self, offset, self.names[name])

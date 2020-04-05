@@ -125,6 +125,7 @@ class Block(Statement):
         return so_far
 
     def exec(self, memory: MemoryInterface) -> Return:
+        ret = DontReturn
         for stmt in self.stmts:
             ret = stmt.exec(memory)
             if ret.ret:

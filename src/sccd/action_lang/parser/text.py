@@ -104,15 +104,12 @@ class ExpressionTransformer(Transformer):
 # Global variables so we don't have to rebuild our parser every time
 # Obviously not thread-safe
 _transformer = ExpressionTransformer()
-_parser = Lark(action_lang_grammar, parser="lalr", start=["expr", "block", "stmt"], transformer=_transformer)
+_parser = Lark(action_lang_grammar, parser="lalr", start=["expr", "block"], transformer=_transformer)
 
 # Exported functions:
 
 def parse_expression(text: str) -> Expression:
   return _parser.parse(text, start="expr")
 
-def parse_block(text: str) -> Block:
+def parse_block(text: str) -> Statement:
   return _parser.parse(text, start="block")
-
-def parse_stmt(text: str) -> Statement:
-  return _parser.parse(text, start="stmt")

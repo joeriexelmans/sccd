@@ -1,5 +1,6 @@
 import sys
 import readline
+import termcolor
 from sccd.action_lang.dynamic.memory import *
 from sccd.action_lang.parser.text import *
 from lark.exceptions import *
@@ -13,8 +14,9 @@ if __name__ == "__main__":
   while True:
     try:
       line = input("> ")
-      stmt = parse_stmt(line)
+      stmt = parse_block(line)
       stmt.init_stmt(scope)
+      print_debug(termcolor.colored(str(stmt), 'yellow'))
 
       # Grow current stack frame if necessary
       diff = scope.size() - len(memory.current_frame().storage)
@@ -27,6 +29,9 @@ if __name__ == "__main__":
       else:
         stmt.exec(memory)
 
+    except (UnexpectedToken, UnexpectedCharacters) as e:
+      print(" " + " "*e.column + "^")
+      print(e)
     except (LarkError, ModelError, SCCDRuntimeException) as e:
       print(e)
     except KeyboardInterrupt:

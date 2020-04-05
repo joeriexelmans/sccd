@@ -6,7 +6,7 @@ from typing import List, Any, Optional
 import lxml.etree as ET
 from lark import Lark
 
-from sccd.syntax.statechart import *
+from sccd.statechart.static.statechart import *
 from sccd.controller.controller import *
 import sccd.schema
 

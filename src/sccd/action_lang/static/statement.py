@@ -1,5 +1,5 @@
 from typing import *
-from sccd.syntax.expression import *
+from sccd.action_lang.static.expression import *
 
 @dataclass(frozen=True)
 class Return:
@@ -76,7 +76,7 @@ AlwaysReturns = lambda t: ReturnBehavior(ReturnBehavior.When.ALWAYS, t)
 class Statement(ABC):
     # Execution typically has side effects.
     @abstractmethod
-    def exec(self, ctx: EvalContext) -> Return:
+    def exec(self, memory: MemoryInterface) -> Return:
         pass
 
     @abstractmethod
@@ -93,15 +93,15 @@ class Assignment(Statement):
     rhs: Expression
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
-        rhs_t = self.rhs.init_rvalue(scope)
+        rhs_t = self.rhs.init_expr(scope)
         self.lhs.init_lvalue(scope, rhs_t)
         return NeverReturns
 
-    def exec(self, ctx: EvalContext) -> Return:
-        rhs_val = self.rhs.eval(ctx)
-        offset = self.lhs.eval_lvalue(ctx)
+    def exec(self, memory: MemoryInterface) -> Return:
+        rhs_val = self.rhs.eval(memory)
+        offset = self.lhs.eval_lvalue()
 
-        ctx.memory.store(offset, rhs_val)
+        memory.store(offset, rhs_val)
 
         return DontReturn
 
@@ -124,9 +124,9 @@ class Block(Statement):
             so_far = ReturnBehavior.sequence(so_far, now_what)            
         return so_far
 
-    def exec(self, ctx: EvalContext) -> Return:
+    def exec(self, memory: MemoryInterface) -> Return:
         for stmt in self.stmts:
-            ret = stmt.exec(ctx)
+            ret = stmt.exec(memory)
             if ret.ret:
                 break
         return ret
@@ -143,11 +143,11 @@ class ExpressionStatement(Statement):
     expr: Expression
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
-        self.expr.init_rvalue(scope)
+        self.expr.init_expr(scope)
         return NeverReturns
 
-    def exec(self, ctx: EvalContext) -> Return:
-        self.expr.eval(ctx)
+    def exec(self, memory: MemoryInterface) -> Return:
+        self.expr.eval(memory)
         return DontReturn
 
     def render(self) -> str:
@@ -158,11 +158,11 @@ class ReturnStatement(Statement):
     expr: Expression
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
-        t = self.expr.init_rvalue(scope)
+        t = self.expr.init_expr(scope)
         return AlwaysReturns(t)
 
-    def exec(self, ctx: EvalContext) -> Return:
-        val = self.expr.eval(ctx)
+    def exec(self, memory: MemoryInterface) -> Return:
+        val = self.expr.eval(memory)
         return DoReturn(val)
 
     def render(self) -> str:
@@ -175,7 +175,7 @@ class IfStatement(Statement):
     else_body: Optional[Statement] = None
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
-        cond_t = self.cond.init_rvalue(scope)
+        cond_t = self.cond.init_expr(scope)
         if_ret = self.if_body.init_stmt(scope)
         if self.else_body is None:
             else_ret = NeverReturns
@@ -183,12 +183,12 @@ class IfStatement(Statement):
             else_ret = self.else_body.init_stmt(scope)
         return ReturnBehavior.combine_branches(if_ret, else_ret)
 
-    def exec(self, ctx: EvalContext) -> Return:
-        val = self.cond.eval(ctx)
+    def exec(self, memory: MemoryInterface) -> Return:
+        val = self.cond.eval(memory)
         if val:
-            return self.if_body.exec(ctx)
+            return self.if_body.exec(memory)
         elif self.else_body is not None:
-            return self.else_body.exec(ctx)
+            return self.else_body.exec(memory)
         return DontReturn
 
     def render(self) -> str:

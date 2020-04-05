@@ -9,8 +9,8 @@ class SCCDType(ABC):
         
     def __str__(self):
         import termcolor
-        # return termcolor.colored(self._str(), 'blue')
-        return self._str()
+        return termcolor.colored(self._str(), 'cyan')
+        # return self._str()
 
 @dataclass(frozen=True)
 class _SCCDSimpleType(SCCDType):

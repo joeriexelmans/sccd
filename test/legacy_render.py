@@ -5,7 +5,7 @@ import multiprocessing
 from lib.os_tools import *
 from lib.loader import *
 from sccd.compiler.utils import FormattedWriter
-from sccd.syntax.statechart import *
+from sccd.statechart.static.statechart import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

@@ -2,13 +2,13 @@ import termcolor
 import functools
 from typing import List, Tuple, Iterable
 from sccd.execution.instance import *
-from sccd.execution.builtin_scope import *
-from sccd.syntax.statechart import *
+from sccd.statechart.dynamic.builtin_scope import *
+from sccd.statechart.static.statechart import *
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
-from sccd.execution.round import *
-from sccd.execution.statechart_state import *
-from sccd.execution.memory import *
+from sccd.statechart.dynamic.round import *
+from sccd.statechart.dynamic.statechart_execution import *
+from sccd.action_lang.dynamic.memory import *
 
 # Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
 # TODO: make this configurable
@@ -17,6 +17,8 @@ LIMIT = 100
 class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager):
         self.object_manager = object_manager
+
+        self.execution = StatechartExecution(statechart, self)
 
         semantics = statechart.semantics
 
@@ -31,7 +33,7 @@ class StatechartInstance(Instance):
 
         # Big step + combo step maximality semantics
 
-        small_step = SmallStep(termcolor.colored("small", 'blue'), None, generator,
+        small_step = SmallStep(termcolor.colored("small", 'blue'), self.execution, generator,
             concurrency=semantics.concurrency==Concurrency.MANY)
 
 
@@ -79,9 +81,11 @@ class StatechartInstance(Instance):
             InputEventLifeline.FIRST_SMALL_STEP: first_small
         }[semantics.input_event_lifeline]
 
+        raise_nextbs = lambda e, time_offset: self.execution.output.append(OutputEvent(e, InstancesTarget([self]), time_offset))
+
         raise_internal = {
             # InternalEventLifeline.QUEUE: self._big_step.add_next_event,
-            InternalEventLifeline.QUEUE: lambda e: self.state.output.append(OutputEvent(e, InstancesTarget([self]))),
+            InternalEventLifeline.QUEUE: lambda e: raise_nextbs(e, 0),
             InternalEventLifeline.NEXT_COMBO_STEP: combo_step.add_next_event,
             InternalEventLifeline.NEXT_SMALL_STEP: small_step.add_next_event,
 
@@ -92,7 +96,7 @@ class StatechartInstance(Instance):
         # Memory protocol semantics
 
         memory = Memory()
-        load_builtins(memory)
+        load_builtins(memory, self.execution)
         memory.push_frame(statechart.scope)
 
         rhs_memory = MemoryPartialSnapshot("RHS", memory)
@@ -115,20 +119,20 @@ class StatechartInstance(Instance):
 
         print_debug("\nRound hierarchy: " + str(self._big_step) + '\n')
 
-        self.state = StatechartState(statechart, self, gc_memory, rhs_memory, raise_internal)
-
-        # Chicken and egg problem
-        small_step.state = self.state
+        self.execution.gc_memory = gc_memory
+        self.execution.rhs_memory = rhs_memory
+        self.execution.raise_internal = raise_internal
+        self.execution.raise_next_bs = raise_nextbs
 
 
     # enter default states, generating a set of output events
     def initialize(self, now: Timestamp) -> List[OutputEvent]:
-        self.state.initialize()
-        return self.state.collect_output()
+        self.execution.initialize()
+        return self.execution.collect_output()
 
     # perform a big step. generating a set of output events
     def big_step(self, now: Timestamp, input_events: List[Event]) -> List[OutputEvent]:
         # print_debug('attempting big step, input_events='+str(input_events))
         self.set_input(input_events)
         self._big_step.run_and_cycle_events()
-        return self.state.collect_output()
+        return self.execution.collect_output()

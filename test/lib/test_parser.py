@@ -1,7 +1,7 @@
-from sccd.parser.statechart_parser import *
+from sccd.statechart.parser.parser import *
 from sccd.model.globals import *
 from sccd.controller.controller import InputEvent
-from sccd.execution.event import Event
+from sccd.statechart.dynamic.event import Event
 from sccd.model.model import *
 
 @dataclass
@@ -23,8 +23,11 @@ def create_test_parser(create_statechart_parser):
         name = require_attribute(el, "name")
         port = require_attribute(el, "port")
         time = require_attribute(el, "time")
-        duration = parse_duration(globals, time)
-        input.append(InputEvent(name=name, port=port, params=[], time_offset=duration))
+        time_expr = parse_expression(globals, time)
+        time_type = time_expr.init_expr(scope=None)
+        check_duration_type(time_type)
+        time_val = time_expr.eval(memory=None)
+        input.append(InputEvent(name=name, port=port, params=[], time_offset=time_val))
 
       return [("event+", parse_input_event)]
 
@@ -42,7 +45,7 @@ def create_test_parser(create_statechart_parser):
           def parse_param(el):
             val_text = require_attribute(el, "val")
             val_expr = parse_expression(globals, val_text)
-            val = val_expr.eval(EvalContext(current_state=None, events=[], memory=None))
+            val = val_expr.eval(memory=None)
             params.append(val)
 
           return [("param*", parse_param)]

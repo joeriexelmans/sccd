@@ -28,8 +28,6 @@
     <root initial="s1">
       <state id="s1">
         <onentry>
-          <!-- calling 'increment', the statement "i += 1" will cause a runtime error
-               since the stack frame of 'counter', containing variable 'i' is no longer there -->
           <code>
             x = increment();
           </code>

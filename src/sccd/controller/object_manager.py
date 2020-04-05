@@ -1,7 +1,7 @@
 import re
 import abc
 from typing import List, Tuple
-from sccd.execution.statechart_instance import *
+from sccd.statechart.dynamic.statechart_instance import *
 
 # TODO: Clean this mess up. Look at all object management operations and see how they can be improved.
 class ObjectManager(Instance):

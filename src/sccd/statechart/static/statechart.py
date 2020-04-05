@@ -2,8 +2,8 @@ from enum import *
 from dataclasses import *
 from typing import *
 import itertools
-from sccd.syntax.tree import *
-from sccd.syntax.scope import *
+from sccd.statechart.static.tree import *
+from sccd.action_lang.static.scope import *
 
 class SemanticAspect:
   def __str__(self):

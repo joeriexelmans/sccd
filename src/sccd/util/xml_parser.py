@@ -184,7 +184,7 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
       raise
     except XmlErrorElement as e:
       # Element where exception occured is part of exception object:
-      e.args = (xml_fragment(src_file, t.el) + str(e),)
+      e.args = (xml_fragment(src_file, e.el) + str(e),)
       raise
 
   results = results_stack[0] # sole stack frame remaining
@@ -194,5 +194,13 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
 def require_attribute(el, attr):
   val = el.get(attr)
   if val is None:
-    raise XmlError("missing required attribute '%s'" % attr)
+    raise XmlErrorElement(el, "missing required attribute '%s'" % attr)
   return val
+
+def if_attribute(el, attr, callback):
+  val = el.get(attr)
+  if val is not None:
+    try:
+      callback(val)
+    except Exception as e:
+      raise XmlErrorElement(el, "attribute %s=\"%s\": %s" % (attr, val, str(e))) from e

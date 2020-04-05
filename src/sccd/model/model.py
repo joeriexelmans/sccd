@@ -1,7 +1,7 @@
 from abc import *
 from dataclasses import *
 from typing import *
-from sccd.syntax.statechart import *
+from sccd.statechart.static.statechart import *
 from sccd.model.globals import *
 
 @dataclass

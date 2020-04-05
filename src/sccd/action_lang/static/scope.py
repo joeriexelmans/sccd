@@ -2,12 +2,10 @@ from abc import *
 from typing import *
 from dataclasses import *
 from inspect import signature
-from sccd.syntax.types import *
+from sccd.action_lang.static.types import *
+from sccd.action_lang.static.exceptions import *
 import itertools
 
-# Superclass for all "user errors", errors in the model being loaded.
-class ModelError(Exception):
-  pass
 
 class ScopeError(ModelError):
   def __init__(self, scope, msg):
@@ -17,10 +15,19 @@ class ScopeError(ModelError):
 # Stateless stuff we know about a variable existing within a scope.
 @dataclass(frozen=True)
 class _Variable(ABC):
-  name: str # only used to print error messages
+  _name: str # only used to print error messages
   offset: int # Offset within variable's scope. Always >= 0.
   type: SCCDType
   const: bool
+
+  @property
+  def name(self):
+    import termcolor
+    return termcolor.colored(self._name, 'yellow')
+
+  def __str__(self):
+    return "+%d: %s%s: %s" % (self.offset, "(const) "if self.const else "", self.name, str(self.type))
+
 
 # Stateless stuff we know about a scope (= set of named values)
 class Scope:
@@ -48,11 +55,11 @@ class Scope:
 
     is_empty = True
     for v in reversed(self.variables):
-      s += "    +%d: %s: %s\n" % (v.offset, v.name, str(v.type))
+      s += "    %s\n" % str(v)
       is_empty = False
 
     if is_empty:
-      s += "   ø\n"
+      s += "    ø\n"
 
     if self.parent:
       s += self.parent.__str__()
@@ -86,10 +93,10 @@ class Scope:
       scope, scope_offset, var = found
       if var.type == type:
         if var.const:
-          raise ScopeError(self, "Cannot assign to %s: %s of scope '%s': Variable is constant." % (name, str(var.type), scope.name))
+          raise ScopeError(self, "Cannot assign to %s: %s of scope '%s': Variable is constant." % (var.name, str(var.type), scope.name))
         return scope_offset + var.offset
       else:
-        raise ScopeError(self, "Cannot assign %s to %s: %s of scope '%s'" %(str(type), name, str(var.type), scope.name))
+        raise ScopeError(self, "Cannot assign %s to %s: %s of scope '%s'" %(str(type), var.name, str(var.type), scope.name))
 
     return self._internal_add(name, type, const=False)
 
@@ -109,6 +116,6 @@ class Scope:
     found = self._internal_lookup(name)
     if found:
       scope, scope_offset, var = found
-      raise ScopeError(self, "Cannot declare '%s' in scope '%s': Name already exists in scope '%s'" % (name, self.name, scope.name))
+      raise ScopeError(self, "Cannot declare '%s' in scope '%s': Name already exists in scope '%s'" % (var.name, self.name, scope.name))
 
     return self._internal_add(name, type, const)

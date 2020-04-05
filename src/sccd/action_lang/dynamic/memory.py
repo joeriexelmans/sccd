@@ -2,8 +2,9 @@ from typing import *
 from dataclasses import *
 from sccd.util.bitmap import *
 from sccd.util.debug import *
-from sccd.syntax.scope import *
+from sccd.action_lang.static.scope import *
 from sccd.execution.exceptions import *
+from sccd.action_lang.static.expression import *
 
 @dataclass(frozen=True)
 class StackFrame:
@@ -28,41 +29,6 @@ class StackFrame:
       return "StackFrame(%s, len=%d, ...)" % (frame.scope.name, len(frame.storage)) if frame else "None"
 
     return "StackFrame(%s, len=%d, parent=%s, context=%s)" % (self.scope.name, len(self.storage), short_descr(self.parent), "parent" if self.context is self.parent else short_descr(self.context))
-
-
-class MemoryInterface(ABC):
-
-  @abstractmethod
-  def current_frame(self) -> StackFrame:
-    pass
-
-  @abstractmethod
-  def push_frame(self, scope: Scope):
-    pass
-
-  @abstractmethod
-  def push_frame_w_context(self, scope: Scope, context: StackFrame):
-    pass
-
-  @abstractmethod
-  def pop_frame(self):
-    pass
-
-  @abstractmethod
-  def load(self, offset: int) -> Any:
-    pass
-
-  @abstractmethod
-  def store(self, offset: int, value: Any):
-    pass
-
-  @abstractmethod
-  def flush_transition(self, read_only: bool = False):
-    pass
-
-  @abstractmethod
-  def flush_round(self):
-    pass
 
 class Memory(MemoryInterface):
 

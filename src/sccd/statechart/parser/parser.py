@@ -1,16 +1,22 @@
 from typing import *
-from sccd.syntax.statechart import *
-from sccd.syntax.tree import *
-from sccd.execution.builtin_scope import *
-from sccd.parser.xml_parser import *
-from sccd.parser.expression_parser import *
+from sccd.statechart.static.statechart import *
+from sccd.statechart.static.tree import *
+from sccd.statechart.dynamic.builtin_scope import *
+from sccd.util.xml_parser import *
+from sccd.action_lang.parser.parser import *
 
 class SkipFile(Exception):
   pass
 
-_blank_eval_context = EvalContext(current_state=None, events=[], memory=None)
-
 parse_f = functools.partial(parse, decorate_exceptions=(ModelError,))
+
+def check_duration_type(type):
+  if type != SCCDDuration:
+    msg = "Expression is '%s' type. Expected 'Duration' type." % str(type)
+    if type == SCCDInt:
+      msg += "\n Hint: Did you forget a duration unit sufix? ('s', 'ms', ...)"
+    raise Exception(msg)
+
 
 def create_statechart_parser(globals, src_file, load_external = True, parse = parse_f) -> Rules:
   def parse_statechart(el):
@@ -34,8 +40,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
     def parse_semantics(el):
       # Use reflection to find the possible XML attributes and their values
       for aspect_name, aspect_type in SemanticConfiguration.get_fields():
-        text = el.get(aspect_name)
-        if text is not None:
+        def parse_semantic_attribute(text):
           result = parse_semantic_choice(text)
           if result.data == "wildcard":
             semantic_choice = list(aspect_type) # all options
@@ -44,6 +49,8 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           if len(semantic_choice) == 1:
             semantic_choice = semantic_choice[0]
           setattr(statechart.semantics, aspect_name, semantic_choice)
+
+        if_attribute(el, aspect_name, parse_semantic_attribute)
 
     def parse_datamodel(el):
       body = parse_block(globals, el.text)
@@ -70,7 +77,8 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
       root = State("", parent=None)
       children_dict = {}
       transitions = [] # All of the statechart's transitions accumulate here, cause we still need to find their targets, which we can't do before the entire state tree has been built. We find their targets when encoutering the </root> closing tag.
-      next_after_id = 0 # Counter for 'after' transitions within the statechart.
+      after_triggers = [] # After triggers accumulate here
+      # next_after_id = 0 # Counter for 'after' transitions within the statechart.
 
       def create_actions_parser(scope):
 
@@ -79,7 +87,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           def parse_param(el):
             expr_text = require_attribute(el, "expr")
             expr = parse_expression(globals, expr_text)
-            expr.init_rvalue(scope)
+            expr.init_expr(scope)
             params.append(expr)
 
           def finish_raise():
@@ -110,16 +118,23 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
         return {"raise": parse_raise, "code": parse_code}
 
       def deal_with_initial(el, state, children_dict):
-        initial = el.get("initial")
-        if initial is not None:
+        have_initial = False
+
+        def parse_attr_initial(initial):
+          nonlocal have_initial
+          have_initial = True
           try:
             state.default_state = children_dict[initial]
           except KeyError as e:
-            raise XmlError("initial=\"%s\": not a child." % (initial)) from e
-        elif len(state.children) == 1:
-          state.default_state = state.children[0]
-        elif len(state.children) > 1:
-          raise XmlError("More than 1 child state: must set 'initial' attribute.")
+            raise XmlError("Not a child.") from e
+
+        if_attribute(el, "initial", parse_attr_initial)
+
+        if not have_initial:
+          if len(state.children) == 1:
+            state.default_state = state.children[0]
+          elif len(state.children) > 1:
+            raise XmlError("More than 1 child state: must set 'initial' attribute.")
 
       def create_state_parser(parent, sibling_dict: Dict[str, State]={}):
 
@@ -169,8 +184,6 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           return (create_actions_parser(statechart.scope), finish_onexit)
 
         def parse_transition(el):
-          nonlocal next_after_id
-          
           if parent is root:
             raise XmlError("Root <state> cannot be source of a transition.")
 
@@ -178,53 +191,48 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           target_string = require_attribute(el, "target")
           transition = Transition(parent, [], scope, target_string)
 
-          event = el.get("event")
-          if event is not None:
+          have_event_attr = False
+          def parse_attr_event(event):
+            nonlocal have_event_attr
+            have_event_attr = True
+
             positive_events, negative_events = parse_events_decl(globals, event)
 
             # Optimization: sort events by ID
             # Allows us to save time later.
             positive_events.sort(key=lambda e: e.id)
 
-            def add_event_params_to_scope(e: EventDecl):
+            def add_params_to_scope(e: EventDecl):
               for i,p in enumerate(e.params_decl):
                 p.init_param(scope)
 
             for e in itertools.chain(positive_events, negative_events):
-              add_event_params_to_scope(e)
+              add_params_to_scope(e)
 
             if not negative_events:
               transition.trigger = Trigger(positive_events)
             else:
               transition.trigger = NegatedTrigger(positive_events, negative_events)
 
-          after = el.get("after")
-          if after is not None:
-            if event is not None:
+          def parse_attr_after(after):
+            if have_event_attr:
               raise XmlError("Cannot specify 'after' and 'event' at the same time.")
-            try:
-              after_expr = parse_expression(globals, after)
-              after_type = after_expr.init_rvalue(scope)
-              if after_type != SCCDDuration:
-                msg = "Expression is '%s' type. Expected 'Duration' type." % str(after_type)
-                if after_type == SCCDInt:
-                  msg += "\n Hint: Did you forget a duration unit sufix? ('s', 'ms', ...)"
-                raise Exception(msg)
-              event_name = "_after%d" % next_after_id # transition gets unique event name
-              transition.trigger = AfterTrigger(globals.events.assign_id(event_name), event_name, next_after_id, after_expr)
-              next_after_id += 1
-            except Exception as e:
-              raise XmlError("after=\"%s\": %s" % (after, str(e))) from e
+            after_expr = parse_expression(globals, after)
+            after_type = after_expr.init_expr(scope)
+            check_duration_type(after_type)
+            after_id = len(after_triggers)
+            event_name = "_after%d" % after_id # transition gets unique event name
+            transition.trigger = AfterTrigger(globals.events.assign_id(event_name), event_name, after_id, after_expr)
+            after_triggers.append(transition.trigger)
 
-          cond = el.get("cond")
-          if cond is not None:
-            try:
-              expr = parse_expression(globals, cond)
-              expr.init_rvalue(scope)
-            except Exception as e:
-              raise XmlError("cond=\"%s\": %s" % (cond, str(e))) from e
-              # raise except_msg("cond=\"%s\": " % cond, e)
+          def parse_attr_cond(cond):
+            expr = parse_expression(globals, cond)
+            expr.init_expr(scope)
             transition.guard = expr
+
+          if_attribute(el, "event", parse_attr_event)
+          if_attribute(el, "after", parse_attr_after)
+          if_attribute(el, "cond", parse_attr_cond)
 
           def finish_transition(*actions):
             transition.actions = actions
@@ -263,7 +271,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           except Exception as e:
             raise XmlErrorElement(t_el, "Could not find target '%s'." % (transition.target_string)) from e
 
-        statechart.tree = StateTree(root)
+        statechart.tree = StateTree(root, after_triggers)
 
       return (create_state_parser(root, sibling_dict=children_dict), finish_root)
 

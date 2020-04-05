@@ -11,7 +11,7 @@ IDENTIFIER: /[A-Za-z_][A-Za-z_0-9]*/
 
 _PATH_SEP: "/" 
 PARENT_NODE: ".." 
-CURRENT_NODE: "." 
+CURRENT_NODE: "."
 
 // target of a transition
 state_ref: path | "(" path ("," path)+ ")" 
@@ -155,6 +155,9 @@ DECREMENT: "-="
 MULTIPLY: "*="
 DIVIDE: "/="
 FLOORDIVIDE: "//="
+
+COMMENT: "#" /(.)*/ "\n"
+%ignore COMMENT
 
 
 // Semantic option parsing

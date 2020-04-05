@@ -1,7 +1,7 @@
 from typing import *
-from sccd.execution.event import *
+from sccd.statechart.dynamic.event import *
 from sccd.util.bitmap import *
-from sccd.syntax.tree import *
+from sccd.statechart.static.tree import *
 from sccd.util.debug import *
 from sccd.execution.exceptions import *
 

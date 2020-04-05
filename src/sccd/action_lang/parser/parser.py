@@ -1,18 +1,18 @@
 import os
 from lark import Lark, Transformer
-from sccd.syntax.statement import *
+from sccd.action_lang.static.statement import *
 from sccd.model.globals import *
-from sccd.syntax.scope import *
-from sccd.syntax.tree import *
+from sccd.action_lang.static.scope import *
+from sccd.statechart.static.tree import *
 
-_grammar_dir = os.path.join(os.path.dirname(__file__), "grammar")
+_grammar_dir = os.path.dirname(__file__)
 
 with open(os.path.join(_grammar_dir,"action_language.g")) as file:
   _action_lang_grammar = file.read()
 
 
 # Lark transformer for parsetree-less parsing of expressions
-class _ExpressionTransformer(Transformer):
+class ExpressionTransformer(Transformer):
   def __init__(self):
     super().__init__()
     self.globals: Globals = None
@@ -131,7 +131,7 @@ class _ExpressionTransformer(Transformer):
 
 # Global variables so we don't have to rebuild our parser every time
 # Obviously not thread-safe
-_transformer = _ExpressionTransformer()
+_transformer = ExpressionTransformer()
 _parser = Lark(_action_lang_grammar, parser="lalr", start=["expr", "block", "duration", "event_decl_list", "func_decl", "state_ref", "semantic_choice"], transformer=_transformer)
 
 # Exported functions:

@@ -1,6 +1,6 @@
 from abc import *
 from typing import *
-from sccd.execution.event import *
+from sccd.statechart.dynamic.event import *
 from sccd.execution.timestamp import *
 
 # Interface for all instances and also the Object Manager

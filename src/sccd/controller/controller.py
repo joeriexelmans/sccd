@@ -2,7 +2,7 @@ import queue
 import dataclasses
 from typing import Dict, List, Optional
 from sccd.controller.event_queue import *
-from sccd.execution.event import *
+from sccd.statechart.dynamic.event import *
 from sccd.controller.object_manager import *
 from sccd.util.debug import print_debug
 from sccd.model.model import *

@@ -1,21 +1,22 @@
 from typing import *
-from sccd.syntax.statechart import *
-from sccd.execution.event import *
+from sccd.statechart.static.statechart import *
+from sccd.statechart.dynamic.event import *
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
-from sccd.syntax.scope import *
+from sccd.action_lang.static.scope import *
 from sccd.execution.exceptions import *
 
-
 # Set of current states etc.
-class StatechartState:
+class StatechartExecution:
 
-    def __init__(self, statechart: Statechart, instance, gc_memory, rhs_memory, raise_internal):
-        self.model = statechart
+    def __init__(self, statechart: Statechart, instance):
+        self.statechart = statechart
         self.instance = instance
-        self.gc_memory = gc_memory
-        self.rhs_memory = rhs_memory
-        self.raise_internal = raise_internal
+
+        self.gc_memory = None
+        self.rhs_memory = None
+        self.raise_internal = None
+        self.raise_next_bs = None
 
         # these 2 fields have the same information
         self.configuration: List[State] = []
@@ -38,13 +39,13 @@ class StatechartState:
 
     # enter default states
     def initialize(self):
-        states = self.model.tree.root.getEffectiveTargetStates(self)
+        states = self.statechart.tree.root.getEffectiveTargetStates(self)
         self.configuration.extend(states)
         self.configuration_bitmap = Bitmap.from_list(s.gen.state_id for s in states)
 
         ctx = EvalContext(current_state=self, events=[], memory=self.rhs_memory)
-        if self.model.datamodel is not None:
-            self.model.datamodel.exec(ctx)
+        if self.statechart.datamodel is not None:
+            self.statechart.datamodel.exec(self.rhs_memory)
 
         for state in states:
             print_debug(termcolor.colored('  ENTER %s'%state.gen.full_name, 'green'))
@@ -103,7 +104,8 @@ class StatechartState:
                     
             # execute transition action(s)
             self.rhs_memory.push_frame(t.scope) # make room for event parameters on stack
-            self._copy_event_params_to_stack(self.rhs_memory, t, events)
+            if t.trigger:
+                t.trigger.copy_params_to_stack(ctx)
             self._perform_actions(ctx, t.actions)
             self.rhs_memory.pop_frame()
                 
@@ -120,33 +122,12 @@ class StatechartState:
             try:
                 self.configuration = self.config_mem[self.configuration_bitmap]
             except KeyError:
-                self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.model.tree.state_list if self.configuration_bitmap & s.gen.state_id_bitmap]
+                self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.statechart.tree.state_list if self.configuration_bitmap & s.gen.state_id_bitmap]
 
             self.rhs_memory.flush_transition()
         except SCCDRuntimeException as e:
             e.args = ("During execution of transition %s:\n" % str(t) +str(e),)
             raise
-
-    @staticmethod
-    def _copy_event_params_to_stack(memory, t, events):
-        # Both 'events' and 't.trigger.enabling' are sorted by event ID...
-        # This way we have to iterate over each of both lists at most once.
-        if t.trigger and not isinstance(t.trigger, AfterTrigger):
-            event_decls = iter(t.trigger.enabling)
-            try:
-                event_decl = next(event_decls)
-                offset = 0
-                for e in events:
-                    if e.id < event_decl.id:
-                        continue
-                    else:
-                        while e.id > event_decl.id:
-                            event_decl = next(event_decls)
-                        for p in e.params:
-                            memory.store(offset, p)
-                            offset += 1
-            except StopIteration:
-                pass
 
     def check_guard(self, t, events) -> bool:
         try:
@@ -159,10 +140,12 @@ class StatechartState:
             if t.guard is None:
                 return True
             else:
+                ctx = EvalContext(current_state=self, events=events, memory=self.gc_memory)
                 self.gc_memory.push_frame(t.scope)
-                self._copy_event_params_to_stack(self.gc_memory, t, events)
-                result = t.guard.eval(
-                    EvalContext(current_state=self, events=events, memory=self.gc_memory))
+                # Guard conditions can also refer to event parameters
+                if t.trigger:
+                    t.trigger.copy_params_to_stack(ctx)
+                result = t.guard.eval(self.gc_memory)
                 self.gc_memory.pop_frame()
                 return result
         except SCCDRuntimeException as e:
@@ -182,10 +165,7 @@ class StatechartState:
             delay: Duration = after.delay.eval(
                 EvalContext(current_state=self, events=[], memory=self.gc_memory))
             timer_id = self._next_timer_id(after)
-            self.output.append(OutputEvent(
-                Event(id=after.id, name=after.name, params=[timer_id]),
-                target=InstancesTarget([self.instance]),
-                time_offset=delay))
+            self.raise_next_bs(Event(id=after.id, name=after.name, params=[timer_id]), delay)
 
     def _next_timer_id(self, trigger: AfterTrigger):
         self.timer_ids[trigger.after_id] += 1
@@ -193,7 +173,7 @@ class StatechartState:
 
     # Return whether the current configuration includes ALL the states given.
     def in_state(self, state_strings: List[str]) -> bool:
-        state_ids_bitmap = Bitmap.from_list((self.model.tree.state_dict[state_string].gen.state_id for state_string in state_strings))
+        state_ids_bitmap = Bitmap.from_list((self.statechart.tree.state_dict[state_string].gen.state_id for state_string in state_strings))
         in_state = self.configuration_bitmap.has_all(state_ids_bitmap)
         # if in_state:
         #     print_debug("in state"+str(state_strings))

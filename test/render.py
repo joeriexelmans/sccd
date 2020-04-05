@@ -2,9 +2,10 @@ import argparse
 import sys
 import subprocess
 import multiprocessing
+import os
 from lib.os_tools import *
 from sccd.util.indenting_writer import *
-from sccd.parser.statechart_parser import *
+from sccd.statechart.parser.parser import *
 import lxml.etree as ET
 
 if __name__ == '__main__':
@@ -33,6 +34,9 @@ if __name__ == '__main__':
       print()
       parser.print_usage()
       exit()
+
+    # From this point on, disable terminal colors as we write output files
+    os.environ["ANSI_COLORS_DISABLED"] = "1"
 
     def process(src):
       try:

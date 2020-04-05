@@ -1,7 +1,7 @@
 # from dataclasses import *
 import termcolor
 from typing import *
-from sccd.syntax.expression import *
+from sccd.action_lang.static.expression import *
 from sccd.util.namespace import *
 from sccd.util.duration import *
 from sccd.util.debug import *

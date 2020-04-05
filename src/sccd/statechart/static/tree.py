@@ -1,6 +1,6 @@
 import termcolor
 from typing import *
-from sccd.syntax.action import *
+from sccd.statechart.static.action import *
 from sccd.util.bitmap import *
 
 
@@ -112,6 +112,25 @@ class Trigger:
     def render(self) -> str:
         return ' ∧ '.join(e.render() for e in self.enabling)
 
+    def copy_params_to_stack(self, ctx: EvalContext):
+        # Both 'ctx.events' and 'self.enabling' are sorted by event ID,
+        # this way we have to iterate over each of both lists at most once.
+        iterator = iter(self.enabling)
+        try:
+            event_decl = next(iterator)
+            offset = 0
+            for e in ctx.events:
+                if e.id < event_decl.id:
+                    continue
+                else:
+                    while e.id > event_decl.id:
+                        event_decl = next(iterator)
+                    for p in e.params:
+                        ctx.memory.store(offset, p)
+                        offset += 1
+        except StopIteration:
+            pass
+
 @dataclass
 class NegatedTrigger(Trigger):
     disabling: List[EventDecl]
@@ -138,6 +157,11 @@ class AfterTrigger(Trigger):
 
     def render(self) -> str:
         return "after("+self.delay.render()+")"
+
+    # An 'after'-event also has 1 parameter, but it is not accessible to the user,
+    # hence the override.
+    def copy_params_to_stack(self, ctx: EvalContext):
+        pass
 
 @dataclass
 class Transition:
@@ -167,11 +191,11 @@ class StateTree:
 
     # root: The root state of a state,transition tree structure with with all fields filled in,
     #       except the 'gen' fields. This function will fill in the 'gen' fields.
-    def __init__(self, root: State):
+    def __init__(self, root: State, after_triggers: List[AfterTrigger]):
         self.state_dict = {} # mapping from 'full name' to State
         self.state_list = [] # depth-first list of states
         self.transition_list = [] # all transitions in the tree, sorted by source state, depth-first
-        self.after_triggers = []
+        self.after_triggers = after_triggers
         self.stable_bitmap = Bitmap() # bitmap of state IDs of states that are stable. Only used for SYNTACTIC-maximality semantics.
 
         next_id = 0
@@ -203,7 +227,7 @@ class StateTree:
                     has_eventless_transitions = True
                 elif isinstance(t.trigger, AfterTrigger):
                     after_triggers.append(t.trigger)
-                    self.after_triggers.append(t.trigger)
+                    # self.after_triggers.append(t.trigger)
 
             for c in state.children:
                 init_state(c, full_name, [state] + ancestors)

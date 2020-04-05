@@ -11,6 +11,8 @@
         return float_to_int(log10(i)) + 1;
       };
 
+      parameterless = func {};
+
       ok = numdigits(123) == 3 and digit(123, 1) == 2;
     </datamodel>
 

@@ -1,23 +1,15 @@
 import os
 from lark import Lark, Transformer
 from sccd.action_lang.static.statement import *
-from sccd.model.globals import *
-from sccd.action_lang.static.scope import *
-from sccd.statechart.static.tree import *
 
 _grammar_dir = os.path.dirname(__file__)
 
-with open(os.path.join(_grammar_dir,"action_language.g")) as file:
-  _action_lang_grammar = file.read()
+with open(os.path.join(_grammar_dir,"action_lang.g")) as file:
+  action_lang_grammar = file.read()
 
 
 # Lark transformer for parsetree-less parsing of expressions
 class ExpressionTransformer(Transformer):
-  def __init__(self):
-    super().__init__()
-    self.globals: Globals = None
-
-  # Expression and statement parsing
 
   array = Array
 
@@ -80,9 +72,7 @@ class ExpressionTransformer(Transformer):
       "h": Hour
     }[suffix]
 
-    d = duration(val, unit)
-    self.globals.durations.append(d)
-    return d
+    return duration(val, unit)
 
   def expression_stmt(self, node):
     return ExpressionStatement(node[0])
@@ -95,25 +85,6 @@ class ExpressionTransformer(Transformer):
       return IfStatement(cond=node[0], if_body=node[1])
     else:
       return IfStatement(cond=node[0], if_body=node[1], else_body=node[2])
-
-  # Event declaration parsing
-
-  def event_decl_list(self, node):
-    pos_events = []
-    neg_events = []
-
-    for n in node:
-      if n.data == "pos":
-        pos_events.append(n.children[0])
-      elif n.data == "neg":
-        neg_events.append(n.children[0])
-
-    return (pos_events, neg_events)
-
-  def event_decl(self, node):
-    event_name = node[0].value
-    event_id = self.globals.events.assign_id(event_name)
-    return EventDecl(id=event_id, name=event_name, params_decl=node[1])
 
   params_decl = list
 
@@ -129,34 +100,16 @@ class ExpressionTransformer(Transformer):
   def func_decl(self, node):
     return FunctionDeclaration(params_decl=node[0], body=node[1])
 
+
 # Global variables so we don't have to rebuild our parser every time
 # Obviously not thread-safe
 _transformer = ExpressionTransformer()
-_parser = Lark(_action_lang_grammar, parser="lalr", start=["expr", "block", "duration", "event_decl_list", "func_decl", "state_ref", "semantic_choice"], transformer=_transformer)
+_parser = Lark(action_lang_grammar, parser="lalr", start=["expr", "block"], transformer=_transformer)
 
 # Exported functions:
 
-def parse_expression(globals: Globals, text: str) -> Expression:
-  _transformer.globals = globals
+def parse_expression(text: str) -> Expression:
   return _parser.parse(text, start="expr")
 
-def parse_duration(globals: Globals, text: str) -> Duration:
-  _transformer.globals = globals
-  return _parser.parse(text, start="duration")
-
-def parse_block(globals: Globals, text: str) -> Statement:
-  _transformer.globals = globals
+def parse_block(text: str) -> Block:
   return _parser.parse(text, start="block")
-
-def parse_events_decl(globals: Globals, text: str):
-  _transformer.globals = globals
-  return _parser.parse(text, start="event_decl_list")
-
-# def parse_func_decl(text: str) -> Tuple[str, List[Param]]:
-#   return _parser.parse(text, start="func_decl")
-
-def parse_state_ref(text: str):
-  return _parser.parse(text, start="state_ref")
-
-def parse_semantic_choice(choice: str):
-  return _parser.parse(choice, start="semantic_choice")

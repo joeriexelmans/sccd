@@ -5,7 +5,7 @@ import multiprocessing
 import os
 from lib.os_tools import *
 from sccd.util.indenting_writer import *
-from sccd.statechart.parser.parser import *
+from sccd.statechart.parser.xml import *
 import lxml.etree as ET
 
 if __name__ == '__main__':

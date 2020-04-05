@@ -1,4 +1,4 @@
-from sccd.statechart.parser.parser import *
+from sccd.statechart.parser.xml import *
 from sccd.model.globals import *
 from sccd.controller.controller import InputEvent
 from sccd.statechart.dynamic.event import Event

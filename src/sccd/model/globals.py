@@ -33,17 +33,6 @@ class Globals:
       else:
         self.delta = self.fixed_delta
 
-    # if self.delta == duration(0):
-    #   print_debug(termcolor.colored("Warning: model delta is 0: Model does not have any notion of time.", 'yellow'))
-    # else:
-    #   pass
-      # # Convert all DurationLiterals to model delta
-      # for d in self.durations:
-      #   # The following error is impossible: (i think)
-      #   # if d.original % self.delta != duration(0):
-      #   #   raise Exception("Duration %s cannot be represented by delta %s" % (str(d.original), str(self.delta)))
-      #   d.converted = d.original // self.delta
-
   def assert_ready(self):
     if self.delta is None:
       raise Exception("Globals not ready: durations not yet processed.")

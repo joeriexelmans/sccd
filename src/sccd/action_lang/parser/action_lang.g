@@ -4,39 +4,6 @@
 %ignore WS
 %import common.ESCAPED_STRING
 
-// state id, variable name, event name
-IDENTIFIER: /[A-Za-z_][A-Za-z_0-9]*/ 
-
-// Parsing target of a transition as a sequence of nodes
-
-_PATH_SEP: "/" 
-PARENT_NODE: ".." 
-CURRENT_NODE: "."
-
-// target of a transition
-state_ref: path | "(" path ("," path)+ ")" 
-
-?path: absolute_path | relative_path 
-absolute_path: _PATH_SEP _path_sequence
-relative_path: _path_sequence
-_path_sequence: (CURRENT_NODE | PARENT_NODE | IDENTIFIER) (_PATH_SEP _path_sequence)?
-
-
-// Event declaration parsing
-
-event_decl_list: neg_event_decl ("," neg_event_decl)*
-
-?neg_event_decl: event_decl -> pos
-               | "not" event_decl -> neg
-
-?event_decl: IDENTIFIER params_decl
-
-// params_decl rule shared with function declaration
-params_decl: ( "(" param_decl ("," param_decl)* ")" )?
-
-?param_decl: IDENTIFIER ":" TYPE
-
-TYPE: "int" | "str" | "dur" | "float"
 
 // Expression parsing
 
@@ -75,10 +42,16 @@ TYPE: "int" | "str" | "dur" | "float"
      | func_decl
      | array
 
+IDENTIFIER: /[A-Za-z_][A-Za-z_0-9]*/ 
+
 func_call: atom "(" param_list ")"
 param_list: ( expr ("," expr)* )?  -> params
 
 func_decl: "func" params_decl stmt
+params_decl: ( "(" param_decl ("," param_decl)* ")" )?
+?param_decl: IDENTIFIER ":" TYPE_ANNOT
+TYPE_ANNOT: "int" | "str" | "dur" | "float"
+
 
 array: "[" (expr ("," expr)*)? "]"
 
@@ -158,10 +131,3 @@ FLOORDIVIDE: "//="
 
 COMMENT: "#" /(.)*/ "\n"
 %ignore COMMENT
-
-
-// Semantic option parsing
-
-WILDCARD: "*"
-?semantic_choice: WILDCARD -> wildcard
-                | IDENTIFIER ("," IDENTIFIER)* -> list

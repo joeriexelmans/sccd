@@ -3,7 +3,7 @@ from sccd.statechart.static.statechart import *
 from sccd.statechart.static.tree import *
 from sccd.statechart.dynamic.builtin_scope import *
 from sccd.util.xml_parser import *
-from sccd.action_lang.parser.parser import *
+from sccd.statechart.parser.text import *
 
 class SkipFile(Exception):
   pass

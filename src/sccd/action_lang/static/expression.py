@@ -30,15 +30,6 @@ class MemoryInterface(ABC):
   def store(self, offset: int, value: Any):
     pass
 
-  @abstractmethod
-  def flush_transition(self, read_only: bool = False):
-    pass
-
-  @abstractmethod
-  def flush_round(self):
-    pass
-
-
 # Thrown if the type checker encountered something illegal.
 # Not to be confused with Python's TypeError exception.
 class StaticTypeError(ModelError):

@@ -1,13 +1,13 @@
 import termcolor
 import functools
 from typing import List, Tuple, Iterable
-from sccd.statechart.dynamic.builtin_scope import *
-from sccd.statechart.static.statechart import *
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
+from sccd.statechart.static.statechart import *
+from sccd.statechart.dynamic.builtin_scope import *
 from sccd.statechart.dynamic.round import *
 from sccd.statechart.dynamic.statechart_execution import *
-from sccd.action_lang.dynamic.memory import *
+from sccd.statechart.dynamic.memory_snapshot import *
 
 # Interface for all instances and also the Object Manager
 class Instance(ABC):
@@ -93,7 +93,6 @@ class StatechartInstance(Instance):
         raise_nextbs = lambda e, time_offset: self.execution.output.append(OutputEvent(e, InstancesTarget([self]), time_offset))
 
         raise_internal = {
-            # InternalEventLifeline.QUEUE: self._big_step.add_next_event,
             InternalEventLifeline.QUEUE: lambda e: raise_nextbs(e, 0),
             InternalEventLifeline.NEXT_COMBO_STEP: combo_step.add_next_event,
             InternalEventLifeline.NEXT_SMALL_STEP: small_step.add_next_event,

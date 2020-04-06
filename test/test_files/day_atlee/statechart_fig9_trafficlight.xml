@@ -1,0 +1,81 @@
+<?xml version="1.0" ?>
+<statechart>
+  <semantics big_step_maximality="take_one"/>
+
+  <inport name="in">
+    <event name="change"/>
+    <event name="end"/>
+  </inport>
+
+  <outport name="out">
+    <event name="set_light"/>
+  </outport>
+
+  <root>
+    <parallel id="TrafficLight">
+      <state id="NorthSouth" initial="NS_Green">
+        <state id="NS_Green">
+          <onentry>
+            <raise event="set_light">
+              <param expr='"NS"'/>
+              <param expr='"Green"'/>
+            </raise>
+          </onentry>
+          <transition event="end" target="../NS_Yellow"/>
+        </state>
+
+        <state id="NS_Yellow">
+          <onentry>
+            <raise event="set_light">
+              <param expr='"NS"'/>
+              <param expr='"Yellow"'/>
+            </raise>
+          </onentry>
+          <transition event="change" target="../NS_Red"/>
+        </state>
+
+        <state id="NS_Red">
+          <onentry>
+            <raise event="set_light">
+              <param expr='"NS"'/>
+              <param expr='"Red"'/>
+            </raise>
+          </onentry>
+          <transition event="change" target="../NS_Green"/>
+        </state>
+      </state>
+
+      <state id="EastWest" initial="EW_Red">
+        <state id="EW_Red">
+          <onentry>
+            <raise event="set_light">
+              <param expr='"EW"'/>
+              <param expr='"Red"'/>
+            </raise>
+          </onentry>
+          <transition event="change" target="../EW_Green"/>
+        </state>
+
+        <state id="EW_Green">
+          <onentry>
+            <raise event="set_light">
+              <param expr='"EW"'/>
+              <param expr='"Green"'/>
+            </raise>
+          </onentry>
+          <transition event="end" target="../EW_Yellow"/>
+        </state>
+
+        <state id="EW_Yellow">
+          <onentry>
+            <raise event="set_light">
+              <param expr='"EW"'/>
+              <param expr='"Yellow"'/>
+            </raise>
+          </onentry>
+          <transition event="change" target="../EW_Red"/>
+        </state>
+      </state>
+    </parallel>
+  </root>
+</statechart>

@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="statechart_fig9_trafficlight.xml">
+    <override_semantics concurrency="single"/>
+    <!-- although according to Day & Atlee, this choice of semantics yields incorrect behavior
+         because between small steps, the traffic lights could be "yellow" in one direction and
+         "green" in the other at the same time, in between small steps, I would argue that this
+         doesn't matter as long as the statechart's input/output from big steps is correct (which
+         is the case), as this is the only way it can interact with the environment. -->
+  </statechart>
+
+  <input>
+    <event port="in" name="end" time="15 s"/>
+    <event port="in" name="change" time="18 s"/>
+  </input>
+
+  <output>
+    <!-- entering default states -->
+    <big_step>
+      <event port="out" name="set_light">
+        <param val='"NS"'/>
+        <param val='"Green"'/>
+      </event>
+      <event port="out" name="set_light">
+        <param val='"EW"'/>
+        <param val='"Red"'/>
+      </event>
+    </big_step>
+
+    <!-- response to input event 'end' -->
+    <big_step>
+      <event port="out" name="set_light">
+        <param val='"NS"'/>
+        <param val='"Yellow"'/>
+      </event>
+    </big_step>
+
+    <!-- response to input event 'change' -->
+    <big_step>
+      <event port="out" name="set_light">
+        <param val='"NS"'/>
+        <param val='"Red"'/>
+      </event>
+      <event port="out" name="set_light">
+        <param val='"EW"'/>
+        <param val='"Green"'/>
+      </event>
+    </big_step>
+  </output>
+</test>

@@ -1,0 +1,46 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="statechart_fig9_trafficlight.xml">
+    <override_semantics concurrency="many"/>
+    <!-- No observable difference from Concurrency: 'single' -->
+  </statechart>
+
+  <input>
+    <event port="in" name="end" time="15 s"/>
+    <event port="in" name="change" time="18 s"/>
+  </input>
+
+  <output>
+    <!-- entering default states -->
+    <big_step>
+      <event port="out" name="set_light">
+        <param val='"NS"'/>
+        <param val='"Green"'/>
+      </event>
+      <event port="out" name="set_light">
+        <param val='"EW"'/>
+        <param val='"Red"'/>
+      </event>
+    </big_step>
+
+    <!-- response to input event 'end' -->
+    <big_step>
+      <event port="out" name="set_light">
+        <param val='"NS"'/>
+        <param val='"Yellow"'/>
+      </event>
+    </big_step>
+
+    <!-- response to input event 'change' -->
+    <big_step>
+      <event port="out" name="set_light">
+        <param val='"NS"'/>
+        <param val='"Red"'/>
+      </event>
+      <event port="out" name="set_light">
+        <param val='"EW"'/>
+        <param val='"Green"'/>
+      </event>
+    </big_step>
+  </output>
+</test>

@@ -1,0 +1,45 @@
+<?xml version="1.0" ?>
+<statechart>
+  <inport name="in">
+    <event name="tk0"/>
+  </inport>
+
+  <outport name="out">
+    <event name="done"/>
+  </outport>
+
+  <root>
+    <parallel id="Counter">
+      <state id="Bit_1" initial="Bit_11">
+        <state id="Bit_11">
+          <transition event="tk0" target="../Bit_12"/>
+        </state>
+
+        <state id="Bit_12">
+          <transition event="tk0" target="../Bit_11">
+            <raise event="tk1"/>
+          </transition>
+        </state>
+      </state>
+
+      <state id="Bit_2" initial="Bit_21">
+        <state id="Bit_21">
+          <transition event="tk1" target="../Bit_22"/>
+        </state>
+
+        <state id="Bit_22">
+          <transition event="tk1" target="/Counter/Status/Max">
+            <raise event="done"/>
+          </transition>
+        </state>
+      </state>
+
+      <state id="Status" initial="Counting">
+        <state id="Counting"/>
+        <state id="Max">
+          <transition event="reset" target="../Counting"/>
+        </state>
+      </state>
+    </parallel>
+  </root>
+</statechart>

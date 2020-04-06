@@ -59,10 +59,7 @@ class StatechartExecution:
 
     # events: list SORTED by event id
     def fire_transition(self, events: List[Event], t: Transition):
-        try:
-            def __exitSet():
-                return [s for s in reversed(t.gen.lca.gen.descendants) if (s in self.configuration)]
-            
+        try:            
             def __enterSet(targets):
                 target = targets[0]
                 for a in reversed(target.gen.ancestors):
@@ -81,8 +78,12 @@ class StatechartExecution:
                             targets.append(e_t)
                 return targets
 
+            ctx = EvalContext(current_state=self, events=events, memory=self.rhs_memory)
+
+            print_debug("fire " + str(t))
+
             # exit states...
-            exit_set = __exitSet()
+            exit_set = (s for s in reversed(self.configuration) if s.gen.state_id_bitmap & t.gen.arena.gen.descendant_bitmap)
             for s in exit_set:
                 # remember which state(s) we were in if a history state is present
                 for h in s.gen.history:
@@ -91,16 +92,14 @@ class StatechartExecution:
                         f = lambda s0: not s0.gen.descendants and s0 in s.gen.descendants
                     self.history_values[h.gen.state_id] = list(filter(f, self.configuration))
 
-            ctx = EvalContext(current_state=self, events=events, memory=self.rhs_memory)
-
-            print_debug("fire " + str(t))
-            for s in exit_set:
                 print_debug(termcolor.colored('  EXIT %s' % s.gen.full_name, 'green'))
                 self.eventless_states -= s.gen.has_eventless_transitions
                 # execute exit action(s)
                 self._perform_actions(ctx, s.exit)
                 # self.rhs_memory.pop_local_scope(s.scope)
                 self.configuration_bitmap &= ~s.gen.state_id_bitmap
+
+            # print("arena was: ", t.gen.arena.gen.full_name)
                     
             # execute transition action(s)
             self.rhs_memory.push_frame(t.scope) # make room for event parameters on stack
@@ -110,9 +109,7 @@ class StatechartExecution:
             self.rhs_memory.pop_frame()
                 
             # enter states...
-            targets = __getEffectiveTargetStates()
-            enter_set = __enterSet(targets)
-            for s in enter_set:
+            for s in __enterSet(__getEffectiveTargetStates()):
                 print_debug(termcolor.colored('  ENTER %s' % s.gen.full_name, 'green'))
                 self.eventless_states += s.gen.has_eventless_transitions
                 self.configuration_bitmap |= s.gen.state_id_bitmap

@@ -184,6 +184,8 @@ class Transition:
 @dataclass(frozen=True)
 class TransitionOptimization:
     lca: State
+    lca_bitmap: Bitmap
+    arena: State
     arena_bitmap: Bitmap
 
 # @dataclass
@@ -271,6 +273,12 @@ class StateTree:
                             lca = a
                             break
 
+            arena = lca
+            while isinstance(arena, ParallelState):
+                arena = arena.parent
+
             t.gen = TransitionOptimization(
                 lca=lca,
-                arena_bitmap=lca.gen.descendant_bitmap | lca.gen.state_id_bitmap)
+                lca_bitmap=lca.gen.descendant_bitmap | lca.gen.state_id_bitmap,
+                arena=arena,
+                arena_bitmap=arena.gen.descendant_bitmap | arena.gen.state_id_bitmap)

@@ -2,7 +2,7 @@ import termcolor
 from typing import *
 from sccd.statechart.static.action import *
 from sccd.util.bitmap import *
-
+from sccd.util import timer
 
 @dataclass
 class State:
@@ -13,7 +13,7 @@ class State:
     stable: bool = False # whether this is a stable stabe. this field is ignored if maximality semantics is not set to SYNTACTIC
 
     children: List['State'] = field(default_factory=list)
-    default_state = None # child state pointed to by 'initial' attribute
+    default_state: 'State' = None # child state pointed to by 'initial' attribute
 
     transitions: List['Transition'] = field(default_factory=list)
 
@@ -26,12 +26,27 @@ class State:
         if self.parent is not None:
             self.parent.children.append(self)
 
-    def getEffectiveTargetStates(self, instance):
-        targets = [self]
+
+    def target_states(self, instance, end_of_path) -> Bitmap:
+        if end_of_path:
+            return self.gen.static_ts_bitmap | functools.reduce(lambda x,y: x|y, (s._target_states(instance) for s in self.gen.dynamic_ts), Bitmap())
+        else:
+            return self.gen.state_id_bitmap
+
+    def _target_states(self, instance) -> Bitmap:
+        # targets = [self]
+        targets = self.gen.state_id_bitmap
         if self.default_state:
-            targets.extend(self.default_state.getEffectiveTargetStates(instance))
+            targets |= self.default_state._target_states(instance)
         return targets
-                    
+
+    def _static_ts(self) -> Tuple[List['State'], List['State']]:
+        if self.default_state:
+            static, dynamic = self.default_state._static_ts()
+            return ([self] + static, dynamic)
+        else:
+            return ([self], [])
+
     def __repr__(self):
         return "State(\"%s\")" % (self.gen.full_name)
 
@@ -42,47 +57,72 @@ class StateOptimization:
     state_id_bitmap: Bitmap
     full_name: str
     ancestors: List[State] # order: close to far away, i.e. first element is parent
+    ancestors_bitmap: Bitmap
     descendants: List[State]  # order: breadth-first
-    descendant_bitmap: Bitmap
+    descendants_bitmap: Bitmap
     history: List[State] # subset of children
+
+    static_ts_bitmap: Bitmap # Bitmap of all descendants that are always part of the 'effective targets states'
+    dynamic_ts: List[State] # Subset of descendants containing possible target-states
+
     has_eventless_transitions: bool
     after_triggers: List['AfterTrigger']
 
 
 class HistoryState(State):
+
+    def target_states(self, instance, end_of_path) -> Bitmap:
+        return Bitmap.from_list(s.gen.state_id_bitmap for s in self._target_states(instance))
+
     @abstractmethod
-    def getEffectiveTargetStates(self, instance):
+    def _target_states(self, instance) -> Bitmap:
         pass
-        
+
+    def _static_ts(self) -> Tuple[List[State], Bitmap]:
+        return ([], [self])
+
 class ShallowHistoryState(HistoryState):
-        
-    def getEffectiveTargetStates(self, instance):
-        if self.state_id in instance.history_values:
-            targets = []
+
+    def _target_states(self, instance) -> Bitmap:
+        try:
+            targets = Bitmap()
             for hv in instance.history_values[self.state_id]:
-                targets.extend(hv.getEffectiveTargetStates(instance))
+                targets |= hv.target_states(instance, True)
             return targets
-        else:
-            # TODO: is it correct that in this case, the parent itself is also entered?
-            return self.parent.getEffectiveTargetStates(instance)
-        
+        except KeyError:
+            # TODO: is it correct that in this case, the parent itself is also entered? -> Joeri: Nope!
+            return self.parent._target_states(instance)
+
 class DeepHistoryState(HistoryState):
         
-    def getEffectiveTargetStates(self, instance):
-        if self.state_id in instance.history_values:
-            return instance.history_values[self.state_id]
-        else:
+    def _target_states(self, instance) -> Bitmap:
+        try:
+            return Bitmap.from_list(s.state_id for s in instance.history_values[self.state_id])
+        except KeyError:
             # TODO: is it correct that in this case, the parent itself is also entered?
-            return self.parent.getEffectiveTargetStates(instance)
+            return self.parent._target_states(instance)
         
 class ParallelState(State):
-        
-    def getEffectiveTargetStates(self, instance):
+
+    def target_states(self, instance, end_of_path) -> Bitmap:
+        return self.gen.static_ts_bitmap | Bitmap.from_list(s._target_states(instance) for s in self.gen.dynamic_ts)
+
+    def _target_states(self, instance) -> Bitmap:
         targets = [self]
         for c in self.children:
             if not isinstance(c, HistoryState):
-                targets.extend(c.getEffectiveTargetStates(instance))
+                targets.extend(c._target_states(instance))
         return targets
+
+    def _static_ts(self) -> Tuple[List[State], Bitmap]:
+        static = [self]
+        dynamic = []
+        for c in self.children:
+            if not isinstance(c, HistoryState):
+                c_static, c_dynamic = c._static_ts()
+                static.extend(c_static)
+                dynamic.extend(c_dynamic)
+        return static, dynamic
 
 @dataclass
 class EventDecl:
@@ -193,20 +233,22 @@ class StateTree:
 
     # root: The root state of a state,transition tree structure with with all fields filled in,
     #       except the 'gen' fields. This function will fill in the 'gen' fields.
-    def __init__(self, root: State, after_triggers: List[AfterTrigger]):
+    def __init__(self, root: State):
+        timer.start("optimize tree")
         self.state_dict = {} # mapping from 'full name' to State
         self.state_list = [] # depth-first list of states
         self.transition_list = [] # all transitions in the tree, sorted by source state, depth-first
-        self.after_triggers = after_triggers
+        self.after_triggers = []
         self.stable_bitmap = Bitmap() # bitmap of state IDs of states that are stable. Only used for SYNTACTIC-maximality semantics.
 
         next_id = 0
 
-        def init_state(state: State, parent_full_name: str, ancestors: List[State]):
+        def init_state(state: State, parent_full_name: str, ancestors: List[State], ancestors_bitmap):
             nonlocal next_id
 
             state_id = next_id
             next_id += 1
+            state_id_bitmap = bit(state_id)
 
             if state is root:
                 full_name = '/'
@@ -222,6 +264,7 @@ class StateTree:
             history = []
             has_eventless_transitions = False
             after_triggers = []
+            static_ts, dynamic_ts = state._static_ts()
 
             for t in state.transitions:
                 self.transition_list.append(t)
@@ -229,10 +272,10 @@ class StateTree:
                     has_eventless_transitions = True
                 elif isinstance(t.trigger, AfterTrigger):
                     after_triggers.append(t.trigger)
-                    # self.after_triggers.append(t.trigger)
+                    self.after_triggers.append(t.trigger)
 
             for c in state.children:
-                init_state(c, full_name, [state] + ancestors)
+                init_state(c, full_name, [state] + ancestors, state_id_bitmap | ancestors_bitmap)
                 if isinstance(c, HistoryState):
                     history.append(c)
 
@@ -240,24 +283,28 @@ class StateTree:
             for c in state.children:
                 descendants.extend(c.gen.descendants)
 
+            descendants_bitmap = Bitmap.from_list(s.gen.state_id for s in descendants)
+            static_ts_bitmap = Bitmap.from_list(s.gen.state_id for s in static_ts if s.gen) | state_id_bitmap
+
             state.gen = StateOptimization(
                 state_id=state_id,
-                state_id_bitmap=bit(state_id),
+                state_id_bitmap=state_id_bitmap,
                 full_name=full_name,
                 ancestors=ancestors,
+                ancestors_bitmap=ancestors_bitmap,
                 descendants=descendants,
-                descendant_bitmap=reduce(lambda x,y: x | bit(y.gen.state_id), descendants, Bitmap(0)),
+                descendants_bitmap=descendants_bitmap,
                 history=history,
+                static_ts_bitmap=static_ts_bitmap,
+                dynamic_ts=dynamic_ts,
                 has_eventless_transitions=has_eventless_transitions,
                 after_triggers=after_triggers)
 
             if state.stable:
                 self.stable_bitmap |= bit(state_id)
 
-            # print("state:", full_name)
-            # print("ancestors:", len(ancestors))
 
-        init_state(root, "", [])
+        init_state(root, "", [], Bitmap())
         self.root = root
 
         for t in self.transition_list:
@@ -279,6 +326,8 @@ class StateTree:
 
             t.gen = TransitionOptimization(
                 lca=lca,
-                lca_bitmap=lca.gen.descendant_bitmap | lca.gen.state_id_bitmap,
+                lca_bitmap=lca.gen.descendants_bitmap | lca.gen.state_id_bitmap,
                 arena=arena,
-                arena_bitmap=arena.gen.descendant_bitmap | arena.gen.state_id_bitmap)
+                arena_bitmap=arena.gen.descendants_bitmap | arena.gen.state_id_bitmap)
+
+        timer.stop("optimize tree")

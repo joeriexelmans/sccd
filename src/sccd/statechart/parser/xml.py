@@ -77,8 +77,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
       root = State("", parent=None)
       children_dict = {}
       transitions = [] # All of the statechart's transitions accumulate here, cause we still need to find their targets, which we can't do before the entire state tree has been built. We find their targets when encoutering the </root> closing tag.
-      after_triggers = [] # After triggers accumulate here
-      # next_after_id = 0 # Counter for 'after' transitions within the statechart.
+      after_id = 0 # After triggers need unique IDs within the scope of the statechart model
 
       def create_actions_parser(scope):
 
@@ -215,15 +214,15 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
               transition.trigger = NegatedTrigger(positive_events, negative_events)
 
           def parse_attr_after(after):
+            nonlocal after_id
             if have_event_attr:
               raise XmlError("Cannot specify 'after' and 'event' at the same time.")
             after_expr = parse_expression(globals, after)
             after_type = after_expr.init_expr(scope)
             check_duration_type(after_type)
-            after_id = len(after_triggers)
             event_name = "_after%d" % after_id # transition gets unique event name
             transition.trigger = AfterTrigger(globals.events.assign_id(event_name), event_name, after_id, after_expr)
-            after_triggers.append(transition.trigger)
+            after_id += 1
 
           def parse_attr_cond(cond):
             expr = parse_expression(globals, cond)
@@ -271,7 +270,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           except Exception as e:
             raise XmlErrorElement(t_el, "Could not find target '%s'." % (transition.target_string)) from e
 
-        statechart.tree = StateTree(root, after_triggers)
+        statechart.tree = StateTree(root)
 
       return (create_state_parser(root, sibling_dict=children_dict), finish_root)
 

@@ -4,6 +4,7 @@ from dataclasses import *
 from sccd.model.model import *
 from sccd.controller.controller import *
 from lib.test_parser import *
+from sccd.util import timer
 
 import threading
 import queue
@@ -20,7 +21,9 @@ class Test(unittest.TestCase):
     statechart_parser = functools.partial(create_statechart_parser, src_file=self.src)
     test_parser = create_test_parser(statechart_parser)
     try:
+      timer.start("parse test")
       test_variants = parse_f(self.src, test_parser)
+      timer.stop("parse test")
     except Exception as e:
       print_debug(e)
       raise e

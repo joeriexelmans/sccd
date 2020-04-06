@@ -4,6 +4,7 @@ from sccd.util.bitmap import *
 from sccd.statechart.static.tree import *
 from sccd.util.debug import *
 from sccd.action_lang.dynamic.exceptions import *
+from sccd.util import timer
 
 class CandidatesGenerator:
     def __init__(self, reverse: bool):
@@ -68,6 +69,7 @@ class Round(ABC):
         self.callbacks.append(callback)
 
     def run_and_cycle_events(self, forbidden_arenas: Bitmap = Bitmap()) -> RoundResult:
+        timer.start("round: %s" % self.name)
         changed, stable = self._run(forbidden_arenas)
         if changed:
             # notify round observers
@@ -77,6 +79,7 @@ class Round(ABC):
             self.remainder_events = self.next_events
             self.next_events = []
             print_debug("completed "+self.name)
+        timer.stop("round: %s" % self.name)
         return (changed, stable)
 
     @abstractmethod
@@ -184,9 +187,11 @@ class SmallStep(Round):
         enabled_events = None
         def get_candidates(extra_forbidden):
             nonlocal enabled_events
+            timer.start("get enabled events")
             enabled_events = self.enabled_events()
             # The cost of sorting our enabled events is smaller than the benefit gained by having to loop less often over it in our transition execution code:
             enabled_events.sort(key=lambda e: e.id)
+            timer.stop("get enabled events")
 
             candidates = self.generator.generate(self.state, enabled_events, forbidden_arenas |  extra_forbidden)
 
@@ -204,8 +209,10 @@ class SmallStep(Round):
         arenas = Bitmap()
         stable_arenas = Bitmap()
 
+        timer.start("get candidate")
         candidates = get_candidates(0)
         t = next(candidates, None)
+        timer.stop("get candidate")
         while t:
             arena = t.gen.arena_bitmap
             if not (arenas & arena):
@@ -220,9 +227,13 @@ class SmallStep(Round):
 
                 # need to re-generate candidates after firing transition
                 # because possibly the set of current events has changed
+                timer.start("get candidate")
                 candidates = get_candidates(extra_forbidden=arenas)
+            else:
+                timer.start("get candidate")
 
             t = next(candidates, None)
+            timer.stop("get candidate")
 
         return (arenas, stable_arenas)
 

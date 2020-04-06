@@ -59,7 +59,13 @@ class StatechartExecution:
 
     # events: list SORTED by event id
     def fire_transition(self, events: List[Event], t: Transition):
-        try:            
+        try:
+            # Exit set is the intersection between self.configuration and t.gen.arena.descendants.
+
+            # The following was found to be more efficient than reverse-iterating and filtering self.configuration or t.arena.gen.descendants lists, despite the fact that Bitmap.reverse_items() isn't very efficient.
+            exit_ids = self.configuration_bitmap & t.gen.arena.gen.descendant_bitmap
+            exit_set = (self.statechart.tree.state_list[id] for id in exit_ids.reverse_items())
+
             def __enterSet(targets):
                 target = targets[0]
                 for a in reversed(target.gen.ancestors):
@@ -83,7 +89,6 @@ class StatechartExecution:
             print_debug("fire " + str(t))
 
             # exit states...
-            exit_set = (s for s in reversed(self.configuration) if s.gen.state_id_bitmap & t.gen.arena.gen.descendant_bitmap)
             for s in exit_set:
                 # remember which state(s) we were in if a history state is present
                 for h in s.gen.history:
@@ -109,6 +114,7 @@ class StatechartExecution:
             self.rhs_memory.pop_frame()
                 
             # enter states...
+            enter_set = (t.gen.arena.gen.descendants)
             for s in __enterSet(__getEffectiveTargetStates()):
                 print_debug(termcolor.colored('  ENTER %s' % s.gen.full_name, 'green'))
                 self.eventless_states += s.gen.has_eventless_transitions

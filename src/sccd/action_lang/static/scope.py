@@ -5,6 +5,7 @@ from inspect import signature
 from sccd.action_lang.static.types import *
 from sccd.action_lang.static.exceptions import *
 import itertools
+import termcolor
 
 
 class ScopeError(ModelError):
@@ -22,7 +23,6 @@ class _Variable(ABC):
 
   @property
   def name(self):
-    import termcolor
     return termcolor.colored(self._name, 'yellow')
 
   def __str__(self):

@@ -37,8 +37,8 @@ class StatechartInstance(Instance):
         reverse = semantics.priority == Priority.SOURCE_CHILD
 
         # 2 transition candidate generation algorithms to choose from!
-        generator = CandidatesGeneratorCurrentConfigBased(reverse)
-        # generator = CandidatesGeneratorEventBased(reverse)
+        # generator = CandidatesGeneratorCurrentConfigBased(reverse)
+        generator = CandidatesGeneratorEventBased(reverse)
 
         # Big step + combo step maximality semantics
 

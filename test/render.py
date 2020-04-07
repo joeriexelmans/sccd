@@ -71,7 +71,7 @@ if __name__ == '__main__':
         w = IndentingWriter(f)
 
         def name_to_label(state):
-          label = state.gen.full_name.split('/')[-1]
+          label = state.opt.full_name.split('/')[-1]
           if state.stable:
             label += " ✓"
           return label if len(label) else "root"
@@ -99,7 +99,7 @@ if __name__ == '__main__':
 
         def write_state(s, hide=False):
           if not hide:
-            w.write(name_to_name(s.gen.full_name))
+            w.write(name_to_name(s.opt.full_name))
             w.extendWrite(' [label="')
             w.extendWrite(name_to_label(s))
             w.extendWrite('"')
@@ -124,8 +124,8 @@ if __name__ == '__main__':
               w.extendWrite(' {')
               w.indent()
             if s.default_state:
-              w.write(name_to_name(s.gen.full_name)+'_initial [type=initial],')
-              transitions.append(PseudoTransition(source=PseudoState(s.gen.full_name+'/initial'), targets=[s.default_state]))
+              w.write(name_to_name(s.opt.full_name)+'_initial [type=initial],')
+              transitions.append(PseudoTransition(source=PseudoState(s.opt.full_name+'/initial'), targets=[s.default_state]))
             s.children.reverse() # this appears to put orthogonal components in the right order :)
             for i, c in enumerate(s.children):
               write_state(c)
@@ -148,17 +148,17 @@ if __name__ == '__main__':
             label += ' '.join(a.render() for a in t.actions)
 
           if len(t.targets) == 1:
-            w.write(name_to_name(t.source.gen.full_name) + ' -> ' + name_to_name(t.targets[0].gen.full_name))
+            w.write(name_to_name(t.source.opt.full_name) + ' -> ' + name_to_name(t.targets[0].opt.full_name))
             if label:
               w.extendWrite(': '+label)
             w.extendWrite(';')
           else:
-            w.write(name_to_name(t.source.gen.full_name) + ' -> ' + ']split'+str(ctr))
+            w.write(name_to_name(t.source.opt.full_name) + ' -> ' + ']split'+str(ctr))
             if label:
                 w.extendWrite(': '+label)
             w.extendWrite(';')
             for tt in t.targets:
-              w.write(']split'+str(ctr) + ' -> ' + name_to_name(tt.gen.full_name))
+              w.write(']split'+str(ctr) + ' -> ' + name_to_name(tt.opt.full_name))
               w.extendWrite(';')
             ctr += 1
 

@@ -10,20 +10,21 @@ BuiltIn.declare("log", SCCDFunction([SCCDString]), const=True)
 BuiltIn.declare("int_to_str", SCCDFunction([SCCDInt], SCCDString), const=True)
 
 def load_builtins(memory: MemoryInterface, state):
+  import math
+  import termcolor
+  
   memory.push_frame(BuiltIn)
 
   def in_state(memory: MemoryInterface, state_list: List[str]) -> bool:
     return state.in_state(state_list)
 
   def log10(memory: MemoryInterface, i: int) -> float:
-    import math
     return math.log10(i)
 
   def float_to_int(memory: MemoryInterface, x: float) -> int:
     return int(x)
 
   def log(memory: MemoryInterface, s: str) -> None:
-    import termcolor
     print_debug(termcolor.colored("log: ",'blue')+s)
 
   def int_to_str(memory: MemoryInterface, i: int) -> str:

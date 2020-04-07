@@ -1,6 +1,7 @@
 from abc import *
 from dataclasses import *
 from typing import *
+import termcolor
 
 class SCCDType(ABC):
     @abstractmethod
@@ -8,7 +9,6 @@ class SCCDType(ABC):
         pass
         
     def __str__(self):
-        import termcolor
         return termcolor.colored(self._str(), 'cyan')
         # return self._str()
 

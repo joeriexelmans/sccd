@@ -19,16 +19,11 @@ class StatechartExecution:
         self.raise_internal = None
         self.raise_next_bs = None
 
-        # these 2 fields have the same information
-        self.configuration: List[State] = []
+        # set of current states
         self.configuration_bitmap: Bitmap = Bitmap()
 
-        self.eventless_states = 0 # number of states in current configuration that have at least one eventless outgoing transition.
-
-        # mapping from configuration_bitmap (=int) to configuration (=List[State])
-        self.config_mem = {}
         # mapping from history state id to states to enter if history is target of transition
-        self.history_values: Dict[int, List[State]] = {}
+        self.history_values: Dict[int, Bitmap] = {}
 
         # For each AfterTrigger in the statechart tree, we keep an expected 'id' that is
         # a parameter to a future 'after' event. This 'id' is incremented each time a timer
@@ -40,60 +35,66 @@ class StatechartExecution:
 
     # enter default states
     def initialize(self):
-        states = self.statechart.tree.root.target_states(self, True)
-        self.configuration.extend(self.statechart.tree.state_list[id] for id in states.items())
+        states = self.statechart.tree.root.target_states(self)
         self.configuration_bitmap = states
 
         ctx = EvalContext(current_state=self, events=[], memory=self.rhs_memory)
         if self.statechart.datamodel is not None:
             self.statechart.datamodel.exec(self.rhs_memory)
 
-        for state in self.configuration:
-            print_debug(termcolor.colored('  ENTER %s'%state.gen.full_name, 'green'))
-            self.eventless_states += state.gen.has_eventless_transitions
+        for state in self._ids_to_states(states.items()):
+            print_debug(termcolor.colored('  ENTER %s'%state.opt.full_name, 'green'))
             self._perform_actions(ctx, state.enter)
-            self._start_timers(state.gen.after_triggers)
+            self._start_timers(state.opt.after_triggers)
 
         self.rhs_memory.flush_transition()
         self.rhs_memory.flush_round()
         self.gc_memory.flush_round()
 
+    def _ids_to_states(self, id_iter):
+        return (self.statechart.tree.state_list[id] for id in id_iter)
+
     # events: list SORTED by event id
     def fire_transition(self, events: List[Event], t: Transition):
         try:
+            # print("arena is:", t.opt.arena)
             timer.start("transition")
 
             timer.start("exit states")
-            # Exit set is the intersection between self.configuration and t.gen.arena.descendants.
-
-            # The following was found to have better performance than reverse-iterating and filtering self.configuration or t.arena.gen.descendants lists, despite the fact that Bitmap.reverse_items() isn't very efficient.
-            exit_ids = self.configuration_bitmap & t.gen.arena.gen.descendants_bitmap
-            exit_set = (self.statechart.tree.state_list[id] for id in exit_ids.reverse_items())
+            # Sequence of exit states is the intersection between set of current states and the arena's descendants.
+            exit_ids = self.configuration_bitmap & t.opt.arena.opt.descendants_bitmap
+            exit_set = self._ids_to_states(exit_ids.reverse_items())
 
             # Alternative implementation:
-            # if len(self.configuration) < len(t.gen.arena.gen.descendants):
-            #     exit_set = (s for s in self.configuration if s.gen.state_id_bitmap & t.gen.arena.gen.descendants_bitmap)
+            # if len(self.configuration) < len(t.opt.arena.opt.descendants):
+            #     exit_set = (s for s in self.configuration if s.opt.state_id_bitmap & t.opt.arena.opt.descendants_bitmap)
             # else:
-            #     exit_set = (s for s in t.gen.arena.gen.descendants if s.gen.state_id_bitmap & self.configuration_bitmap)
+            #     exit_set = (s for s in t.opt.arena.opt.descendants if s.opt.state_id_bitmap & self.configuration_bitmap)
             timer.stop("exit states")
 
 
             timer.start("enter states")
+            # Sequence of enter states is more complex. As a start, we calculate the enter path:
             # Enter path is the intersection between:
-            #   1) the transitions target + the target's ancestors and
+            #   1) the transitions target and its ancestors, and
             #   2) the arena's descendants
-            enter_path = (t.targets[0].gen.ancestors_bitmap | t.targets[0].gen.state_id_bitmap) & t.gen.arena.gen.descendants_bitmap
+            enter_path = (t.targets[0].opt.state_id_bitmap | t.targets[0].opt.ancestors_bitmap) & t.opt.arena.opt.descendants_bitmap
             # Now, along the enter path, there may be AND-states whose children we don't explicitly enter, but should enter.
-            # That's why we call 'target_states' on every state on the path and join the results.
-            items = enter_path.items()
-            shifted = itertools.chain(enter_path.items(), [-1])
-            next(shifted) # throw away first value
-            pairwise = zip(items, shifted)
-
+            # That's why we call 'additional_target_states' on every state on the path and join the results.
+            # Finally, on the actual target itself, we call 'target_states' and add it to the results as well.
+            enter_path_iter = enter_path.items()
+            state_id = next(enter_path_iter, None)
             enter_ids = Bitmap()
-            for state_id, next_state_id in pairwise:
-                enter_ids |= self.statechart.tree.state_list[state_id].target_states(self, next_state_id == -1)
-            enter_set = (self.statechart.tree.state_list[id] for id in enter_ids.items())
+            while state_id:
+                next_state_id = next(enter_path_iter, None)
+                if next_state_id:
+                    # an intermediate state on the path from arena to target
+                    enter_ids |= self.statechart.tree.state_list[state_id].additional_target_states(self)
+                else:
+                    # the actual target of the transition
+                    enter_ids |= self.statechart.tree.state_list[state_id].target_states(self)
+                state_id = next_state_id
+            enter_set = self._ids_to_states(enter_ids.items())
             timer.stop("enter states")
 
 
@@ -104,50 +105,36 @@ class StatechartExecution:
             timer.start("exit states")
             # exit states...
             for s in exit_set:
+                print_debug(termcolor.colored('  EXIT %s' % s.opt.full_name, 'green'))
                 # remember which state(s) we were in if a history state is present
-                for h in s.gen.history:
-                    if isinstance(h, DeepHistoryState):
-                        f = lambda s0: not s0.gen.descendants_bitmap and s0.gen.state_id_bitmap & s.gen.descendants_bitmap
-                    else:
-                        f = lambda s0: s0.gen.ancestors_bitmap and s0.parent == s
-                    self.history_values[h.gen.state_id] = list(filter(f, self.configuration))
-
-                print_debug(termcolor.colored('  EXIT %s' % s.gen.full_name, 'green'))
-                self.eventless_states -= s.gen.has_eventless_transitions
-                # execute exit action(s)
+                for h, mask in s.opt.history:
+                    self.history_values[h.opt.state_id] = exit_ids & mask
+                    # print(list(self._ids_to_states(self.history_values[h.opt.state_id].items())))
                 self._perform_actions(ctx, s.exit)
-                # self.rhs_memory.pop_local_scope(s.scope)
-                self.configuration_bitmap &= ~s.gen.state_id_bitmap
+                self.configuration_bitmap &= ~s.opt.state_id_bitmap
             timer.stop("exit states")
 
             # execute transition action(s)
-            timer.start("actions")
             self.rhs_memory.push_frame(t.scope) # make room for event parameters on stack
             if t.trigger:
                 t.trigger.copy_params_to_stack(ctx)
             self._perform_actions(ctx, t.actions)
             self.rhs_memory.pop_frame()
-            timer.stop("actions")
 
             timer.start("enter states")
             # enter states...
             for s in enter_set:
-                print_debug(termcolor.colored('  ENTER %s' % s.gen.full_name, 'green'))
-                self.eventless_states += s.gen.has_eventless_transitions
-                self.configuration_bitmap |= s.gen.state_id_bitmap
-                # execute enter action(s)
+                print_debug(termcolor.colored('  ENTER %s' % s.opt.full_name, 'green'))
+                self.configuration_bitmap |= s.opt.state_id_bitmap
                 self._perform_actions(ctx, s.enter)
-                self._start_timers(s.gen.after_triggers)
+                self._start_timers(s.opt.after_triggers)
             timer.stop("enter states")
-            
-            try:
-                self.configuration = self.config_mem[self.configuration_bitmap]
-            except KeyError:
-                self.configuration = self.config_mem[self.configuration_bitmap] = [s for s in self.statechart.tree.state_list if self.configuration_bitmap & s.gen.state_id_bitmap]
 
             self.rhs_memory.flush_transition()
 
             timer.stop("transition")
+
+            # input(">")
 
         except SCCDRuntimeException as e:
             e.args = ("During execution of transition %s:\n" % str(t) +str(e),)
@@ -177,12 +164,14 @@ class StatechartExecution:
             raise
 
     def check_source(self, t) -> bool:
-        return self.configuration_bitmap & t.source.gen.state_id_bitmap
+        return self.configuration_bitmap & t.source.opt.state_id_bitmap
 
     @staticmethod
     def _perform_actions(ctx: EvalContext, actions: List[Action]):
+        timer.start("actions")
         for a in actions:
             a.exec(ctx)
+        timer.stop("actions")
 
     def _start_timers(self, triggers: List[AfterTrigger]):
         for after in triggers:
@@ -197,7 +186,7 @@ class StatechartExecution:
 
     # Return whether the current configuration includes ALL the states given.
     def in_state(self, state_strings: List[str]) -> bool:
-        state_ids_bitmap = Bitmap.from_list((self.statechart.tree.state_dict[state_string].gen.state_id for state_string in state_strings))
+        state_ids_bitmap = states_to_bitmap((self.statechart.tree.state_dict[state_string] for state_string in state_strings))
         in_state = self.configuration_bitmap.has_all(state_ids_bitmap)
         # if in_state:
         #     print_debug("in state"+str(state_strings))

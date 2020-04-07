@@ -19,6 +19,7 @@ def check_duration_type(type):
 
 
 def create_statechart_parser(globals, src_file, load_external = True, parse = parse_f) -> Rules:
+  import os
   def parse_statechart(el):
     ext_file = el.get("src")
     if ext_file is None:
@@ -33,7 +34,6 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
     else:
       if not load_external:
         raise SkipFile("Parser configured not to load statecharts from external files.")
-      import os
       ext_file_path = os.path.join(os.path.dirname(src_file), ext_file)
       statechart = parse(ext_file_path, create_statechart_parser(globals, ext_file_path))
 

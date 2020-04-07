@@ -1,0 +1,62 @@
+<test>
+  <!-- based on test originally written by Glenn De Jonghe -->
+  <statechart>
+    <inport name="in">
+      <event name="to_state_2"/>
+      <event name="to_state_3"/>
+    </inport>
+
+    <outport name="out">
+      <event name="in_state_1"/>
+      <event name="in_state_2"/>
+      <event name="in_state_3"/>
+    </outport>
+
+    <root initial="composite_1">
+      <state id="composite_1" initial="state_1">
+        <state id="state_1">
+          <onentry>
+            <raise event="in_state_1"/>
+          </onentry>
+          <transition event="to_state_2" target="../state_2"/>
+        </state>
+        <state id="state_2">
+          <onentry>
+            <raise event="in_state_2"/>
+          </onentry>
+        </state>
+        <history id="composite_history">
+          <!-- <transition target="../state_1"/> -->
+        </history>
+        <transition event="to_state_3" target="../state_3"/>
+      </state>
+      <state id="state_3">
+        <onentry>
+          <raise event="in_state_3"/>
+        </onentry>
+        <transition target="/composite_1/composite_history"/>
+      </state>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="to_state_2" time="0 d"/>
+    <event port="in" name="to_state_3" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <!-- initialization -->
+      <event port="out" name="in_state_1"/>
+    </big_step>
+    <big_step>
+      <!-- big step with input 'to_state_2' -->
+      <event port="out" name="in_state_2"/>
+    </big_step>
+    <big_step>
+      <!-- big step with input 'to_state_3' -->
+      <event port="out" name="in_state_3"/>
+      <event port="out" name="in_state_2"/>
+    </big_step>
+  </output>
+</test>

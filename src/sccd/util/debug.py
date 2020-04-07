@@ -5,10 +5,9 @@ try:
 except KeyError:
   DEBUG = False
   
-def print_debug(msg):
-    if DEBUG:
-        print(msg)
-
-
-def is_debug() -> bool:
-  return DEBUG
+if DEBUG:
+  def print_debug(msg):
+    print(msg)
+else:
+  def print_debug(msg):
+    pass

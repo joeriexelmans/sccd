@@ -21,7 +21,7 @@ class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
         except KeyError:
             candidates = self.cache[key] = [
                 t for s in state.configuration
-                    if (not forbidden_arenas & s.gen.state_id_bitmap)
+                    if (not forbidden_arenas & s.opt.state_id_bitmap)
                     for t in s.transitions
                 ]
             if self.reverse:
@@ -40,9 +40,9 @@ class CandidatesGeneratorEventBased(CandidatesGenerator):
             candidates = self.cache[key]
         except KeyError:
             candidates = self.cache[key] = [
-                t for t in state.model.tree.transition_list
+                t for t in state.statechart.tree.transition_list
                     if (not t.trigger or t.trigger.check(events_bitmap)) # todo: check port?
-                    and (not forbidden_arenas & t.source.gen.state_id_bitmap)
+                    and (not forbidden_arenas & t.source.opt.state_id_bitmap)
                 ]
             if self.reverse:
                 candidates.reverse()
@@ -195,7 +195,7 @@ class SmallStep(Round):
 
             candidates = self.generator.generate(self.state, enabled_events, forbidden_arenas |  extra_forbidden)
 
-            if is_debug():
+            if DEBUG:
                 candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
                 if candidates:
                     print_debug("")
@@ -214,7 +214,7 @@ class SmallStep(Round):
         t = next(candidates, None)
         timer.stop("get candidate")
         while t:
-            arena = t.gen.arena_bitmap
+            arena = t.opt.arena_bitmap
             if not (arenas & arena):
                 self.state.fire_transition(enabled_events, t)
                 arenas |= arena

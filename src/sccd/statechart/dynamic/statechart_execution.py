@@ -20,7 +20,7 @@ class StatechartExecution:
         self.raise_next_bs = None
 
         # set of current states
-        self.configuration_bitmap: Bitmap = Bitmap()
+        self.configuration: Bitmap = Bitmap()
 
         # mapping from history state id to states to enter if history is target of transition
         self.history_values: Dict[int, Bitmap] = {}
@@ -36,7 +36,7 @@ class StatechartExecution:
     # enter default states
     def initialize(self):
         states = self.statechart.tree.root.target_states(self)
-        self.configuration_bitmap = states
+        self.configuration = states
 
         ctx = EvalContext(current_state=self, events=[], memory=self.rhs_memory)
         if self.statechart.datamodel is not None:
@@ -62,14 +62,8 @@ class StatechartExecution:
 
             timer.start("exit states")
             # Sequence of exit states is the intersection between set of current states and the arena's descendants.
-            exit_ids = self.configuration_bitmap & t.opt.arena.opt.descendants_bitmap
+            exit_ids = self.configuration & t.opt.arena.opt.descendants
             exit_set = self._ids_to_states(exit_ids.reverse_items())
-
-            # Alternative implementation:
-            # if len(self.configuration) < len(t.opt.arena.opt.descendants):
-            #     exit_set = (s for s in self.configuration if s.opt.state_id_bitmap & t.opt.arena.opt.descendants_bitmap)
-            # else:
-            #     exit_set = (s for s in t.opt.arena.opt.descendants if s.opt.state_id_bitmap & self.configuration_bitmap)
             timer.stop("exit states")
 
 
@@ -78,7 +72,7 @@ class StatechartExecution:
             # Enter path is the intersection between:
             #   1) the transitions target and its ancestors, and
             #   2) the arena's descendants
-            enter_path = (t.targets[0].opt.state_id_bitmap | t.targets[0].opt.ancestors_bitmap) & t.opt.arena.opt.descendants_bitmap
+            enter_path = (t.targets[0].opt.state_id_bitmap | t.targets[0].opt.ancestors) & t.opt.arena.opt.descendants
             # Now, along the enter path, there may be AND-states whose children we don't explicitly enter, but should enter.
             # That's why we call 'additional_target_states' on every state on the path and join the results.
             # Finally, on the actual target itself, we call 'target_states' and add it to the results as well.
@@ -111,7 +105,7 @@ class StatechartExecution:
                     self.history_values[h.opt.state_id] = exit_ids & mask
                     # print(list(self._ids_to_states(self.history_values[h.opt.state_id].items())))
                 self._perform_actions(ctx, s.exit)
-                self.configuration_bitmap &= ~s.opt.state_id_bitmap
+                self.configuration &= ~s.opt.state_id_bitmap
             timer.stop("exit states")
 
             # execute transition action(s)
@@ -125,7 +119,7 @@ class StatechartExecution:
             # enter states...
             for s in enter_set:
                 print_debug(termcolor.colored('  ENTER %s' % s.opt.full_name, 'green'))
-                self.configuration_bitmap |= s.opt.state_id_bitmap
+                self.configuration |= s.opt.state_id_bitmap
                 self._perform_actions(ctx, s.enter)
                 self._start_timers(s.opt.after_triggers)
             timer.stop("enter states")
@@ -164,7 +158,7 @@ class StatechartExecution:
             raise
 
     def check_source(self, t) -> bool:
-        return self.configuration_bitmap & t.source.opt.state_id_bitmap
+        return self.configuration & t.source.opt.state_id_bitmap
 
     @staticmethod
     def _perform_actions(ctx: EvalContext, actions: List[Action]):
@@ -187,7 +181,7 @@ class StatechartExecution:
     # Return whether the current configuration includes ALL the states given.
     def in_state(self, state_strings: List[str]) -> bool:
         state_ids_bitmap = states_to_bitmap((self.statechart.tree.state_dict[state_string] for state_string in state_strings))
-        in_state = self.configuration_bitmap.has_all(state_ids_bitmap)
+        in_state = self.configuration.has_all(state_ids_bitmap)
         # if in_state:
         #     print_debug("in state"+str(state_strings))
         # else:

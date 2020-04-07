@@ -44,10 +44,8 @@ class StateOptimization:
     state_id: int = -1
     state_id_bitmap: Bitmap = Bitmap() # bitmap with only state_id-bit set
 
-    ancestors: List[State] = field(default_factory=list) # order: close to far away, i.e. first element is parent
-    ancestors_bitmap: Bitmap = Bitmap()
-    descendants: List[State] = field(default_factory=list)  # order: depth-first
-    descendants_bitmap: Bitmap = Bitmap()
+    ancestors: Bitmap = Bitmap()
+    descendants: Bitmap = Bitmap()
 
     history: List[Tuple[State, Bitmap]] = field(default_factory=list) # subset of children
     static_ts_bitmap: Bitmap = Bitmap() # Subset of descendants that are always entered when this state is the target of a transition
@@ -84,7 +82,7 @@ class DeepHistoryState(HistoryState):
 
     def history_mask(self) -> Bitmap:
         # All descendants of parent:
-        return self.parent.opt.descendants_bitmap
+        return self.parent.opt.descendants
 
     def __repr__(self):
         return "DeepHistoryState(\"%s\")" % (self.opt.full_name)
@@ -254,16 +252,13 @@ class StateTree:
                 self.stable_bitmap |= state.opt.state_id_bitmap
 
         def set_ancestors(state: State, ancestors=[]):
-            state.opt.ancestors = ancestors
-            state.opt.ancestors_bitmap = states_to_bitmap(ancestors)
+            state.opt.ancestors = states_to_bitmap(ancestors)
             return ancestors + [state]
 
         def set_descendants(state: State, children_descendants):
-            # flatten list of lists
-            descendants = list(itertools.chain.from_iterable(children_descendants))
+            descendants = reduce(lambda x,y: x|y, children_descendants, Bitmap())
             state.opt.descendants = descendants
-            state.opt.descendants_bitmap = states_to_bitmap(descendants)
-            return [state] + descendants
+            return state.opt.state_id_bitmap | descendants
 
         def set_static_target_states(state: State, _):
             if isinstance(state, ParallelState):
@@ -301,7 +296,7 @@ class StateTree:
 
         for t in self.transition_list:
             # intersection between source & target ancestors, last member in depth-first sorted state list.
-            lca_id = (t.source.opt.ancestors_bitmap & t.targets[0].opt.ancestors_bitmap).highest_bit()
+            lca_id = (t.source.opt.ancestors & t.targets[0].opt.ancestors).highest_bit()
             lca = self.state_list[lca_id]
             arena = lca
             while isinstance(arena, (ParallelState, HistoryState)):
@@ -309,6 +304,6 @@ class StateTree:
 
             t.opt = TransitionOptimization(
                 arena=arena,
-                arena_bitmap=arena.opt.descendants_bitmap | arena.opt.state_id_bitmap)
+                arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap)
 
         timer.stop("optimize tree")

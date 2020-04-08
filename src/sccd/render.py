@@ -3,7 +3,7 @@ import sys
 import subprocess
 import multiprocessing
 import os
-from lib.os_tools import *
+from sccd.util.os_tools import *
 from sccd.util.indenting_writer import *
 from sccd.statechart.parser.xml import *
 import lxml.etree as ET
@@ -115,9 +115,9 @@ if __name__ == '__main__':
           if s.enter or s.exit:
             w.extendWrite(' :')
             for a in s.enter:
-              w.write("onentry/ "+a.render())
+              w.write("entry "+a.render())
             for a in s.exit:
-              w.write("onexit/ "+a.render())
+              w.write("exit "+a.render())
             w.write()
           if s.children:
             if not hide:

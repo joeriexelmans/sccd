@@ -27,6 +27,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
         semantics=SemanticConfiguration(),
         scope=Scope("instance", parent=BuiltIn),
         datamodel=None,
+        events=Bitmap(),
         internal_events=Bitmap(),
         inport_events={},
         event_outport={},
@@ -186,7 +187,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
 
         def parse_transition(el):
           if parent is root:
-            raise XmlError("Root <state> cannot be source of a transition.")
+            raise XmlError("Root cannot be source of a transition.")
 
           scope = Scope("event_params", parent=statechart.scope)
           target_string = require_attribute(el, "target")
@@ -212,6 +213,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
 
             if not negative_events:
               transition.trigger = Trigger(positive_events)
+              statechart.events |= transition.trigger.enabling_bitmap
             else:
               transition.trigger = NegatedTrigger(positive_events, negative_events)
 
@@ -265,6 +267,8 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
                 continue
               elif item.type == "IDENTIFIER":
                 state = [x for x in state.children if x.short_name == item.value][0]
+            if state is root:
+              raise XmlError("Root cannot be target of a transition.")
             return state
 
           try:

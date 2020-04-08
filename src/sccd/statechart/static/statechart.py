@@ -89,6 +89,7 @@ class Statechart:
   scope: Scope
   datamodel: Optional[Block] # block of statements setting up the datamodel (variables in instance scope)
 
+  events: Bitmap # union of all transition trigger's enabling sets
   internal_events: Bitmap
   inport_events: Dict[str, Set[int]] # mapping from inport to set of event IDs
   event_outport: Dict[str, str] # mapping from event name to outport

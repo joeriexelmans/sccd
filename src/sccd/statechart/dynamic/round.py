@@ -60,7 +60,7 @@ class CandidatesGeneratorEventBased(CandidatesGenerator):
 
     def __post_init__(self):
         # Prepare cache with all single-item sets-of-events since these are the most common sets of events.
-        for event_id in self.statechart.internal_events.items():
+        for event_id in self.statechart.events.items():
             events_bitmap = bit(event_id)
             self.cache[(events_bitmap, 0)] = self._candidates(events_bitmap, 0)
 

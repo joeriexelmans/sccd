@@ -237,7 +237,7 @@ class SmallStep(Round):
                     print_debug("")
                     if enabled_events:
                         print_debug("events: " + str(enabled_events))
-                    print_debug("candidates: " + str(candidates))
+                    print_debug("candidates: " + ",  ".join(str(t) for t in candidates))
                 candidates = iter(candidates)
 
             return candidates

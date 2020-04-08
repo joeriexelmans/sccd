@@ -29,6 +29,13 @@ Assuming you followed the installation instructions above, run:
 python3 -m sccd.test.run test/test_files
 ```
 
+## Runtime environment variables
+
+The following environment variables can be set to change the behavior of the runtime. These options can be set while running the tests, or while running one of the examples.
+
+* `SCCDDEBUG`: When set, additional debug information is printed, such as the individual transitions taken.
+* `SCCDTIMINGS`: When set, at exit, the runtime will print information about how much time in total was spent during various parts of its execution, such as loading the model (if model was loaded from a file), generating transition candidates, executing transitions, executing actions, and more.
+
 ## Included tools
 
 The following Python modules are runnable from terminal:

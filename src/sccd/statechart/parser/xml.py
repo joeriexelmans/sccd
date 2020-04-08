@@ -17,8 +17,8 @@ def check_duration_type(type):
       msg += "\n Hint: Did you forget a duration unit sufix? ('s', 'ms', ...)"
     raise Exception(msg)
 
-
-def create_statechart_parser(globals, src_file, load_external = True, parse = parse_f) -> Rules:
+# path: path for finding external statecharts
+def statechart_parser_rules(globals, path, load_external = True, parse_f = parse_f) -> Rules:
   import os
   def parse_statechart(el):
     ext_file = el.get("src")
@@ -36,8 +36,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
     else:
       if not load_external:
         raise SkipFile("Parser configured not to load statecharts from external files.")
-      ext_file_path = os.path.join(os.path.dirname(src_file), ext_file)
-      statechart = parse(ext_file_path, create_statechart_parser(globals, ext_file_path))
+      statechart = parse_f(os.path.join(path, ext_file), statechart_parser_rules(globals, path, load_external=False, parse_f=parse_f))
 
     def parse_semantics(el):
       # Use reflection to find the possible XML attributes and their values
@@ -81,7 +80,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
       transitions = [] # All of the statechart's transitions accumulate here, cause we still need to find their targets, which we can't do before the entire state tree has been built. We find their targets when encoutering the </root> closing tag.
       after_id = 0 # After triggers need unique IDs within the scope of the statechart model
 
-      def create_actions_parser(scope):
+      def actions_rules(scope):
 
         def parse_raise(el):
           params = []
@@ -138,7 +137,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           elif len(state.children) > 1:
             raise XmlError("More than 1 child state: must set 'initial' attribute.")
 
-      def create_state_parser(parent, sibling_dict: Dict[str, State]={}):
+      def state_child_rules(parent, sibling_dict: Dict[str, State]={}):
 
         def common(el, constructor):
           short_name = require_attribute(el, "id")
@@ -160,11 +159,11 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
           children_dict = {}
           def finish_state():
             deal_with_initial(el, state, children_dict)
-          return (create_state_parser(parent=state, sibling_dict=children_dict), finish_state)
+          return (state_child_rules(parent=state, sibling_dict=children_dict), finish_state)
 
         def parse_parallel(el):
           state = common_nonpseudo(el, ParallelState)
-          return create_state_parser(parent=state)
+          return state_child_rules(parent=state)
 
         def parse_history(el):
           history_type = el.get("type", "shallow")
@@ -178,12 +177,12 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
         def parse_onentry(el):
           def finish_onentry(*actions):
             parent.enter = actions
-          return (create_actions_parser(statechart.scope), finish_onentry)
+          return (actions_rules(statechart.scope), finish_onentry)
 
         def parse_onexit(el):
           def finish_onexit(*actions):
             parent.exit = actions
-          return (create_actions_parser(statechart.scope), finish_onexit)
+          return (actions_rules(statechart.scope), finish_onexit)
 
         def parse_transition(el):
           if parent is root:
@@ -242,7 +241,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
             transitions.append((transition, el))
             parent.transitions.append(transition)
 
-          return (create_actions_parser(scope), finish_transition)
+          return (actions_rules(scope), finish_transition)
 
         return {"state": parse_state, "parallel": parse_parallel, "history": parse_history, "onentry": parse_onentry, "onexit": parse_onexit, "transition": parse_transition}
 
@@ -278,7 +277,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
 
         statechart.tree = StateTree(root)
 
-      return (create_state_parser(root, sibling_dict=children_dict), finish_root)
+      return (state_child_rules(root, sibling_dict=children_dict), finish_root)
 
     def finish_statechart():
       return statechart

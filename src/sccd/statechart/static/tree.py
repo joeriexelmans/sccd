@@ -34,7 +34,7 @@ class State:
         return self.opt.state_id_bitmap
 
     def __repr__(self):
-        return "State(\"%s\")" % (self.opt.full_name)
+        return "State(\"%s\")" % (self.short_name)
 
 # Generated fields (for optimization) of a state
 @dataclass
@@ -81,7 +81,7 @@ class ShallowHistoryState(HistoryState):
         return states_to_bitmap(self.parent.children)
 
     def __repr__(self):
-        return "ShallowHistoryState(\"%s\")" % (self.opt.full_name)
+        return "ShallowHistoryState(\"%s\")" % (self.short_name)
 
 class DeepHistoryState(HistoryState):
 
@@ -90,7 +90,7 @@ class DeepHistoryState(HistoryState):
         return self.parent.opt.descendants
 
     def __repr__(self):
-        return "DeepHistoryState(\"%s\")" % (self.opt.full_name)
+        return "DeepHistoryState(\"%s\")" % (self.short_name)
 
 class ParallelState(State):
 
@@ -98,7 +98,7 @@ class ParallelState(State):
         return self.target_states(instance)
 
     def __repr__(self):
-        return "ParallelState(\"%s\")" % (self.opt.full_name)
+        return "ParallelState(\"%s\")" % (self.short_name)
 
 @dataclass
 class EventDecl:
@@ -194,7 +194,7 @@ class Transition:
 
     opt: Optional['TransitionOptimization'] = None        
                     
-    def __repr__(self):
+    def __str__(self):
         return termcolor.colored("%s 🡪 %s" % (self.source.opt.full_name, self.targets[0].opt.full_name), 'green')
 
 # Generated fields (for optimization) of a transition
@@ -312,3 +312,6 @@ class StateTree:
                 arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap)
 
         timer.stop("optimize tree")
+
+    def __repr__(self):
+        return "StateTree(root=%s, state_list=%s, transition_list=%s)" % (self.root, self.state_list, self.transition_list)

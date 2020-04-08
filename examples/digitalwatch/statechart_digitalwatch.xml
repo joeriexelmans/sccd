@@ -15,6 +15,21 @@
     refresh_chrono_display = func {};
   </datamodel>
 
+  <outport name="out">
+    <event name="set_alarm"/>
+    <event name="set_indiglo"/>
+    <event name="unset_indiglo"/>
+    <event name="increase_time_by_one"/>
+    <event name="refresh_time_display"/>
+    <event name="check_time"/>
+    <event name="start_selection"/>
+    <event name="stop_selection"/>
+    <event name="increase_selection"/>
+    <event name="reset_chrono"/>
+    <event name="increase_chrono_by_one"/>
+    <event name="refresh_chrono_display"/>
+  </outport>
+
   <inport name="in">
     <event name="bottom_left_pressed"/>
     <event name="bottom_left_released"/>

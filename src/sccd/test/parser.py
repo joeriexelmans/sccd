@@ -11,9 +11,9 @@ class TestVariant:
   input: list
   output: list
 
-def create_test_parser(create_statechart_parser):
+def test_parser_rules(statechart_parser_rules):
   globals = Globals(fixed_delta=None)
-  statechart_parser = create_statechart_parser(globals)
+  sc_rules = statechart_parser_rules(globals)
   input = []
   output = []
 
@@ -84,6 +84,6 @@ def create_test_parser(create_statechart_parser):
         output=output)
       for i, variant in enumerate(variants)]
 
-    return (statechart_parser + [("input?", parse_input), ("output?", parse_output)], when_done)
+    return (sc_rules + [("input?", parse_input), ("output?", parse_output)], when_done)
 
   return [("test", parse_test)]

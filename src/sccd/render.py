@@ -40,20 +40,21 @@ if __name__ == '__main__':
 
     def process(src):
       try:
-        parse_statechart = create_statechart_parser(Globals(), src, load_external=False)[0][1]
+        path = os.path.dirname(src)
+        parse_sc = statechart_parser_rules(Globals(), path, load_external=False)[0][1]
 
         def parse_test(el):
           def when_done(*statecharts):
             return statecharts[0]
           # When parsing <test>, only look for <statechart> node in it.
           # All other nodes will be ignored.
-          return ([("statechart", parse_statechart)], when_done)
+          return ([("statechart", parse_sc)], when_done)
 
-        statechart = parse(src,
+        statechart = parse_f(src,
           # Match both <test> and <statechart> root nodes:
           [
             ("test?", parse_test),
-            ("statechart?", parse_statechart)
+            ("statechart?", parse_sc)
           ],
           ignore_unmatched=True)
 

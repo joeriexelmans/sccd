@@ -12,9 +12,10 @@ if __name__ == "__main__":
     src = args.path
 
     try:
-      sc_parser = create_statechart_parser(Globals(), src, load_external=True)
+      path = os.path.dirname(src)
+      rules = statechart_parser_rules(Globals(), path, load_external=True)
 
-      statechart = parse(src, sc_parser, decorate_exceptions=(ModelError,))
+      statechart = parse(src, rules, decorate_exceptions=(ModelError,))
 
       assert isinstance(statechart, Statechart)
     except Exception as e:

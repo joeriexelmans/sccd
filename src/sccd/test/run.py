@@ -20,11 +20,14 @@ class Test(unittest.TestCase):
     return self.src
 
   def runTest(self):
-    statechart_parser = functools.partial(create_statechart_parser, src_file=self.src)
-    test_parser = create_test_parser(statechart_parser)
+    # assume external statechart files in same directory as test
+    
+    path = os.path.dirname(self.src)
+    sc_rules = functools.partial(statechart_parser_rules, path=path)
+    test_rules = test_parser_rules(sc_rules)
     try:
       timer.start("parse test")
-      test_variants = parse_f(self.src, test_parser)
+      test_variants = parse_f(self.src, test_rules)
       timer.stop("parse test")
     except Exception as e:
       print_debug(e)

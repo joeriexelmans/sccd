@@ -13,7 +13,7 @@ if __name__ == '__main__':
         description="Render statecharts as SVG images.")
     parser.add_argument('path', metavar='PATH', type=str, nargs='*', help="Models to render. Can be a XML file or a directory. If a directory, it will be recursively scanned for XML files.")
     parser.add_argument('--build-dir', metavar='DIR', type=str, default='build', help="As a first step, input XML files first must be compiled to python files. Directory to store these files. Defaults to 'build'")
-    parser.add_argument('--output-dir', metavar='DIR', type=str, default='', help="Directory for SVG rendered output. Defaults to '.' (putting the SVG files with the XML source files)")
+    parser.add_argument('--output-dir', metavar='DIR', type=str, default='.', help="Directory for SVG rendered output. Defaults to '.' (putting the SVG files with the XML source files)")
     parser.add_argument('--keep-smcat', action='store_true', help="Whether to NOT delete intermediary SMCAT files after producing SVG output. Default = off (delete files)")
     parser.add_argument('--no-svg', action='store_true', help="Don't produce SVG output. This option only makes sense in combination with the --keep-smcat option. Default = off")
     parser.add_argument('--pool-size', metavar='INT', type=int, default=multiprocessing.cpu_count()+1, help="Number of worker processes. Default = CPU count + 1.")
@@ -81,11 +81,11 @@ if __name__ == '__main__':
         # Used for drawing initial state
         class PseudoState:
           @dataclass
-          class Gen:
+          class Opt:
             full_name: str
           def __init__(self, name):
             self.stable = False
-            self.gen = PseudoState.Gen(name)
+            self.opt = PseudoState.Opt(name)
         # Used for drawing initial state
         class PseudoTransition:
           def __init__(self, source, targets):

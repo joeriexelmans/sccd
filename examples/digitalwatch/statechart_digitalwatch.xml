@@ -1,0 +1,179 @@
+<statechart>
+  <datamodel>
+    # declare functions
+    set_alarm = func {};
+    set_indiglo = func {};
+    unset_indiglo = func {};
+    increase_time_by_one = func {};
+    refresh_time_display = func {};
+    check_time = func {};
+    start_selection = func {};
+    stop_selection = func {};
+    increase_selection = func {};
+    reset_chrono = func {};
+    increase_chrono_by_one = func {};
+    refresh_chrono_display = func {};
+  </datamodel>
+
+  <inport name="in">
+    <event name="bottom_left_pressed"/>
+    <event name="bottom_left_released"/>
+    <event name="bottom_right_pressed"/>
+    <event name="bottom_right_released"/>
+    <event name="top_left_pressed"/>
+    <event name="top_left_released"/>
+    <event name="top_right_pressed"/>
+    <event name="top_right_released"/>
+  </inport>
+
+  <outport name="out">
+  </outport>
+
+  <root>
+    <parallel id="P">
+      <state id="Indiglo" initial="Off">
+        <state id="Off">
+          <transition event="top_right_pressed" target="../Pushed">
+            <code> set_indiglo(); </code>
+          </transition>
+        </state>
+
+        <state id="Pushed">
+          <transition event="top_right_released" target="../Released"/>
+        </state>
+
+        <state id="Released">
+          <transition event="top_right_pressed" target="../Pushed"/>
+          <transition after="2 s" target="../Off">
+            <code> unset_indiglo(); </code>
+          </transition>
+        </state>
+      </state>
+
+      <state id="Chrono" initial="Stopped">
+        <state id="Stopped">
+          <transition event="bottom_left_pressed" cond='INSTATE(["/Display/ChronoUpdate"])' target=".">
+            <code> reset_chrono(); </code>
+          </transition>
+          <transition event="bottom_right_pressed" cond='INSTATE(["/Display/ChronoUpdate"])' target="../Running"/>
+        </state>
+
+        <state id="Running">
+          <transition after="10 ms" target=".">
+            <code> increase_chrono_by_one(); </code>
+          </transition>
+          <transition event="bottom_right_pressed" cond='INSTATE(["/Display/ChronoUpdate"])' target="../Stopped"/>
+        </state>
+      </state>
+
+      <state id="Display" initial="TimeUpdate">
+        <state id="TimeUpdate">
+          <onentry>
+            <code> refresh_time_display(); </code>
+          </onentry>
+          <transition event="top_left_pressed" target="../ChronoUpdate"/>
+          <transition event="bottom_right_pressed" target="../WaitingToEdit"/>
+          <transition event="bottom_left_pressed" target="../WaitingForAlarm"/>
+        </state>
+
+        <state id="WaitingToEdit">
+          <transition after="1500 ms" target="../EditingTime">
+            <raise event="time_edit"/>
+          </transition>
+        </state>
+
+        <state id="EditingTime" initial="Waiting">
+          <onentry>
+            <code> start_selection(); </code>
+          </onentry>
+          <onexit>
+            <code> stop_selection(); </code>
+          </onexit>
+
+          <state id="Waiting">
+            <transition event="bottom_left_pressed" target="../Increasing"/>
+            <transition event="bottom_right_pressed" target="../GoingToNext"/>
+            <transition after="5 s" target="../../TimeUpdate">
+              <raise event="edit_done"/>
+            </transition>
+          </state>
+
+          <state id="GoingToNext">
+            <transition event="bottom_right_released" target="../Waiting"/>
+            <transition after="2 s" target="../../TimeUpdate">
+              <raise event="edit_done"/>
+            </transition>
+          </state>
+
+          <state id="Increasing">
+            <onentry>
+              <code> increase_selection(); </code>
+            </onentry>
+            <transition after="300 ms" target="."/>
+            <transition event="bottom_left_released" target="../Waiting"/>
+          </state>
+        </state>
+
+        <state id="ChronoUpdate">
+          <transition event="top_left_pressed" target="../TimeUpdate"/>
+          <transition after="10 ms" target=".">
+            <code> refresh_chrono_display(); </code>
+          </transition>
+        </state>
+
+        <state id="WaitingForAlarm">
+          <transition after="1500 ms" target="../EditingTime">
+            <raise event="alarm_edit"/>
+          </transition>
+        </state>
+      </state>
+
+      <state id="Alarm" initial="Off">
+        <state id="Off">
+          <transition event="bottom_left_pressed" cond='INSTATE(["/Display/TimeUpdate"]) or INSTATE(["/Display/WaitingForAlarm"])' target="../On">
+            <code> set_alarm(); </code>
+          </transition>
+        </state>
+
+        <state id="On">
+          <transition cond="check_time()" target="../Blinking"/>
+        </state>
+
+        <state id="Blinking" initial="On">
+          <onexit>
+            <code> set_alarm(); unset_indiglo(); </code>
+          </onexit>
+          <state id="On">
+            <onentry>
+              <code> set_indiglo(); </code>
+            </onentry>
+            <transition after="500 ms" target="../Off"/>
+          </state>
+          <state id="Off">
+            <onentry>
+              <code> unset_indiglo(); </code>
+            </onentry>
+            <transition after="500 ms" target="../On"/>
+          </state>
+
+          <transition event="top_right_pressed" target="../Off"/>
+          <transition event="top_left_pressed" target="../Off"/>
+          <transition event="bottom_right_pressed" target="../Off"/>
+          <transition event="bottom_left_pressed" target="../Off"/>
+        </state>
+      </state>
+
+      <state id="Time" initial="Increasing">
+        <state id="Increasing">
+          <transition after="1 s" target=".">
+            <code> increase_time_by_one(); </code>
+          </transition>
+          <transition event="time_edit" target="../Editing"/>
+        </state>
+        <state id="Editing">
+          <transition event="edit_done" target="../Increasing"/>
+        </state>
+      </state>
+    </parallel>
+  </root>
+</statechart>

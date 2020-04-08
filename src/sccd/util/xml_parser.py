@@ -102,15 +102,14 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
 
   for event, el in etree.iterparse(src_file, events=("start", "end")):
     try:
+      when_done = None
+      pair = rules_stack[-1]
+      if isinstance(pair, tuple):
+        rules, when_done = pair
+      else:
+        rules = pair
       if event == "start":
         # print("start", el.tag)
-        allowed_tags = []
-        when_done = None
-        pair = rules_stack[-1]
-        if isinstance(pair, tuple):
-          rules, when_done = pair
-        else:
-          rules = pair
 
         parse_function = None
         if isinstance(rules, dict):
@@ -166,6 +165,11 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
         results_stack.append([])
 
       elif event == "end":
+        if isinstance(rules, list) and len(rules) > 1:
+          tag_w_suffix, func = rules[0]
+          tag, m = Multiplicity.parse_suffix(tag_w_suffix)
+          if m & Multiplicity.AT_LEAST_ONCE:
+            raise XmlError("Expected required element <%s> " % tag)
         children_results = results_stack.pop()
         pair = rules_stack.pop()
         if isinstance(pair, tuple):

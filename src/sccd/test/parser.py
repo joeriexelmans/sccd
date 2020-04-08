@@ -12,7 +12,7 @@ class TestVariant:
   output: list
 
 def test_parser_rules(statechart_parser_rules):
-  globals = Globals(fixed_delta=None)
+  globals = Globals()
   sc_rules = statechart_parser_rules(globals)
   input = []
   output = []
@@ -55,7 +55,7 @@ def test_parser_rules(statechart_parser_rules):
       return [("big_step+", parse_big_step)]
 
     def when_done(statechart):
-      globals.process_durations()
+      globals.set_delta(None)
       variants = statechart.semantics.generate_variants()
 
       def variant_description(i, variant) -> str:

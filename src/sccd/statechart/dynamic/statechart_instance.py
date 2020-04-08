@@ -93,7 +93,7 @@ class StatechartInstance(Instance):
         raise_nextbs = lambda e, time_offset: self.execution.output.append(OutputEvent(e, InstancesTarget([self]), time_offset))
 
         raise_internal = {
-            InternalEventLifeline.QUEUE: lambda e: raise_nextbs(e, 0),
+            InternalEventLifeline.QUEUE: lambda e: raise_nextbs(e, duration(0)),
             InternalEventLifeline.NEXT_COMBO_STEP: combo_step.add_next_event,
             InternalEventLifeline.NEXT_SMALL_STEP: small_step.add_next_event,
 

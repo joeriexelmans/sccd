@@ -1,45 +1,36 @@
 <statechart>
+  <semantics big_step_maximality="take_many"/>
+  
   <datamodel>
-    # declare functions
-    set_alarm = func {};
-    set_indiglo = func {};
-    unset_indiglo = func {};
-    increase_time_by_one = func {};
-    refresh_time_display = func {};
-    check_time = func {};
-    start_selection = func {};
-    stop_selection = func {};
-    increase_selection = func {};
-    reset_chrono = func {};
-    increase_chrono_by_one = func {};
-    refresh_chrono_display = func {};
+    checkTime = func {
+      log("checkTime");
+    };
   </datamodel>
 
-  <outport name="out">
-    <event name="set_alarm"/>
-    <event name="set_indiglo"/>
-    <event name="unset_indiglo"/>
-    <event name="increase_time_by_one"/>
-    <event name="refresh_time_display"/>
-    <event name="check_time"/>
-    <event name="start_selection"/>
-    <event name="stop_selection"/>
-    <event name="increase_selection"/>
-    <event name="reset_chrono"/>
-    <event name="increase_chrono_by_one"/>
-    <event name="refresh_chrono_display"/>
-  </outport>
-
   <inport name="in">
-    <event name="bottom_left_pressed"/>
-    <event name="bottom_left_released"/>
-    <event name="bottom_right_pressed"/>
-    <event name="bottom_right_released"/>
-    <event name="top_left_pressed"/>
-    <event name="top_left_released"/>
-    <event name="top_right_pressed"/>
-    <event name="top_right_released"/>
+    <event name="bottomLeftPressed"/>
+    <event name="bottomLeftReleased"/>
+    <event name="bottomRightPressed"/>
+    <event name="bottomRightReleased"/>
+    <event name="topLeftPressed"/>
+    <event name="topLeftReleased"/>
+    <event name="topRightPressed"/>
+    <event name="topRightReleased"/>
   </inport>
+
+  <outport name="out">
+    <event name="setAlarm"/>
+    <event name="setIndiglo"/>
+    <event name="unsetIndiglo"/>
+    <event name="increaseTimeByOne"/>
+    <event name="refreshTimeDisplay"/>
+    <event name="startSelection"/>
+    <event name="stopSelection"/>
+    <event name="increaseSelection"/>
+    <event name="resetChrono"/>
+    <event name="increaseChronoByOne"/>
+    <event name="refreshChronoDisplay"/>
+  </outport>
 
   <outport name="out">
   </outport>
@@ -48,47 +39,48 @@
     <parallel id="P">
       <state id="Indiglo" initial="Off">
         <state id="Off">
-          <transition event="top_right_pressed" target="../Pushed">
-            <code> set_indiglo(); </code>
+          <transition event="topRightPressed" target="../Pushed">
+            <raise event="setIndiglo"/>
           </transition>
         </state>
 
         <state id="Pushed">
-          <transition event="top_right_released" target="../Released"/>
+          <transition event="topRightReleased" target="../Released"/>
         </state>
 
         <state id="Released">
-          <transition event="top_right_pressed" target="../Pushed"/>
+          <transition event="topRightPressed" target="../Pushed"/>
           <transition after="2 s" target="../Off">
-            <code> unset_indiglo(); </code>
+            <raise event="unsetIndiglo"/>
           </transition>
         </state>
       </state>
 
       <state id="Chrono" initial="Stopped">
         <state id="Stopped">
-          <transition event="bottom_left_pressed" cond='INSTATE(["/Display/ChronoUpdate"])' target=".">
-            <code> reset_chrono(); </code>
+          <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target=".">
+            <raise event="resetChrono"/>
           </transition>
-          <transition event="bottom_right_pressed" cond='INSTATE(["/Display/ChronoUpdate"])' target="../Running"/>
+          <transition event="bottomRightPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target="../Running"/>
         </state>
 
         <state id="Running">
           <transition after="10 ms" target=".">
-            <code> increase_chrono_by_one(); </code>
+            <raise event="increaseChronoByOne"/>
           </transition>
-          <transition event="bottom_right_pressed" cond='INSTATE(["/Display/ChronoUpdate"])' target="../Stopped"/>
+          <transition event="bottomRightPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target="../Stopped"/>
         </state>
       </state>
 
       <state id="Display" initial="TimeUpdate">
         <state id="TimeUpdate">
           <onentry>
-            <code> refresh_time_display(); </code>
+            <raise event="refreshTimeDisplay"/>
           </onentry>
-          <transition event="top_left_pressed" target="../ChronoUpdate"/>
-          <transition event="bottom_right_pressed" target="../WaitingToEdit"/>
-          <transition event="bottom_left_pressed" target="../WaitingForAlarm"/>
+          <transition after="1 s" target="."/>
+          <transition event="topLeftPressed" target="../ChronoUpdate"/>
+          <transition event="bottomRightPressed" target="../WaitingToEdit"/>
+          <transition event="bottomLeftPressed" target="../WaitingForAlarm"/>
         </state>
 
         <state id="WaitingToEdit">
@@ -99,22 +91,22 @@
 
         <state id="EditingTime" initial="Waiting">
           <onentry>
-            <code> start_selection(); </code>
+            <raise event="startSelection"/>
           </onentry>
           <onexit>
-            <code> stop_selection(); </code>
+            <raise event="stopSelection"/>
           </onexit>
 
           <state id="Waiting">
-            <transition event="bottom_left_pressed" target="../Increasing"/>
-            <transition event="bottom_right_pressed" target="../GoingToNext"/>
+            <transition event="bottomLeftPressed" target="../Increasing"/>
+            <transition event="bottomRightPressed" target="../GoingToNext"/>
             <transition after="5 s" target="../../TimeUpdate">
               <raise event="edit_done"/>
             </transition>
           </state>
 
           <state id="GoingToNext">
-            <transition event="bottom_right_released" target="../Waiting"/>
+            <transition event="bottomRightReleased" target="../Waiting"/>
             <transition after="2 s" target="../../TimeUpdate">
               <raise event="edit_done"/>
             </transition>
@@ -122,17 +114,17 @@
 
           <state id="Increasing">
             <onentry>
-              <code> increase_selection(); </code>
+              <raise event="increaseSelection"/>
             </onentry>
             <transition after="300 ms" target="."/>
-            <transition event="bottom_left_released" target="../Waiting"/>
+            <transition event="bottomLeftReleased" target="../Waiting"/>
           </state>
         </state>
 
         <state id="ChronoUpdate">
-          <transition event="top_left_pressed" target="../TimeUpdate"/>
+          <transition event="topLeftPressed" target="../TimeUpdate"/>
           <transition after="10 ms" target=".">
-            <code> refresh_chrono_display(); </code>
+            <raise event="refreshChronoDisplay"/>
           </transition>
         </state>
 
@@ -145,43 +137,44 @@
 
       <state id="Alarm" initial="Off">
         <state id="Off">
-          <transition event="bottom_left_pressed" cond='INSTATE(["/Display/TimeUpdate"]) or INSTATE(["/Display/WaitingForAlarm"])' target="../On">
-            <code> set_alarm(); </code>
+          <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/TimeUpdate"]) or INSTATE(["/P/Display/WaitingForAlarm"])' target="../On">
+            <raise event="setAlarm"/>
           </transition>
         </state>
 
         <state id="On">
-          <transition cond="check_time()" target="../Blinking"/>
+          <transition cond="checkTime()" target="../Blinking"/>
         </state>
 
         <state id="Blinking" initial="On">
           <onexit>
-            <code> set_alarm(); unset_indiglo(); </code>
+            <raise event="setAlarm"/>
+            <raise event="unsetIndiglo"/>
           </onexit>
           <state id="On">
             <onentry>
-              <code> set_indiglo(); </code>
+              <raise event="setIndiglo"/>
             </onentry>
             <transition after="500 ms" target="../Off"/>
           </state>
           <state id="Off">
             <onentry>
-              <code> unset_indiglo(); </code>
+              <raise event="unsetIndiglo"/>
             </onentry>
             <transition after="500 ms" target="../On"/>
           </state>
 
-          <transition event="top_right_pressed" target="../Off"/>
-          <transition event="top_left_pressed" target="../Off"/>
-          <transition event="bottom_right_pressed" target="../Off"/>
-          <transition event="bottom_left_pressed" target="../Off"/>
+          <transition event="topRightPressed" target="../Off"/>
+          <transition event="topLeftPressed" target="../Off"/>
+          <transition event="bottomRightPressed" target="../Off"/>
+          <transition event="bottomLeftPressed" target="../Off"/>
         </state>
       </state>
 
       <state id="Time" initial="Increasing">
         <state id="Increasing">
           <transition after="1 s" target=".">
-            <code> increase_time_by_one(); </code>
+            <raise event="increaseTimeByOne"/>
           </transition>
           <transition event="time_edit" target="../Editing"/>
         </state>

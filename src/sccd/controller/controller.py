@@ -37,6 +37,9 @@ class Controller:
         self.model.globals.assert_ready()
         # print_debug("model delta is %s" % str(self.model.globals.delta))
 
+        # First call to 'run_until' method initializes
+        self.run_until = self._initialize
+
     def _duration_to_time_offset(self, d: Duration) -> int:
         if self.model.globals.delta == duration(0):
             return 0
@@ -78,36 +81,40 @@ class Controller:
     def get_simulated_duration(self) -> Duration:
         return (self.model.globals.delta * self.simulated_time)
 
+    # Helper. Put big step output events in the event queue or add them to the right output listeners.
+    def _process_big_step_output(self, events: List[OutputEvent], pipe: queue.Queue):
+        pipe_events = []
+        for e in events:
+            if isinstance(e.target, InstancesTarget):
+                offset = self._duration_to_time_offset(e.time_offset)
+                self.queue.add(self.simulated_time + offset, Controller.EventQueueEntry(e.event, e.target.instances))
+            elif isinstance(e.target, OutputPortTarget):
+                assert (e.time_offset == duration(0)) # cannot combine 'after' with 'output port'
+                pipe_events.append(e.event)
+            else:
+                raise Exception("Unexpected type:", e.target)
+        if pipe_events:
+            pipe.put(pipe_events, block=True, timeout=None)
+
+
+    def _initialize(self, now: Optional[Timestamp], pipe: queue.Queue):
+        # first run...
+        # initialize the object manager, in turn initializing our default class
+        # and adding the generated events to the queue
+        for i in self.object_manager.instances:
+            events = i.initialize()
+            self._process_big_step_output(events, pipe)
+        print_debug("initialized. time is now %s" % str(self.get_simulated_duration()))
+
+        # Next call to 'run_until' will call '_run_until'
+        self.run_until = self._run_until
+
+        # Let's try it out :)
+        self.run_until(now, pipe)
+
     # Run until the event queue has no more due events wrt given timestamp and until all instances are stable.
     # If no timestamp is given (now = None), run until event queue is empty.
-    def run_until(self, now: Optional[Timestamp], pipe: queue.Queue):
-
-        # Helper. Put big step output events in the event queue or add them to the right output listeners.
-        def process_big_step_output(events: List[OutputEvent]):
-            pipe_events = []
-            for e in events:
-                if isinstance(e.target, InstancesTarget):
-                    offset = self._duration_to_time_offset(e.time_offset)
-                    self.queue.add(self.simulated_time + offset, Controller.EventQueueEntry(e.event, e.target.instances))
-                elif isinstance(e.target, OutputPortTarget):
-                    assert (e.time_offset == 0) # cannot combine 'after' with 'output port'
-                    pipe_events.append(e.event)
-                else:
-                    raise Exception("Unexpected type:", e.target)
-            if pipe_events:
-                pipe.put(pipe_events, block=True, timeout=None)
-
-        if not self.initialized:
-            self.initialized = True
-
-            # first run...
-            # initialize the object manager, in turn initializing our default class
-            # and adding the generated events to the queue
-            for i in self.object_manager.instances:
-                events = i.initialize()
-                process_big_step_output(events)
-            print_debug("initialized. time is now %s" % str(self.get_simulated_duration()))
-
+    def _run_until(self, now: Optional[Timestamp], pipe: queue.Queue):
         # Actual "event loop"
         for timestamp, entry in self.queue.due(now):
             if timestamp != self.simulated_time:
@@ -118,6 +125,6 @@ class Controller:
             for instance in entry.targets:
                 output = instance.big_step([entry.event])
                 # print_debug("completed big step (time = %s)" % str(self.model.globals.delta * self.simulated_time))
-                process_big_step_output(output)
+                self._process_big_step_output(output, pipe)
 
         self.simulated_time = now

@@ -34,54 +34,50 @@ class DigitalWatchGUI:
     def __init__(self, parent):
         self.controller = DigitalWatchGUI_Controller()
         self.staticGUI = DigitalWatchGUI_Static(parent, self.controller)
-        self.dynamicGUI = DigitalWatchGUI_Dynamic(self.controller)
 
-                     
+
 class DigitalWatchGUI_Controller:
 
     def __init__(self):
-        self.statechart = None
+        self.send_event = None
         self.GUI = None
         self.battery = True
-                
-    def bindDynamic(self, statechart):
-        self.statechart = statechart
-    
+                    
     def bindStatic(self, GUI):
         self.GUI = GUI
-                            
-    # Interface for the GUI                                                                 
+
+    # Interface for the GUI
     def window_close(self):
         import sys
         sys.exit(0)
-        self.statechart.event('GUIQuit')
+        self.send_event('GUIQuit')
 
     def topRightPressed(self):
-        self.statechart.event('topRightPressed')
+        self.send_event('topRightPressed')
 
     def topRightReleased(self):
-        self.statechart.event('topRightReleased')
+        self.send_event('topRightReleased')
     
     def topLeftPressed(self):
-        self.statechart.event('topLeftPressed')
+        self.send_event('topLeftPressed')
     
     def topLeftReleased(self):
-        self.statechart.event('topLeftReleased')
+        self.send_event('topLeftReleased')
         
     def bottomRightPressed(self):
-        self.statechart.event('bottomRightPressed')
+        self.send_event('bottomRightPressed')
 
     def bottomRightReleased(self):
-        self.statechart.event('bottomRightReleased')
+        self.send_event('bottomRightReleased')
     
     def bottomLeftPressed(self):
-        self.statechart.event('bottomLeftPressed')
+        self.send_event('bottomLeftPressed')
     
     def bottomLeftReleased(self):
-        self.statechart.event('bottomLeftReleased')
+        self.send_event('bottomLeftReleased')
 
     def alarm(self):
-        self.statechart.event('alarmStart')
+        self.send_event('alarmStart')
         
     # Interface for the statechart
      
@@ -99,7 +95,7 @@ class DigitalWatchGUI_Controller:
  
     def refreshTimeDisplay(self):
         self.GUI.drawTime()
-                        
+
     def refreshChronoDisplay(self):
         self.GUI.drawChrono()
     
@@ -160,19 +156,6 @@ class DigitalWatchGUI_Controller:
         else:
             return False
 
-        
-class DigitalWatchGUI_Dynamic:
-    
-    def __init__(self, controller):
-        self.controller = controller
-        self.controller.bindDynamic(self)
-
-    def setStatechart(self, controller):
-        print("STATECHART set")
-        self.controller_Yakindu = controller
-        
-    def event(self, evt):
-        self.controller_Yakindu.add_input(evt)
 
 #======================================================================#
 # GUI Static class
@@ -208,7 +191,7 @@ class DigitalWatchGUI_Static(Frame):
         
         self.curSelectionInfo = None
         self.curSelection = ["hours", "minutes", "seconds",
-                                                         "months", "days", "years"]
+                             "months", "days", "years"]
         self.curSelectionIndex = 0 
         
         self.lastPressed = ""
@@ -220,7 +203,7 @@ class DigitalWatchGUI_Static(Frame):
         
         self.drawTime()
         self.drawDate()
-                    
+
     def getTime(self):
         return self.curTime
 
@@ -241,38 +224,37 @@ class DigitalWatchGUI_Static(Frame):
         self.watch = self.displayCanvas.create_image(0, 0, image=self.watchImage, anchor="nw")
                 
         self.display = self.displayCanvas.create_rectangle(RECT_X0,
-                                                                                                             RECT_Y0,
-                                                                                                             RECT_X1,
-                                                                                                             RECT_Y1,
-                                                                                                             fill="#DCDCDC")
-                                                                                                             
+                                                         RECT_Y0,
+                                                         RECT_X1,
+                                                         RECT_Y1,
+                                                         fill="#DCDCDC")
         self.topRightButton = self.displayCanvas.create_rectangle(CANVAS_W - 13,
-                                                                                                                            60,
-                                                                                                                            CANVAS_W - 3,
-                                                                                                                            70,
-                                                                                                                            fill='')
+                                                                    60,
+                                                                    CANVAS_W - 3,
+                                                                    70,
+                                                                    fill='')
 
         self.topLeftButton = self.displayCanvas.create_rectangle(3,
-                                                                                                                         62,
-                                                                                                                         13,
-                                                                                                                         72,
-                                                                                                                         fill='')
-                                                                                                                            
+                                                                 62,
+                                                                 13,
+                                                                 72,
+                                                                 fill='')
+
         self.bottomRightButton = self.displayCanvas.create_rectangle(CANVAS_W - 10,
-                                                                                                                     162,
-                                                                                                                     CANVAS_W,
-                                                                                                                     172,
-                                                                                                                     fill='')
-                                                                                                                     
+                                                                     162,
+                                                                     CANVAS_W,
+                                                                     172,
+                                                                     fill='')
+
         self.bottomLeftButton = self.displayCanvas.create_rectangle(3,
-                                                                                                                                161,
-                                                                                                                                13,
-                                                                                                                                171,
-                                                                                                                                fill='')
-                                                                                                                                                                                                                                                                    
+                                                                    161,
+                                                                    13,
+                                                                    171,
+                                                                    fill='')
+
         self.displayCanvas.bind("<ButtonPress-1>", self.mouse1Click)
-        self.displayCanvas.bind("<ButtonRelease-1>", self.mouse1Release)                                                                                                                            
-                                                                                                                                                                                             
+        self.displayCanvas.bind("<ButtonRelease-1>", self.mouse1Release)
+
     def mouse1Click(self, event):
         X = self.displayCanvas.canvasx(event.x)
         Y = self.displayCanvas.canvasy(event.y)
@@ -315,14 +297,14 @@ class DigitalWatchGUI_Static(Frame):
         hours = self.__intToString(self.curTime[0])
         minutes = self.__intToString(self.curTime[1])
         seconds = self.__intToString(self.curTime[2])                
-                                    
+
         return hours + ":" + minutes + ":" + seconds
         
     def __getAlarmAsString(self):    
         hours = self.__intToString(self.curAlarm[0])
         minutes = self.__intToString(self.curAlarm[1])
         seconds = self.__intToString(self.curAlarm[2])                
-                                    
+
         return hours + ":" + minutes + ":" + seconds    
         
     def __getChronoAsString(self):
@@ -443,7 +425,7 @@ class DigitalWatchGUI_Static(Frame):
     def startSelection(self):
         self.curSelectionIndex = 0
         self.animateSelection()
-                    
+
     def animateSelection(self):
  
         timeFunc = None
@@ -470,9 +452,9 @@ class DigitalWatchGUI_Static(Frame):
         animationEvent = self.parent.after(1000, self.animateSelection)
 
         self.curSelectionInfo = [deleteEvent,
-                                                         creationEvent,
-                                                         animationEvent]        
-                
+                                 creationEvent,
+                                 animationEvent]
+
     def increaseTimeByOne(self):
         self.curTime[2] = self.curTime[2] + 1
         self.curTime[1] = (self.curTime[1] + self.curTime[2] // 60)
@@ -486,7 +468,7 @@ class DigitalWatchGUI_Static(Frame):
              self.curTime[1] == 0 and\
              self.curTime[2] == 0:
             self.increaseDateByOne()
-                                                        
+
     def increaseDateByOne(self):    
         month = self.curDate[0]
         day = self.curDate[1]
@@ -494,7 +476,7 @@ class DigitalWatchGUI_Static(Frame):
         
         numMonths = 12
         numDays = self.getNumDays()
-                                     
+
         self.curDate[1] = self.curDate[1] + 1
         self.curDate[0] = (self.curDate[0] + self.curDate[1] // (numDays + 1))
         self.curDate[2] = (self.curDate[2] + self.curDate[0] // (numMonths + 1))
@@ -543,16 +525,16 @@ class DigitalWatchGUI_Static(Frame):
         self.clearDisplay()         
             
         self.timeTag = self.displayCanvas.create_text((RECT_X0 + RECT_X1) / 2,
-                                                                                                 (RECT_Y0 + RECT_Y1) / 2 + 5,
-                                                                                                    font=FONT_TIME,
-                                                                                                    justify="center",
-                                                                                                    text=timeToDraw)
-                                                                                                    
+                                                     (RECT_Y0 + RECT_Y1) / 2 + 5,
+                                                        font=FONT_TIME,
+                                                        justify="center",
+                                                        text=timeToDraw)
+
     def hideTime(self):
         if self.timeTag != None:
             self.displayCanvas.delete(self.timeTag)
             self.timeTag = None
-                                                                                                                                 
+
     def drawChrono(self):
         chronoToDraw = self.__getChronoAsString()
 
@@ -562,11 +544,10 @@ class DigitalWatchGUI_Static(Frame):
             chronoToDraw = "88:88:88"
             
         self.chronoTag = self.displayCanvas.create_text((RECT_X0 + RECT_X1) / 2,
-                                                                                                     (RECT_Y0 + RECT_Y1) / 2 + 5,
-                                                                                                    font=FONT_TIME,
-                                                                                                    justify="center",
-                                                                                                    text=chronoToDraw)                                                                                                    
-                                                                                                                                                                                                                                    
+                                                         (RECT_Y0 + RECT_Y1) / 2 + 5,
+                                                        font=FONT_TIME,
+                                                        justify="center",
+                                                        text=chronoToDraw)
     def hideChrono(self):
         if self.chronoTag != None:
             self.displayCanvas.delete(self.chronoTag)
@@ -574,14 +555,14 @@ class DigitalWatchGUI_Static(Frame):
             
     def resetChrono(self):
         self.curChrono = [0, 0, 0]
-                                                                                     
+
     def drawDate(self, toDraw=["years", "months", "days"]):
         dateToDraw = self.__getDateAsString()
         
         if "months" not in toDraw:
             dateToDraw = "    " + dateToDraw[2:]            
         if "days" not in toDraw:
-            dateToDraw = dateToDraw[0:3] + "    " + dateToDraw[5:]                     
+            dateToDraw = dateToDraw[0:3] + "    " + dateToDraw[5:]
         if "years" not in toDraw:
             dateToDraw = dateToDraw[0:6] + "    "
 
@@ -591,11 +572,11 @@ class DigitalWatchGUI_Static(Frame):
         self.clearDate()
  
         self.dateTag = self.displayCanvas.create_text(RECT_X1 - 33,
-                                                                                                RECT_Y0 + 7,
-                                                                                                font=FONT_DATE,
-                                                                                                justify="center",
-                                                                                                text=dateToDraw)
-                                                                     
+                                                    RECT_Y0 + 7,
+                                                    font=FONT_DATE,
+                                                    justify="center",
+                                                    text=dateToDraw)
+
     def drawAlarm(self, toDraw=["hours", "minutes", "seconds"]):        
         alarmToDraw = self.__getAlarmAsString()
                 
@@ -612,15 +593,15 @@ class DigitalWatchGUI_Static(Frame):
         self.clearDisplay()
         
         self.alarmTag = self.displayCanvas.create_text((RECT_X0 + RECT_X1) / 2,
-                                                                                                    (RECT_Y0 + RECT_Y1) / 2 + 5,
-                                                                                                     font=FONT_TIME,
-                                                                                                     justify="center",
-                                                                                                     text=alarmToDraw)
-                                                                                                    
+                                                    (RECT_Y0 + RECT_Y1) / 2 + 5,
+                                                     font=FONT_TIME,
+                                                     justify="center",
+                                                     text=alarmToDraw)
+
     def hideAlarm(self):
         if self.alarmTag != None:
             self.displayCanvas.delete(self.alarmTag)
-            self.alarmTag = None                                                                     
+            self.alarmTag = None
 
     def setAlarm(self):
         if self.alarmNoteTag != None:
@@ -628,7 +609,7 @@ class DigitalWatchGUI_Static(Frame):
             self.alarmNoteTag = None
         else:
             self.alarmNoteTag = self.displayCanvas.create_image(RECT_X0 + 5, RECT_Y0 + 3, image=self.noteImage, anchor="nw")         
-                                                                                     
+
     def setIndiglo(self):
         self.displayCanvas.itemconfigure(self.display, fill='#96DCFA')
 

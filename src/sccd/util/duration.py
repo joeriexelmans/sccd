@@ -62,27 +62,27 @@ class Duration(ABC):
   def __floordiv__(self, other: 'Duration') -> int:
     if other is _zero:
       raise ZeroDivisionError("duration floordiv by zero duration")
-    self_conv, other_conv, _ = _same_unit(self, other)
-    return self_conv // other_conv
+    self_val, other_val, _ = _same_unit(self, other)
+    return self_val // other_val
 
   def __mod__(self, other):
-      self_conv, other_conv, unit = _same_unit(self, other)
-      new_val = self_conv % other_conv
+      self_val, other_val, unit = _same_unit(self, other)
+      new_val = self_val % other_val
       if new_val == 0:
         return _zero
       else:
         return _NonZeroDuration(new_val, unit)
 
   def __lt__(self, other):
-    self_conv, other_conv = _same_unit(self, other)
-    return self_conv.val < other_conv.val
+    self_val, other_val, unit = _same_unit(self, other)
+    return self_val < other_val
 
 class _ZeroDuration(Duration):
   def _convert(self, unit: _Unit) -> int:
     return 0
 
   def __str__(self):
-    return '0'
+    return '0 d'
 
   def __eq__(self, other):
     return self is other
@@ -155,13 +155,9 @@ def _same_unit(x: Duration, y: Duration) -> Tuple[int, int, _Unit]:
     return (x.val, 0, x.unit)
 
   if x.unit.relative_size >= y.unit.relative_size:
-    x_conv = x._convert(y.unit)
-    y_conv = y.val
-    unit = y.unit
+    return (x._convert(y.unit), y.val, y.unit)
   else:
-    x_conv = x.val
-    y_conv = y._convert(x.unit)
-    unit = x.unit
+    return (x.val, y._convert(x.unit), x.unit)
   return (x_conv, y_conv, unit)
 
 def gcd_pair(x: Duration, y: Duration) -> Duration:

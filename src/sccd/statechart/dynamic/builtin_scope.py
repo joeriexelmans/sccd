@@ -25,7 +25,7 @@ def load_builtins(memory: MemoryInterface, state):
     return int(x)
 
   def log(memory: MemoryInterface, s: str) -> None:
-    print_debug(termcolor.colored("log: ",'blue')+s)
+    print(termcolor.colored("log: ",'blue')+s)
 
   def int_to_str(memory: MemoryInterface, i: int) -> str:
     return str(i)

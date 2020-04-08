@@ -16,7 +16,7 @@ class StatechartTransformer(action_lang.ExpressionTransformer):
     super().__init__()
     self.globals: Globals = None
 
-  # override: add all durations to 'globals'
+  # override
   def duration(self, node):
     d = action_lang.ExpressionTransformer.duration(self, node)
     self.globals.durations.append(d)

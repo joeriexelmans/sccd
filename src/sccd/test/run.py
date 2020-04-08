@@ -10,6 +10,12 @@ from sccd.controller.controller import *
 from sccd.test.parser import *
 from sccd.util import timer
 
+import sys
+if sys.version_info.minor >= 7:
+  QueueImplementation = queue.SimpleQueue
+else:
+  QueueImplementation = queue.Queue
+
 # A TestCase loading and executing a statechart test file.
 class Test(unittest.TestCase):
   def __init__(self, src: str):
@@ -35,7 +41,7 @@ class Test(unittest.TestCase):
 
     for test in test_variants:
       print_debug('\n'+test.name)
-      pipe = queue.Queue()
+      pipe = QueueImplementation()
       # interrupt = queue.Queue()
 
       controller = Controller(test.model)
@@ -65,9 +71,9 @@ class Test(unittest.TestCase):
 
       def fail(msg):
         thread.join()
-        def repr(output):
+        def pretty(output):
           return '\n'.join("%d: %s" % (i, str(big_step)) for i, big_step in enumerate(output))
-        self.fail('\n'+test.name + '\n'+msg + "\n\nActual:\n" + repr(actual) + "\n\nExpected:\n" + repr(expected))
+        self.fail('\n'+test.name + '\n'+msg + "\n\nActual:\n" + pretty(actual) + "\n\nExpected:\n" + pretty(expected))
 
       while True:
         data = pipe.get(block=True, timeout=None)
@@ -83,28 +89,17 @@ class Test(unittest.TestCase):
             break
 
         else:
-          big_step = data
           big_step_index = len(actual)
-          actual.append(big_step)
+          actual.append(data)
 
           if len(actual) > len(expected):
             fail("More output than expected.")
 
-          actual_bag = actual[big_step_index]
-          expected_bag = expected[big_step_index]
+          actual_big_step = actual[big_step_index]
+          expected_big_step = expected[big_step_index]
 
-          if len(actual_bag) != len(expected_bag):
+          if actual_big_step != expected_big_step:
             fail("Big step %d: output differs." % big_step_index)
-
-          # Sort both expected and actual lists of events before comparing.
-          # In theory the set of events at the end of a big step is unordered.
-          # key_f = lambda e: "%s.%s"%(e.port, e.name)
-          # actual_bag.sort(key=key_f)
-          # expected_bag.sort(key=key_f)
-
-          for (act_event, exp_event) in zip(actual_bag, expected_bag):
-            if act_event != exp_event:
-              fail("Big step %d: output differs." % big_step_index)
 
 
 class FailingTest(Test):

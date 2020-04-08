@@ -1,11 +1,5 @@
 <statechart>
   <semantics big_step_maximality="take_many"/>
-  
-  <datamodel>
-    checkTime = func {
-      log("checkTime");
-    };
-  </datamodel>
 
   <inport name="in">
     <event name="bottomLeftPressed"/>
@@ -16,20 +10,25 @@
     <event name="topLeftReleased"/>
     <event name="topRightPressed"/>
     <event name="topRightReleased"/>
+    <event name="alarmStart"/>
   </inport>
 
   <outport name="out">
-    <event name="setAlarm"/>
+    <event name="checkTime"/>
+    <event name="refreshTimeDisplay"/>
+    <event name="refreshChronoDisplay"/>
+    <event name="refreshDateDisplay"/>
+    <event name="refreshAlarmDisplay"/>
+    <event name="resetChrono"/>
+    <event name="startSelection"/>
+    <event name="increaseSelection"/>
+    <event name="selectNext"/>
+    <event name="stopSelection"/>
+    <event name="increaseTimeByOne"/>
+    <event name="increaseChronoByOne"/>
     <event name="setIndiglo"/>
     <event name="unsetIndiglo"/>
-    <event name="increaseTimeByOne"/>
-    <event name="refreshTimeDisplay"/>
-    <event name="startSelection"/>
-    <event name="stopSelection"/>
-    <event name="increaseSelection"/>
-    <event name="resetChrono"/>
-    <event name="increaseChronoByOne"/>
-    <event name="refreshChronoDisplay"/>
+    <event name="setAlarm"/>
   </outport>
 
   <outport name="out">
@@ -106,7 +105,9 @@
           </state>
 
           <state id="GoingToNext">
-            <transition event="bottomRightReleased" target="../Waiting"/>
+            <transition event="bottomRightReleased" target="../Waiting">
+              <raise event="selectNext"/>
+            </transition>
             <transition after="2 s" target="../../TimeUpdate">
               <raise event="edit_done"/>
             </transition>
@@ -129,9 +130,13 @@
         </state>
 
         <state id="WaitingForAlarm">
+          <onentry>
+            <raise event="refreshAlarmDisplay"/>
+          </onentry>
           <transition after="1500 ms" target="../EditingTime">
             <raise event="alarm_edit"/>
           </transition>
+          <transition event="bottomLeftReleased" target="../TimeUpdate"/>
         </state>
       </state>
 
@@ -143,7 +148,14 @@
         </state>
 
         <state id="On">
-          <transition cond="checkTime()" target="../Blinking"/>
+          <onentry>
+            <raise event="checkTime"/>
+          </onentry>
+          <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/TimeUpdate"]) or INSTATE(["/P/Display/WaitingForAlarm"])' target="../Off">
+            <raise event="setAlarm"/>
+          </transition>
+          <transition after="1 s" target="."/>
+          <transition event="alarmStart" target="../Blinking"/>
         </state>
 
         <state id="Blinking" initial="On">

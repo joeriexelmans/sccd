@@ -21,11 +21,10 @@ def main():
     scheduled = None
 
     def gui_event(event: str):
-        print(event)
-        controller.add_input(InputEvent(name=event, port="in", params=[], time_offset=duration(0)))
+        # print("in:", event)
         if scheduled:
             tk.after_cancel(scheduled)
-        wakeup()
+        wakeup(event)
 
     tk = tkinter.Tk()
     tk.withdraw()
@@ -38,29 +37,34 @@ def main():
     q = queue.Queue()
     start_time = now()
 
-    def wakeup():
+    def wakeup(event: Optional[str] = None):
         nonlocal scheduled
+
         # run controller - output will accumulate in 'q'
         controller.run_until(now() - start_time, q)
+
+        # controller's "simulated time" is now "now", so "now" is the time to add input:
+        if event is not None:
+            controller.add_input(InputEvent(name=event, port="in", params=[], time_offset=duration(0)))
+            controller.run_until(now() - start_time, q)
 
         # process output
         try:
             while True:
                 big_step_output = q.get_nowait()
                 for e in big_step_output:
-                    print("out:", e.name)
-                    # print("got output:", e.name)
+                    # print("out:", e.name)
                     # the output event names happen to be functions on our GUI controller:
                     method = getattr(gui.controller, e.name)
-                    # print(method)
                     method()
         except queue.Empty:
             pass
 
-        # done enough for now, go to sleep
+        # go to sleep
         # convert our statechart's timestamp to tkinter's (100 us -> 1 ms)
         sleep_duration = (controller.next_wakeup() - controller.simulated_time) // 10
         scheduled = tk.after(sleep_duration, wakeup)
+        # print("sleeping %d ms" % sleep_duration)
 
     tk.after(0, wakeup)
     tk.mainloop()

@@ -72,8 +72,10 @@ def create_test_parser(create_statechart_parser):
           globals,
           Statechart(
             semantics=variant,
+            #  All other fields remain the same
             scope=statechart.scope,
             datamodel=statechart.datamodel,
+            internal_events=statechart.internal_events,
             inport_events=statechart.inport_events,
             event_outport=statechart.event_outport,
             tree=statechart.tree)),

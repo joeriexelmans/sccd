@@ -1,4 +1,5 @@
 from typing import *
+from sccd.statechart.static.statechart import Statechart
 from sccd.statechart.dynamic.event import *
 from sccd.util.bitmap import *
 from sccd.statechart.static.tree import *
@@ -6,46 +7,81 @@ from sccd.util.debug import *
 from sccd.action_lang.dynamic.exceptions import *
 from sccd.util import timer
 
-class CandidatesGenerator:
-    def __init__(self, reverse: bool):
-        self.reverse = reverse
-        self.cache = {}
+@dataclass
+class CacheCounter:
+    cache_hits = 0
+    cache_misses = 0
+
+ctr = CacheCounter()
+
+if timer.TIMINGS:
+    import atexit
+    def print_stats():
+        print("\ncache hits: %s, cache misses: %s" %(ctr.cache_hits, ctr.cache_misses))
+    atexit.register(print_stats)
+
+@dataclass
+class CandidatesGenerator(ABC):
+    statechart: Statechart
+    reverse: bool
+    cache: Dict[Tuple[Bitmap,Bitmap], List[Transition]] = field(default_factory=dict)
+
+    @abstractmethod
+    def generate(self, state, enabled_events: List[Event], forbidden_arenas: Bitmap) -> Iterable[Transition]:
+        pass
 
 class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
+
+    def _candidates(self, config_bitmap, forbidden_arenas):
+        candidates = [ t for state_id in config_bitmap.items()
+                          for t in self.statechart.tree.state_list[state_id].transitions
+                           if (not forbidden_arenas & t.opt.arena_bitmap) ]
+        if self.reverse:
+            candidates.reverse()
+        return candidates
+
     def generate(self, state, enabled_events: List[Event], forbidden_arenas: Bitmap) -> Iterable[Transition]:
         events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
-        key = (state.configuration_bitmap, forbidden_arenas)
+        key = (state.configuration, forbidden_arenas)
 
         try:
             candidates = self.cache[key]
+            ctr.cache_hits += 1
         except KeyError:
-            candidates = self.cache[key] = [
-                t for s in state.configuration
-                    if (not forbidden_arenas & s.opt.state_id_bitmap)
-                    for t in s.transitions
-                ]
-            if self.reverse:
-                candidates.reverse()
+            candidates = self.cache[key] = self._candidates(state.configuration, forbidden_arenas)
+            ctr.cache_misses += 1
 
         def filter_f(t):
             return (not t.trigger or t.trigger.check(events_bitmap)) and state.check_guard(t, enabled_events)
         return filter(filter_f, candidates)
 
+@dataclass
 class CandidatesGeneratorEventBased(CandidatesGenerator):
+
+    def __post_init__(self):
+        # Prepare cache with all single-item sets-of-events since these are the most common sets of events.
+        for event_id in self.statechart.internal_events.items():
+            events_bitmap = bit(event_id)
+            self.cache[(events_bitmap, 0)] = self._candidates(events_bitmap, 0)
+
+    def _candidates(self, events_bitmap, forbidden_arenas):
+        candidates = [ t for t in self.statechart.tree.transition_list
+                          if (not t.trigger or t.trigger.check(events_bitmap)) # todo: check port?
+                          and (not forbidden_arenas & t.opt.arena_bitmap) ]
+        if self.reverse:
+            candidates.reverse()
+        return candidates
+
     def generate(self, state, enabled_events: List[Event], forbidden_arenas: Bitmap) -> Iterable[Transition]:
         events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
         key = (events_bitmap, forbidden_arenas)
 
         try:
             candidates = self.cache[key]
+            ctr.cache_hits += 1
         except KeyError:
-            candidates = self.cache[key] = [
-                t for t in state.statechart.tree.transition_list
-                    if (not t.trigger or t.trigger.check(events_bitmap)) # todo: check port?
-                    and (not forbidden_arenas & t.source.opt.state_id_bitmap)
-                ]
-            if self.reverse:
-                candidates.reverse()
+            candidates = self.cache[key] = self._candidates(events_bitmap, forbidden_arenas)
+            ctr.cache_misses += 1
 
         def filter_f(t):
             return state.check_source(t) and state.check_guard(t, enabled_events)
@@ -209,10 +245,10 @@ class SmallStep(Round):
         arenas = Bitmap()
         stable_arenas = Bitmap()
 
-        timer.start("get candidate")
+        timer.start("candidate generation")
         candidates = get_candidates(0)
         t = next(candidates, None)
-        timer.stop("get candidate")
+        timer.stop("candidate generation")
         while t:
             arena = t.opt.arena_bitmap
             if not (arenas & arena):
@@ -227,13 +263,13 @@ class SmallStep(Round):
 
                 # need to re-generate candidates after firing transition
                 # because possibly the set of current events has changed
-                timer.start("get candidate")
+                timer.start("candidate generation")
                 candidates = get_candidates(extra_forbidden=arenas)
             else:
-                timer.start("get candidate")
+                timer.start("candidate generation")
 
             t = next(candidates, None)
-            timer.stop("get candidate")
+            timer.stop("candidate generation")
 
         return (arenas, stable_arenas)
 

@@ -27,6 +27,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
         semantics=SemanticConfiguration(),
         scope=Scope("instance", parent=BuiltIn),
         datamodel=None,
+        internal_events=Bitmap(),
         inport_events={},
         event_outport={},
         tree=None,
@@ -99,6 +100,7 @@ def create_statechart_parser(globals, src_file, load_external = True, parse = pa
             if port is None:
               # internal event
               event_id = globals.events.assign_id(event_name)
+              statechart.internal_events |= event_id
               return RaiseInternalEvent(name=event_name, params=params, event_id=event_id)
             else:
               # output event - no ID in global namespace

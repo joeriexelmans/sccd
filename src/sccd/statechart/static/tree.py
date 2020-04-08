@@ -28,7 +28,7 @@ class State:
             self.parent.children.append(self)
 
     def target_states(self, instance) -> Bitmap:
-        return self.opt.static_ts_bitmap | functools.reduce(lambda x,y: x|y, (s.target_states(instance) for s in self.opt.dynamic_ts), Bitmap())
+        return self.opt.ts_static | functools.reduce(lambda x,y: x|y, (s.target_states(instance) for s in self.opt.ts_dynamic), Bitmap())
 
     def additional_target_states(self, instance) -> Bitmap:
         return self.opt.state_id_bitmap
@@ -47,10 +47,15 @@ class StateOptimization:
     ancestors: Bitmap = Bitmap()
     descendants: Bitmap = Bitmap()
 
-    history: List[Tuple[State, Bitmap]] = field(default_factory=list) # subset of children
-    static_ts_bitmap: Bitmap = Bitmap() # Subset of descendants that are always entered when this state is the target of a transition
-    dynamic_ts: List[State] = field(default_factory=list) # Subset of descendants that MAY be entered when this state is the target of a transition, depending on the history values.
+    # subset of children that are HistoryState
+    history: List[Tuple[State, Bitmap]] = field(default_factory=list)
 
+    # Subset of descendants that are always entered when this state is the target of a transition
+    ts_static: Bitmap = Bitmap() 
+    # Subset of descendants that MAY be entered when this state is the target of a transition, depending on the history values.
+    ts_dynamic: List[State] = field(default_factory=list) 
+
+    # Triggers of outgoing transitions that are AfterTrigger.
     after_triggers: List['AfterTrigger'] = field(default_factory=list)
 
 class HistoryState(State):
@@ -262,18 +267,18 @@ class StateTree:
 
         def set_static_target_states(state: State, _):
             if isinstance(state, ParallelState):
-                state.opt.static_ts_bitmap = reduce(lambda x,y: x|y, (s.opt.static_ts_bitmap for s in state.children), state.opt.state_id_bitmap)
-                state.opt.dynamic_ts = list(itertools.chain.from_iterable(c.opt.dynamic_ts for c in state.children if not isinstance(c, HistoryState)))
+                state.opt.ts_static = reduce(lambda x,y: x|y, (s.opt.ts_static for s in state.children), state.opt.state_id_bitmap)
+                state.opt.ts_dynamic = list(itertools.chain.from_iterable(c.opt.ts_dynamic for c in state.children if not isinstance(c, HistoryState)))
             elif isinstance(state, HistoryState):
-                state.opt.static_ts_bitmap = Bitmap()
-                state.opt.dynamic_ts = state.children
+                state.opt.ts_static = Bitmap()
+                state.opt.ts_dynamic = state.children
             else: # "regular" state:
                 if state.default_state:
-                    state.opt.static_ts_bitmap = state.opt.state_id_bitmap | state.default_state.opt.static_ts_bitmap
-                    state.opt.dynamic_ts = state.default_state.opt.dynamic_ts
+                    state.opt.ts_static = state.opt.state_id_bitmap | state.default_state.opt.ts_static
+                    state.opt.ts_dynamic = state.default_state.opt.ts_dynamic
                 else:
-                    state.opt.static_ts_bitmap = state.opt.state_id_bitmap
-                    state.opt.dynamic_ts = []
+                    state.opt.ts_static = state.opt.state_id_bitmap
+                    state.opt.ts_dynamic = []
 
         def add_history(state: State, _= None):
             for c in state.children:

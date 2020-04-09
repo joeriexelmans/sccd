@@ -278,7 +278,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           except Exception as e:
             raise XmlErrorElement(t_el, "Could not find target '%s'." % (transition.target_string)) from e
 
-        statechart.tree = StateTree(root)
+        statechart.tree = optimize_tree(root)
 
       return (state_child_rules(root, sibling_dict=children_dict), finish_root)
 

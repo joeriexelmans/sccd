@@ -26,7 +26,7 @@ class Controller:
         self.initialized = False
 
         self.cd.globals.assert_ready()
-        # print_debug("model delta is %s" % str(self.cd.globals.delta))
+        print_debug("Model delta is %s" % str(self.cd.globals.delta))
 
         # First call to 'run_until' method initializes
         self.run_until = self._run_until_w_initialize

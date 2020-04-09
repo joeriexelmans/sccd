@@ -1,12 +1,8 @@
-# from dataclasses import *
-import termcolor
 from typing import *
-from sccd.action_lang.static.expression import *
 from sccd.util.namespace import *
 from sccd.util.duration import *
 from sccd.util.debug import *
 
-# @dataclass
 class Globals:
   def __init__(self):
     self.events = Namespace()
@@ -38,8 +34,6 @@ class Globals:
     else:
       for d in self.durations:
         d.opt = 0
-
-    print_debug("Model delta is %s" % str(self.delta))
 
   def assert_ready(self):
     if self.delta is None:

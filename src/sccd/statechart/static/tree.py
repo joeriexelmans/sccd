@@ -203,115 +203,116 @@ class TransitionOptimization:
     arena: State
     arena_bitmap: Bitmap
 
+@dataclass
+class StateTree:
+    root: State
+    transition_list: List[Transition] # depth-first document order
+    state_list: List[State] # depth-first document order
+    state_dict: Dict[str, State] # mapping from 'full name' to State
+    after_triggers: List[AfterTrigger] # all after-triggers in the statechart
+    stable_bitmap: Bitmap # set of states that are syntactically marked 'stable'
+
 # Reduce a list of states to a set of states, as a bitmap
 def states_to_bitmap(state_list: List[State]) -> Bitmap:
     return reduce(lambda x,y: x|y, (s.opt.state_id_bitmap for s in state_list), Bitmap())
 
+def optimize_tree(root: State) -> StateTree:
+    timer.start("optimize tree")
 
-# @dataclass
-class StateTree:
+    transition_list = []
+    after_triggers = []
+    def init_opt():
+        next_id = 0
+        def f(state: State, _=None):
+            state.opt = StateOptimization()
 
-    # root: The root state of a state,transition tree structure with with all fields filled in,
-    #       except the 'gen' fields. This function will fill in the 'gen' fields.
-    def __init__(self, root: State):
-        timer.start("optimize tree")
+            nonlocal next_id
+            state.opt.state_id = next_id
+            state.opt.state_id_bitmap = bit(next_id)
+            next_id += 1
 
-        self.root = root
+            for t in state.transitions:
+                transition_list.append(t)
+                if t.trigger and isinstance(t.trigger, AfterTrigger):
+                    state.opt.after_triggers.append(t.trigger)
+                    after_triggers.append(t.trigger)
+        return f
 
-        self.transition_list = []
-        self.after_triggers = []
-        def init_opt():
-            next_id = 0
-            def f(state: State, _=None):
-                state.opt = StateOptimization()
+    def assign_full_name(state: State, parent_full_name: str = ""):
+        if state is root:
+            full_name = '/'
+        elif state.parent is root:
+            full_name = '/' + state.short_name
+        else:
+            full_name = parent_full_name + '/' + state.short_name
+        state.opt.full_name = full_name
+        return full_name
 
-                nonlocal next_id
-                state.opt.state_id = next_id
-                state.opt.state_id_bitmap = bit(next_id)
-                next_id += 1
+    state_dict = {}
+    state_list = []
+    stable_bitmap = Bitmap()
+    def add_to_list(state: State ,_=None):
+        nonlocal stable_bitmap
+        state_dict[state.opt.full_name] = state
+        state_list.append(state)
+        if state.stable:
+            stable_bitmap |= state.opt.state_id_bitmap
 
-                for t in state.transitions:
-                    self.transition_list.append(t)
-                    if t.trigger and isinstance(t.trigger, AfterTrigger):
-                        state.opt.after_triggers.append(t.trigger)
-                        self.after_triggers.append(t.trigger)
-            return f
+    def set_ancestors(state: State, ancestors=[]):
+        state.opt.ancestors = states_to_bitmap(ancestors)
+        return ancestors + [state]
 
-        def assign_full_name(state: State, parent_full_name: str = ""):
-            if state is root:
-                full_name = '/'
-            elif state.parent is root:
-                full_name = '/' + state.short_name
+    def set_descendants(state: State, children_descendants):
+        descendants = reduce(lambda x,y: x|y, children_descendants, Bitmap())
+        state.opt.descendants = descendants
+        return state.opt.state_id_bitmap | descendants
+
+    def set_static_target_states(state: State, _):
+        if isinstance(state, ParallelState):
+            state.opt.ts_static = reduce(lambda x,y: x|y, (s.opt.ts_static for s in state.children), state.opt.state_id_bitmap)
+            state.opt.ts_dynamic = list(itertools.chain.from_iterable(c.opt.ts_dynamic for c in state.children if not isinstance(c, HistoryState)))
+        elif isinstance(state, HistoryState):
+            state.opt.ts_static = Bitmap()
+            state.opt.ts_dynamic = state.children
+        else: # "regular" state:
+            if state.default_state:
+                state.opt.ts_static = state.opt.state_id_bitmap | state.default_state.opt.ts_static
+                state.opt.ts_dynamic = state.default_state.opt.ts_dynamic
             else:
-                full_name = parent_full_name + '/' + state.short_name
-            state.opt.full_name = full_name
-            return full_name
+                state.opt.ts_static = state.opt.state_id_bitmap
+                state.opt.ts_dynamic = []
 
-        self.state_dict = {}
-        self.state_list = []
-        self.stable_bitmap = Bitmap()
-        def add_to_list(state: State ,_=None):
-            self.state_dict[state.opt.full_name] = state
-            self.state_list.append(state)
-            if state.stable:
-                self.stable_bitmap |= state.opt.state_id_bitmap
+    def add_history(state: State, _= None):
+        for c in state.children:
+            if isinstance(c, HistoryState):
+                state.opt.history.append((c, c.history_mask()))
 
-        def set_ancestors(state: State, ancestors=[]):
-            state.opt.ancestors = states_to_bitmap(ancestors)
-            return ancestors + [state]
-
-        def set_descendants(state: State, children_descendants):
-            descendants = reduce(lambda x,y: x|y, children_descendants, Bitmap())
-            state.opt.descendants = descendants
-            return state.opt.state_id_bitmap | descendants
-
-        def set_static_target_states(state: State, _):
-            if isinstance(state, ParallelState):
-                state.opt.ts_static = reduce(lambda x,y: x|y, (s.opt.ts_static for s in state.children), state.opt.state_id_bitmap)
-                state.opt.ts_dynamic = list(itertools.chain.from_iterable(c.opt.ts_dynamic for c in state.children if not isinstance(c, HistoryState)))
-            elif isinstance(state, HistoryState):
-                state.opt.ts_static = Bitmap()
-                state.opt.ts_dynamic = state.children
-            else: # "regular" state:
-                if state.default_state:
-                    state.opt.ts_static = state.opt.state_id_bitmap | state.default_state.opt.ts_static
-                    state.opt.ts_dynamic = state.default_state.opt.ts_dynamic
-                else:
-                    state.opt.ts_static = state.opt.state_id_bitmap
-                    state.opt.ts_dynamic = []
-
-        def add_history(state: State, _= None):
-            for c in state.children:
-                if isinstance(c, HistoryState):
-                    state.opt.history.append((c, c.history_mask()))
-
-        visit_tree(root, lambda s: s.children,
-            before_children=[
-                init_opt(),
-                assign_full_name,
-                add_to_list,
-                set_ancestors,
-            ],
-            after_children=[
-                set_descendants,
-                add_history,
-                set_static_target_states,
-            ])
+    visit_tree(root, lambda s: s.children,
+        before_children=[
+            init_opt(),
+            assign_full_name,
+            add_to_list,
+            set_ancestors,
+        ],
+        after_children=[
+            set_descendants,
+            add_history,
+            set_static_target_states,
+        ])
 
 
-        for t in self.transition_list:
-            # intersection between source & target ancestors, last member in depth-first sorted state list.
-            lca_id = (t.source.opt.ancestors & t.targets[0].opt.ancestors).highest_bit()
-            lca = self.state_list[lca_id]
-            arena = lca
-            while isinstance(arena, (ParallelState, HistoryState)):
-                arena = arena.parent
+    for t in transition_list:
+        # intersection between source & target ancestors, last member in depth-first sorted state list.
+        lca_id = (t.source.opt.ancestors & t.targets[0].opt.ancestors).highest_bit()
+        lca = state_list[lca_id]
+        arena = lca
+        while isinstance(arena, (ParallelState, HistoryState)):
+            arena = arena.parent
 
-            t.opt = TransitionOptimization(
-                arena=arena,
-                arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap)
+        t.opt = TransitionOptimization(
+            arena=arena,
+            arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap)
 
-        timer.stop("optimize tree")
+    timer.stop("optimize tree")
 
-    def __repr__(self):
-        return "StateTree(root=%s, state_list=%s, transition_list=%s)" % (self.root, self.state_list, self.transition_list)
+    return StateTree(root, transition_list, state_list, state_dict, after_triggers, stable_bitmap)

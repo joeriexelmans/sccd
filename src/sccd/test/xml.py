@@ -6,7 +6,7 @@ from sccd.cd.cd import *
 @dataclass
 class TestInputEvent:
   event: Event
-  at: Duration
+  at: Expression
 
 @dataclass
 class TestVariant:
@@ -17,7 +17,6 @@ class TestVariant:
 
 def test_parser_rules(statechart_parser_rules):
   globals = Globals()
-  sc_rules = statechart_parser_rules(globals)
   input = []
   output = []
 
@@ -30,9 +29,8 @@ def test_parser_rules(statechart_parser_rules):
         time_expr = parse_expression(globals, time)
         time_type = time_expr.init_expr(scope=None)
         check_duration_type(time_type)
-        time_val = time_expr.eval(memory=None)
         input.append(TestInputEvent(
-          event=Event(id=-1, name=name, port=port, params=[]), at=time_val))
+          event=Event(id=-1, name=name, port=port, params=[]), at=time_expr))
 
       return [("event+", parse_input_event)]
 
@@ -59,8 +57,8 @@ def test_parser_rules(statechart_parser_rules):
 
       return [("big_step+", parse_big_step)]
 
-    def when_done(statechart):
-      globals.set_delta(None)
+    def finish_test(statechart):
+      globals.init_durations(delta=None)
       variants = statechart.semantics.generate_variants()
 
       def variant_description(i, variant) -> str:
@@ -89,6 +87,7 @@ def test_parser_rules(statechart_parser_rules):
         output=output)
       for i, variant in enumerate(variants)]
 
-    return (sc_rules + [("input?", parse_input), ("output?", parse_output)], when_done)
+    sc_rules = statechart_parser_rules(globals)
+    return ([("statechart", sc_rules), ("input?", parse_input), ("output?", parse_output)], finish_test)
 
   return [("test", parse_test)]

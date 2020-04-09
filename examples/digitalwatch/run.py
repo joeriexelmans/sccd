@@ -1,17 +1,10 @@
-from sccd.statechart.parser.xml import parse_f, statechart_parser_rules
-from sccd.cd.cd import *
 from sccd.realtime.eventloop import *
 from sccd.realtime.tkinter import TkInterImplementation
-import queue
+from sccd.cd.parser.xml import *
 
 def main():
     # Load statechart
-    g = Globals()
-    sc_rules = statechart_parser_rules(g, "statechart_digitalwatch.xml")
-    statechart = parse_f("statechart_digitalwatch.xml", rules=sc_rules)
-    cd = SingleInstanceCD(g, statechart)
-    g.set_delta(duration(100, Microsecond))
-
+    cd = load_cd("model_digitalwatch.xml")
 
     import tkinter
     from tkinter.constants import NO

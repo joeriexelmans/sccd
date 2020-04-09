@@ -99,7 +99,8 @@ class Controller:
         pipe_events = []
         for e in events:
             if isinstance(e.target, InstancesTarget):
-                offset = self._duration_to_time_offset(e.time_offset)
+                # offset = self._duration_to_time_offset(e.time_offset)
+                offset = e.time_offset
                 self.queue.add(self.simulated_time + offset, Controller.EventQueueEntry(e.event, e.target.instances))
             elif isinstance(e.target, OutputPortTarget):
                 assert (e.time_offset == duration(0)) # cannot combine 'after' with 'output port'

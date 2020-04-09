@@ -20,7 +20,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     srcs = get_files(args.path,
-      filter=lambda file: (file.startswith("statechart_") or file.startswith("test_")) and file.endswith(".xml"))
+      filter=lambda file: (file.startswith("statechart_") or file.startswith("test_") or file.startswith("model_")) and file.endswith(".xml"))
 
     if len(srcs):
       if not args.no_svg:
@@ -41,22 +41,20 @@ if __name__ == '__main__':
     def process(src):
       try:
         path = os.path.dirname(src)
-        parse_sc = statechart_parser_rules(Globals(), path, load_external=False)[0][1]
+        parse_sc = statechart_parser_rules(Globals(), path, load_external=False)
 
-        def parse_test(el):
-          def when_done(*statecharts):
-            return statecharts[0]
+        def find_statechart(el):
+          def when_done(statechart):
+            return statechart
           # When parsing <test>, only look for <statechart> node in it.
           # All other nodes will be ignored.
-          return ([("statechart", parse_sc)], when_done)
+          return ({"statechart": parse_sc}, when_done)
 
-        statechart = parse_f(src,
-          # Match both <test> and <statechart> root nodes:
-          [
-            ("test?", parse_test),
-            ("statechart?", parse_sc)
-          ],
-          ignore_unmatched=True)
+        statechart = parse_f(src, {
+          "test": find_statechart,
+          "single_instance_cd": find_statechart,
+          "statechart": parse_sc,
+        }, ignore_unmatched=True)
 
         assert isinstance(statechart, Statechart)
 

@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     try:
       path = os.path.dirname(src)
-      rules = statechart_parser_rules(Globals(), path, load_external=True)
+      rules = [("statechart", statechart_parser_rules(Globals(), path, load_external=True))]
 
       statechart = parse(src, rules, decorate_exceptions=(ModelError,))
 

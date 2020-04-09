@@ -6,6 +6,18 @@ from sccd.action_lang.static.statement import *
 from sccd.statechart.dynamic.event import *
 
 @dataclass
+class SCDurationLiteral(DurationLiteral):
+    opt: Optional[int] = None
+
+    # override
+    def eval(self, memory: MemoryInterface):
+        return self.opt
+
+    # original behavior of eval
+    def as_duration(self):
+        return DurationLiteral.eval(self, None)
+
+@dataclass
 class EvalContext:
     current_state: 'StatechartState'
     events: List['Event']

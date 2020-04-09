@@ -7,7 +7,7 @@ from sccd.util.os_tools import *
 from sccd.util.debug import *
 from sccd.cd.cd import *
 from sccd.controller.controller import *
-from sccd.test.parser import *
+from sccd.test.xml import *
 from sccd.util import timer
 
 import sys
@@ -46,7 +46,7 @@ class Test(unittest.TestCase):
       controller = Controller(test.cd)
 
       for i in test.input:
-        controller.add_input(i.event, controller._duration_to_time_offset(i.at))
+        controller.add_input(i.event, i.at.eval(None))
 
       def controller_thread():
         try:

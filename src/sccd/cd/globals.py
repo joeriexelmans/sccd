@@ -12,15 +12,15 @@ class Globals:
     self.events = Namespace()
     self.inports = Namespace()
     self.outports = Namespace()
-    self.durations: List[Duration] = []
+    self.durations: List[SCDurationLiteral] = []
 
     # The smallest unit for all durations in the model.
     # Calculated after all expressions have been parsed, based on all DurationLiterals.
     self.delta: Optional[Duration] = None
 
   # delta: if set, this will be the model delta. otherwise, model delta will be the GCD of all durations registered.
-  def set_delta(self, delta: Optional[Duration]):
-    gcd_delta = gcd(*self.durations)
+  def init_durations(self, delta: Optional[Duration]):
+    gcd_delta = gcd(*(d.d for d in self.durations))
 
     # Ensure delta not too big
     if delta:
@@ -30,6 +30,16 @@ class Globals:
         self.delta = delta
     else:
       self.delta = gcd_delta
+
+    if self.delta != duration(0):
+      # Secretly convert all durations to the same unit...
+      for d in self.durations:
+        d.opt = d.d // self.delta
+    else:
+      for d in self.durations:
+        d.opt = 0
+
+    print_debug("Model delta is %s" % str(self.delta))
 
   def assert_ready(self):
     if self.delta is None:

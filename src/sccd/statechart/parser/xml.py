@@ -36,7 +36,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
     else:
       if not load_external:
         raise SkipFile("Parser configured not to load statecharts from external files.")
-      statechart = parse_f(os.path.join(path, ext_file), statechart_parser_rules(globals, path, load_external=False, parse_f=parse_f))
+      statechart = parse_f(os.path.join(path, ext_file), [("statechart", statechart_parser_rules(globals, path, load_external=False, parse_f=parse_f))])
 
     def parse_semantics(el):
       # Use reflection to find the possible XML attributes and their values
@@ -257,7 +257,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           except Exception as e:
             raise XmlErrorElement(t_el, "Parsing target '%s': %s" % (target_string, str(e))) from e
 
-          def find_state(sequence) -> State:
+          def find_target(sequence) -> State:
             if sequence.data == "relative_path":
               state = transition.source
             elif sequence.data == "absolute_path":
@@ -274,7 +274,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             return state
 
           try:
-            transition.targets = [find_state(seq) for seq in parse_tree.children]
+            transition.targets = [find_target(seq) for seq in parse_tree.children]
           except Exception as e:
             raise XmlErrorElement(t_el, "Could not find target '%s'." % (transition.target_string)) from e
 
@@ -287,4 +287,4 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
     return ([("semantics?", parse_semantics), ("override_semantics?", parse_semantics), ("datamodel?", parse_datamodel), ("inport*", parse_inport), ("outport*", parse_outport), ("root", parse_root)], finish_statechart)
 
-  return [("statechart", parse_statechart)]
+  return parse_statechart

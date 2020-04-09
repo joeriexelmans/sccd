@@ -44,8 +44,8 @@ class Timer:
         self.paused_at = self.now()
         self.paused = True
 
-    # Only call when not paused!
     def now(self) -> int:
+        assert not self.paused
         return self.convert(self.impl.get_time()) - self.started_at
 
     def is_paused(self):

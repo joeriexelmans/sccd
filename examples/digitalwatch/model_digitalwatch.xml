@@ -2,7 +2,7 @@
   <delta>1 ms</delta>
 
   <statechart>
-    <semantics big_step_maximality="take_many"/>
+    <semantics big_step_maximality="take_one"/>
 
     <inport name="in">
       <event name="bottomLeftPressed"/>

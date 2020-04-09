@@ -10,7 +10,6 @@ from time import localtime
 from tkinter import Frame, PhotoImage, Canvas
 from tkinter.constants import BOTH
 
-
 CANVAS_W = 222
 CANVAS_H = 236
 
@@ -548,6 +547,7 @@ class DigitalWatchGUI_Static(Frame):
                                                         font=FONT_TIME,
                                                         justify="center",
                                                         text=chronoToDraw)
+
     def hideChrono(self):
         if self.chronoTag != None:
             self.displayCanvas.delete(self.chronoTag)

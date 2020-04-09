@@ -2,7 +2,7 @@ import os
 from lark import Lark
 from sccd.action_lang.parser import text as action_lang
 from sccd.statechart.static.tree import *
-from sccd.model.globals import *
+from sccd.cd.globals import *
 
 _grammar_dir = os.path.dirname(__file__)
 

@@ -2,10 +2,10 @@ from abc import *
 from dataclasses import *
 from typing import *
 from sccd.statechart.static.statechart import *
-from sccd.model.globals import *
+from sccd.cd.globals import *
 
 @dataclass
-class AbstractModel(ABC):
+class AbstractCD(ABC):
   globals: Globals
 
   @abstractmethod
@@ -13,7 +13,7 @@ class AbstractModel(ABC):
     pass
 
 @dataclass
-class MultiInstanceModel(AbstractModel):
+class CD(AbstractCD):
   classes: Dict[str, Statechart]
   default_class: Optional[str]
 
@@ -21,7 +21,7 @@ class MultiInstanceModel(AbstractModel):
     return self.classes[self.default_class]
 
 @dataclass
-class SingleInstanceModel(AbstractModel):
+class SingleInstanceCD(AbstractCD):
   statechart: Statechart
 
   def get_default_class(self) -> Statechart:

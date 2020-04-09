@@ -5,7 +5,7 @@ from sccd.controller.event_queue import *
 from sccd.statechart.dynamic.event import *
 from sccd.controller.object_manager import *
 from sccd.util.debug import print_debug
-from sccd.model.model import *
+from sccd.cd.cd import *
 
 @dataclasses.dataclass
 class InputEvent:
@@ -26,36 +26,36 @@ class Controller:
         event: Event
         targets: List[Instance]
 
-    def __init__(self, model: AbstractModel):
-        self.model = model
-        self.object_manager = ObjectManager(model)
+    def __init__(self, cd: AbstractCD):
+        self.cd = cd
+        self.object_manager = ObjectManager(cd)
         self.queue: EventQueue[Timestamp, EventQueueEntry] = EventQueue()
 
         self.simulated_time = 0 # integer
         self.initialized = False
 
-        self.model.globals.assert_ready()
-        # print_debug("model delta is %s" % str(self.model.globals.delta))
+        self.cd.globals.assert_ready()
+        # print_debug("model delta is %s" % str(self.cd.globals.delta))
 
         # First call to 'run_until' method initializes
         self.run_until = self._initialize
 
     def _duration_to_time_offset(self, d: Duration) -> int:
-        if self.model.globals.delta == duration(0):
+        if self.cd.globals.delta == duration(0):
             return 0
-        return d // self.model.globals.delta
+        return d // self.cd.globals.delta
 
     def add_input(self, input: InputEvent):
             if input.name == "":
                 raise Exception("Input event can't have an empty name.")
         
             # try:
-            #     self.model.globals.inports.get_id(input.port)
+            #     self.cd.globals.inports.get_id(input.port)
             # except KeyError as e:
             #     raise Exception("No such port: '%s'" % input.port) from e
 
             try:
-                event_id = self.model.globals.events.get_id(input.name)
+                event_id = self.cd.globals.events.get_id(input.name)
             except KeyError as e:
                 raise Exception("No such event: '%s'" % input.name) from e
 
@@ -79,7 +79,7 @@ class Controller:
 
     # Returns duration since start
     def get_simulated_duration(self) -> Duration:
-        return (self.model.globals.delta * self.simulated_time)
+        return (self.cd.globals.delta * self.simulated_time)
 
     # Helper. Put big step output events in the event queue or add them to the right output listeners.
     def _process_big_step_output(self, events: List[OutputEvent], pipe: queue.Queue):
@@ -124,7 +124,7 @@ class Controller:
             # run all instances for whom there are events
             for instance in entry.targets:
                 output = instance.big_step([entry.event])
-                # print_debug("completed big step (time = %s)" % str(self.model.globals.delta * self.simulated_time))
+                # print_debug("completed big step (time = %s)" % str(self.cd.globals.delta * self.simulated_time))
                 self._process_big_step_output(output, pipe)
 
         self.simulated_time = now

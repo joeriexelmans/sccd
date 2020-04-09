@@ -1,30 +1,27 @@
-from DigitalWatchGUI import DigitalWatchGUI
-import tkinter
-from tkinter.constants import NO
-from time import perf_counter
-from sccd.controller.controller import *
 from sccd.statechart.parser.xml import parse_f, statechart_parser_rules
-from sccd.model.model import *
+from sccd.cd.cd import *
+from sccd.controller.eventloop import *
 import queue
 
-def now():
-    return int(perf_counter()*10000) # 100 us-precision, same as our model delta
+MODEL_DELTA = duration(100, Microsecond)
 
 def main():
+    # Load statechart
     g = Globals()
     sc_rules = statechart_parser_rules(g, "statechart_digitalwatch.xml")
     statechart = parse_f("statechart_digitalwatch.xml", rules=sc_rules)
-    model = SingleInstanceModel(g, statechart)
-    g.set_delta(duration(100, Microsecond))
-    controller = Controller(model)
+    cd = SingleInstanceCD(g, statechart)
+    g.set_delta(MODEL_DELTA)
 
-    scheduled = None
+    eventloop = None
 
-    def gui_event(event: str):
-        # print("in:", event)
-        if scheduled:
-            tk.after_cancel(scheduled)
-        wakeup(event)
+    def on_gui_event(event: str):
+        eventloop.add_input(InputEvent(name=event, port="in", params=[], time_offset=duration(0)))
+        eventloop.interrupt()
+
+    import tkinter
+    from tkinter.constants import NO
+    from DigitalWatchGUI import DigitalWatchGUI
 
     tk = tkinter.Tk()
     tk.withdraw()
@@ -32,41 +29,17 @@ def main():
     topLevel.resizable(width=NO, height=NO)
     topLevel.title("DWatch")
     gui = DigitalWatchGUI(topLevel)
-    gui.controller.send_event = gui_event
+    gui.controller.send_event = on_gui_event
 
-    q = queue.Queue()
-    start_time = now()
+    def on_big_step(output):
+        for e in output:
+            # print("out:", e.name)
+            # the output event names happen to be functions on our GUI controller:
+            method = getattr(gui.controller, e.name)
+            method()
 
-    def wakeup(event: Optional[str] = None):
-        nonlocal scheduled
-
-        # run controller - output will accumulate in 'q'
-        controller.run_until(now() - start_time, q)
-
-        # controller's "simulated time" is now "now", so "now" is the time to add input:
-        if event is not None:
-            controller.add_input(InputEvent(name=event, port="in", params=[], time_offset=duration(0)))
-            controller.run_until(now() - start_time, q)
-
-        # process output
-        try:
-            while True:
-                big_step_output = q.get_nowait()
-                for e in big_step_output:
-                    # print("out:", e.name)
-                    # the output event names happen to be functions on our GUI controller:
-                    method = getattr(gui.controller, e.name)
-                    method()
-        except queue.Empty:
-            pass
-
-        # go to sleep
-        # convert our statechart's timestamp to tkinter's (100 us -> 1 ms)
-        sleep_duration = (controller.next_wakeup() - controller.simulated_time) // 10
-        scheduled = tk.after(sleep_duration, wakeup)
-        # print("sleeping %d ms" % sleep_duration)
-
-    tk.after(0, wakeup)
+    eventloop = EventLoop(cd, TkInterImplementation(tk), on_big_step)
+    eventloop.start()
     tk.mainloop()
 
 if __name__ == '__main__':

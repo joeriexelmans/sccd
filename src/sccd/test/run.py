@@ -5,7 +5,7 @@ import queue
 import functools
 from sccd.util.os_tools import *
 from sccd.util.debug import *
-from sccd.model.model import *
+from sccd.cd.cd import *
 from sccd.controller.controller import *
 from sccd.test.parser import *
 from sccd.util import timer

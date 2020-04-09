@@ -1,8 +1,8 @@
 from sccd.statechart.parser.xml import *
-from sccd.model.globals import *
+from sccd.cd.globals import *
 from sccd.controller.controller import InputEvent
 from sccd.statechart.dynamic.event import Event
-from sccd.model.model import *
+from sccd.cd.cd import *
 
 @dataclass
 class TestVariant:
@@ -68,7 +68,7 @@ def test_parser_rules(statechart_parser_rules):
 
       return [TestVariant(
         name=variant_description(i, variant),
-        model=SingleInstanceModel(
+        model=SingleInstanceCD(
           globals,
           Statechart(
             semantics=variant,

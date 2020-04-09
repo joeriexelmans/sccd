@@ -7,20 +7,20 @@ from sccd.statechart.dynamic.statechart_instance import *
 class ObjectManager(Instance):
     _regex_pattern = re.compile("^([a-zA-Z_]\w*)(?:\[(\d+)\])?$")
 
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, cd):
+        self.cd = cd
 
         # set of all instances in the runtime
         # we need to maintain this set in order to do broadcasts
         self.instances = [self] # object manager is an instance too!
 
-        i = StatechartInstance(model.get_default_class(), self)
+        i = StatechartInstance(cd.get_default_class(), self)
         self.instances.append(i)
 
     def _create(self, class_name) -> StatechartInstance:
         # Instantiate the model for each class at most once:
         # The model is shared between instances of the same type.
-        statechart = self.model.classes[class_name]
+        statechart = self.cd.classes[class_name]
         i = StatechartInstance(statechart, self)
         self.instances.append(i)
         return i

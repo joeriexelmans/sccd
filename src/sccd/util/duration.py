@@ -56,6 +56,10 @@ class Duration(ABC):
     pass
 
   @abstractmethod
+  def __add__(self):
+    pass
+
+  @abstractmethod
   def __mul__(self):
     pass
 
@@ -86,6 +90,9 @@ class _ZeroDuration(Duration):
 
   def __eq__(self, other):
     return self is other
+
+  def __add__(self, other):
+    return other
 
   def __mul__(self, other: int) -> Duration:
     return self
@@ -131,11 +138,16 @@ class _NonZeroDuration(Duration):
   def __str__(self):
     return str(self.val)+' '+self.unit.notation
 
-
   def __eq__(self, other):
-    if isinstance(other, _ZeroDuration):
+    if other is _zero:
       return False
     return self.val == other.val and self.unit is other.unit
+
+  def __add__(self, other):
+    if other is _zero:
+      return self
+    self_val, other_val, unit = _same_unit(self, other)
+    return duration(self_val + other_val, unit)
 
   def __mul__(self, other: int) -> Duration:
     if other == 0:
@@ -167,3 +179,12 @@ def gcd_pair(x: Duration, y: Duration) -> Duration:
 
 def gcd(*iterable: Iterable[Duration]) -> Duration:
   return functools.reduce(gcd_pair, iterable, _zero)
+
+# Useful for efficiently converting many values from the same unit to another same unit.
+def get_conversion_f(from_unit: Duration, to_unit: Duration):
+  if from_unit > to_unit:
+    factor = from_unit // to_unit
+    return lambda x: x * factor
+  else:
+    factor = to_unit // from_unit
+    return lambda x: x // factor

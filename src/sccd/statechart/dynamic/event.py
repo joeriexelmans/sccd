@@ -5,7 +5,7 @@ from typing import *
 from sccd.util.duration import *
 
 # A raised event.
-@dataclass(frozen=True)
+@dataclass(eq=True)
 class Event:
     id: int
     name: str

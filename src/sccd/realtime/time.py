@@ -1,6 +1,6 @@
-from abc import *
-from sccd.controller.controller import *
+from dataclasses import dataclass
 from numbers import Real # superclass for 'int' and 'float'
+from sccd.util.duration import *
 
 # The only requirement for a TimeImplementation is that the diffs between get_time call results are real durations of a non-complex number type (int, float).
 @dataclass

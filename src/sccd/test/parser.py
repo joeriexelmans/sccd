@@ -1,15 +1,19 @@
 from sccd.statechart.parser.xml import *
 from sccd.cd.globals import *
-from sccd.controller.controller import InputEvent
 from sccd.statechart.dynamic.event import Event
 from sccd.cd.cd import *
 
 @dataclass
+class TestInputEvent:
+  event: Event
+  at: Duration
+
+@dataclass
 class TestVariant:
   name: str
-  model: Any
-  input: list
-  output: list
+  cd: AbstractCD
+  input: List[TestInputEvent]
+  output: List[List[Event]]
 
 def test_parser_rules(statechart_parser_rules):
   globals = Globals()
@@ -27,7 +31,8 @@ def test_parser_rules(statechart_parser_rules):
         time_type = time_expr.init_expr(scope=None)
         check_duration_type(time_type)
         time_val = time_expr.eval(memory=None)
-        input.append(InputEvent(name=name, port=port, params=[], time_offset=time_val))
+        input.append(TestInputEvent(
+          event=Event(id=-1, name=name, port=port, params=[]), at=time_val))
 
       return [("event+", parse_input_event)]
 
@@ -68,7 +73,7 @@ def test_parser_rules(statechart_parser_rules):
 
       return [TestVariant(
         name=variant_description(i, variant),
-        model=SingleInstanceCD(
+        cd=SingleInstanceCD(
           globals,
           Statechart(
             semantics=variant,

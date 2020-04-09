@@ -1,9 +1,8 @@
 from sccd.statechart.parser.xml import parse_f, statechart_parser_rules
 from sccd.cd.cd import *
-from sccd.controller.eventloop import *
+from sccd.realtime.eventloop import *
+from sccd.realtime.tkinter import TkInterImplementation
 import queue
-
-MODEL_DELTA = duration(100, Microsecond)
 
 def main():
     # Load statechart
@@ -11,13 +10,8 @@ def main():
     sc_rules = statechart_parser_rules(g, "statechart_digitalwatch.xml")
     statechart = parse_f("statechart_digitalwatch.xml", rules=sc_rules)
     cd = SingleInstanceCD(g, statechart)
-    g.set_delta(MODEL_DELTA)
+    g.set_delta(duration(100, Microsecond))
 
-    eventloop = None
-
-    def on_gui_event(event: str):
-        eventloop.add_input(InputEvent(name=event, port="in", params=[], time_offset=duration(0)))
-        eventloop.interrupt()
 
     import tkinter
     from tkinter.constants import NO
@@ -29,6 +23,11 @@ def main():
     topLevel.resizable(width=NO, height=NO)
     topLevel.title("DWatch")
     gui = DigitalWatchGUI(topLevel)
+
+    def on_gui_event(event: str):
+        eventloop.add_input(Event(id=-1, name=event, port="in", params=[]))
+        eventloop.interrupt()
+
     gui.controller.send_event = on_gui_event
 
     def on_big_step(output):
@@ -39,6 +38,7 @@ def main():
             method()
 
     eventloop = EventLoop(cd, TkInterImplementation(tk), on_big_step)
+
     eventloop.start()
     tk.mainloop()
 

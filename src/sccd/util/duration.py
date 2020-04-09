@@ -180,8 +180,11 @@ def gcd_pair(x: Duration, y: Duration) -> Duration:
 def gcd(*iterable: Iterable[Duration]) -> Duration:
   return functools.reduce(gcd_pair, iterable, _zero)
 
-# Useful for efficiently converting many values from the same unit to another same unit.
+# Useful for efficiently converting many values from some fixed unit to some other fixed unit.
 def get_conversion_f(from_unit: Duration, to_unit: Duration):
+  if from_unit is _zero or to_unit is _zero:
+    raise Exception("Cannot convert between zero-duration units")
+    
   if from_unit > to_unit:
     factor = from_unit // to_unit
     return lambda x: x * factor

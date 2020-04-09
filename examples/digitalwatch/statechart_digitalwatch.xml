@@ -86,6 +86,7 @@
           <transition after="1500 ms" target="../EditingTime">
             <raise event="time_edit"/>
           </transition>
+          <transition event="bottomRightReleased" target="../TimeUpdate"/>
         </state>
 
         <state id="EditingTime" initial="Waiting">

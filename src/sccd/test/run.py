@@ -42,12 +42,11 @@ class Test(unittest.TestCase):
     for test in test_variants:
       print_debug('\n'+test.name)
       pipe = QueueImplementation()
-      # interrupt = queue.Queue()
 
-      controller = Controller(test.model)
+      controller = Controller(test.cd)
 
       for i in test.input:
-        controller.add_input(i)
+        controller.add_input(i.event, controller._duration_to_time_offset(i.at))
 
       def controller_thread():
         try:

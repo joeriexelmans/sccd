@@ -7,15 +7,6 @@ from sccd.controller.object_manager import *
 from sccd.util.debug import print_debug
 from sccd.cd.cd import *
 
-@dataclasses.dataclass
-class InputEvent:
-  name: str
-  port: str
-  params: List[Any]
-  time_offset: Duration
-
-Timestamp = int
-
 # The Controller class is a primitive that can be used to build backends of any kind:
 # Threads, integration with existing event loop, game loop, test framework, ...
 # The Controller class itself is NOT thread-safe.
@@ -29,7 +20,7 @@ class Controller:
     def __init__(self, cd: AbstractCD):
         self.cd = cd
         self.object_manager = ObjectManager(cd)
-        self.queue: EventQueue[Timestamp, EventQueueEntry] = EventQueue()
+        self.queue: EventQueue[int, EventQueueEntry] = EventQueue()
 
         self.simulated_time = 0 # integer
         self.initialized = False
@@ -38,14 +29,10 @@ class Controller:
         # print_debug("model delta is %s" % str(self.cd.globals.delta))
 
         # First call to 'run_until' method initializes
-        self.run_until = self._initialize
+        self.run_until = self._run_until_w_initialize
 
-    def _duration_to_time_offset(self, d: Duration) -> int:
-        if self.cd.globals.delta == duration(0):
-            return 0
-        return d // self.cd.globals.delta
 
-    def add_input(self, input: InputEvent):
+    def add_input(self, input: Event, time_offset: int):
             if input.name == "":
                 raise Exception("Input event can't have an empty name.")
         
@@ -59,45 +46,23 @@ class Controller:
             except KeyError as e:
                 raise Exception("No such event: '%s'" % input.name) from e
 
-            offset = self._duration_to_time_offset(input.time_offset)
-
-            e = Event(
-                id=event_id,
-                name=input.name,
-                port=input.port,
-                params=input.params)
+            input.id = event_id
 
             # For now, add events received on input ports to all instances.
             # In the future, we can optimize this by keeping a mapping from port name to a list of instances
             # potentially responding to the event
-            self.queue.add(self.simulated_time+offset,
-                Controller.EventQueueEntry(e, self.object_manager.instances))
+            self.queue.add(self.simulated_time + time_offset,
+                Controller.EventQueueEntry(input, self.object_manager.instances))
 
     # Get timestamp of next entry in event queue
-    def next_wakeup(self) -> Optional[Timestamp]:
+    def next_wakeup(self) -> Optional[int]:
         return self.queue.earliest_timestamp()
 
     # Returns duration since start
     def get_simulated_duration(self) -> Duration:
         return (self.cd.globals.delta * self.simulated_time)
 
-    # Helper. Put big step output events in the event queue or add them to the right output listeners.
-    def _process_big_step_output(self, events: List[OutputEvent], pipe: queue.Queue):
-        pipe_events = []
-        for e in events:
-            if isinstance(e.target, InstancesTarget):
-                offset = self._duration_to_time_offset(e.time_offset)
-                self.queue.add(self.simulated_time + offset, Controller.EventQueueEntry(e.event, e.target.instances))
-            elif isinstance(e.target, OutputPortTarget):
-                assert (e.time_offset == duration(0)) # cannot combine 'after' with 'output port'
-                pipe_events.append(e.event)
-            else:
-                raise Exception("Unexpected type:", e.target)
-        if pipe_events:
-            pipe.put(pipe_events, block=True, timeout=None)
-
-
-    def _initialize(self, now: Optional[Timestamp], pipe: queue.Queue):
+    def _run_until_w_initialize(self, now: Optional[int], pipe: queue.Queue):
         # first run...
         # initialize the object manager, in turn initializing our default class
         # and adding the generated events to the queue
@@ -114,7 +79,7 @@ class Controller:
 
     # Run until the event queue has no more due events wrt given timestamp and until all instances are stable.
     # If no timestamp is given (now = None), run until event queue is empty.
-    def _run_until(self, now: Optional[Timestamp], pipe: queue.Queue):
+    def _run_until(self, now: Optional[int], pipe: queue.Queue):
         # Actual "event loop"
         for timestamp, entry in self.queue.due(now):
             if timestamp != self.simulated_time:
@@ -128,3 +93,24 @@ class Controller:
                 self._process_big_step_output(output, pipe)
 
         self.simulated_time = now
+
+    # Helper. Put big step output events in the event queue or add them to the right output listeners.
+    def _process_big_step_output(self, events: List[OutputEvent], pipe: queue.Queue):
+        pipe_events = []
+        for e in events:
+            if isinstance(e.target, InstancesTarget):
+                offset = self._duration_to_time_offset(e.time_offset)
+                self.queue.add(self.simulated_time + offset, Controller.EventQueueEntry(e.event, e.target.instances))
+            elif isinstance(e.target, OutputPortTarget):
+                assert (e.time_offset == duration(0)) # cannot combine 'after' with 'output port'
+                pipe_events.append(e.event)
+            else:
+                raise Exception("Unexpected type:", e.target)
+        if pipe_events:
+            pipe.put(pipe_events, block=True, timeout=None)
+
+    # Helper
+    def _duration_to_time_offset(self, d: Duration) -> int:
+        if self.cd.globals.delta == duration(0):
+            return 0
+        return d // self.cd.globals.delta

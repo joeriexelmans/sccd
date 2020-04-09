@@ -1,5 +1,6 @@
-from sccd.controller.realtime import *
-import tkinter
+from abc import *
+from sccd.realtime.time import *
+from sccd.controller.controller import *
 
 ScheduledID = Any
 
@@ -17,21 +18,9 @@ class EventLoopImplementation(ABC):
     def cancel(self) -> Callable[[ScheduledID], None]:
         pass
 
-@dataclass
-class TkInterImplementation(EventLoopImplementation):
-    tk: tkinter.Tk
-
-    def time_unit(self) -> Duration:
-        return duration(1, Millisecond)
-
-    def schedule(self) -> Callable[[int, Callable[[],None]], ScheduledID]:
-        return self.tk.after
-
-    def cancel(self) -> Callable[[ScheduledID], None]:
-        return self.tk.after_cancel
 
 class EventLoop:
-    def __init__(self, cd, event_loop, output_callback, time_impl=DefaultTimeImplementation):
+    def __init__(self, cd: AbstractCD, event_loop: EventLoopImplementation, output_callback: Callable[[List[Event]],None], time_impl: TimeImplementation = DefaultTimeImplementation):
         self.timer = Timer(time_impl, unit=cd.globals.delta) # will give us timestamps in model unit
         self.controller = Controller(cd)
         self.event_loop = event_loop
@@ -44,7 +33,6 @@ class EventLoop:
         self.queue = queue.Queue()
 
     def _wakeup(self):
-        # run controller - output will accumulate in queue
         self.controller.run_until(self.timer.now(), self.queue)
 
         # process output
@@ -55,29 +43,32 @@ class EventLoop:
         except queue.Empty:
             pass
 
-        # go to sleep
-        # convert our statechart's timestamp to tkinter's (100 us -> 1 ms)
-        sleep_duration = self.event_loop_convert(
-            self.controller.next_wakeup() - self.controller.simulated_time)
-        self.scheduled = self.event_loop.schedule()(sleep_duration, self._wakeup)
-        # print("sleeping %d ms" % sleep_duration)
+        # back to sleep
+        next_wakeup = self.controller.next_wakeup()
+        if next_wakeup:
+            sleep_duration = self.event_loop_convert(next_wakeup - self.controller.simulated_time)
+            self.scheduled = self.event_loop.schedule()(sleep_duration, self._wakeup)
+        else:
+            self.scheduled = None
 
     def start(self):
         self.timer.start()
         self._wakeup()
 
-    def pause(self):
-        self.timer.pause()
-        self.event_loop.cancel()(self.scheduled)
+    # Uncomment if ever needed:
+    # Does not mix well with interrupt().
+    # def pause(self):
+    #     self.timer.pause()
+    #     self.event_loop.cancel()(self.scheduled)
 
     # Add input. Does not automatically 'wake up' the controller if it is sleeping.
     # If you want the controller to respond immediately, call 'interrupt'.
-    def add_input(self, event):
-        offset = self.controller.simulated_time - self.timer.now()
-        event.time_offset += offset * self.timer.unit
-        self.controller.add_input(event)
+    def add_input(self, event: Event):
+        # If the controller is sleeping, it's simulated time value may be in the past, but we want to make it look like the event arrived NOW, so from the controller's point of view, in the future:
+        offset = self.timer.now() - self.controller.simulated_time
+        self.controller.add_input(event, offset)
 
-    # Do NOT call while paused!
     def interrupt(self):
-        self.event_loop.cancel()(self.scheduled)
+        if self.scheduled:
+            self.event_loop.cancel()(self.scheduled)
         self._wakeup()

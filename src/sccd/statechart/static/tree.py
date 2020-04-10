@@ -30,14 +30,6 @@ class State:
     def target_states(self, instance) -> Bitmap:
         return self.opt.ts_static
 
-
-    def additional_target_states(self, instance, exclude: 'State') -> Bitmap:
-        # If an Or-state is on an "enter path", it will never bring additional target states to the picture.
-        return self.opt.state_id_bitmap
-
-    # def static_target_states(self) -> Tuple[Bitmap, List['HistoryState']]:
-    #     return (self.opt.ts_static, self.opt.ts_dynamic)
-
     def static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
         return (self.opt.state_id_bitmap, [])
 
@@ -56,9 +48,6 @@ class HistoryState(State):
         except KeyError:
             # Parent's target states, but not the parent itself:
             return self.parent.target_states(instance) & ~self.parent.opt.state_id_bitmap
-
-    def additional_target_states(self, instance, exclude: State) -> Bitmap:
-        assert False # history state cannot have children and therefore should never occur in a "enter path"
 
     def static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
         assert False # history state cannot have children and therefore should never occur in a "enter path"
@@ -82,10 +71,6 @@ class DeepHistoryState(HistoryState):
         return "DeepHistoryState(\"%s\")" % (self.short_name)
 
 class ParallelState(State):
-
-    def additional_target_states(self, instance, exclude: State) -> Bitmap:
-        # If an And-state is on an "enter path", all its children will be targets as well, but not the child ("exclude") that is the next state on the enter path.
-        return self.target_states(instance) & ~(exclude.target_states(instance))
 
     def static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
         return (self.opt.ts_static & ~exclude.opt.ts_static, [s for s in self.opt.ts_dynamic if s not in exclude.opt.ts_dynamic])
@@ -222,7 +207,7 @@ class TransitionOptimization:
     arena: State
     arena_bitmap: Bitmap
     enter_states_static: Bitmap # The "enter set" can be computed partially statically, and if there are no history states in it, entirely statically
-    enter_states_dynamic: List[State] # The part of the "enter set" that cannot be computed statically.
+    enter_states_dynamic: List[HistoryState] # The part of the "enter set" that cannot be computed statically.
 
 
 @dataclass

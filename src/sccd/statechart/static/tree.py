@@ -28,35 +28,21 @@ class State:
             self.parent.children.append(self)
 
     def target_states(self, instance) -> Bitmap:
-        return self.opt.ts_static | functools.reduce(lambda x,y: x|y, (s.target_states(instance) for s in self.opt.ts_dynamic), Bitmap())
+        return self.opt.ts_static
 
-    def additional_target_states(self, instance) -> Bitmap:
+
+    def additional_target_states(self, instance, exclude: 'State') -> Bitmap:
+        # If an Or-state is on an "enter path", it will never bring additional target states to the picture.
         return self.opt.state_id_bitmap
+
+    # def static_target_states(self) -> Tuple[Bitmap, List['HistoryState']]:
+    #     return (self.opt.ts_static, self.opt.ts_dynamic)
+
+    def static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
+        return (self.opt.state_id_bitmap, [])
 
     def __repr__(self):
         return "State(\"%s\")" % (self.short_name)
-
-# Generated fields (for optimization) of a state
-@dataclass
-class StateOptimization:
-    full_name: str = ""
-
-    state_id: int = -1
-    state_id_bitmap: Bitmap = Bitmap() # bitmap with only state_id-bit set
-
-    ancestors: Bitmap = Bitmap()
-    descendants: Bitmap = Bitmap()
-
-    # subset of children that are HistoryState
-    history: List[Tuple[State, Bitmap]] = field(default_factory=list)
-
-    # Subset of descendants that are always entered when this state is the target of a transition
-    ts_static: Bitmap = Bitmap() 
-    # Subset of descendants that MAY be entered when this state is the target of a transition, depending on the history values.
-    ts_dynamic: List[State] = field(default_factory=list) 
-
-    # Triggers of outgoing transitions that are AfterTrigger.
-    after_triggers: List['AfterTrigger'] = field(default_factory=list)
 
 class HistoryState(State):
     # Set of states that may be history values.
@@ -71,8 +57,11 @@ class HistoryState(State):
             # Parent's target states, but not the parent itself:
             return self.parent.target_states(instance) & ~self.parent.opt.state_id_bitmap
 
-    def additional_target_states(self, instance) -> Bitmap:
-        return Bitmap()
+    def additional_target_states(self, instance, exclude: State) -> Bitmap:
+        assert False # history state cannot have children and therefore should never occur in a "enter path"
+
+    def static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
+        assert False # history state cannot have children and therefore should never occur in a "enter path"
 
 class ShallowHistoryState(HistoryState):
 
@@ -94,8 +83,12 @@ class DeepHistoryState(HistoryState):
 
 class ParallelState(State):
 
-    def additional_target_states(self, instance) -> Bitmap:
-        return self.target_states(instance)
+    def additional_target_states(self, instance, exclude: State) -> Bitmap:
+        # If an And-state is on an "enter path", all its children will be targets as well, but not the child ("exclude") that is the next state on the enter path.
+        return self.target_states(instance) & ~(exclude.target_states(instance))
+
+    def static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
+        return (self.opt.ts_static & ~exclude.opt.ts_static, [s for s in self.opt.ts_dynamic if s not in exclude.opt.ts_dynamic])
 
     def __repr__(self):
         return "ParallelState(\"%s\")" % (self.short_name)
@@ -197,11 +190,40 @@ class Transition:
     def __str__(self):
         return termcolor.colored("%s 🡪 %s" % (self.source.opt.full_name, self.targets[0].opt.full_name), 'green')
 
-# Generated fields (for optimization) of a transition
+
+# Data that is generated for each state.
+@dataclass
+class StateOptimization:
+    full_name: str = ""
+
+    state_id: int = -1
+    state_id_bitmap: Bitmap = Bitmap() # bitmap with only state_id-bit set
+
+    ancestors: Bitmap = Bitmap()
+    descendants: Bitmap = Bitmap()
+
+    # Subset of children that are HistoryState.
+    # For each item, the second element of the tuple is the "history mask".
+    history: List[Tuple[HistoryState, Bitmap]] = field(default_factory=list)
+
+    # Subset of descendants that are always entered when this state is the target of a transition
+    ts_static: Bitmap = Bitmap() 
+    # Subset of descendants that are history states AND are in the subtree of states automatically entered if this state is the target of a transition.
+    ts_dynamic: List[HistoryState] = field(default_factory=list)
+    # ts_dynamic: Bitmap = Bitmap()
+
+    # Triggers of outgoing transitions that are AfterTrigger.
+    after_triggers: List[AfterTrigger] = field(default_factory=list)
+
+
+# Data that is generated for each transition.
 @dataclass(frozen=True)
 class TransitionOptimization:
     arena: State
     arena_bitmap: Bitmap
+    enter_states_static: Bitmap # The "enter set" can be computed partially statically, and if there are no history states in it, entirely statically
+    enter_states_dynamic: List[State] # The part of the "enter set" that cannot be computed statically.
+
 
 @dataclass
 class StateTree:
@@ -211,6 +233,7 @@ class StateTree:
     state_dict: Dict[str, State] # mapping from 'full name' to State
     after_triggers: List[AfterTrigger] # all after-triggers in the statechart
     stable_bitmap: Bitmap # set of states that are syntactically marked 'stable'
+
 
 # Reduce a list of states to a set of states, as a bitmap
 def states_to_bitmap(state_list: List[State]) -> Bitmap:
@@ -273,7 +296,7 @@ def optimize_tree(root: State) -> StateTree:
             state.opt.ts_dynamic = list(itertools.chain.from_iterable(c.opt.ts_dynamic for c in state.children if not isinstance(c, HistoryState)))
         elif isinstance(state, HistoryState):
             state.opt.ts_static = Bitmap()
-            state.opt.ts_dynamic = state.children
+            state.opt.ts_dynamic = [state]
         else: # "regular" state:
             if state.default_state:
                 state.opt.ts_static = state.opt.state_id_bitmap | state.default_state.opt.ts_static
@@ -302,16 +325,50 @@ def optimize_tree(root: State) -> StateTree:
 
 
     for t in transition_list:
-        # intersection between source & target ancestors, last member in depth-first sorted state list.
+        # Arena can be computed statically. First computer Lowest-common ancestor:
+        # Intersection between source & target ancestors, last member in depth-first sorted state list.
         lca_id = (t.source.opt.ancestors & t.targets[0].opt.ancestors).highest_bit()
         lca = state_list[lca_id]
         arena = lca
+        # Arena must be an Or-state:
         while isinstance(arena, (ParallelState, HistoryState)):
             arena = arena.parent
 
+        # Exit states can be efficiently computed at runtime based on the set of current states.
+        # Enter states are more complex but luckily, can be computed *partially* statically:
+
+        # As a start, we calculate the enter path:
+        # The enter path is the path from arena to the target state (not including the arena state itself).
+        # Enter path is the intersection between:
+        #   1) the transition's target and its ancestors, and
+        #   2) the arena's descendants
+        enter_path = (t.targets[0].opt.state_id_bitmap | t.targets[0].opt.ancestors) & arena.opt.descendants
+        # All states on the enter path will be entered, but on the enter path, there may also be AND-states whose children are not on the enter path, but should also be entered.
+        enter_path_iter = enter_path.items()
+        state_id = next(enter_path_iter, None)
+        enter_states_static = Bitmap()
+        enter_states_dynamic = []
+        while state_id is not None:
+            state = state_list[state_id]
+            next_state_id = next(enter_path_iter, None)
+            if next_state_id:
+                # an intermediate state on the path from arena to target
+                next_state = state_list[next_state_id]
+                static, dynamic = state.static_additional_target_states(next_state)
+                enter_states_static |= static
+                enter_states_dynamic += dynamic
+            else:
+                # the actual target of the transition
+                enter_states_static |= state.opt.ts_static
+                enter_states_dynamic += state.opt.ts_dynamic
+            state_id = next_state_id
+
         t.opt = TransitionOptimization(
             arena=arena,
-            arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap)
+            arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap,
+            enter_states_static=enter_states_static,
+            enter_states_dynamic=enter_states_dynamic)
+
 
     timer.stop("optimize tree")
 

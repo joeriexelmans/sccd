@@ -60,37 +60,18 @@ class StatechartExecution:
             # print("arena is:", t.opt.arena)
             timer.start("transition")
 
-            timer.start("exit states")
+            timer.start("exit set")
             # Sequence of exit states is the intersection between set of current states and the arena's descendants.
             exit_ids = self.configuration & t.opt.arena.opt.descendants
             exit_set = self._ids_to_states(exit_ids.reverse_items())
-            timer.stop("exit states")
+            timer.stop("exit set")
 
 
-            timer.start("enter states")
-            # Sequence of enter states is more complex. As a start, we calculate the enter path:
-            # Enter path is the intersection between:
-            #   1) the transitions target and its ancestors, and
-            #   2) the arena's descendants
-            enter_path = (t.targets[0].opt.state_id_bitmap | t.targets[0].opt.ancestors) & t.opt.arena.opt.descendants
-            # Now, along the enter path, there may be AND-states whose children we don't explicitly enter, but should enter.
-            # That's why we call 'additional_target_states' on every state on the path and join the results.
-            # Finally, on the actual target itself, we call 'target_states' and add it to the results as well.
-            enter_path_iter = enter_path.items()
-            state_id = next(enter_path_iter, None)
-            enter_ids = Bitmap()
-            while state_id:
-                next_state_id = next(enter_path_iter, None)
-                if next_state_id:
-                    # an intermediate state on the path from arena to target
-                    enter_ids |= self.statechart.tree.state_list[state_id].additional_target_states(self)
-                else:
-                    # the actual target of the transition
-                    enter_ids |= self.statechart.tree.state_list[state_id].target_states(self)
-                state_id = next_state_id
+            timer.start("enter set")
+            # Sequence of enter states is more complex but has for a large part already been computed statically.
+            enter_ids = t.opt.enter_states_static | reduce(lambda x,y: x|y, (s.target_states(self) for s in t.opt.enter_states_dynamic), Bitmap())
             enter_set = self._ids_to_states(enter_ids.items())
-            timer.stop("enter states")
-
+            timer.stop("enter set")
 
             ctx = EvalContext(current_state=self, events=events, memory=self.rhs_memory)
 

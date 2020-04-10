@@ -166,10 +166,11 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
 
       elif event == "end":
         if isinstance(rules, list) and len(rules) > 1:
-          tag_w_suffix, func = rules[0]
-          tag, m = Multiplicity.parse_suffix(tag_w_suffix)
-          if m & Multiplicity.AT_LEAST_ONCE:
-            raise XmlError("Expected required element <%s> " % tag)
+          for rule in rules:
+            tag_w_suffix, func = rule
+            tag, m = Multiplicity.parse_suffix(tag_w_suffix)
+            if m & Multiplicity.AT_LEAST_ONCE:
+              raise XmlError("Expected required element <%s> " % tag)
         children_results = results_stack.pop()
         pair = rules_stack.pop()
         if isinstance(pair, tuple):

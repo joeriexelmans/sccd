@@ -40,10 +40,10 @@ class SingleInstanceCD(AbstractCD):
           print("  %s" % event_name)
     print()
     print("Internal events:")
-    for event_id in self.statechart.internal_events.items():
+    for event_id in bm_items(self.statechart.internal_events):
       print("  %s" % self.globals.events.get_name(event_id))
     print()
     print("All event triggers:")
-    for event_id in self.statechart.events.items():
+    for event_id in bm_items(self.statechart.events):
       print("  %s" % self.globals.events.get_name(event_id))
     print()

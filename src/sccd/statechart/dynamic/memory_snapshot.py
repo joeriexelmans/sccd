@@ -39,7 +39,7 @@ class MemoryPartialSnapshot(MemoryInterface):
     # Sometimes read from snapshot
     if frame is self.frame:
       # "our" frame! :)
-      if self.trans_dirty.has(offset):
+      if bm_has(self.trans_dirty, offset):
         return self.actual[offset]
       else:
         return self.snapshot[offset]

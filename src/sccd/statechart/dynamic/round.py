@@ -60,7 +60,7 @@ class CandidatesGeneratorEventBased(CandidatesGenerator):
 
     def __post_init__(self):
         # Prepare cache with all single-item sets-of-events since these are the most common sets of events.
-        for event_id in self.statechart.events.items():
+        for event_id in bm_items(self.statechart.events):
             events_bitmap = bit(event_id)
             self.cache[(events_bitmap, 0)] = self._candidates(events_bitmap, 0)
 
@@ -73,7 +73,7 @@ class CandidatesGeneratorEventBased(CandidatesGenerator):
         return candidates
 
     def generate(self, state, enabled_events: List[Event], forbidden_arenas: Bitmap) -> Iterable[Transition]:
-        events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
+        events_bitmap = bm_from_list(e.id for e in enabled_events)
         key = (events_bitmap, forbidden_arenas)
 
         try:

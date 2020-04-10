@@ -27,29 +27,22 @@ class State:
         if self.parent is not None:
             self.parent.children.append(self)
 
-    def target_states(self, instance) -> Bitmap:
-        return self.opt.ts_static
-
-    def static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
+    def _static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
         return (self.opt.state_id_bitmap, [])
 
     def __repr__(self):
         return "State(\"%s\")" % (self.short_name)
 
+@dataclass
 class HistoryState(State):
+    history_id: Optional[int] = None
+
     # Set of states that may be history values.
     @abstractmethod
     def history_mask(self) -> Bitmap:
         pass
 
-    def target_states(self, instance) -> Bitmap:
-        try:
-            return instance.history_values[self.opt.state_id]
-        except KeyError:
-            # Parent's target states, but not the parent itself:
-            return self.parent.target_states(instance) & ~self.parent.opt.state_id_bitmap
-
-    def static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
+    def _static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
         assert False # history state cannot have children and therefore should never occur in a "enter path"
 
 class ShallowHistoryState(HistoryState):
@@ -72,7 +65,7 @@ class DeepHistoryState(HistoryState):
 
 class ParallelState(State):
 
-    def static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
+    def _static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
         return (self.opt.ts_static & ~exclude.opt.ts_static, [s for s in self.opt.ts_dynamic if s not in exclude.opt.ts_dynamic])
 
     def __repr__(self):
@@ -98,7 +91,7 @@ class Trigger:
         # Optimization: Require 'enabling' to be sorted!
         assert sorted(self.enabling, key=lambda e: e.id) == self.enabling
 
-        self.enabling_bitmap = Bitmap.from_list(e.id for e in self.enabling)
+        self.enabling_bitmap = bm_from_list(e.id for e in self.enabling)
 
     def check(self, events_bitmap: Bitmap) -> bool:
         return (self.enabling_bitmap & events_bitmap) == self.enabling_bitmap
@@ -131,7 +124,7 @@ class NegatedTrigger(Trigger):
 
     def __post_init__(self):
         Trigger.__post_init__(self)
-        self.disabling_bitmap = Bitmap.from_list(e.id for e in self.disabling)
+        self.disabling_bitmap = bm_from_list(e.id for e in self.disabling)
 
     def check(self, events_bitmap: Bitmap) -> bool:
         return Trigger.check(self, events_bitmap) and not (self.disabling_bitmap & events_bitmap)
@@ -195,7 +188,6 @@ class StateOptimization:
     ts_static: Bitmap = Bitmap() 
     # Subset of descendants that are history states AND are in the subtree of states automatically entered if this state is the target of a transition.
     ts_dynamic: List[HistoryState] = field(default_factory=list)
-    # ts_dynamic: Bitmap = Bitmap()
 
     # Triggers of outgoing transitions that are AfterTrigger.
     after_triggers: List[AfterTrigger] = field(default_factory=list)
@@ -218,7 +210,7 @@ class StateTree:
     state_dict: Dict[str, State] # mapping from 'full name' to State
     after_triggers: List[AfterTrigger] # all after-triggers in the statechart
     stable_bitmap: Bitmap # set of states that are syntactically marked 'stable'
-
+    history_states: List[HistoryState] # all the history states in the statechart
 
 # Reduce a list of states to a set of states, as a bitmap
 def states_to_bitmap(state_list: List[State]) -> Bitmap:
@@ -229,6 +221,7 @@ def optimize_tree(root: State) -> StateTree:
 
     transition_list = []
     after_triggers = []
+    history_states = []
     def init_opt():
         next_id = 0
         def f(state: State, _=None):
@@ -244,6 +237,11 @@ def optimize_tree(root: State) -> StateTree:
                 if t.trigger and isinstance(t.trigger, AfterTrigger):
                     state.opt.after_triggers.append(t.trigger)
                     after_triggers.append(t.trigger)
+
+            if isinstance(state, HistoryState):
+                state.history_id = len(history_states)
+                history_states.append(state)
+
         return f
 
     def assign_full_name(state: State, parent_full_name: str = ""):
@@ -312,7 +310,7 @@ def optimize_tree(root: State) -> StateTree:
     for t in transition_list:
         # Arena can be computed statically. First computer Lowest-common ancestor:
         # Intersection between source & target ancestors, last member in depth-first sorted state list.
-        lca_id = (t.source.opt.ancestors & t.targets[0].opt.ancestors).highest_bit()
+        lca_id = bm_highest_bit(t.source.opt.ancestors & t.targets[0].opt.ancestors)
         lca = state_list[lca_id]
         arena = lca
         # Arena must be an Or-state:
@@ -329,7 +327,7 @@ def optimize_tree(root: State) -> StateTree:
         #   2) the arena's descendants
         enter_path = (t.targets[0].opt.state_id_bitmap | t.targets[0].opt.ancestors) & arena.opt.descendants
         # All states on the enter path will be entered, but on the enter path, there may also be AND-states whose children are not on the enter path, but should also be entered.
-        enter_path_iter = enter_path.items()
+        enter_path_iter = bm_items(enter_path)
         state_id = next(enter_path_iter, None)
         enter_states_static = Bitmap()
         enter_states_dynamic = []
@@ -339,7 +337,7 @@ def optimize_tree(root: State) -> StateTree:
             if next_state_id:
                 # an intermediate state on the path from arena to target
                 next_state = state_list[next_state_id]
-                static, dynamic = state.static_additional_target_states(next_state)
+                static, dynamic = state._static_additional_target_states(next_state)
                 enter_states_static |= static
                 enter_states_dynamic += dynamic
             else:
@@ -357,4 +355,4 @@ def optimize_tree(root: State) -> StateTree:
 
     timer.stop("optimize tree")
 
-    return StateTree(root, transition_list, state_list, state_dict, after_triggers, stable_bitmap)
+    return StateTree(root, transition_list, state_list, state_dict, after_triggers, stable_bitmap, history_states)

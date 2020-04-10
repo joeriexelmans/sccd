@@ -25,6 +25,14 @@
     };
   </datamodel>
 
+  <inport name="in">
+    <event name="redial"/>
+  </inport>
+
+  <outport name="out">
+    <event name="out"/>
+  </outport>
+
   <root>
     <parallel id="Dialing">
       <state id="Dialer" initial="WaitForDial">

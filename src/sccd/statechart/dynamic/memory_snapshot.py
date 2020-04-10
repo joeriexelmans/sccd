@@ -1,5 +1,5 @@
 from sccd.action_lang.dynamic.memory import *
-
+from sccd.util import timer
 
 class MemoryPartialSnapshot(MemoryInterface):
 

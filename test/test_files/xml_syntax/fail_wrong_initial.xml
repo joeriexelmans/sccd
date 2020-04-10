@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <root initial="c">
+      <!-- initial doesn't exist -->
+      <state id="a"/>
+      <state id="b"/>
+    </root>
+  </statechart>
+</test>

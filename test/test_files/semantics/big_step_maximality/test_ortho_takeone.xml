@@ -5,7 +5,7 @@
       big_step_maximality="take_one"/>
   </statechart>
   <input>
-    <event name="e" port="in" time="0 d"/>
+    <event name="start" port="in" time="0 d"/>
   </input>
   <output>
     <big_step>

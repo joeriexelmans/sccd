@@ -1,0 +1,88 @@
+<?xml version="1.0" ?>
+<test>
+  <!-- based on test originally written by Glenn De Jonghe -->
+  <statechart>
+    <semantics internal_event_lifeline="next_combo_step"/>
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+
+    <outport name="out">
+      <event name="check1"/>
+      <event name="check2"/>
+      <event name="check3"/>
+    </outport>
+
+    <root>
+      <parallel id="P">
+        <state id="orthogonal" initial="wrapper">
+          <parallel id="wrapper">
+
+            <state id="state_1" initial="inner_1">
+              <state id="inner_1">
+                <transition event="to_inner_2" target="../inner_2"/>
+              </state>
+              <state id="inner_2"/>
+            </state>
+
+            <state id="state_2" initial="inner_3">
+              <state id="inner_3">
+                <transition event="to_inner_4" target="../inner_4"/>
+              </state>
+              <state id="inner_4"/>
+            </state>
+
+            <history id="history" type="deep"/>
+
+            <transition event="to_outer" target="../outer"/>
+          </parallel>
+          <state id="outer">
+            <transition event="to_history" target="../wrapper/history"/>
+          </state>
+        </state>
+
+        <state id="orthogonal_tester" initial="start">
+          <state id="start">
+            <transition target="../step1">
+              <raise event="to_inner_2" />
+              <raise event="to_inner_4" />
+            </transition>
+          </state>
+          <state id="step1">
+            <transition cond='INSTATE(["/P/orthogonal/wrapper/state_2/inner_4", "/P/orthogonal/wrapper/state_1/inner_2"])'
+              target="../step2">
+              <raise event="check1" />
+              <raise event="to_outer" />
+            </transition>
+          </state>
+          <state id="step2">
+            <transition cond='INSTATE(["/P/orthogonal/outer"])' target="../step3">
+              <raise event="check2" />
+              <raise event="to_history" />
+            </transition>
+          </state>
+          <state id="step3">
+            <transition cond='INSTATE(["/P/orthogonal/wrapper/state_2/inner_4", "/P/orthogonal/wrapper/state_1/inner_2"])' target="../end">
+              <raise event="check3" />
+            </transition>
+          </state>
+          <state id="end"/>
+        </state>
+      </parallel>
+    </root>
+
+
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event name="check1" port="out"/>
+      <event name="check2" port="out"/>
+      <event name="check3" port="out"/>
+    </big_step>
+  </output>
+</test>

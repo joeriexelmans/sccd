@@ -3,12 +3,22 @@
   <datamodel>
     i = 0;
   </datamodel>
+
+  <inport name="in">
+    <event name="e"/>
+  </inport>
+
+  <outport name="out">
+    <event name="inc"/>
+    <event name="done"/>
+  </outport>
+
   <root>
     <parallel id="p">
       <state id="increment">
         <state id="a">
-          <transition port="in" event="e" target="." cond='not INSTATE(["/p/status/done"])'>
-            <raise port="out" event="inc"/>
+          <transition event="e" target="." cond='not INSTATE(["/p/status/done"])'>
+            <raise event="inc"/>
             <code> i += 1; </code>
           </transition>
         </state>
@@ -20,7 +30,7 @@
         </state>
         <state id="done">
           <onentry>
-            <raise port="out" event="done"/>
+            <raise event="done"/>
           </onentry>
         </state>
       </state>

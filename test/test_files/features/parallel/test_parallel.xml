@@ -1,0 +1,56 @@
+<test>
+  <statechart>
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+    <outport name="out">
+      <event name="s1"/>
+      <event name="s2"/>
+      <event name="s3"/>
+      <event name="s4"/>
+    </outport>
+
+    <root initial="outer">
+      <state id="outer">
+        <transition target="/p/region2/s4"/>
+      </state>
+      <parallel id="p">
+        <state id="region1" initial="s1">
+          <state id="s1">
+            <onentry>
+              <raise event="s1"/>
+            </onentry>
+          </state>
+          <state id="s2">
+            <onentry>
+              <raise event="s2"/>
+            </onentry>
+          </state>
+        </state>
+        <state id="region2" initial="s3">
+          <state id="s3">
+            <onentry>
+              <raise event="s3"/>
+            </onentry>
+          </state>
+          <state id="s4">
+            <onentry>
+              <raise event="s4"/>
+            </onentry>
+          </state>
+        </state>
+      </parallel>
+    </root>
+  </statechart>
+
+  <input>
+      <event port="in" name="start" time="1 s"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="s1"/>
+      <event port="out" name="s4"/>
+    </big_step>
+  </output>
+</test>

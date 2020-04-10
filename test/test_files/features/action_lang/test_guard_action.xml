@@ -1,0 +1,47 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics
+      big_step_maximality="take_many"/>
+    <datamodel>
+      x = 0;
+    </datamodel>
+
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+
+    <outport name="out">
+      <event name="inc"/>
+      <event name="done"/>
+    </outport>
+
+    <root initial="counting">
+      <state id="counting">
+        <transition cond="x &lt; 3" target=".">
+          <code> x += 1; </code>
+          <raise event="inc"/>
+        </transition>
+        <transition cond="x == 3" target="../done"/>
+      </state>
+      <state id="done">
+        <onentry>
+          <raise event="done"/>
+        </onentry>
+      </state>
+    </root>
+  </statechart>
+
+  <input>
+    <event name="start" port="in" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event name="inc" port="out"/>
+      <event name="inc" port="out"/>
+      <event name="inc" port="out"/>
+      <event name="done" port="out"/>
+    </big_step>
+  </output>
+</test>

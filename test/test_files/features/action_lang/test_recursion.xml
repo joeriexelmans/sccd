@@ -1,0 +1,48 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <datamodel><![CDATA[
+
+      factorial = func(i:int) {
+        return 0;
+      };
+
+      factorial = func(i:int) {
+        if (i <= 0) return 1;
+        return i*factorial(i-1);
+      };
+
+      ok = factorial(14) == 87178291200;
+
+    ]]></datamodel>
+
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+
+    <outport name="out">
+      <event name="ok"/>
+    </outport>
+
+
+    <root initial="ready">
+      <state id="ready">
+        <transition cond="ok" target="../final">
+          <raise port="out" event="ok"/>
+        </transition>
+      </state>
+
+      <state id="final"/>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="ok"/>
+    </big_step>
+  </output>
+</test>

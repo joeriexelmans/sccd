@@ -6,12 +6,20 @@
     c = 0;
   </datamodel>
 
+  <inport name="in">
+    <event name="dial"/>
+  </inport>
+
+  <outport name="out">
+    <event name="out"/>
+  </outport>
+
   <root initial="D">
     <state id="D">
-      <transition port="in" event="dial(d:int)" cond="c &lt; 10" target=".">
+      <transition event="dial(d:int)" cond="c &lt; 10" target=".">
         <code> c += 1; </code>
-        <raise port="out" event="out">
-          <!-- <parameter expr="d"/> -->
+        <raise event="out">
+          <param expr="d"/>
         </raise>
       </transition>
     </state>

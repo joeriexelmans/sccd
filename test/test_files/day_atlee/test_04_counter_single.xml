@@ -17,8 +17,6 @@
   </input>
 
   <output>
-    <big_step>
-      <event port="out" name="done"/>
-    </big_step>
+    <!-- no output :( -->
   </output>
 </test>

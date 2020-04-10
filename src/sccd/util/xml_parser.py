@@ -4,9 +4,11 @@ from lxml import etree
 import termcolor
 from sccd.util.debug import *
 
+# Raising this type of error during parsing will cause the error to be "decorated" with the current element being parsed highlighted in a displayed fragment of the XML source file
 class XmlError(Exception):
   pass
 
+# Similar to XmlError, but with a specified element instead of the current element.
 class XmlErrorElement(Exception):
   def __init__(self, el: etree.Element, msg):
     super().__init__(msg)
@@ -122,10 +124,12 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
         elif isinstance(rules, list):
           # print("rules:", [rule[0] for rule in rules])
           # Expecting elements in certain order and with certain multiplicities
+          skipped_tags = []
           while len(rules) > 0:
             tag_w_suffix, func = rules[0]
             tag, m = Multiplicity.parse_suffix(tag_w_suffix)
             if tag == el.tag:
+              # Match!
               if m & Multiplicity.AT_MOST_ONCE:
                 # We don't allow this element next time
                 rules = rules[1:]
@@ -141,8 +145,9 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
               parse_function = func
               break
             else:
+              skipped_tags.append(tag)
               if m & Multiplicity.AT_LEAST_ONCE:
-                raise XmlError("Expected required element <%s>" % tag)
+                raise XmlError("Unexpected element. Expected one of: %s" % ", ".join("<%s>" % t for t in skipped_tags))
               else:
                 # Element is skipable
                 rules = rules[1:]
@@ -166,11 +171,14 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
 
       elif event == "end":
         if isinstance(rules, list) and len(rules) > 1:
+          missing_required = []
           for rule in rules:
             tag_w_suffix, func = rule
             tag, m = Multiplicity.parse_suffix(tag_w_suffix)
             if m & Multiplicity.AT_LEAST_ONCE:
-              raise XmlError("Expected required element <%s> " % tag)
+              missing_required.append(tag)
+          if missing_required:  
+            raise XmlError("Missing required elements: %s " % ", ".join("<%s>" % t for t in missing_required))
         children_results = results_stack.pop()
         pair = rules_stack.pop()
         if isinstance(pair, tuple):
@@ -185,10 +193,12 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
 
     except (XmlError, *decorate_exceptions) as e:
       # Assume exception occured while visiting current element 'el':
+      # Re-write exception message:
       e.args = (xml_fragment(src_file, el) + str(e),)
       raise
     except XmlErrorElement as e:
       # Element where exception occured is part of exception object:
+      # Re-write exception message:
       e.args = (xml_fragment(src_file, e.el) + str(e),)
       raise
 

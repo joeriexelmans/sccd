@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <root>
+      <state><!-- non-root state must have 'id' -->
+      </state>
+    </root>
+  </statechart>
+</test>

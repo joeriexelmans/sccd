@@ -5,14 +5,21 @@
     input_event_lifeline="whole"
     internal_event_lifeline="next_small_step"/>
 
+  <inport name="in">
+    <event name="tk0"/>
+  </inport>
+  <outport name="out">
+    <event name="done"/>
+  </outport>
+
   <root>
     <parallel id="Counter">
       <state id="Bit_1" initial="Bit_11">
         <state id="Bit_11">
-          <transition port="in" event="tk0" target="../Bit_12"/>
+          <transition event="tk0" target="../Bit_12"/>
         </state>
         <state id="Bit_12">
-          <transition port="in" event="tk0" target="../Bit_11">
+          <transition event="tk0" target="../Bit_11">
             <raise event="tk1"/>
           </transition>
         </state>
@@ -24,7 +31,7 @@
         </state>
         <state id="Bit_22">
           <transition event="tk1" target="../Bit_21">
-            <raise port="out" event="done"/>
+            <raise event="done"/>
           </transition>
         </state>
       </state>

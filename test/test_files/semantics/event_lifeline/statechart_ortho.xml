@@ -1,22 +1,33 @@
 <?xml version="1.0" ?>
 <statechart>
+
+  <inport name="in">
+    <event name="e"/>
+  </inport>
+
+  <outport name="out">
+    <event name="in_b"/>
+    <event name="in_c"/>
+    <event name="in_e"/>
+  </outport>
+
   <root>
     <parallel id="p">
       <state id="o0" initial="a">
         <state id="a">
-          <transition event="e" port="in" target="../b">
+          <transition event="e" target="../b">
             <raise event="f"/>
           </transition>
         </state>
         <state id="b">
           <onentry>
-            <raise event="in_b" port="out"/>
+            <raise event="in_b"/>
           </onentry>
           <transition event="f" target="../c"/>
         </state>
         <state id="c">
           <onentry>
-            <raise event="in_c" port="out"/>
+            <raise event="in_c"/>
           </onentry>
         </state>
       </state>
@@ -26,7 +37,7 @@
         </state>
         <state id="e">
           <onentry>
-            <raise event="in_e" port="out"/>
+            <raise event="in_e"/>
           </onentry>
         </state>
       </state>

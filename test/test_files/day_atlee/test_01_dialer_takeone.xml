@@ -5,13 +5,15 @@
   </statechart>
 
   <input>
-    <event port="in" name="dial" time="0 d"/>
+    <event port="in" name="dial" time="0 d">
+      <param expr="1"/>
+    </event>
   </input>
 
   <output>
     <big_step>
       <event port="out" name="out">
-        <!-- <parameter /> -->
+        <param val="1"/>
       </event>
     </big_step>
   </output>

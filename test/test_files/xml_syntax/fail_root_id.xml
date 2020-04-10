@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <!-- not allowed: root with id -->
+    <root id="root">
+      <state id="A"/>
+    </root>
+  </statechart>
+</test>

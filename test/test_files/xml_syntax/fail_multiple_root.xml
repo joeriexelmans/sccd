@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <root>
+      <state id="a"/>
+    </root>
+    <!-- not allowed: more than one root state -->
+    <root>
+      <state id="b"/>
+    </root>
+  </statechart>
+</test>

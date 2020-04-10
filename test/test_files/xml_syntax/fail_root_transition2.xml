@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <root>
+      <state id="a">
+        <!-- not allowed: transition with target: root -->
+        <transition target=".."/>
+      </state>
+    </root>
+  </statechart>
+</test>

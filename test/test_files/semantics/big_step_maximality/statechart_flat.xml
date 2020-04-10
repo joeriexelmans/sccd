@@ -1,20 +1,27 @@
 <?xml version="1.0" ?>
 <statechart>
-  <semantics/>
+  <inport name="in">
+    <event name="start"/>
+  </inport>
+
+  <outport name="out">
+    <event name="in_b"/>
+    <event name="in_c"/>
+  </outport>
   
   <root initial="a">
     <state id="a">
-      <transition event="e" target="/b" port="in"/>
+      <transition target="/b"/>
     </state>
     <state id="b">
       <onentry>
-        <raise event="in_b" port="out"/>
+        <raise event="in_b"/>
       </onentry>
       <transition target="/c"/>
     </state>
     <state id="c">
       <onentry>
-        <raise event="in_c" port="out"/>
+        <raise event="in_c"/>
       </onentry>
     </state>
   </root>

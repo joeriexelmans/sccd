@@ -14,8 +14,8 @@ def check_duration_type(type):
   if type != SCCDDuration:
     msg = "Expression is '%s' type. Expected 'Duration' type." % str(type)
     if type == SCCDInt:
-      msg += "\n Hint: Did you forget a duration unit sufix? ('s', 'ms', ...)"
-    raise Exception(msg)
+      msg += "\n Hint: Did you forget a duration unit suffix? ('s', 'ms', ...)"
+    raise XmlError(msg)
 
 # path: path for finding external statecharts
 def statechart_parser_rules(globals, path, load_external = True, parse_f = parse_f) -> Rules:
@@ -60,6 +60,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
     def parse_inport(el):
       port_name = require_attribute(el, "name")
+      globals.inports.assign_id(port_name)
       def parse_event(el):
         event_name = require_attribute(el, "name")
         event_id = globals.events.assign_id(event_name)
@@ -75,6 +76,8 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
       return [("event+", parse_event)]
 
     def parse_root(el):
+      if el.get("id") is not None:
+        raise XmlError("<root> state must not have 'id' attribute.")
       root = State("", parent=None)
       children_dict = {}
       transitions = [] # All of the statechart's transitions accumulate here, cause we still need to find their targets, which we can't do before the entire state tree has been built. We find their targets when encoutering the </root> closing tag.
@@ -100,10 +103,11 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             if port is None:
               # internal event
               event_id = globals.events.assign_id(event_name)
-              statechart.internal_events |= event_id
-              return RaiseInternalEvent(name=event_name, params=params, event_id=event_id)
+              statechart.internal_events |= bit(event_id)
+              return RaiseInternalEvent(event_id=event_id, name=event_name, params=params)
             else:
               # output event - no ID in global namespace
+              statechart.event_outport[event_name] = port
               globals.outports.assign_id(port)
               return RaiseOutputEvent(name=event_name, params=params, outport=port, time_offset=duration(0))
           return ([("param*", parse_param)], finish_raise)
@@ -255,7 +259,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           try:
             parse_tree = parse_state_ref(transition.target_string)
           except Exception as e:
-            raise XmlErrorElement(t_el, "Parsing target '%s': %s" % (target_string, str(e))) from e
+            raise XmlErrorElement(t_el, "Parsing target '%s': %s" % (transition.target_string, str(e))) from e
 
           def find_target(sequence) -> State:
             if sequence.data == "relative_path":
@@ -276,7 +280,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           try:
             transition.targets = [find_target(seq) for seq in parse_tree.children]
           except Exception as e:
-            raise XmlErrorElement(t_el, "Could not find target '%s'." % (transition.target_string)) from e
+            raise XmlErrorElement(t_el, "target=\"%s\": %s" % (transition.target_string, str(e))) from e
 
         statechart.tree = optimize_tree(root)
 
@@ -285,6 +289,9 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
     def finish_statechart():
       return statechart
 
-    return ([("semantics?", parse_semantics), ("override_semantics?", parse_semantics), ("datamodel?", parse_datamodel), ("inport*", parse_inport), ("outport*", parse_outport), ("root", parse_root)], finish_statechart)
+    if ext_file is None:
+      return ([("semantics?", parse_semantics), ("datamodel?", parse_datamodel), ("inport*", parse_inport), ("outport*", parse_outport), ("root", parse_root)], finish_statechart)
+    else:
+      return ([("override_semantics?", parse_semantics)], finish_statechart)
 
   return parse_statechart

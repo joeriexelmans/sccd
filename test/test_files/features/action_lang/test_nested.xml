@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <datamodel><![CDATA[
+
+      ok = False;
+
+      outer = func(i:int) {
+        inner = func(j:int) {
+          if (i > j) {
+            ok = True;
+          };
+        };
+        inner(i-1);
+      };
+
+      outer(5);
+
+    ]]></datamodel>
+
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+
+    <outport name="out">
+      <event name="ok"/>
+    </outport>
+
+    <root initial="ready">
+      <state id="ready">
+        <transition event="start" target="../final"
+          cond="ok">
+          <raise event="ok"/>
+        </transition>
+      </state>
+
+      <state id="final"/>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="ok"/>
+    </big_step>
+  </output>
+</test>

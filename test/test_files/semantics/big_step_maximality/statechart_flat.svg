@@ -58,7 +58,7 @@
 <title>_a&#45;&gt;_b</title>
 <path fill="none" stroke="#000000" d="M45,-147.8711C45,-142.4482 45,-136.3229 45,-130.2494"/>
 <polygon fill="#000000" stroke="#000000" points="48.5001,-130.21 45,-120.21 41.5001,-130.21 48.5001,-130.21"/>
-<text text-anchor="start" x="45" y="-131" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">e &#160;&#160;</text>
+<text text-anchor="middle" x="46.3895" y="-131" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000"> </text>
 </g>
 </g>
 </svg>

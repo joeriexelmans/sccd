@@ -4,26 +4,36 @@
     <semantics
       big_step_maximality="syntactic"
       input_event_lifeline="whole"/>
+
+    <inport name="in">
+      <event name="e"/>
+    </inport>
+
+    <outport name="out">
+      <event name="in_b"/>
+      <event name="in_c"/>
+      <event name="in_d"/>
+    </outport>
     
     <root initial="a">
       <state id="a">
-        <transition port="in" event="e" target="/b"/>
+        <transition event="e" target="/b"/>
       </state>
       <state id="b" stable="true">
         <onentry>
-          <raise event="in_b" port="out"/>
+          <raise event="in_b"/>
         </onentry>
-        <transition port="in" event="e" target="/c"/>
+        <transition event="e" target="/c"/>
       </state>
       <state id="c">
         <onentry>
-          <raise event="in_c" port="out"/>
+          <raise event="in_c"/>
         </onentry>
-        <transition port="in" event="e" target="/d"/>
+        <transition event="e" target="/d"/>
       </state>
       <state id="d" stable="true">
         <onentry>
-          <raise event="in_d" port="out"/>
+          <raise event="in_d"/>
         </onentry>
       </state>
     </root>

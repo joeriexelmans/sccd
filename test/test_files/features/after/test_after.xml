@@ -5,6 +5,13 @@
     <semantics
         big_step_maximality="take_one, take_many"
         combo_step_maximality="*"/>
+
+    <outport name="out">
+      <event name="in_2"/>
+      <event name="in_3"/>
+      <event name="in_4"/>
+    </outport>
+
     <root initial="s1">
       <state id="s1">
         <transition after="100 ms" target="/s2"/>
@@ -12,22 +19,23 @@
       </state>
       <state id="s2">
         <onentry>
-          <raise event="in_2" port="out" />
+          <raise event="in_2"/>
         </onentry>
         <transition after="150 ms" target="/s4"/>
       </state>
       <state id="s3">
         <onentry>
-          <raise event="in_3" port="out"/>
+          <raise event="in_3"/>
         </onentry>
       </state>
       <state id="s4">
         <onentry>
-          <raise event="in_4" port="out"/>
+          <raise event="in_4"/>
         </onentry>
       </state>
     </root>
   </statechart>
+  
   <output>
     <big_step>
       <event name="in_2" port="out"/>

@@ -1,5 +1,6 @@
 <?xml version="1.0" ?>
 <test>
+  <!-- based on test originally written by Glenn De Jonghe -->
   <statechart>
     <semantics
       big_step_maximality="take_many"

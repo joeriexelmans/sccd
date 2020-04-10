@@ -39,10 +39,10 @@ class Controller:
             if input.name == "":
                 raise Exception("Input event can't have an empty name.")
         
-            # try:
-            #     self.cd.globals.inports.get_id(input.port)
-            # except KeyError as e:
-            #     raise Exception("No such port: '%s'" % input.port) from e
+            try:
+                self.cd.globals.inports.get_id(input.port)
+            except KeyError as e:
+                raise Exception("No such port: '%s'" % input.port) from e
 
             try:
                 event_id = self.cd.globals.events.get_id(input.name)

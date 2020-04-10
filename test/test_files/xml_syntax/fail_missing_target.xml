@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <root>
+      <state id="a">
+        <transition event="e"/>
+      </state>
+    </root>
+  </statechart>
+</test>

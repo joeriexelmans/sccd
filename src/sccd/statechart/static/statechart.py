@@ -46,7 +46,7 @@ class Concurrency(SemanticAspect, Enum):
   SINGLE = auto()
   MANY = auto()
 
-_T = TypeVar('T', bound=SemanticAspect)
+_T = TypeVar('_T', bound=SemanticAspect)
 SemanticChoice = Union[_T, List[_T]]
 
 @dataclass

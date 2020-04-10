@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+    <outport name="out">
+      <event name="done"/>
+    </outport>
+
+    <root initial="a">
+      <state id="a">
+        <state id="b">
+          <state id="c">
+            <transition target="/d/e/f"/>
+          </state>
+        </state>
+      </state>
+      <state id="d">
+        <state id="e">
+          <state id="f">
+            <onentry>
+              <raise event="done" port="out"/>
+            </onentry>
+          </state>
+        </state>
+      </state>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+  <output>
+    <big_step>
+      <event port="out" name="done"/>
+    </big_step>
+  </output>
+</test>

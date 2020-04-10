@@ -114,7 +114,7 @@ if __name__ == '__main__':
           if s.enter or s.exit:
             w.extendWrite(' :')
             for a in s.enter:
-              w.write("entry "+a.render())
+              w.write("enter "+a.render())
             for a in s.exit:
               w.write("exit "+a.render())
             w.write()

@@ -1,0 +1,48 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <datamodel>
+      digit = func(i:int, pos:int) {
+        pow = 10 ** pos;
+        return i // pow % 10;      
+      };
+
+      numdigits = func(i:int) {
+        return float_to_int(log10(i)) + 1;
+      };
+
+      parameterless = func {};
+
+      ok = numdigits(123) == 3 and digit(123, 1) == 2;
+    </datamodel>
+
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+
+    <outport name="out">
+      <event name="ok"/>
+    </outport>
+
+    <root initial="ready">
+      <state id="ready">
+        <transition event="start" target="../final"
+          cond="ok">
+          <raise event="ok"/>
+        </transition>
+      </state>
+
+      <state id="final"/>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="ok"/>
+    </big_step>
+  </output>
+</test>

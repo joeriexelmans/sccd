@@ -4,6 +4,12 @@
     <semantics
         big_step_maximality="take_many"
         combo_step_maximality="combo_take_one"/>
+
+    <outport name="out">
+      <event name="in_b"/>
+      <event name="in_c"/>
+    </outport>
+
     <root>
       <parallel id="p">
         <state id="o0" initial="a">
@@ -13,13 +19,13 @@
           </state>
           <state id="b">
             <onentry>
-              <raise event="in_b" port="out"/>
+              <raise event="in_b"/>
             </onentry>
             <transition target="../a"/>
           </state>
           <state id="c">
             <onentry>
-              <raise event="in_c" port="out"/>
+              <raise event="in_c"/>
             </onentry>
           </state>
         </state>

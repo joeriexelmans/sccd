@@ -131,7 +131,7 @@
 <title>_Dialing_Dialer_WaitForDial&#45;&gt;_Dialing_Dialer_DialDigits</title>
 <path fill="none" stroke="#000000" d="M128.5115,-146.0105C144.3736,-139.9675 158,-132.4599 158,-124.5 158,-124.5 158,-124.5 158,-77.5 158,-69.8638 154.1829,-63.7787 148.5785,-58.9596"/>
 <polygon fill="#000000" stroke="#000000" points="150.2577,-55.8692 140.0188,-53.1463 146.3249,-61.66 150.2577,-55.8692"/>
-<text text-anchor="start" x="158" y="-98" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">dial(d:int) ∧ redial [c == 0]/lp = d⁏ c = 1⁏ &#160;^out.out &#160;&#160;</text>
+<text text-anchor="start" x="158" y="-98" font-family="Helvetica,sans-Serif" font-size="10.00" fill="#000000">redial ∧ dial(d:int) [c == 0]/lp = d⁏ c = 1⁏ &#160;^out.out &#160;&#160;</text>
 </g>
 <!-- _Dialing_Dialer_WaitForDial&#45;&gt;_Dialing_Dialer_WaitForDial -->
 <g id="edge9" class="edge">

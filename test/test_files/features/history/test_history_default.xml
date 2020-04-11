@@ -1,0 +1,45 @@
+<test>
+  <!-- Entering a history state whose parent hasn't been exited before:
+       should enter the parent's default state -->
+  <statechart>
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+    <outport name="out">
+      <event name="s1"/>
+      <event name="s2"/>
+    </outport>
+
+    <root initial="outer">
+      <state id="outer">
+        <transition target="/composite/history"/>
+      </state>
+      <state id="composite" initial="b">
+        <state id="a"/>
+        <state id="b" initial="s2">
+          <state id="s1">
+            <onentry>
+              <raise event="s1"/>
+            </onentry>
+          </state>
+          <state id="s2">
+            <onentry>
+              <raise event="s2"/>
+            </onentry>
+          </state>
+        </state>
+        <history id="history" type="shallow"/>
+      </state>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="s2"/>
+    </big_step>
+  </output>
+</test>

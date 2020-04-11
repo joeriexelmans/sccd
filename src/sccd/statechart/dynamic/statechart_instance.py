@@ -27,7 +27,7 @@ class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager):
         self.object_manager = object_manager
 
-        self.execution = StatechartExecution(statechart, self)
+        self.execution = StatechartExecution(statechart)
 
         semantics = statechart.semantics
 

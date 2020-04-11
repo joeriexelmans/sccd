@@ -10,9 +10,8 @@ from sccd.util import timer
 # Set of current states etc.
 class StatechartExecution:
 
-    def __init__(self, statechart: Statechart, instance):
+    def __init__(self, statechart: Statechart):
         self.statechart = statechart
-        self.instance = instance
 
         self.gc_memory = None
         self.rhs_memory = None
@@ -22,8 +21,9 @@ class StatechartExecution:
         # set of current states
         self.configuration: Bitmap = Bitmap()
 
-        # mapping from history_id to set of states to enter if history is target of transition
-        self.history_values: List[Bitmap] = {}
+        # Mapping from history_id to set of states to enter if history is target of transition
+        # By default, if the parent of a history state has never been exited before, the parent's default states should be entered.
+        self.history_values: List[Bitmap] = [h.parent.opt.ts_static for h in statechart.tree.history_states]
 
         # For each AfterTrigger in the statechart tree, we keep an expected 'id' that is
         # a parameter to a future 'after' event. This 'id' is incremented each time a timer
@@ -63,14 +63,12 @@ class StatechartExecution:
             # Sequence of exit states is the intersection between set of current states and the arena's descendants.
             timer.start("exit set")
             exit_ids = self.configuration & t.opt.arena.opt.descendants
-            timer.stop("exit set")
             exit_set = self._ids_to_states(bm_reverse_items(exit_ids))
+            timer.stop("exit set")
 
 
             timer.start("enter set")
             # Sequence of enter states is more complex but has for a large part already been computed statically.
-            if t.opt.enter_states_dynamic:
-                print(t.opt.enter_states_dynamic)
             enter_ids = t.opt.enter_states_static | reduce(lambda x,y: x|y, (self.history_values[s.history_id] for s in t.opt.enter_states_dynamic), Bitmap())
             enter_set = self._ids_to_states(bm_items(enter_ids))
             timer.stop("enter set")
@@ -91,11 +89,13 @@ class StatechartExecution:
             timer.stop("exit states")
 
             # execute transition action(s)
+            timer.start("actions")
             self.rhs_memory.push_frame(t.scope) # make room for event parameters on stack
             if t.trigger:
                 t.trigger.copy_params_to_stack(ctx)
             self._perform_actions(ctx, t.actions)
             self.rhs_memory.pop_frame()
+            timer.stop("actions")
 
             timer.start("enter states")
             # enter states...
@@ -144,10 +144,8 @@ class StatechartExecution:
 
     @staticmethod
     def _perform_actions(ctx: EvalContext, actions: List[Action]):
-        timer.start("actions")
         for a in actions:
             a.exec(ctx)
-        timer.stop("actions")
 
     def _start_timers(self, triggers: List[AfterTrigger]):
         for after in triggers:

@@ -57,58 +57,49 @@ class StatechartExecution:
     # events: list SORTED by event id
     def fire_transition(self, events: List[Event], t: Transition):
         try:
-            # print("arena is:", t.opt.arena)
-            timer.start("transition")
-
-            # Sequence of exit states is the intersection between set of current states and the arena's descendants.
-            timer.start("exit set")
-            exit_ids = self.configuration & t.opt.arena.opt.descendants
-            exit_set = self._ids_to_states(bm_reverse_items(exit_ids))
-            timer.stop("exit set")
+            with timer.Context("transition"):
+                # Sequence of exit states is the intersection between set of current states and the arena's descendants.
+                with timer.Context("exit set"):
+                    exit_ids = self.configuration & t.opt.arena.opt.descendants
+                    exit_set = self._ids_to_states(bm_reverse_items(exit_ids))
 
 
-            timer.start("enter set")
-            # Sequence of enter states is more complex but has for a large part already been computed statically.
-            enter_ids = t.opt.enter_states_static | reduce(lambda x,y: x|y, (self.history_values[s.history_id] for s in t.opt.enter_states_dynamic), Bitmap())
-            enter_set = self._ids_to_states(bm_items(enter_ids))
-            timer.stop("enter set")
+                with timer.Context("enter set"):
+                    # Sequence of enter states is more complex but has for a large part already been computed statically.
+                    enter_ids = t.opt.enter_states_static | reduce(lambda x,y: x|y, (self.history_values[s.history_id] for s in t.opt.enter_states_dynamic), Bitmap())
+                    enter_set = self._ids_to_states(bm_items(enter_ids))
 
-            ctx = EvalContext(current_state=self, events=events, memory=self.rhs_memory)
+                ctx = EvalContext(current_state=self, events=events, memory=self.rhs_memory)
 
-            print_debug("fire " + str(t))
+                print_debug("fire " + str(t))
 
-            timer.start("exit states")
-            # exit states...
-            for s in exit_set:
-                print_debug(termcolor.colored('  EXIT %s' % s.opt.full_name, 'green'))
-                # remember which state(s) we were in if a history state is present
-                for h, mask in s.opt.history:
-                    self.history_values[h.history_id] = exit_ids & mask
-                self._perform_actions(ctx, s.exit)
-                self.configuration &= ~s.opt.state_id_bitmap
-            timer.stop("exit states")
+                with timer.Context("exit states"):
+                    # exit states...
+                    for s in exit_set:
+                        print_debug(termcolor.colored('  EXIT %s' % s.opt.full_name, 'green'))
+                        # remember which state(s) we were in if a history state is present
+                        for h, mask in s.opt.history:
+                            self.history_values[h.history_id] = exit_ids & mask
+                        self._perform_actions(ctx, s.exit)
+                        self.configuration &= ~s.opt.state_id_bitmap
 
-            # execute transition action(s)
-            timer.start("actions")
-            self.rhs_memory.push_frame(t.scope) # make room for event parameters on stack
-            if t.trigger:
-                t.trigger.copy_params_to_stack(ctx)
-            self._perform_actions(ctx, t.actions)
-            self.rhs_memory.pop_frame()
-            timer.stop("actions")
+                # execute transition action(s)
+                with timer.Context("actions"):
+                    self.rhs_memory.push_frame(t.scope) # make room for event parameters on stack
+                    if t.trigger:
+                        t.trigger.copy_params_to_stack(ctx)
+                    self._perform_actions(ctx, t.actions)
+                    self.rhs_memory.pop_frame()
 
-            timer.start("enter states")
-            # enter states...
-            for s in enter_set:
-                print_debug(termcolor.colored('  ENTER %s' % s.opt.full_name, 'green'))
-                self.configuration |= s.opt.state_id_bitmap
-                self._perform_actions(ctx, s.enter)
-                self._start_timers(s.opt.after_triggers)
-            timer.stop("enter states")
+                with timer.Context("enter states"):
+                    # enter states...
+                    for s in enter_set:
+                        print_debug(termcolor.colored('  ENTER %s' % s.opt.full_name, 'green'))
+                        self.configuration |= s.opt.state_id_bitmap
+                        self._perform_actions(ctx, s.enter)
+                        self._start_timers(s.opt.after_triggers)
 
-            self.rhs_memory.flush_transition()
-
-            timer.stop("transition")
+                self.rhs_memory.flush_transition()
 
             # input(">")
 

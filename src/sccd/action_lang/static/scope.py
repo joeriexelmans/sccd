@@ -16,6 +16,8 @@ class ScopeError(ModelError):
 # Stateless stuff we know about a variable existing within a scope.
 @dataclass(frozen=True)
 class _Variable(ABC):
+  __slots__ = ["_name", "offset", "type", "const"]
+  
   _name: str # only used to print error messages
   offset: int # Offset within variable's scope. Always >= 0.
   type: SCCDType
@@ -31,6 +33,8 @@ class _Variable(ABC):
 
 # Stateless stuff we know about a scope (= set of named values)
 class Scope:
+  __slots__ = ["name", "parent", "parent_offset", "names", "variables"]
+
   def __init__(self, name: str, parent: 'Scope'):
     self.name = name
     self.parent = parent

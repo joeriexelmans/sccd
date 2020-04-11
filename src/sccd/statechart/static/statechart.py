@@ -84,6 +84,8 @@ class SemanticConfiguration:
 
 @dataclass
 class Statechart:
+  __slots__ = ["semantics", "scope", "datamodel", "events", "internal_events", "inport_events", "event_outport", "tree"]
+  
   semantics: SemanticConfiguration
 
   scope: Scope

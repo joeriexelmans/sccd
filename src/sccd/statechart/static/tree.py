@@ -246,149 +246,146 @@ def states_to_bitmap(state_list: List[State]) -> Bitmap:
     return reduce(lambda x,y: x|y, (s.opt.state_id_bitmap for s in state_list), Bitmap())
 
 def optimize_tree(root: State) -> StateTree:
-    timer.start("optimize tree")
+    with timer.Context("optimize tree"):
 
-    transition_list = []
-    after_triggers = []
-    history_states = []
-    def init_opt():
-        next_id = 0
-        def f(state: State, _=None):
-            state.opt = StateOptimization()
+        transition_list = []
+        after_triggers = []
+        history_states = []
+        def init_opt():
+            next_id = 0
+            def f(state: State, _=None):
+                state.opt = StateOptimization()
 
-            nonlocal next_id
-            state.opt.state_id = next_id
-            state.opt.state_id_bitmap = bit(next_id)
-            next_id += 1
+                nonlocal next_id
+                state.opt.state_id = next_id
+                state.opt.state_id_bitmap = bit(next_id)
+                next_id += 1
 
-            for t in state.transitions:
-                transition_list.append(t)
-                if t.trigger and isinstance(t.trigger, AfterTrigger):
-                    state.opt.after_triggers.append(t.trigger)
-                    after_triggers.append(t.trigger)
+                for t in state.transitions:
+                    transition_list.append(t)
+                    if t.trigger and isinstance(t.trigger, AfterTrigger):
+                        state.opt.after_triggers.append(t.trigger)
+                        after_triggers.append(t.trigger)
 
-            if isinstance(state, HistoryState):
-                state.history_id = len(history_states)
-                history_states.append(state)
+                if isinstance(state, HistoryState):
+                    state.history_id = len(history_states)
+                    history_states.append(state)
 
-        return f
+            return f
 
-    def assign_full_name(state: State, parent_full_name: str = ""):
-        if state is root:
-            full_name = '/'
-        elif state.parent is root:
-            full_name = '/' + state.short_name
-        else:
-            full_name = parent_full_name + '/' + state.short_name
-        state.opt.full_name = full_name
-        return full_name
-
-    state_dict = {}
-    state_list = []
-    stable_bitmap = Bitmap()
-    def add_to_list(state: State ,_=None):
-        nonlocal stable_bitmap
-        state_dict[state.opt.full_name] = state
-        state_list.append(state)
-        if state.stable:
-            stable_bitmap |= state.opt.state_id_bitmap
-
-    def set_ancestors(state: State, ancestors=[]):
-        state.opt.ancestors = states_to_bitmap(ancestors)
-        return ancestors + [state]
-
-    def set_descendants(state: State, children_descendants):
-        descendants = reduce(lambda x,y: x|y, children_descendants, Bitmap())
-        state.opt.descendants = descendants
-        return state.opt.state_id_bitmap | descendants
-
-    def set_static_target_states(state: State, _):
-        if isinstance(state, ParallelState):
-            state.opt.ts_static = reduce(lambda x,y: x|y, (s.opt.ts_static for s in state.children), state.opt.state_id_bitmap)
-            state.opt.ts_dynamic = list(itertools.chain.from_iterable(c.opt.ts_dynamic for c in state.children if not isinstance(c, HistoryState)))
-        elif isinstance(state, HistoryState):
-            state.opt.ts_static = Bitmap()
-            state.opt.ts_dynamic = [state]
-        else: # "regular" state:
-            if state.default_state:
-                state.opt.ts_static = state.opt.state_id_bitmap | state.default_state.opt.ts_static
-                state.opt.ts_dynamic = state.default_state.opt.ts_dynamic
+        def assign_full_name(state: State, parent_full_name: str = ""):
+            if state is root:
+                full_name = '/'
+            elif state.parent is root:
+                full_name = '/' + state.short_name
             else:
-                state.opt.ts_static = state.opt.state_id_bitmap
-                state.opt.ts_dynamic = []
+                full_name = parent_full_name + '/' + state.short_name
+            state.opt.full_name = full_name
+            return full_name
 
-    def add_history(state: State, _= None):
-        for c in state.children:
-            if isinstance(c, HistoryState):
-                state.opt.history.append((c, c.history_mask()))
+        state_dict = {}
+        state_list = []
+        stable_bitmap = Bitmap()
+        def add_to_list(state: State ,_=None):
+            nonlocal stable_bitmap
+            state_dict[state.opt.full_name] = state
+            state_list.append(state)
+            if state.stable:
+                stable_bitmap |= state.opt.state_id_bitmap
 
-    def freeze(state: State, _=None):
-        state.freeze()
-        state.opt.freeze()
+        def set_ancestors(state: State, ancestors=[]):
+            state.opt.ancestors = states_to_bitmap(ancestors)
+            return ancestors + [state]
 
-    visit_tree(root, lambda s: s.children,
-        before_children=[
-            init_opt(),
-            assign_full_name,
-            add_to_list,
-            set_ancestors,
-        ],
-        after_children=[
-            set_descendants,
-            add_history,
-            set_static_target_states,
-            freeze,
-        ])
+        def set_descendants(state: State, children_descendants):
+            descendants = reduce(lambda x,y: x|y, children_descendants, Bitmap())
+            state.opt.descendants = descendants
+            return state.opt.state_id_bitmap | descendants
 
+        def set_static_target_states(state: State, _):
+            if isinstance(state, ParallelState):
+                state.opt.ts_static = reduce(lambda x,y: x|y, (s.opt.ts_static for s in state.children), state.opt.state_id_bitmap)
+                state.opt.ts_dynamic = list(itertools.chain.from_iterable(c.opt.ts_dynamic for c in state.children if not isinstance(c, HistoryState)))
+            elif isinstance(state, HistoryState):
+                state.opt.ts_static = Bitmap()
+                state.opt.ts_dynamic = [state]
+            else: # "regular" state:
+                if state.default_state:
+                    state.opt.ts_static = state.opt.state_id_bitmap | state.default_state.opt.ts_static
+                    state.opt.ts_dynamic = state.default_state.opt.ts_dynamic
+                else:
+                    state.opt.ts_static = state.opt.state_id_bitmap
+                    state.opt.ts_dynamic = []
 
-    for t in transition_list:
-        # Arena can be computed statically. First computer Lowest-common ancestor:
-        # Intersection between source & target ancestors, last member in depth-first sorted state list.
-        lca_id = bm_highest_bit(t.source.opt.ancestors & t.targets[0].opt.ancestors)
-        lca = state_list[lca_id]
-        arena = lca
-        # Arena must be an Or-state:
-        while isinstance(arena, (ParallelState, HistoryState)):
-            arena = arena.parent
+        def add_history(state: State, _= None):
+            for c in state.children:
+                if isinstance(c, HistoryState):
+                    state.opt.history.append((c, c.history_mask()))
 
-        # Exit states can be efficiently computed at runtime based on the set of current states.
-        # Enter states are more complex but luckily, can be computed *partially* statically:
+        def freeze(state: State, _=None):
+            state.freeze()
+            state.opt.freeze()
 
-        # As a start, we calculate the enter path:
-        # The enter path is the path from arena to the target state (not including the arena state itself).
-        # Enter path is the intersection between:
-        #   1) the transition's target and its ancestors, and
-        #   2) the arena's descendants
-        enter_path = (t.targets[0].opt.state_id_bitmap | t.targets[0].opt.ancestors) & arena.opt.descendants
-        # All states on the enter path will be entered, but on the enter path, there may also be AND-states whose children are not on the enter path, but should also be entered.
-        enter_path_iter = bm_items(enter_path)
-        state_id = next(enter_path_iter, None)
-        enter_states_static = Bitmap()
-        enter_states_dynamic = []
-        while state_id is not None:
-            state = state_list[state_id]
-            next_state_id = next(enter_path_iter, None)
-            if next_state_id:
-                # an intermediate state on the path from arena to target
-                next_state = state_list[next_state_id]
-                static, dynamic = state._static_additional_target_states(next_state)
-                enter_states_static |= static
-                enter_states_dynamic += dynamic
-            else:
-                # the actual target of the transition
-                enter_states_static |= state.opt.ts_static
-                enter_states_dynamic += state.opt.ts_dynamic
-            state_id = next_state_id
-
-        t.opt = TransitionOptimization(
-            arena=arena,
-            arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap,
-            enter_states_static=enter_states_static,
-            enter_states_dynamic=enter_states_dynamic)
-
-        t.freeze()
+        visit_tree(root, lambda s: s.children,
+            before_children=[
+                init_opt(),
+                assign_full_name,
+                add_to_list,
+                set_ancestors,
+            ],
+            after_children=[
+                set_descendants,
+                add_history,
+                set_static_target_states,
+                freeze,
+            ])
 
 
-    timer.stop("optimize tree")
+        for t in transition_list:
+            # Arena can be computed statically. First computer Lowest-common ancestor:
+            # Intersection between source & target ancestors, last member in depth-first sorted state list.
+            lca_id = bm_highest_bit(t.source.opt.ancestors & t.targets[0].opt.ancestors)
+            lca = state_list[lca_id]
+            arena = lca
+            # Arena must be an Or-state:
+            while isinstance(arena, (ParallelState, HistoryState)):
+                arena = arena.parent
 
-    return StateTree(root, transition_list, state_list, state_dict, after_triggers, stable_bitmap, history_states)
+            # Exit states can be efficiently computed at runtime based on the set of current states.
+            # Enter states are more complex but luckily, can be computed *partially* statically:
+
+            # As a start, we calculate the enter path:
+            # The enter path is the path from arena to the target state (not including the arena state itself).
+            # Enter path is the intersection between:
+            #   1) the transition's target and its ancestors, and
+            #   2) the arena's descendants
+            enter_path = (t.targets[0].opt.state_id_bitmap | t.targets[0].opt.ancestors) & arena.opt.descendants
+            # All states on the enter path will be entered, but on the enter path, there may also be AND-states whose children are not on the enter path, but should also be entered.
+            enter_path_iter = bm_items(enter_path)
+            state_id = next(enter_path_iter, None)
+            enter_states_static = Bitmap()
+            enter_states_dynamic = []
+            while state_id is not None:
+                state = state_list[state_id]
+                next_state_id = next(enter_path_iter, None)
+                if next_state_id:
+                    # an intermediate state on the path from arena to target
+                    next_state = state_list[next_state_id]
+                    static, dynamic = state._static_additional_target_states(next_state)
+                    enter_states_static |= static
+                    enter_states_dynamic += dynamic
+                else:
+                    # the actual target of the transition
+                    enter_states_static |= state.opt.ts_static
+                    enter_states_dynamic += state.opt.ts_dynamic
+                state_id = next_state_id
+
+            t.opt = TransitionOptimization(
+                arena=arena,
+                arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap,
+                enter_states_static=enter_states_static,
+                enter_states_dynamic=enter_states_dynamic)
+
+            t.freeze()
+
+        return StateTree(root, transition_list, state_list, state_dict, after_triggers, stable_bitmap, history_states)

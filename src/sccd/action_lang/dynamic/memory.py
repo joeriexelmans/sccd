@@ -8,6 +8,8 @@ from sccd.action_lang.static.expression import *
 
 @dataclass(frozen=True)
 class StackFrame:
+  __slots__ = ["storage", "parent", "context", "scope"]
+
   # Values of variables in the frame.
   storage: List[Any]
 
@@ -31,6 +33,7 @@ class StackFrame:
     return "StackFrame(%s, len=%d, parent=%s, context=%s)" % (self.scope.name, len(self.storage), short_descr(self.parent), "parent" if self.context is self.parent else short_descr(self.context))
 
 class Memory(MemoryInterface):
+  __slots__ = ["_current_frame"]
 
   def __init__(self):
     self._current_frame = None

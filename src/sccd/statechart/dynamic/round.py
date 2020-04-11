@@ -105,18 +105,17 @@ class Round(ABC):
         self.callbacks.append(callback)
 
     def run_and_cycle_events(self, forbidden_arenas: Bitmap = Bitmap()) -> RoundResult:
-        timer.start("round: %s" % self.name)
-        changed, stable = self._run(forbidden_arenas)
-        if changed:
-            # notify round observers
-            for callback in self.callbacks:
-                callback()
-            # rotate enabled events
-            self.remainder_events = self.next_events
-            self.next_events = []
-            print_debug("completed "+self.name)
-        timer.stop("round: %s" % self.name)
-        return (changed, stable)
+        with timer.Context("round: %s" % self.name):
+            changed, stable = self._run(forbidden_arenas)
+            if changed:
+                # notify round observers
+                for callback in self.callbacks:
+                    callback()
+                # rotate enabled events
+                self.remainder_events = self.next_events
+                self.next_events = []
+                print_debug("completed "+self.name)
+            return (changed, stable)
 
     @abstractmethod
     def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
@@ -223,21 +222,20 @@ class SmallStep(Round):
         enabled_events = None
         def get_candidates(extra_forbidden):
             nonlocal enabled_events
-            timer.start("get enabled events")
-            enabled_events = self.enabled_events()
-            # The cost of sorting our enabled events is smaller than the benefit gained by having to loop less often over it in our transition execution code:
-            enabled_events.sort(key=lambda e: e.id)
-            timer.stop("get enabled events")
+            with timer.Context("get enabled events"):
+                enabled_events = self.enabled_events()
+                # The cost of sorting our enabled events is smaller than the benefit gained by having to loop less often over it in our transition execution code:
+                enabled_events.sort(key=lambda e: e.id)
 
             candidates = self.generator.generate(self.state, enabled_events, forbidden_arenas |  extra_forbidden)
 
             if DEBUG:
                 candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
                 if candidates:
-                    print_debug("")
+                    print()
                     if enabled_events:
-                        print_debug("events: " + str(enabled_events))
-                    print_debug("candidates: " + ",  ".join(str(t) for t in candidates))
+                        print("events: " + str(enabled_events))
+                    print("candidates: " + ",  ".join(str(t) for t in candidates))
                 candidates = iter(candidates)
 
             return candidates
@@ -245,10 +243,9 @@ class SmallStep(Round):
         arenas = Bitmap()
         stable_arenas = Bitmap()
 
-        timer.start("candidate generation")
-        candidates = get_candidates(0)
-        t = next(candidates, None)
-        timer.stop("candidate generation")
+        with timer.Context("candidate generation"):
+            candidates = get_candidates(0)
+            t = next(candidates, None)
         while t:
             arena = t.opt.arena_bitmap
             if not (arenas & arena):
@@ -263,13 +260,12 @@ class SmallStep(Round):
 
                 # need to re-generate candidates after firing transition
                 # because possibly the set of current events has changed
-                timer.start("candidate generation")
-                candidates = get_candidates(extra_forbidden=arenas)
+                with timer.Context("candidate generation"):
+                    candidates = get_candidates(extra_forbidden=arenas)
+                    t = next(candidates, None)
             else:
-                timer.start("candidate generation")
-
-            t = next(candidates, None)
-            timer.stop("candidate generation")
+                with timer.Context("candidate generation"):
+                    t = next(candidates, None)
 
         return (arenas, stable_arenas)
 

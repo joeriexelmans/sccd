@@ -32,9 +32,8 @@ class Test(unittest.TestCase):
     sc_rules = functools.partial(statechart_parser_rules, path=path)
     test_rules = test_parser_rules(sc_rules)
     try:
-      timer.start("parse test")
-      test_variants = parse_f(self.src, test_rules)
-      timer.stop("parse test")
+      with timer.Context("parse test"):
+        test_variants = parse_f(self.src, test_rules)
     except Exception as e:
       print_debug(e)
       raise e

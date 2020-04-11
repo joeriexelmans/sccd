@@ -10,20 +10,20 @@ if TIMINGS:
   import atexit
   import collections
 
-  timers = {}
   timings = {}
   counts = collections.Counter()
-    
-  def start(what):
-    timers[what] = time.perf_counter()
 
-  def stop(what):
-    end = time.perf_counter()
-    begin = timers[what]
-    duration = end - begin
-    old_val = timings.setdefault(what, 0)
-    timings[what] = old_val + duration
-    counts[what] += 1
+  class Context:
+    __slots__ = ["what", "started"]
+    def __init__(self, what):
+      self.what = what
+    def __enter__(self):
+      self.started = time.perf_counter()
+    def __exit__(self, type, value, traceback):
+      duration = time.perf_counter() - self.started
+      old_val = timings.setdefault(self.what, 0)
+      timings[self.what] = old_val + duration
+      counts[self.what] += 1
 
   def _print_stats():
       print("\ntimings:")
@@ -33,8 +33,11 @@ if TIMINGS:
   atexit.register(_print_stats)
 
 else:
-  def start(what):
-    pass
-
-  def stop(what):
-    pass
+  class Context:
+    __slots__ = []
+    def __init__(self, what):
+      pass
+    def __enter__(self):
+      pass
+    def __exit__(self, type, value, traceback):
+      pass

@@ -2,12 +2,15 @@ from heapq import heappush, heappop, heapify
 from abc import ABC
 from typing import List, Set, Tuple, Deque, Any, TypeVar, Generic, Generator, Optional
 from collections import deque
+from  sccd.util import timer
 
 Timestamp = TypeVar('Timestamp')
 
 Item = TypeVar('Item')
 
 class EventQueue(Generic[Timestamp, Item]):
+    __slots__ = ["queue", "counters", "removed"]
+
     def __init__(self):
         self.queue: List[Tuple[Timestamp, int, Item]] = []
         self.counters = {} # mapping from timestamp to number of items at timestamp
@@ -29,27 +32,30 @@ class EventQueue(Generic[Timestamp, Item]):
             return None
     
     def add(self, timestamp: Timestamp, item: Item):
-        self.counters[timestamp] = self.counters.setdefault(timestamp, 0) + 1
-        def_event = (timestamp, self.counters[timestamp], item)
-        heappush(self.queue, def_event)
-        return def_event
+        with timer.Context("event_queue"):
+            self.counters[timestamp] = self.counters.setdefault(timestamp, 0) + 1
+            def_event = (timestamp, self.counters[timestamp], item)
+            heappush(self.queue, def_event)
+            return def_event
     
     def remove(self, item: Item):
-        self.removed.add(item)
-        if len(self.removed) > 100:
-            self.queue = [x for x in self.queue if x not in self.removed]
-            self.removed = set()
+        with timer.Context("event_queue"):
+            self.removed.add(item)
+            if len(self.removed) > 100:
+                self.queue = [x for x in self.queue if x not in self.removed]
+                self.removed = set()
     
     # Raises exception if called on empty queue
     def pop(self) -> Tuple[Timestamp, Item]:
-        while 1:
-            item = heappop(self.queue)
-            timestamp = item[0]
-            self.counters[timestamp] -= 1
-            if not self.counters[timestamp]:
-                del self.counters[timestamp]
-            if item[2] not in self.removed:
-                return (timestamp, item[2])
+        with timer.Context("event_queue"):
+            while 1:
+                item = heappop(self.queue)
+                timestamp = item[0]
+                self.counters[timestamp] -= 1
+                if not self.counters[timestamp]:
+                    del self.counters[timestamp]
+                if item[2] not in self.removed:
+                    return (timestamp, item[2])
 
     def is_due(self, timestamp: Optional[Timestamp]) -> bool:
         return len(self.queue) and (timestamp == None or self.queue[0][0] <= timestamp)
@@ -87,53 +93,56 @@ class EventQueueDeque(Generic[Timestamp, Item]):
             return None
 
     def add(self, timestamp: Timestamp, item: Item):
-        try:
-            # entry at timestamp already exists:
-            self.entries[timestamp].append(item)
-        except KeyError:
-            # need to create entry
-            d = deque([item])
-            self.entries[timestamp] = d
-            heappush(self.queue, (timestamp, d))
+        with timer.Context("event_queue"):
+            try:
+                # entry at timestamp already exists:
+                self.entries[timestamp].append(item)
+            except KeyError:
+                # need to create entry
+                d = deque([item])
+                self.entries[timestamp] = d
+                heappush(self.queue, (timestamp, d))
 
     def remove(self, item: Item):
-        self.removed.add(item)
-        if len(self.removed) > 5:
-            # to remove some elements safely from list while iterating over it and without copying the list,
-            # we iterate backwards:
-            for i in range(len(self.queue)-1, -1, -1):
-                queue_entry = self.queue[i]
-                timestamp, old_deque = queue_entry
-                new_deque: Deque[Item] = deque([])
-                for item in old_deque:
-                    if item not in self.removed:
-                        new_deque.append(item)
-                if not new_deque:
-                    del self.entries[timestamp]
-                    del self.queue[i]
-                else:
-                    self.queue[i] = (timestamp, new_deque)
-            # not sure if the heap invariant maintained here, though
-            # if not, uncomment:
-            # heapify(self.queue)
-            self.removed = set()
+        with timer.Context("event_queue"):
+            self.removed.add(item)
+            if len(self.removed) > 5:
+                # to remove some elements safely from list while iterating over it and without copying the list,
+                # we iterate backwards:
+                for i in range(len(self.queue)-1, -1, -1):
+                    queue_entry = self.queue[i]
+                    timestamp, old_deque = queue_entry
+                    new_deque: Deque[Item] = deque([])
+                    for item in old_deque:
+                        if item not in self.removed:
+                            new_deque.append(item)
+                    if not new_deque:
+                        del self.entries[timestamp]
+                        del self.queue[i]
+                    else:
+                        self.queue[i] = (timestamp, new_deque)
+                # not sure if the heap invariant maintained here, though
+                # if not, uncomment:
+                # heapify(self.queue)
+                self.removed = set()
 
     # Raises exception if called on empty queue
     def pop(self) -> Tuple[Timestamp, Item]:
-        while True:
-            timestamp, d = self.queue[0]
+        with timer.Context("event_queue"):
             while True:
-                item = d.popleft()
-                if not d: # deque empty - get rid of entry
-                    del self.entries[timestamp]
-                    heappop(self.queue)
-                if item not in self.removed:
-                    return (timestamp, item)
-                else:
-                    self.removed.remove(item)
+                timestamp, d = self.queue[0]
+                while True:
+                    item = d.popleft()
+                    if not d: # deque empty - get rid of entry
+                        del self.entries[timestamp]
+                        heappop(self.queue)
+                    if item not in self.removed:
+                        return (timestamp, item)
+                    else:
+                        self.removed.remove(item)
 
     # Safe to call on empty queue
     # Safe to call other methods on the queue while the returned generator exists
     def due(self, timestamp: Timestamp) -> Generator[Tuple[Timestamp, Item], None, None]:
-        while len(self.queue) and self.queue[0][0] <= timestamp:
+        while len(self.queue) and (timestamp == None or self.queue[0][0] <= timestamp):
             yield self.pop()

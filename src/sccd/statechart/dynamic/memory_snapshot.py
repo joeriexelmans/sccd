@@ -2,6 +2,7 @@ from sccd.action_lang.dynamic.memory import *
 from sccd.util import timer
 
 class MemoryPartialSnapshot(MemoryInterface):
+  __slots__ = ["description", "memory", "read_only", "frame", "actual", "snapshot", "trans_dirty", "round_dirty"]
 
   def __init__(self, description: str, memory: Memory, read_only: bool = False):
     self.description = description

@@ -4,26 +4,30 @@ from sccd.statechart.static.action import *
 from sccd.util.bitmap import *
 from sccd.util import timer
 from sccd.util.visit_tree import *
+from sccd.util.freezable import *
 
-@dataclass
-class State:
-    short_name: str # value of 'id' attribute in XML
-    parent: Optional['State'] # only None if root state
-    # scope: Scope # states have their own scope: variables can be declared in <onentry>, subsequently read in guard conditions and actions.
+class State(Freezable):
+    __slots__ = ["short_name", "parent", "stable", "children", "default_state", "transitions", "enter", "exit", "opt"]
 
-    stable: bool = False # whether this is a stable stabe. this field is ignored if maximality semantics is not set to SYNTACTIC
+    def __init__(self, short_name: str, parent: Optional['State']):
+        super().__init__()
 
-    children: List['State'] = field(default_factory=list)
-    default_state: 'State' = None # child state pointed to by 'initial' attribute
+        self.short_name: str = short_name # value of 'id' attribute in XML
+        self.parent: Optional['State'] = parent # only None if root state
 
-    transitions: List['Transition'] = field(default_factory=list)
+        self.stable: bool = False # whether this is a stable stabe. this field is ignored if maximality semantics is not set to SYNTACTIC
 
-    enter: List[Action] = field(default_factory=list)
-    exit: List[Action] = field(default_factory=list)
+        self.children: List['State'] = []
+        self.default_state: 'State' = None # child state pointed to by 'initial' attribute
 
-    opt: Optional['StateOptimization'] = None
+        self.transitions: List['Transition'] = []
 
-    def __post_init__(self):
+        self.enter: List[Action] = []
+        self.exit: List[Action] = []
+
+        self.opt: Optional['StateOptimization'] = None
+
+    # def __post_init__(self):
         if self.parent is not None:
             self.parent.children.append(self)
 
@@ -33,9 +37,13 @@ class State:
     def __repr__(self):
         return "State(\"%s\")" % (self.short_name)
 
-@dataclass
 class HistoryState(State):
-    history_id: Optional[int] = None
+    __slots__ = ["history_id"]
+
+    def __init__(self, short_name: str, parent: Optional['State']):
+        super().__init__(short_name, parent)
+
+        self.history_id: Optional[int] = None
 
     # Set of states that may be history values.
     @abstractmethod
@@ -73,6 +81,8 @@ class ParallelState(State):
 
 @dataclass
 class EventDecl:
+    __slots__ = ["id", "name", "params_decl"]
+
     id: int
     name: str
     params_decl: List[ParamDecl]
@@ -85,6 +95,8 @@ class EventDecl:
 
 @dataclass
 class Trigger:
+    __slots__ = ["enabling", "enabling_bitmap"]
+
     enabling: List[EventDecl]
 
     def __post_init__(self):
@@ -120,6 +132,8 @@ class Trigger:
 
 @dataclass
 class NegatedTrigger(Trigger):
+    __slots__ = ["disabling", "disabling_bitmap"]
+
     disabling: List[EventDecl]
 
     def __post_init__(self):
@@ -151,66 +165,81 @@ class AfterTrigger(Trigger):
     def copy_params_to_stack(self, ctx: EvalContext):
         pass
 
-@dataclass
-class Transition:
-    source: State
-    targets: List[State]
-    scope: Scope
+class Transition(Freezable):
+    __slots__ = ["source", "targets", "scope", "target_string", "guard", "actions", "trigger", "opt"]
 
-    target_string: Optional[str] = None
+    def __init__(self, source: State, targets: List[State], scope: Scope, target_string: Optional[str] = None):
+        super().__init__()
 
-    guard: Optional[Expression] = None
-    actions: List[Action] = field(default_factory=list)
-    trigger: Optional[Trigger] = None
+        self.source: State = source
+        self.targets: List[State] = targets
+        self.scope: Scope = scope
 
-    opt: Optional['TransitionOptimization'] = None        
+        self.target_string: Optional[str] = target_string
+
+        self.guard: Optional[Expression] = None
+        self.actions: List[Action] = []
+        self.trigger: Optional[Trigger] = None
+
+        self.opt: Optional['TransitionOptimization'] = None        
                     
     def __str__(self):
         return termcolor.colored("%s 🡪 %s" % (self.source.opt.full_name, self.targets[0].opt.full_name), 'green')
 
 
 # Data that is generated for each state.
-@dataclass
-class StateOptimization:
-    full_name: str = ""
+class StateOptimization(Freezable):
+    __slots__ = ["full_name", "state_id", "state_id_bitmap", "ancestors", "descendants", "history", "ts_static", "ts_dynamic", "after_triggers"]
+    def __init__(self):
+        super().__init__()
 
-    state_id: int = -1
-    state_id_bitmap: Bitmap = Bitmap() # bitmap with only state_id-bit set
+        self.full_name: str = ""
 
-    ancestors: Bitmap = Bitmap()
-    descendants: Bitmap = Bitmap()
+        self.state_id: int = -1
+        self.state_id_bitmap: Bitmap = Bitmap() # bitmap with only state_id-bit set
 
-    # Subset of children that are HistoryState.
-    # For each item, the second element of the tuple is the "history mask".
-    history: List[Tuple[HistoryState, Bitmap]] = field(default_factory=list)
+        self.ancestors: Bitmap = Bitmap()
+        self.descendants: Bitmap = Bitmap()
 
-    # Subset of descendants that are always entered when this state is the target of a transition
-    ts_static: Bitmap = Bitmap() 
-    # Subset of descendants that are history states AND are in the subtree of states automatically entered if this state is the target of a transition.
-    ts_dynamic: List[HistoryState] = field(default_factory=list)
+        # Subset of children that are HistoryState.
+        # For each item, the second element of the tuple is the "history mask".
+        self.history: List[Tuple[HistoryState, Bitmap]] = []
 
-    # Triggers of outgoing transitions that are AfterTrigger.
-    after_triggers: List[AfterTrigger] = field(default_factory=list)
+        # Subset of descendants that are always entered when this state is the target of a transition
+        self.ts_static: Bitmap = Bitmap() 
+        # Subset of descendants that are history states AND are in the subtree of states automatically entered if this state is the target of a transition.
+        self.ts_dynamic: List[HistoryState] = []
+
+        # Triggers of outgoing transitions that are AfterTrigger.
+        self.after_triggers: List[AfterTrigger] = []
 
 
 # Data that is generated for each transition.
-@dataclass(frozen=True)
-class TransitionOptimization:
-    arena: State
-    arena_bitmap: Bitmap
-    enter_states_static: Bitmap # The "enter set" can be computed partially statically, and if there are no history states in it, entirely statically
-    enter_states_dynamic: List[HistoryState] # The part of the "enter set" that cannot be computed statically.
+class TransitionOptimization(Freezable):
+    __slots__ = ["arena", "arena_bitmap", "enter_states_static", "enter_states_dynamic"]
+
+    def __init__(self, arena: State, arena_bitmap: Bitmap, enter_states_static: Bitmap, enter_states_dynamic: List[HistoryState]):
+        super().__init__()
+        self.arena: State = arena
+        self.arena_bitmap: Bitmap = arena_bitmap
+        self.enter_states_static: Bitmap = enter_states_static # The "enter set" can be computed partially statically, and if there are no history states in it, entirely statically
+        self.enter_states_dynamic: List[HistoryState] = enter_states_dynamic # The part of the "enter set" that cannot be computed statically.
+        self.freeze()
 
 
-@dataclass
-class StateTree:
-    root: State
-    transition_list: List[Transition] # depth-first document order
-    state_list: List[State] # depth-first document order
-    state_dict: Dict[str, State] # mapping from 'full name' to State
-    after_triggers: List[AfterTrigger] # all after-triggers in the statechart
-    stable_bitmap: Bitmap # set of states that are syntactically marked 'stable'
-    history_states: List[HistoryState] # all the history states in the statechart
+class StateTree(Freezable):
+    __slots__ = ["root", "transition_list", "state_list", "state_dict", "after_triggers", "stable_bitmap", "history_states"]
+
+    def __init__(self, root: State, transition_list: List[Transition], state_list: List[State], state_dict: Dict[str, State], after_triggers: List[AfterTrigger], stable_bitmap: Bitmap, history_states: List[HistoryState]):
+        super().__init__()
+        self.root: State = root
+        self.transition_list: List[Transition] = transition_list # depth-first document order
+        self.state_list: List[State] = state_list # depth-first document order
+        self.state_dict: Dict[str, State] = state_dict # mapping from 'full name' to State
+        self.after_triggers: List[AfterTrigger] = after_triggers # all after-triggers in the statechart
+        self.stable_bitmap: Bitmap = stable_bitmap # set of states that are syntactically marked 'stable'
+        self.history_states: List[HistoryState] = history_states # all the history states in the statechart
+        self.freeze()
 
 # Reduce a list of states to a set of states, as a bitmap
 def states_to_bitmap(state_list: List[State]) -> Bitmap:
@@ -293,6 +322,10 @@ def optimize_tree(root: State) -> StateTree:
             if isinstance(c, HistoryState):
                 state.opt.history.append((c, c.history_mask()))
 
+    def freeze(state: State, _=None):
+        state.freeze()
+        state.opt.freeze()
+
     visit_tree(root, lambda s: s.children,
         before_children=[
             init_opt(),
@@ -304,6 +337,7 @@ def optimize_tree(root: State) -> StateTree:
             set_descendants,
             add_history,
             set_static_target_states,
+            freeze,
         ])
 
 
@@ -351,6 +385,8 @@ def optimize_tree(root: State) -> StateTree:
             arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap,
             enter_states_static=enter_states_static,
             enter_states_dynamic=enter_states_dynamic)
+
+        t.freeze()
 
 
     timer.stop("optimize tree")

@@ -11,9 +11,11 @@ from sccd.cd.cd import *
 # Threads, integration with existing event loop, game loop, test framework, ...
 # The Controller class itself is NOT thread-safe.
 class Controller:
+    __slots__ = ["cd", "object_manager", "queue", "simulated_time", "run_until"]
 
     @dataclasses.dataclass(eq=False, frozen=True)
     class EventQueueEntry:
+        __slots__ = ["event", "targets"]
         event: Event
         targets: List[Instance]
 
@@ -23,7 +25,6 @@ class Controller:
         self.queue: EventQueue[int, EventQueueEntry] = EventQueue()
 
         self.simulated_time = 0 # integer
-        self.initialized = False
 
         self.cd.globals.assert_ready()
 

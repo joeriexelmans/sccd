@@ -128,9 +128,7 @@
 
           <state id="ChronoUpdate">
             <transition event="topLeftPressed" target="../TimeUpdate"/>
-            <!-- the rendering of the display takes a lot of CPU time (4.25 ms on my machine)
-                 so we don't re-render every 10 ms.. looks good enough -->
-            <transition after="30 ms" target=".">
+            <transition after="10 ms" target=".">
               <raise event="refreshChronoDisplay"/>
             </transition>
           </state>

@@ -536,17 +536,19 @@ class DigitalWatchGUI_Static(Frame):
 
     def drawChrono(self):
         chronoToDraw = self.__getChronoAsString()
-
-        self.clearDisplay()
-            
         if not self.battery:
             chronoToDraw = "88:88:88"
-            
-        self.chronoTag = self.displayCanvas.create_text((RECT_X0 + RECT_X1) / 2,
-                                                         (RECT_Y0 + RECT_Y1) / 2 + 5,
-                                                        font=FONT_TIME,
-                                                        justify="center",
-                                                        text=chronoToDraw)
+
+        if self.chronoTag:
+            self.displayCanvas.itemconfigure(self.chronoTag, text=chronoToDraw)
+        else:
+            self.clearDisplay()            
+            self.chronoTag = self.displayCanvas.create_text(
+                (RECT_X0 + RECT_X1) / 2,
+                (RECT_Y0 + RECT_Y1) / 2 + 5,
+                font=FONT_TIME,
+                justify="center",
+                text=chronoToDraw)
 
     def hideChrono(self):
         if self.chronoTag != None:

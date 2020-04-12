@@ -11,11 +11,11 @@ class EventLoopImplementation(ABC):
         pass
 
     @abstractmethod
-    def schedule(self) -> Callable[[int, Callable[[],None]], ScheduledID]:
+    def schedule(self, timeout: int, callback: Callable[[],None]) -> ScheduledID:
         pass
 
     @abstractmethod
-    def cancel(self) -> Callable[[ScheduledID], None]:
+    def cancel(self, id: ScheduledID):
         pass
 
 
@@ -44,10 +44,13 @@ class EventLoop:
             pass
 
         # back to sleep
+        now = self.timer.now()
         next_wakeup = self.controller.next_wakeup()
         if next_wakeup:
-            sleep_duration = self.event_loop_convert(next_wakeup - self.controller.simulated_time)
-            self.scheduled = self.event_loop.schedule()(sleep_duration, self._wakeup)
+            # (next_wakeup - now) is negative, we are running behind
+            # not much we can do about it though
+            sleep_duration = max(0, self.event_loop_convert(next_wakeup - now))
+            self.scheduled = self.event_loop.schedule(sleep_duration, self._wakeup)
         else:
             self.scheduled = None
 
@@ -70,5 +73,5 @@ class EventLoop:
 
     def interrupt(self):
         if self.scheduled:
-            self.event_loop.cancel()(self.scheduled)
+            self.event_loop.cancel(self.scheduled)
         self._wakeup()

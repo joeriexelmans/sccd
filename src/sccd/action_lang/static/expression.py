@@ -104,6 +104,8 @@ class FunctionCall(Expression):
         return_type = function_type.return_type
 
         actual_types = [p.init_expr(scope) for p in self.params]
+        if len(formal_types) != len(actual_types):
+            raise StaticTypeError("Function call, expected %d arguments, but %d were given." % (len(formal_types), len(actual_types)))
         for i, (formal, actual) in enumerate(zip(formal_types, actual_types)):
             if formal != actual:
                 raise StaticTypeError("Function call, argument %d: %s is not expected type %s, instead is %s" % (i, self.params[i].render(), str(formal), str(actual)))

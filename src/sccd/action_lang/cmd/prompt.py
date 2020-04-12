@@ -24,8 +24,9 @@ if __name__ == "__main__":
         memory.current_frame().storage.extend([None]*diff)
 
       if isinstance(stmt, ExpressionStatement):
+        expr_type = stmt.expr.init_expr(scope) # expr already initialized but init_expr should be idempotent
         val = stmt.expr.eval(memory)
-        print(val)
+        print("%s: %s" % (str(val), str(expr_type)))
       else:
         stmt.exec(memory)
 

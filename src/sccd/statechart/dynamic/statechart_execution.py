@@ -10,13 +10,14 @@ from sccd.util import timer
 # Set of current states etc.
 class StatechartExecution:
 
-    def __init__(self, statechart: Statechart):
+    def __init__(self, instance, statechart: Statechart):
+        self.instance = instance
         self.statechart = statechart
 
         self.gc_memory = None
         self.rhs_memory = None
         self.raise_internal = None
-        self.raise_next_bs = None
+        self.raise_output = None
 
         # set of current states
         self.configuration: Bitmap = Bitmap()
@@ -25,20 +26,15 @@ class StatechartExecution:
         # By default, if the parent of a history state has never been exited before, the parent's default states should be entered.
         self.history_values: List[Bitmap] = [h.parent.opt.ts_static for h in statechart.tree.history_states]
 
-        # For each AfterTrigger in the statechart tree, we keep an expected 'id' that is
-        # a parameter to a future 'after' event. This 'id' is incremented each time a timer
-        # is started, so we only respond to the most recent one.
-        self.timer_ids = [-1] * len(statechart.tree.after_triggers)
-
-        # output events accumulate here until they are collected
-        self.output = []
+        # Scheduled IDs for after triggers
+        self.timer_ids = [None] * len(statechart.tree.after_triggers)
 
     # enter default states
     def initialize(self):
         states = self.statechart.tree.root.opt.ts_static
         self.configuration = states
 
-        ctx = EvalContext(current_state=self, events=[], memory=self.rhs_memory)
+        ctx = EvalContext(execution=self, events=[], memory=self.rhs_memory)
         if self.statechart.datamodel is not None:
             self.statechart.datamodel.exec(self.rhs_memory)
 
@@ -55,7 +51,7 @@ class StatechartExecution:
         return (self.statechart.tree.state_list[id] for id in id_iter)
 
     # events: list SORTED by event id
-    def fire_transition(self, events: List[Event], t: Transition):
+    def fire_transition(self, events: List[InternalEvent], t: Transition):
         try:
             with timer.Context("transition"):
                 # Sequence of exit states is the intersection between set of current states and the arena's descendants.
@@ -69,7 +65,7 @@ class StatechartExecution:
                     enter_ids = t.opt.enter_states_static | reduce(lambda x,y: x|y, (self.history_values[s.history_id] for s in t.opt.enter_states_dynamic), Bitmap())
                     enter_set = self._ids_to_states(bm_items(enter_ids))
 
-                ctx = EvalContext(current_state=self, events=events, memory=self.rhs_memory)
+                ctx = EvalContext(execution=self, events=events, memory=self.rhs_memory)
 
                 print_debug("fire " + str(t))
 
@@ -80,6 +76,7 @@ class StatechartExecution:
                         # remember which state(s) we were in if a history state is present
                         for h, mask in s.opt.history:
                             self.history_values[h.history_id] = exit_ids & mask
+                        self._cancel_timers(s.opt.after_triggers)
                         self._perform_actions(ctx, s.exit)
                         self.configuration &= ~s.opt.state_id_bitmap
 
@@ -109,16 +106,10 @@ class StatechartExecution:
 
     def check_guard(self, t, events) -> bool:
         try:
-            # Special case: after trigger
-            if isinstance(t.trigger, AfterTrigger):
-                e = [e for e in events if bit(e.id) & t.trigger.enabling_bitmap][0] # it's safe to assume the list will contain one element cause we only check a transition's guard after we know it may be enabled given the set of events
-                if self.timer_ids[t.trigger.after_id] != e.params[0]:
-                    return False
-
             if t.guard is None:
                 return True
             else:
-                ctx = EvalContext(current_state=self, events=events, memory=self.gc_memory)
+                ctx = EvalContext(execution=self, events=events, memory=self.gc_memory)
                 self.gc_memory.push_frame(t.scope)
                 # Guard conditions can also refer to event parameters
                 if t.trigger:
@@ -141,13 +132,12 @@ class StatechartExecution:
     def _start_timers(self, triggers: List[AfterTrigger]):
         for after in triggers:
             delay: Duration = after.delay.eval(
-                EvalContext(current_state=self, events=[], memory=self.gc_memory))
-            timer_id = self._next_timer_id(after)
-            self.raise_next_bs(Event(id=after.id, name=after.name, params=[timer_id]), delay)
+                EvalContext(execution=self, events=[], memory=self.gc_memory))
+            self.timer_ids[after.after_id] = self.schedule_callback(delay, InternalEvent(id=after.id, name=after.name, params=[]), [self.instance])
 
-    def _next_timer_id(self, trigger: AfterTrigger):
-        self.timer_ids[trigger.after_id] += 1
-        return self.timer_ids[trigger.after_id]
+    def _cancel_timers(self, triggers: List[AfterTrigger]):
+        for after in triggers:
+            self.cancel_callback(self.timer_ids[after.after_id])
 
     # Return whether the current configuration includes ALL the states given.
     def in_state(self, state_strings: List[str]) -> bool:
@@ -158,8 +148,3 @@ class StatechartExecution:
         # else:
         #     print_debug("not in state"+str(state_strings))
         return in_state
-
-    def collect_output(self) -> List[OutputEvent]:
-        output = self.output
-        self.output = []
-        return output

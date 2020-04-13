@@ -1,46 +1,50 @@
 import re
 import abc
 from typing import List, Tuple
-from sccd.statechart.dynamic.statechart_instance import *
+from sccd.statechart.dynamic.statechart_instance import InternalEvent, Instance, StatechartInstance
 
 # TODO: Clean this mess up. Look at all object management operations and see how they can be improved.
 class ObjectManager(Instance):
+    __slots__ = ["cd", "output_callback", "schedule_callback", "instances"]
+
     _regex_pattern = re.compile("^([a-zA-Z_]\w*)(?:\[(\d+)\])?$")
 
-    def __init__(self, cd):
+    def __init__(self, cd, output_callback, schedule_callback, cancel_callback):
         self.cd = cd
+        self.output_callback = output_callback
+        self.schedule_callback = schedule_callback
+        self.cancel_callback = cancel_callback
 
         # set of all instances in the runtime
         # we need to maintain this set in order to do broadcasts
         self.instances = [self] # object manager is an instance too!
 
-        i = StatechartInstance(cd.get_default_class(), self)
+        i = StatechartInstance(cd.get_default_class(), self, self.output_callback, self.schedule_callback, self.cancel_callback)
         self.instances.append(i)
 
     def _create(self, class_name) -> StatechartInstance:
-        # Instantiate the model for each class at most once:
-        # The model is shared between instances of the same type.
-        statechart = self.cd.classes[class_name]
-        i = StatechartInstance(statechart, self)
+        statechart_model = self.cd.classes[class_name]
+        i = StatechartInstance(statechart_model, self, self.output_callback, self.schedule_callback, self.cancel_callback)
         self.instances.append(i)
         return i
 
-    def initialize(self) -> List[OutputEvent]:
-        return []
+    def initialize(self):
+        pass
 
     # Implementation of super class: Instance
-    def big_step(self, input_events: List[Event]) -> List[OutputEvent]:
-        output = []
-        for e in input_events:
-            try:
-                o = ObjectManager._handlers[e.name](self, timestamp, e.parameters)
-                if isinstance(o, OutputEvent):
-                    output.append(o)
-                elif isinstance(o, list):
-                    output.extend(o)
-            except KeyError:
-                pass
-        return output
+    def big_step(self, input_events: List[InternalEvent]):
+        pass
+        # output = []
+        # for e in input_events:
+        #     try:
+        #         o = ObjectManager._handlers[e.name](self, timestamp, e.parameters)
+        #         if isinstance(o, OutputEvent):
+        #             output.append(o)
+        #         elif isinstance(o, list):
+        #             output.extend(o)
+        #     except KeyError:
+        #         pass
+        # return output
 
     # def _assoc_ref(self, input_string) -> List[Tuple[str,int]]:
     #     if len(input_string) == 0:
@@ -59,10 +63,10 @@ class ObjectManager(Instance):
     #             raise AssociationReferenceException("Invalid entry in association reference. Input string: " + input_string)
     #     return result
             
-    def _handle_broadcast(self, timestamp, parameters) -> OutputEvent:
-        if len(parameters) != 2:
-            raise ParameterException ("The broadcast event needs 2 parameters (source of event and event name).")
-        return OutputEvent(parameters[1], InstancesTarget(self.instances))
+    # def _handle_broadcast(self, timestamp, parameters) -> OutputEvent:
+    #     if len(parameters) != 2:
+    #         raise ParameterException ("The broadcast event needs 2 parameters (source of event and event name).")
+    #     return OutputEvent(parameters[1], InstancesTarget(self.instances))
 
     # def _handle_create(self, timestamp, parameters) -> List[OutputEvent]:
     #     if len(parameters) < 2:
@@ -229,11 +233,11 @@ class ObjectManager(Instance):
     #         currents = nexts
     #     return currents
 
-    _handlers = {
-        # "narrow_cast": _handle_narrowcast,
-        "broad_cast": _handle_broadcast,
-        # "create_instance": _handle_create,
-        # "associate_instance": _handle_associate,
-        # "disassociate_instance": _handle_disassociate,
-        # "delete_instance": _handle_delete
-    }
+    # _handlers = {
+    #     # "narrow_cast": _handle_narrowcast,
+    #     "broad_cast": _handle_broadcast,
+    #     # "create_instance": _handle_create,
+    #     # "associate_instance": _handle_associate,
+    #     # "disassociate_instance": _handle_disassociate,
+    #     # "delete_instance": _handle_delete
+    # }

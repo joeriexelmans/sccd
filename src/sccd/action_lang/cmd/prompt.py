@@ -1,4 +1,3 @@
-import sys
 import readline
 import termcolor
 from sccd.action_lang.dynamic.memory import *
@@ -35,6 +34,6 @@ if __name__ == "__main__":
       print(e)
     except (LarkError, ModelError, SCCDRuntimeException) as e:
       print(e)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
       print()
       exit()

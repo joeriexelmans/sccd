@@ -83,17 +83,29 @@ class SemanticConfiguration:
     return [SemanticConfiguration(**{f.name: o for f,o in zip(my_fields, variant)}) for variant in variants]
 
 @dataclass
-class Statechart:
+class Statechart(Freezable):
   __slots__ = ["semantics", "scope", "datamodel", "events", "internal_events", "inport_events", "event_outport", "tree"]
+
+  def __init__(self, semantics: SemanticConfiguration, scope: Scope, datamodel: Optional[Block], events: Bitmap, internal_events: Bitmap, inport_events: Dict[str, Set[int]], event_outport: Dict[str, str], tree: StateTree):
+    
+    super().__init__()
   
-  semantics: SemanticConfiguration
+    # Semantic configuration for statechart execution
+    self.semantics: SemanticConfiguration = semantics
 
-  scope: Scope
-  datamodel: Optional[Block] # block of statements setting up the datamodel (variables in instance scope)
+    # Instance scope, the set of variable names (and their types and offsets in memory) that belong to the statechart
+    self.scope: Scope = scope
 
-  events: Bitmap # union of all transition trigger's enabling sets
-  internal_events: Bitmap
-  inport_events: Dict[str, Set[int]] # mapping from inport to set of event IDs
-  event_outport: Dict[str, str] # mapping from event name to outport
+    # Block of statements setting up the datamodel (variables in instance scope)
+    self.datamodel: Optional[Block] = datamodel
 
-  tree: StateTree
+    # The union of all positive event triggers in the statechart.
+    self.events: Bitmap = events
+    # All internally raised events in the statechart, may overlap with input events.
+    self.internal_events: Bitmap = internal_events
+    # Mapping from inport to set of event IDs
+    self.inport_events: Dict[str, Set[int]] = inport_events
+    # Mapping from event name to outport
+    self.event_outport: Dict[str, str] = event_outport
+
+    self.tree: StateTree = tree

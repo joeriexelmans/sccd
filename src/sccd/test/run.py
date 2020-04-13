@@ -42,16 +42,28 @@ class Test(unittest.TestCase):
       print_debug('\n'+test.name)
       pipe = QueueImplementation()
 
-      controller = Controller(test.cd)
+      current_big_step = []
+      def on_output(event: OutputEvent):
+        nonlocal current_big_step
+        if event.port == "trace":
+          if event.name == "big_step_completed":
+            if len(current_big_step) > 0:
+              pipe.put(current_big_step)
+            current_big_step = []
+        else:
+          current_big_step.append(event)
+
+
+      controller = Controller(test.cd, on_output)
 
       for i in test.input:
-        controller.add_input(i.event, i.at.eval(None))
+        controller._schedule(i.timestamp.eval(None), i.event, controller._inport_to_instances(i.port))
 
       def controller_thread():
         try:
           # Run as-fast-as-possible, always advancing time to the next item in event queue, no sleeping.
           # The call returns when the event queue is empty and therefore the simulation is finished.
-          controller.run_until(None, pipe)
+          controller.run_until(None)
         except Exception as e:
           print_debug(e)
           pipe.put(e, block=True, timeout=None)
@@ -81,23 +93,13 @@ class Test(unittest.TestCase):
 
         elif data is None:
           # End of output
-          if len(actual) < len(expected):
-            fail("Less output than expected.")
-          else:
-            break
+          break
 
         else:
-          big_step_index = len(actual)
           actual.append(data)
 
-          if len(actual) > len(expected):
-            fail("More output than expected.")
-
-          actual_big_step = actual[big_step_index]
-          expected_big_step = expected[big_step_index]
-
-          if actual_big_step != expected_big_step:
-            fail("Big step %d: output differs." % big_step_index)
+      if actual != expected:
+        fail("Output differs from expected.")
 
 
 class FailingTest(Test):

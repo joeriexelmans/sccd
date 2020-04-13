@@ -18,19 +18,21 @@ def main():
     gui = DigitalWatchGUI(topLevel)
 
     def on_gui_event(event: str):
-        eventloop.add_input(Event(id=-1, name=event, port="in", params=[]))
+        controller.add_input(
+            timestamp=eventloop.now(), event_name=event, port="in", params=[])
         eventloop.interrupt()
 
     gui.controller.send_event = on_gui_event
 
-    def on_big_step(output):
-        for e in output:
+    def on_output(event: OutputEvent):
+        if event.port == "out":
             # print("out:", e.name)
             # the output event names happen to be functions on our GUI controller:
-            method = getattr(gui.controller, e.name)
+            method = getattr(gui.controller, event.name)
             method()
 
-    eventloop = EventLoop(cd, TkInterImplementation(tk), on_big_step)
+    controller = Controller(cd, on_output)
+    eventloop = EventLoop(controller, TkInterImplementation(tk))
 
     eventloop.start()
     tk.mainloop()

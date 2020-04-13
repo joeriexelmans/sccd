@@ -27,7 +27,7 @@ class CandidatesGenerator(ABC):
     cache: Dict[Tuple[Bitmap,Bitmap], List[Transition]] = field(default_factory=dict)
 
     @abstractmethod
-    def generate(self, state, enabled_events: List[Event], forbidden_arenas: Bitmap) -> Iterable[Transition]:
+    def generate(self, state, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> Iterable[Transition]:
         pass
 
 class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
@@ -40,7 +40,7 @@ class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
             candidates.reverse()
         return candidates
 
-    def generate(self, state, enabled_events: List[Event], forbidden_arenas: Bitmap) -> Iterable[Transition]:
+    def generate(self, state, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> Iterable[Transition]:
         events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
         key = (state.configuration, forbidden_arenas)
 
@@ -72,7 +72,7 @@ class CandidatesGeneratorEventBased(CandidatesGenerator):
             candidates.reverse()
         return candidates
 
-    def generate(self, state, enabled_events: List[Event], forbidden_arenas: Bitmap) -> Iterable[Transition]:
+    def generate(self, state, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> Iterable[Transition]:
         events_bitmap = bm_from_list(e.id for e in enabled_events)
         key = (events_bitmap, forbidden_arenas)
 
@@ -121,13 +121,13 @@ class Round(ABC):
     def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
         pass
 
-    def add_remainder_event(self, event: Event):
+    def add_remainder_event(self, event: InternalEvent):
         self.remainder_events.append(event)
 
-    def add_next_event(self, event: Event):
+    def add_next_event(self, event: InternalEvent):
         self.next_events.append(event)
 
-    def enabled_events(self) -> List[Event]:
+    def enabled_events(self) -> List[InternalEvent]:
         if self.parent:
             return self.remainder_events + self.parent.enabled_events()
         else:

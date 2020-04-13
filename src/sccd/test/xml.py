@@ -1,21 +1,22 @@
 from sccd.statechart.parser.xml import *
 from sccd.cd.globals import *
-from sccd.statechart.dynamic.event import Event
+from sccd.statechart.dynamic.event import InternalEvent
 from sccd.cd.cd import *
 
 _empty_scope = Scope("test", parent=None)
 
 @dataclass
 class TestInputEvent:
-  event: Event
-  at: Expression
+  event: InternalEvent
+  port: str
+  timestamp: Expression
 
 @dataclass
 class TestVariant:
   name: str
   cd: AbstractCD
   input: List[TestInputEvent]
-  output: List[List[Event]]
+  output: List[List[OutputEvent]]
 
 def test_parser_rules(statechart_parser_rules):
   globals = Globals()
@@ -32,8 +33,11 @@ def test_parser_rules(statechart_parser_rules):
         time_type = time_expr.init_expr(scope=_empty_scope)
         check_duration_type(time_type)
         params = []
+        event_id = globals.events.get_id(name)
         input.append(TestInputEvent(
-          event=Event(id=-1, name=name, port=port, params=params), at=time_expr))
+          event=InternalEvent(id=event_id, name=name, params=params),
+          port=port,
+          timestamp=time_expr))
 
         def parse_param(el):
           text = require_attribute(el, "expr")
@@ -54,7 +58,7 @@ def test_parser_rules(statechart_parser_rules):
           name = require_attribute(el, "name")
           port = require_attribute(el, "port")
           params = []
-          big_step.append(Event(id=0, name=name, port=port, params=params))
+          big_step.append(OutputEvent(name=name, port=port, params=params))
 
           def parse_param(el):
             val_text = require_attribute(el, "val")

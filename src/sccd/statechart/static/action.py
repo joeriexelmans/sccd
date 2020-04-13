@@ -19,7 +19,9 @@ class SCDurationLiteral(DurationLiteral):
 
 @dataclass
 class EvalContext:
-    current_state: 'StatechartState'
+    __slots__ = ["execution", "events", "memory"]
+    
+    execution: 'StatechartExecution'
     events: List['Event']
     memory: 'MemoryInterface'
 
@@ -51,20 +53,17 @@ class RaiseInternalEvent(RaiseEvent):
 
     def exec(self, ctx: EvalContext):
         params = self._eval_params(ctx.memory)
-        ctx.current_state.raise_internal(
-            Event(id=self.event_id, name=self.name, port="", params=params))
+        ctx.execution.raise_internal(
+            InternalEvent(id=self.event_id, name=self.name, params=params))
 
 @dataclass
 class RaiseOutputEvent(RaiseEvent):
     outport: str
-    time_offset: int
 
     def exec(self, ctx: EvalContext):
         params = self._eval_params(ctx.memory)
-        ctx.current_state.output.append(
-            OutputEvent(Event(id=0, name=self.name, port=self.outport, params=params),
-                    OutputPortTarget(self.outport),
-                    self.time_offset))
+        ctx.execution.raise_output(
+            OutputEvent(port=self.outport, name=self.name, params=params))
 
     def render(self) -> str:
         return '^'+self.outport + '.' + self.name

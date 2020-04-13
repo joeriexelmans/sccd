@@ -12,11 +12,11 @@ from sccd.statechart.dynamic.memory_snapshot import *
 # Interface for all instances and also the Object Manager
 class Instance(ABC):
     @abstractmethod
-    def initialize(self) -> List[OutputEvent]:
+    def initialize(self):
         pass
 
     @abstractmethod
-    def big_step(self, input_events: List[Event]) -> List[OutputEvent]:
+    def big_step(self, input_events: List[InternalEvent]):
         pass
 
 # Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
@@ -24,10 +24,11 @@ class Instance(ABC):
 LIMIT = 100
 
 class StatechartInstance(Instance):
-    def __init__(self, statechart: Statechart, object_manager):
-        self.object_manager = object_manager
+    def __init__(self, statechart: Statechart, object_manager, output_callback, schedule_callback, cancel_callback):
+        # self.object_manager = object_manager
+        self.output_callback = output_callback
 
-        self.execution = StatechartExecution(statechart)
+        self.execution = StatechartExecution(self, statechart)
 
         semantics = statechart.semantics
 
@@ -76,13 +77,13 @@ class StatechartInstance(Instance):
         # Event lifeline semantics
 
         def whole(input):
-            self._big_step.remainder_events = input
+            self._big_step.remainder_events.extend(input)
 
         def first_combo(input):
-            combo_step.remainder_events = input
+            combo_step.remainder_events.extend(input)
 
         def first_small(input):
-            small_step.remainder_events = input
+            small_step.remainder_events.extend(input)
 
         self.set_input = {
             InputEventLifeline.WHOLE: whole,
@@ -90,13 +91,13 @@ class StatechartInstance(Instance):
             InputEventLifeline.FIRST_SMALL_STEP: first_small
         }[semantics.input_event_lifeline]
 
-        raise_nextbs = lambda e, time_offset: self.execution.output.append(OutputEvent(e, InstancesTarget([self]), time_offset))
 
+        self.self_list = [self]
+        
         raise_internal = {
-            InternalEventLifeline.QUEUE: lambda e: raise_nextbs(e, 0),
+            InternalEventLifeline.QUEUE: lambda e: schedule_callback(0, e, self.self_list),
             InternalEventLifeline.NEXT_COMBO_STEP: combo_step.add_next_event,
             InternalEventLifeline.NEXT_SMALL_STEP: small_step.add_next_event,
-
             InternalEventLifeline.REMAINDER: self._big_step.add_remainder_event,
             InternalEventLifeline.SAME: small_step.add_remainder_event,
         }[semantics.internal_event_lifeline]
@@ -130,17 +131,20 @@ class StatechartInstance(Instance):
         self.execution.gc_memory = gc_memory
         self.execution.rhs_memory = rhs_memory
         self.execution.raise_internal = raise_internal
-        self.execution.raise_next_bs = raise_nextbs
+        self.execution.schedule_callback = schedule_callback
+        self.execution.cancel_callback = cancel_callback
+        self.execution.raise_output = output_callback
 
 
     # enter default states, generating a set of output events
-    def initialize(self) -> List[OutputEvent]:
+    def initialize(self):
         self.execution.initialize()
-        return self.execution.collect_output()
+        self.output_callback(OutputEvent(port="trace", name="big_step_completed", params=self.self_list))
 
     # perform a big step. generating a set of output events
-    def big_step(self, input_events: List[Event]) -> List[OutputEvent]:
+    def big_step(self, input_events: List[InternalEvent]):
         # print_debug('attempting big step, input_events='+str(input_events))
         self.set_input(input_events)
         self._big_step.run_and_cycle_events()
-        return self.execution.collect_output()
+
+        self.output_callback(OutputEvent(port="trace", name="big_step_completed", params=self.self_list))

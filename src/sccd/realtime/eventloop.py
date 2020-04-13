@@ -20,28 +20,21 @@ class EventLoopImplementation(ABC):
 
 
 class EventLoop:
-    def __init__(self, cd: AbstractCD, event_loop: EventLoopImplementation, output_callback: Callable[[List[Event]],None], time_impl: TimeImplementation = DefaultTimeImplementation):
-        self.timer = Timer(time_impl, unit=cd.globals.delta) # will give us timestamps in model unit
-        self.controller = Controller(cd)
+    # def __init__(self, cd: AbstractCD, event_loop: EventLoopImplementation, output_callback: Callable[[List[Event]],None], time_impl: TimeImplementation = DefaultTimeImplementation):
+    def __init__(self, controller: Controller, event_loop: EventLoopImplementation, time_impl: TimeImplementation = DefaultTimeImplementation):
+        delta = controller.get_model_delta()
+        self.timer = Timer(time_impl, unit=delta) # will give us timestamps in model unit
+        # self.controller = Controller(cd)
+        self.controller = controller
         self.event_loop = event_loop
-        self.output_callback = output_callback
 
-        self.event_loop_convert = lambda x: int(get_conversion_f(
-            cd.globals.delta, event_loop.time_unit())(x)) # got to convert from model unit to eventloop native unit for scheduling
+        # got to convert from model unit to eventloop native unit for scheduling
+        self.event_loop_convert = lambda x: int(get_conversion_f(delta, event_loop.time_unit())(x))
 
         self.scheduled = None
-        self.queue = queue.Queue()
 
     def _wakeup(self):
-        self.controller.run_until(self.timer.now(), self.queue)
-
-        # process output
-        try:
-            while True:
-                big_step_output = self.queue.get_nowait()
-                self.output_callback(big_step_output)
-        except queue.Empty:
-            pass
+        self.controller.run_until(self.timer.now())
 
         # back to sleep
         now = self.timer.now()
@@ -58,18 +51,14 @@ class EventLoop:
         self.timer.start()
         self._wakeup()
 
+    def now(self):
+        return self.timer.now()
+
     # Uncomment if ever needed:
     # Does not mix well with interrupt().
     # def pause(self):
     #     self.timer.pause()
     #     self.event_loop.cancel()(self.scheduled)
-
-    # Add input. Does not automatically 'wake up' the controller if it is sleeping.
-    # If you want the controller to respond immediately, call 'interrupt'.
-    def add_input(self, event: Event):
-        # If the controller is sleeping, it's simulated time value may be in the past, but we want to make it look like the event arrived NOW, so from the controller's point of view, in the future:
-        offset = self.timer.now() - self.controller.simulated_time
-        self.controller.add_input(event, offset)
 
     def interrupt(self):
         if self.scheduled:

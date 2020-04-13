@@ -20,16 +20,14 @@ class EventLoopImplementation(ABC):
 
 
 class EventLoop:
-    # def __init__(self, cd: AbstractCD, event_loop: EventLoopImplementation, output_callback: Callable[[List[Event]],None], time_impl: TimeImplementation = DefaultTimeImplementation):
     def __init__(self, controller: Controller, event_loop: EventLoopImplementation, time_impl: TimeImplementation = DefaultTimeImplementation):
         delta = controller.get_model_delta()
         self.timer = Timer(time_impl, unit=delta) # will give us timestamps in model unit
-        # self.controller = Controller(cd)
         self.controller = controller
         self.event_loop = event_loop
 
         # got to convert from model unit to eventloop native unit for scheduling
-        self.event_loop_convert = lambda x: int(get_conversion_f(delta, event_loop.time_unit())(x))
+        self.to_event_loop_unit = lambda x: int(get_conversion_f(delta, event_loop.time_unit())(x))
 
         self.scheduled = None
 
@@ -42,7 +40,7 @@ class EventLoop:
         if next_wakeup:
             # (next_wakeup - now) is negative, we are running behind
             # not much we can do about it though
-            sleep_duration = max(0, self.event_loop_convert(next_wakeup - now))
+            sleep_duration = max(0, self.to_event_loop_unit(next_wakeup - now))
             self.scheduled = self.event_loop.schedule(sleep_duration, self._wakeup)
         else:
             self.scheduled = None

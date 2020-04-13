@@ -57,7 +57,7 @@ class Test(unittest.TestCase):
       controller = Controller(test.cd, on_output)
 
       for i in test.input:
-        controller._schedule(i.timestamp.eval(None), i.event, controller._inport_to_instances(i.port))
+        controller.schedule(i.timestamp.eval(None), i.event, controller.inport_to_instances(i.port))
 
       def controller_thread():
         try:

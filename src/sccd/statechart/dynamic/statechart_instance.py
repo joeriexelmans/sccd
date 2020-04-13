@@ -144,6 +144,7 @@ class StatechartInstance(Instance):
     # perform a big step. generating a set of output events
     def big_step(self, input_events: List[InternalEvent]):
         # print_debug('attempting big step, input_events='+str(input_events))
+        self._big_step.reset()
         self.set_input(input_events)
         self._big_step.run_and_cycle_events()
 

@@ -8,6 +8,7 @@
   <outport name="out">
     <event name="in_b"/>
     <event name="in_c"/>
+    <event name="in_d"/>
   </outport>
 
   <root initial="a">
@@ -25,6 +26,12 @@
     <state id="c">
       <onentry>
         <raise event="in_c"/>
+      </onentry>
+      <transition event="f" target="/d"/>
+    </state>
+    <state id="d">
+      <onentry>
+        <raise event="in_d"/>
       </onentry>
     </state>
   </root>

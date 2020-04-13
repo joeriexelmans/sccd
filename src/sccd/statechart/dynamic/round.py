@@ -117,6 +117,10 @@ class Round(ABC):
                 print_debug("completed "+self.name)
             return (changed, stable)
 
+    def reset(self):
+        self.remainder_events = []
+        self.next_events = []
+
     @abstractmethod
     def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
         pass
@@ -167,6 +171,10 @@ class SuperRound(Round):
 
     def __repr__(self):
         return self.name + " > " + self.subround.__repr__()
+
+    def reset(self):
+        super().reset()
+        self.subround.reset()
 
     def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
         arenas_changed = Bitmap()

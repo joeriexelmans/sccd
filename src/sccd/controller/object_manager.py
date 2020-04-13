@@ -15,12 +15,12 @@ class ObjectManager(Instance):
         self.schedule_callback = schedule_callback
         self.cancel_callback = cancel_callback
 
-        # set of all instances in the runtime
-        # we need to maintain this set in order to do broadcasts
-        self.instances = [self] # object manager is an instance too!
 
         i = StatechartInstance(cd.get_default_class(), self, self.output_callback, self.schedule_callback, self.cancel_callback)
-        self.instances.append(i)
+        
+        # set of all instances in the runtime
+        # we need to maintain this set in order to do broadcasts
+        self.instances = [i]
 
     def _create(self, class_name) -> StatechartInstance:
         statechart_model = self.cd.classes[class_name]

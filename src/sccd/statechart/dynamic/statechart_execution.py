@@ -137,7 +137,9 @@ class StatechartExecution:
 
     def _cancel_timers(self, triggers: List[AfterTrigger]):
         for after in triggers:
-            self.cancel_callback(self.timer_ids[after.after_id])
+            if self.timer_ids[after.after_id] is not None:
+                self.cancel_callback(self.timer_ids[after.after_id])
+                self.timer_ids[after.after_id] = None
 
     # Return whether the current configuration includes ALL the states given.
     def in_state(self, state_strings: List[str]) -> bool:

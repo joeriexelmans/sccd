@@ -14,50 +14,52 @@ class EventQueue(Generic[Timestamp, Item]):
         self.queue: List[Tuple[Timestamp, int, Item]] = []
         self.counters = {} # mapping from timestamp to number of items at timestamp
         self.removed: Set[Item] = set()
-    
+
     def __str__(self):
-        return str([entry for entry in self.queue if entry[2] not in self.removed])
-    
-    def is_empty(self) -> bool:
-        return not [item for item in self.queue if not item[2] in self.removed]
-    
+        return str(sorted([tup for tup in self.queue if tup[2] not in self.removed]))
+
     def earliest_timestamp(self) -> Optional[Timestamp]:
-        while self.queue and (self.queue[0] in self.removed):
-            item = heappop(self.queue)
-            self.removed.remove(item[2])
-        try:
-            return self.queue[0][0]
-        except IndexError:
-            return None
-    
+        with timer.Context("event_queue"):
+            while self.queue and (self.queue[0][2] in self.removed):
+                tup = heappop(self.queue)
+                self.removed.remove(tup[2])
+            try:
+                return self.queue[0][0]
+            except IndexError:
+                return None
+
     def add(self, timestamp: Timestamp, item: Item):
+        # print("add", item)
         with timer.Context("event_queue"):
             self.counters[timestamp] = self.counters.setdefault(timestamp, 0) + 1
             def_event = (timestamp, self.counters[timestamp], item)
             heappush(self.queue, def_event)
-    
+
     def remove(self, item: Item):
+        # print("remove", item)
         with timer.Context("event_queue"):
             self.removed.add(item)
             if len(self.removed) > 100:
-                self.queue = [x for x in self.queue if x not in self.removed]
+                self.queue = [x for x in self.queue if x[2] not in self.removed]
+                # print("heapify")
                 heapify(self.queue)
-                self.removed = set()
+                self.removed.clear()
 
     # Raises exception if called on empty queue
     def pop(self) -> Tuple[Timestamp, Item]:
         with timer.Context("event_queue"):
             while 1:
-                item = heappop(self.queue)
-                timestamp = item[0]
-                self.counters[timestamp] -= 1
-                if not self.counters[timestamp]:
+                timestamp, n, item = heappop(self.queue)
+                if self.counters[timestamp] == n:
                     del self.counters[timestamp]
-                if item[2] not in self.removed:
-                    return (timestamp, item[2])
+                if item not in self.removed:
+                    return (timestamp, item)
 
     def is_due(self, timestamp: Optional[Timestamp]) -> bool:
-        return len(self.queue) and (timestamp == None or self.queue[0][0] <= timestamp)
+        earliest = self.earliest_timestamp()
+        # print("is_due", earliest, timestamp, earliest is not None and (timestamp is None or earliest <= timestamp))
+
+        return earliest is not None and (timestamp is None or earliest <= timestamp)
 
     # Safe to call on empty queue
     # Safe to call other methods on the queue while the returned generator exists

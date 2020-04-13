@@ -2,7 +2,11 @@
   <delta>1 ms</delta>
 
   <statechart>
-    <semantics big_step_maximality="take_one"/>
+    <semantics
+      big_step_maximality="take_one"
+      internal_event_lifeline="next_small_step"
+      input_event_lifeline="whole"
+    />
 
     <inport name="in">
       <event name="bottomLeftPressed"/>
@@ -34,11 +38,54 @@
       <event name="setAlarm"/>
     </outport>
 
-    <outport name="out">
-    </outport>
-
     <root>
       <parallel id="P">
+        <state id="Alarm" initial="Off">
+          <state id="Off">
+            <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/TimeUpdate"])' target="../On"/>
+          </state>
+
+          <state id="On" initial="NotBlinking">
+            <onentry>
+              <raise event="setAlarm"/>
+            </onentry>
+            <onexit>
+              <raise event="setAlarm"/>
+            </onexit>
+
+            <state id="NotBlinking">
+              <transition event="alarmStart" target="../Blinking"/>
+              <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/TimeUpdate"])' target="../../Off"/>
+            </state>
+
+            <state id="Blinking" initial="On">
+              <onexit>
+                <raise event="unsetIndiglo"/>
+              </onexit>
+              <state id="On">
+                <onentry>
+                  <raise event="setIndiglo"/>
+                </onentry>
+                <transition after="500 ms" target="../Off"/>
+              </state>
+              <state id="Off">
+                <onentry>
+                  <raise event="unsetIndiglo"/>
+                </onentry>
+                <transition after="500 ms" target="../On"/>
+              </state>
+              <!-- user interrupt alarm: also toggle off alarm -->
+              <transition event="topRightPressed" target="../../Off"/>
+              <transition event="topLeftPressed" target="../../Off"/>
+              <transition event="bottomRightPressed" target="../../Off"/>
+              <transition event="bottomLeftPressed" target="../../Off"/>
+              <!-- alarm over, everything remains like it was -->
+              <transition after="4 s" target="../NotBlinking"/>
+            </state>
+          </state>
+        </state>
+
+
         <state id="Indiglo" initial="Off">
           <state id="Off">
             <transition event="topRightPressed" target="../Pushed">
@@ -58,28 +105,35 @@
           </state>
         </state>
 
-        <state id="Chrono" initial="Stopped">
-          <state id="Stopped">
-            <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target=".">
-              <raise event="resetChrono"/>
-            </transition>
-            <transition event="bottomRightPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target="../Running"/>
-          </state>
 
-          <state id="Running">
-            <transition after="10 ms" target=".">
-              <raise event="increaseChronoByOne"/>
+        <state id="ChronoWrapper">
+          <state id="Chrono" initial="Stopped">
+            <state id="Stopped">
+              <transition event="bottomRightPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target="../Running"/>
+            </state>
+
+            <state id="Running">
+              <transition after="10 ms" target=".">
+                <raise event="increaseChronoByOne"/>
+                <raise event="int_refresh_chrono"/>
+              </transition>
+              <transition event="bottomRightPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target="../Stopped"/>
+            </state>
+
+            <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target="Stopped">
+                <raise event="resetChrono"/>
+                <raise event="int_refresh_chrono"/>
             </transition>
-            <transition event="bottomRightPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target="../Stopped"/>
           </state>
         </state>
+
 
         <state id="Display" initial="TimeUpdate">
           <state id="TimeUpdate">
             <onentry>
               <raise event="refreshTimeDisplay"/>
             </onentry>
-            <transition after="1 s" target="."/>
+            <transition event="int_refresh_time" target="."/>
             <transition event="topLeftPressed" target="../ChronoUpdate"/>
             <transition event="bottomRightPressed" target="../WaitingToEdit"/>
             <transition event="bottomLeftPressed" target="../WaitingForAlarm"/>
@@ -90,6 +144,16 @@
               <raise event="time_edit"/>
             </transition>
             <transition event="bottomRightReleased" target="../TimeUpdate"/>
+          </state>
+
+          <state id="WaitingForAlarm">
+            <onentry>
+              <raise event="refreshAlarmDisplay"/>
+            </onentry>
+            <transition after="1500 ms" target="../EditingTime">
+              <raise event="alarm_edit"/>
+            </transition>
+            <transition event="bottomLeftReleased" target="../TimeUpdate"/>
           </state>
 
           <state id="EditingTime" initial="Waiting">
@@ -121,76 +185,31 @@
               <onentry>
                 <raise event="increaseSelection"/>
               </onentry>
-              <transition after="300 ms" target="."/>
+              <transition after="100 ms" target="."/>
               <transition event="bottomLeftReleased" target="../Waiting"/>
             </state>
           </state>
 
           <state id="ChronoUpdate">
-            <transition event="topLeftPressed" target="../TimeUpdate"/>
-            <transition after="10 ms" target=".">
+            <onentry>
               <raise event="refreshChronoDisplay"/>
-            </transition>
-          </state>
-
-          <state id="WaitingForAlarm">
-            <onentry>
-              <raise event="refreshAlarmDisplay"/>
             </onentry>
-            <transition after="1500 ms" target="../EditingTime">
-              <raise event="alarm_edit"/>
-            </transition>
-            <transition event="bottomLeftReleased" target="../TimeUpdate"/>
+            <transition event="topLeftPressed" target="../TimeUpdate"/>
+            <transition event="int_refresh_chrono" target="."/>
           </state>
         </state>
 
-        <state id="Alarm" initial="Off">
-          <state id="Off">
-            <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/TimeUpdate"]) or INSTATE(["/P/Display/WaitingForAlarm"])' target="../On">
-              <raise event="setAlarm"/>
-            </transition>
-          </state>
-
-          <state id="On">
-            <onentry>
-              <raise event="checkTime"/>
-            </onentry>
-            <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/TimeUpdate"]) or INSTATE(["/P/Display/WaitingForAlarm"])' target="../Off">
-              <raise event="setAlarm"/>
-            </transition>
-            <transition after="1 s" target="."/>
-            <transition event="alarmStart" target="../Blinking"/>
-          </state>
-
-          <state id="Blinking" initial="On">
-            <onexit>
-              <raise event="setAlarm"/>
-              <raise event="unsetIndiglo"/>
-            </onexit>
-            <state id="On">
-              <onentry>
-                <raise event="setIndiglo"/>
-              </onentry>
-              <transition after="500 ms" target="../Off"/>
-            </state>
-            <state id="Off">
-              <onentry>
-                <raise event="unsetIndiglo"/>
-              </onentry>
-              <transition after="500 ms" target="../On"/>
-            </state>
-
-            <transition event="topRightPressed" target="../Off"/>
-            <transition event="topLeftPressed" target="../Off"/>
-            <transition event="bottomRightPressed" target="../Off"/>
-            <transition event="bottomLeftPressed" target="../Off"/>
-          </state>
-        </state>
 
         <state id="Time" initial="Increasing">
           <state id="Increasing">
+            <transition after="1 s" cond='INSTATE(["/P/Alarm/On"])' target=".">
+              <raise event="increaseTimeByOne"/>
+              <raise event="checkTime"/>
+              <raise event="int_refresh_time"/>
+            </transition>
             <transition after="1 s" target=".">
               <raise event="increaseTimeByOne"/>
+              <raise event="int_refresh_time"/>
             </transition>
             <transition event="time_edit" target="../Editing"/>
           </state>

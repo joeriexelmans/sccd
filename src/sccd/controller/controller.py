@@ -22,8 +22,11 @@ class Controller:
         event: InternalEvent
         targets: List[Instance]
 
+        def __repr__(self):
+            return "QueueEntry("+str(self.event)+")"
 
-    def __init__(self, cd: AbstractCD, output_callback: Callable[[List[OutputEvent]],None] = _dummy_output_callback):
+
+    def __init__(self, cd: AbstractCD, output_callback: Callable[[OutputEvent],None] = _dummy_output_callback):
         cd.globals.assert_ready()
         self.cd = cd
 
@@ -52,10 +55,10 @@ class Controller:
     def get_model_delta(self) -> Duration:
         return self.cd.globals.delta
 
-    def _schedule(self, timestamp: int, event: InternalEvent, instances: List[Instance]):
+    def schedule(self, timestamp: int, event: InternalEvent, instances: List[Instance]):
         self.queue.add(timestamp, Controller.EventQueueEntry(event, instances))
 
-    def _inport_to_instances(self, port: str) -> List[Instance]:
+    def inport_to_instances(self, port: str) -> List[Instance]:
         try:
             self.cd.globals.inports.get_id(port)
         except KeyError as e:
@@ -72,10 +75,10 @@ class Controller:
         except KeyError as e:
             raise Exception("No such event: '%s'" % event_name) from e
 
-        instances = self._inport_to_instances(port)
+        instances = self.inport_to_instances(port)
         event = InternalEvent(event_id, event_name, params)
 
-        self._schedule(timestamp, event, instances)
+        self.schedule(timestamp, event, instances)
 
     # Get timestamp of next entry in event queue
     def next_wakeup(self) -> Optional[int]:
@@ -106,9 +109,9 @@ class Controller:
                 self.simulated_time = timestamp
                 if DEBUG:
                     print("\ntime is now %s" % str(self.cd.globals.delta * self.simulated_time))
+            # print("popped", entry)
+            # print("remaining", self.queue)
             # run all instances for whom there are events
             for instance in entry.targets:
                 instance.big_step([entry.event])
                 # print_debug("completed big step (time = %s)" % str(self.cd.globals.delta * self.simulated_time))
-
-        self.simulated_time = now

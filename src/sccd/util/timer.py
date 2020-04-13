@@ -27,7 +27,7 @@ if TIMINGS:
 
   def _print_stats():
       print("\ntimings:")
-      for key,val in timings.items():
+      for key,val in sorted(timings.items()):
         print("  %s: %.2f ms / %d = %.3f ms" % (key,val*1000,counts[key],val*1000/counts[key]))
 
   atexit.register(_print_stats)

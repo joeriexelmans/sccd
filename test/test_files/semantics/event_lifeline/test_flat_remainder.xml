@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="statechart_flat.xml">
+    <override_semantics
+      big_step_maximality="take_many"
+      internal_event_lifeline="remainder"
+      input_event_lifeline="*"/>
+  </statechart>
+  <input>
+      <event name="e" port="in" time="0 d"/>
+  </input>
+  <output>
+    <big_step>
+      <event name="in_b" port="out"/>
+      <event name="in_c" port="out"/>
+      <event name="in_d" port="out"/>
+    </big_step>
+  </output>
+</test>

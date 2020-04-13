@@ -62,6 +62,13 @@ class SemanticConfiguration:
   priority: SemanticChoice[Priority] = Priority.SOURCE_PARENT
   concurrency: SemanticChoice[Concurrency] = Concurrency.SINGLE
 
+  def __str__(self):
+    s = ""
+    for f in fields(self):
+      s += "\n  %s: %s" % (f.name, getattr(self, f.name))
+    return s
+
+
   @classmethod
   def get_fields(cls) -> Iterator[Tuple[str, SemanticAspect]]:
     return ((f.name, type(f.default)) for  f in fields(cls))

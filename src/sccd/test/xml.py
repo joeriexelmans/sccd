@@ -81,8 +81,7 @@ def test_parser_rules(statechart_parser_rules):
         if not variant:
           return ""
         text = "Semantic variant %d of %d:" % (i+1, len(variants))
-        for f in fields(variant):
-          text += "\n  %s: %s" % (f.name, getattr(variant, f.name))
+        text += str(variant)
         return text
 
       return [TestVariant(

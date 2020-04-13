@@ -3,9 +3,6 @@ from sccd.realtime.tkinter import TkInterImplementation
 from sccd.cd.parser.xml import *
 
 def main():
-    # Load statechart
-    cd = load_cd("model_digitalwatch.xml")
-
     import tkinter
     from tkinter.constants import NO
     from DigitalWatchGUI import DigitalWatchGUI
@@ -31,7 +28,8 @@ def main():
             method = getattr(gui.controller, event.name)
             method()
 
-    controller = Controller(cd, on_output)
+    cd = load_cd("model_digitalwatch.xml")
+    controller = Controller(cd, output_callback=on_output)
     eventloop = EventLoop(controller, TkInterImplementation(tk))
 
     eventloop.start()

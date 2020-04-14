@@ -39,7 +39,9 @@ class StatechartInstance(Instance):
 
         # 2 transition candidate generation algorithms to choose from!
         # generator = CandidatesGeneratorCurrentConfigBased(statechart, reverse)
-        generator = CandidatesGeneratorEventBased(statechart, reverse)
+        # generator = CandidatesGeneratorEventBased(statechart, reverse)
+        # generator = CandidateGenerator(CurrentConfigStrategy(statechart))
+        generator = CandidateGenerator(EnabledEventsStrategy(statechart))
 
         # Big step + combo step maximality semantics
 

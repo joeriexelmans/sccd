@@ -20,72 +20,84 @@ if timer.TIMINGS:
         print("\ncache hits: %s, cache misses: %s" %(ctr.cache_hits, ctr.cache_misses))
     atexit.register(print_stats)
 
-@dataclass
-class CandidatesGenerator(ABC):
-    statechart: Statechart
-    reverse: bool
-    cache: Dict[Tuple[Bitmap,Bitmap], List[Transition]] = field(default_factory=dict)
-
+class GeneratorStrategy(ABC):
     @abstractmethod
-    def generate(self, state, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> Iterable[Transition]:
+    def cache_init(self):
         pass
 
-class CandidatesGeneratorCurrentConfigBased(CandidatesGenerator):
+    @abstractmethod
+    def key(self, execution, events_bitmap, forbidden_arenas):
+        pass
 
-    def _candidates(self, config_bitmap, forbidden_arenas):
-        candidates = [ t for state_id in config_bitmap.items()
-                          for t in self.statechart.tree.state_list[state_id].transitions
-                           if (not forbidden_arenas & t.opt.arena_bitmap) ]
-        if self.reverse:
-            candidates.reverse()
-        return candidates
+    @abstractmethod
+    def generate(self, execution, enabled_events, events_bitmap, forbidden_arenas):
+        pass
 
-    def generate(self, state, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> Iterable[Transition]:
-        events_bitmap = Bitmap.from_list(e.id for e in enabled_events)
-        key = (state.configuration, forbidden_arenas)
+    @abstractmethod
+    def filter_f(self, execution, enabled_events, events_bitmap):
+        pass
 
-        try:
-            candidates = self.cache[key]
-            ctr.cache_hits += 1
-        except KeyError:
-            candidates = self.cache[key] = self._candidates(state.configuration, forbidden_arenas)
-            ctr.cache_misses += 1
 
-        def filter_f(t):
-            return (not t.trigger or t.trigger.check(events_bitmap)) and state.check_guard(t, enabled_events)
-        return filter(filter_f, candidates)
+class CurrentConfigStrategy(GeneratorStrategy):
+    __slots__ = ["statechart"]
+    def __init__(self, statechart):
+        self.statechart = statechart
 
-@dataclass
-class CandidatesGeneratorEventBased(CandidatesGenerator):
+    def cache_init(self):
+        return {}
 
-    def __post_init__(self):
-        # Prepare cache with all single-item sets-of-events since these are the most common sets of events.
+    def key(self, execution, events_bitmap, forbidden_arenas):
+        return (execution.configuration, forbidden_arenas)
+
+    def generate(self, execution, enabled_events, events_bitmap, forbidden_arenas):
+        return [ t for state_id in bm_items(execution.configuration)
+                      for t in self.statechart.tree.state_list[state_id].transitions
+                       if (not forbidden_arenas & t.opt.arena_bitmap) ]
+
+    def filter_f(self, execution, enabled_events, events_bitmap):
+        return lambda t: (not t.trigger or t.trigger.check(events_bitmap)) and execution.check_guard(t, enabled_events)
+
+class EnabledEventsStrategy(GeneratorStrategy):
+    __slots__ = ["statechart"]
+    def __init__(self, statechart):
+        self.statechart = statechart
+
+    def cache_init(self):
+        cache = {}
         for event_id in bm_items(self.statechart.events):
             events_bitmap = bit(event_id)
-            self.cache[(events_bitmap, 0)] = self._candidates(events_bitmap, 0)
+            cache[(events_bitmap, 0)] = self.generate(None, None, events_bitmap, 0)
+        return cache
 
-    def _candidates(self, events_bitmap, forbidden_arenas):
-        candidates = [ t for t in self.statechart.tree.transition_list
-                          if (not t.trigger or t.trigger.check(events_bitmap)) # todo: check port?
-                          and (not forbidden_arenas & t.opt.arena_bitmap) ]
-        if self.reverse:
-            candidates.reverse()
-        return candidates
+    def key(self, execution, events_bitmap, forbidden_arenas):
+        return (events_bitmap, forbidden_arenas)
 
-    def generate(self, state, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> Iterable[Transition]:
+    def generate(self, execution, enabled_events, events_bitmap, forbidden_arenas):
+        return [ t for t in self.statechart.tree.transition_list
+                      if (not t.trigger or t.trigger.check(events_bitmap))
+                      and (not forbidden_arenas & t.opt.arena_bitmap) ]
+
+    def filter_f(self, execution, enabled_events, events_bitmap):
+        return lambda t: execution.check_source(t) and execution.check_guard(t, enabled_events)
+
+class CandidateGenerator:
+    __slots__ = ["strategy", "cache"]
+    def __init__(self, strategy):
+        self.strategy = strategy
+        self.cache = strategy.cache_init()
+
+    def generate(self, execution, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> Iterable[Transition]:
         events_bitmap = bm_from_list(e.id for e in enabled_events)
-        key = (events_bitmap, forbidden_arenas)
+        key = self.strategy.key(execution, events_bitmap, forbidden_arenas)
 
         try:
             candidates = self.cache[key]
             ctr.cache_hits += 1
         except KeyError:
-            candidates = self.cache[key] = self._candidates(events_bitmap, forbidden_arenas)
+            candidates = self.cache[key] = self.strategy.generate(execution, enabled_events, events_bitmap, forbidden_arenas)
             ctr.cache_misses += 1
 
-        def filter_f(t):
-            return state.check_source(t) and state.check_guard(t, enabled_events)
-        return filter(filter_f, candidates)
+        return filter(self.strategy.filter_f(execution, enabled_events, events_bitmap), candidates)
 
 # 1st bitmap: arenas covered by transitions fired
 # 2nd bitmap: arenas covered by transitions that had a stable target state
@@ -220,7 +232,7 @@ class SuperRoundWithLimit(SuperRound):
 
 
 class SmallStep(Round):
-    def __init__(self, name, state, generator: CandidatesGenerator, concurrency=False):
+    def __init__(self, name, state, generator: CandidateGenerator, concurrency=False):
         super().__init__(name)
         self.state = state
         self.generator = generator
@@ -276,4 +288,3 @@ class SmallStep(Round):
                     t = next(candidates, None)
 
         return (arenas, stable_arenas)
-

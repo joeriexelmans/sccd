@@ -42,6 +42,9 @@ class Priority(SemanticAspect, Enum):
   SOURCE_PARENT = auto()
   SOURCE_CHILD = auto()
 
+  ARENA_PARENT = auto()
+  ARENA_CHILD = auto()
+
 class Concurrency(SemanticAspect, Enum):
   SINGLE = auto()
   MANY = auto()

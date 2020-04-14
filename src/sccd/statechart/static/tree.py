@@ -401,16 +401,12 @@ def priority_source_parent(tree: StateTree) -> List[Transition]:
     # Tree's transition list already ordered parent-first
     return tree.transition_list
 
+# The following 3 priority implementations all do a stable sort with a partial order-key
+
 def priority_source_child(tree: StateTree) -> List[Transition]:
-    # Build a child-first order of transitions, while maintaining document order between transitions at the same level
-    transition_list = []
-    def append(state: State, _=None):
-        transition_list.extend(state.transitions)
-    visit_tree(tree.root, lambda s: s.children, before_children=[], after_children=[append])
-    return transition_list
+    return list(sorted(tree.transition_list, key=lambda t: -t.source.opt.depth))
 
 def priority_arena_parent(tree: StateTree) -> List[Transition]:
-    # partial ordering key + Python's stable sorting = desired outcome
     return list(sorted(tree.transition_list, key=lambda t: t.opt.arena.opt.depth))
 
 def priority_arena_child(tree: StateTree) -> List[Transition]:

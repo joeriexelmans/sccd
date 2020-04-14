@@ -1,8 +1,7 @@
-from heapq import heappush, heappop, heapify
-from abc import ABC
-from typing import List, Set, Tuple, Deque, Any, TypeVar, Generic, Generator, Optional
-from collections import deque
-from  sccd.util import timer
+from heapq import heappush, heappop
+from typing import *
+from collections import Counter
+from sccd.util import timer
 
 Timestamp = TypeVar('Timestamp')
 Item = TypeVar('Item')
@@ -21,7 +20,7 @@ class EventQueue(Generic[Timestamp, Item]):
 
     def __init__(self):
         self.queue: List[Tuple[Timestamp, int, RemovedWrapper, Item]] = []
-        self.counters = {} # mapping from timestamp to number of items at timestamp
+        self.counters = Counter() # mapping from timestamp to number of items at timestamp
 
     def __str__(self):
         return str(sorted([tup for tup in self.queue if not tup[2].removed]))
@@ -38,8 +37,8 @@ class EventQueue(Generic[Timestamp, Item]):
     def add(self, timestamp: Timestamp, item: Item):
         # print("add", item)
         with timer.Context("event_queue"):
-            n = self.counters[timestamp] = self.counters.setdefault(timestamp, 0) + 1
-            def_event = (timestamp, n, EventQueue.RemovedWrapper(), item)
+            def_event = (timestamp, self.counters[timestamp], EventQueue.RemovedWrapper(), item)
+            self.counters[timestamp] += 1
             heappush(self.queue, def_event)
             return def_event
 

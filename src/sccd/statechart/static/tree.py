@@ -1,5 +1,6 @@
 import termcolor
 from typing import *
+import itertools
 from sccd.statechart.static.action import *
 from sccd.util.bitmap import *
 from sccd.util import timer
@@ -27,7 +28,6 @@ class State(Freezable):
 
         self.opt: Optional['StateOptimization'] = None
 
-    # def __post_init__(self):
         if self.parent is not None:
             self.parent.children.append(self)
 
@@ -189,12 +189,13 @@ class Transition(Freezable):
 
 # Data that is generated for each state.
 class StateOptimization(Freezable):
-    __slots__ = ["full_name", "state_id", "state_id_bitmap", "ancestors", "descendants", "history", "ts_static", "ts_dynamic", "after_triggers"]
+    __slots__ = ["full_name", "depth", "state_id", "state_id_bitmap", "ancestors", "descendants", "history", "ts_static", "ts_dynamic", "after_triggers"]
     def __init__(self):
         super().__init__()
 
         self.full_name: str = ""
 
+        self.depth: int -1 # Root is 0, root's children are 1, and so on
         self.state_id: int = -1
         self.state_id_bitmap: Bitmap = Bitmap() # bitmap with only state_id-bit set
 
@@ -273,6 +274,10 @@ def optimize_tree(root: State) -> StateTree:
 
             return f
 
+        def assign_depth(state: State, parent_depth: int = 0):
+            state.opt.depth = parent_depth + 1
+            return parent_depth + 1
+
         def assign_full_name(state: State, parent_full_name: str = ""):
             if state is root:
                 full_name = '/'
@@ -330,6 +335,7 @@ def optimize_tree(root: State) -> StateTree:
             before_children=[
                 init_opt(),
                 assign_full_name,
+                assign_depth,
                 add_to_list,
                 set_ancestors,
             ],
@@ -342,7 +348,7 @@ def optimize_tree(root: State) -> StateTree:
 
 
         for t in transition_list:
-            # Arena can be computed statically. First computer Lowest-common ancestor:
+            # Arena can be computed statically. First compute Lowest-common ancestor:
             # Intersection between source & target ancestors, last member in depth-first sorted state list.
             lca_id = bm_highest_bit(t.source.opt.ancestors & t.targets[0].opt.ancestors)
             lca = state_list[lca_id]
@@ -389,3 +395,54 @@ def optimize_tree(root: State) -> StateTree:
             t.freeze()
 
         return StateTree(root, transition_list, state_list, state_dict, after_triggers, stable_bitmap, history_states)
+
+
+def priority_source_parent(tree: StateTree) -> List[Transition]:
+    # Tree's transition list already ordered parent-first
+    return tree.transition_list
+
+def priority_source_child(tree: StateTree) -> List[Transition]:
+    # Build a child-first order of transitions, while maintaining document order between transitions at the same level
+    transition_list = []
+    def append(state: State, _=None):
+        transition_list.extend(state.transitions)
+    visit_tree(tree.root, lambda s: s.children, before_children=[], after_children=[append])
+    return transition_list
+
+def priority_arena_parent(tree: StateTree) -> List[Transition]:
+    # partial ordering key + Python's stable sorting = desired outcome
+    return list(sorted(tree.transition_list, key=lambda t: t.opt.arena.opt.depth))
+
+def priority_arena_child(tree: StateTree) -> List[Transition]:
+    return list(sorted(tree.transition_list, key=lambda t: -t.opt.arena.opt.depth))
+
+
+def concurrency_arena_orthogonal(tree: StateTree):
+    with timer.Context("concurrency_arena_orthogonal"):
+        import collections
+        nonoverlapping = collections.defaultdict(list)
+        for t1,t2 in itertools.combinations(tree.transition_list, r=2):
+            if not (t1.opt.arena_bitmap & t2.opt.arena_bitmap):
+                nonoverlapping[t1].append(t2)
+                nonoverlapping[t2].append(t1)
+
+        for t, ts in nonoverlapping.items():
+            print(str(t), "does not overlap with", ",".join(str(t) for t in ts))
+
+        print(len(nonoverlapping), "nonoverlapping pairs of transitions")
+
+def concurrency_src_dst_orthogonal(tree: StateTree):
+    with timer.Context("concurrency_src_dst_orthogonal"):
+        import collections
+        nonoverlapping = collections.defaultdict(list)
+        for t1,t2 in itertools.combinations(tree.transition_list, r=2):
+            lca_src = tree.state_list[bm_highest_bit(t1.source.opt.ancestors & t2.source.opt.ancestors)]
+            lca_dst = tree.state_list[bm_highest_bit(t1.targets[0].opt.ancestors & t2.targets[0].opt.ancestors)]
+            if isinstance(lca_src, ParallelState) and isinstance(lca_dst, ParallelState):
+                nonoverlapping[t1].append(t2)
+                nonoverlapping[t2].append(t1)
+
+        for t, ts in nonoverlapping.items():
+            print(str(t), "does not overlap with", ",".join(str(t) for t in ts))
+
+        print(len(nonoverlapping), "nonoverlapping pairs of transitions")

@@ -35,13 +35,20 @@ class StatechartInstance(Instance):
         if semantics.has_multiple_variants():
             raise Exception("Cannot execute model with multiple semantics.")
 
-        reverse = semantics.priority == Priority.SOURCE_CHILD
+        priority_function = {
+            Priority.SOURCE_PARENT: priority_source_parent,
+            Priority.SOURCE_CHILD: priority_source_child,
+            Priority.ARENA_PARENT: priority_arena_parent,
+            Priority.ARENA_CHILD: priority_arena_child,
+        }[semantics.priority]
 
-        # 2 transition candidate generation algorithms to choose from!
-        # generator = CandidatesGeneratorCurrentConfigBased(statechart, reverse)
-        # generator = CandidatesGeneratorEventBased(statechart, reverse)
-        # generator = CandidateGenerator(CurrentConfigStrategy(statechart))
-        generator = CandidateGenerator(EnabledEventsStrategy(statechart))
+        priority_ordered_transitions = priority_function(statechart.tree)
+
+        # strategy = CurrentConfigStrategy(priority_ordered_transitions)
+        strategy = EnabledEventsStrategy(priority_ordered_transitions, statechart)
+        # strategy = CurrentConfigAndEnabledEventsStrategy(priority_ordered_transitions, statechart)
+
+        generator = CandidateGenerator(strategy)
 
         # Big step + combo step maximality semantics
 

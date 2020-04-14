@@ -1,0 +1,42 @@
+<?xml version="1.0" ?>
+<statechart>
+
+  <inport name="in">
+    <event name="start"/>
+  </inport>
+
+  <outport name="out">
+    <event name="source_parent"/>
+    <event name="source_child"/>
+    <event name="arena_parent"/>
+    <event name="arena_child"/>
+  </outport>
+
+  <root initial="s1">
+    <state id="s1" initial="s2">
+      <state id="s2" initial="s3">
+        <state id="s3">
+          <transition target="/s1/s5">
+            <!-- with source-child, this transition is preferred above the other
+                 outgoing ones, because this one occurs first in the document -->
+            <raise event="source_child"/>
+          </transition>
+          <transition target="../s4">
+            <raise event="arena_child"/>
+          </transition>
+          <transition target="/s6/s7">
+            <raise event="arena_parent"/>
+          </transition>
+        </state>
+        <state id="s4"/>
+        <transition target="../s5">
+          <raise event="source_parent"/>
+        </transition>
+      </state>
+      <state id="s5"/>
+    </state>
+    <state id="s6">
+      <state id="s7"/>
+    </state>
+  </root>
+</statechart>

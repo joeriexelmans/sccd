@@ -121,9 +121,6 @@ class StatechartExecution:
             e.args = ("While checking guard of transition %s:\n" % str(t) +str(e),)
             raise
 
-    def check_source(self, t) -> bool:
-        return self.configuration & t.source.opt.state_id_bitmap
-
     @staticmethod
     def _perform_actions(ctx: EvalContext, actions: List[Action]):
         for a in actions:

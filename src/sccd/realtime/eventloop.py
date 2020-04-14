@@ -31,8 +31,11 @@ class EventLoop:
 
         self.scheduled = None
 
+        # Keeps the model responsive if we cannot keep up with wallclock time.
+        self.purposefully_behind = 0
+
     def _wakeup(self):
-        self.controller.run_until(self.timer.now())
+        self.controller.run_until(self.timer.now() - self.purposefully_behind)
 
         # back to sleep
         now = self.timer.now()
@@ -40,7 +43,12 @@ class EventLoop:
         if next_wakeup:
             # (next_wakeup - now) is negative, we are running behind
             # not much we can do about it though
-            sleep_duration = max(0, self.to_event_loop_unit(next_wakeup - now))
+            sleep_duration = self.to_event_loop_unit(next_wakeup - now)
+            if sleep_duration < 0:
+                self.purposefully_behind = now - next_wakeup
+                sleep_duration = 0
+            else:
+                self.purposefully_behind = 0
             self.scheduled = self.event_loop.schedule(sleep_duration, self._wakeup)
         else:
             self.scheduled = None
@@ -50,7 +58,7 @@ class EventLoop:
         self._wakeup()
 
     def now(self):
-        return self.timer.now()
+        return self.timer.now() - self.purposefully_behind
 
     # Uncomment if ever needed:
     # Does not mix well with interrupt().

@@ -34,8 +34,7 @@ class Controller:
 
         def schedule_after(after, event, instances):
             entry = Controller.EventQueueEntry(event, instances)
-            self.queue.add(self.simulated_time + after, entry)
-            return entry
+            return self.queue.add(self.simulated_time + after, entry)
 
         def cancel_after(entry):
             self.queue.remove(entry)

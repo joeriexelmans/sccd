@@ -41,8 +41,6 @@ class EventLoop:
         now = self.timer.now()
         next_wakeup = self.controller.next_wakeup()
         if next_wakeup:
-            # (next_wakeup - now) is negative, we are running behind
-            # not much we can do about it though
             sleep_duration = self.to_event_loop_unit(next_wakeup - now)
             if sleep_duration < 0:
                 self.purposefully_behind = now - next_wakeup

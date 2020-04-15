@@ -15,47 +15,22 @@ class ExpressionTransformer(Transformer):
 
   block = Block
 
-  def string(self, node):
+  def string_literal(self, node):
     return StringLiteral(node[0][1:-1])
 
-  def int(self, node):
+  def int_literal(self, node):
     return IntLiteral(int(node[0].value))
 
-  def func_call(self, node):
-    return FunctionCall(node[0], node[1].children)
+  def float_literal(self, node):
+    return FloatLiteral(float(node[0].value))
 
-  def identifier(self, node):
-    name = node[0].value
-    return Identifier(name)
-
-  def binary_expr(self, node):
-    return BinaryExpression(node[0], node[1].value, node[2])
-
-  def unary_expr(self, node):
-    return UnaryExpression(node[0].value, node[1])
-
-  def bool(self, node):
+  def bool_literal(self, node):
     return BoolLiteral({
       "True": True,
       "False": False,
       }[node[0].value])
 
-  def group(self, node):
-    return Group(node[0])
-
-  def assignment(self, node):
-    operator = node[1].value
-    if operator == "=":
-      return Assignment(node[0], node[2])
-    else:
-      # Increment, decrement etc. operators are just syntactic sugar
-      bin_operator = {"+=": "+", "-=": "-", "*=": "*", "/=": "/", "//=": "//"}[operator]
-      return Assignment(node[0], BinaryExpression(node[0], bin_operator, node[2]))
-
   def duration_literal(self, node):
-    return DurationLiteral(node[0])
-
-  def duration(self, node):
     val = int(node[0])
     suffix = node[1]
 
@@ -72,7 +47,32 @@ class ExpressionTransformer(Transformer):
       "h": Hour
     }[suffix]
 
-    return duration(val, unit)
+    return DurationLiteral(duration(val, unit))
+
+  def func_call(self, node):
+    return FunctionCall(node[0], node[1].children)
+
+  def identifier(self, node):
+    name = node[0].value
+    return Identifier(name)
+
+  def binary_expr(self, node):
+    return BinaryExpression(node[0], node[1].value, node[2])
+
+  def unary_expr(self, node):
+    return UnaryExpression(node[0].value, node[1])
+
+  def group(self, node):
+    return Group(node[0])
+
+  def assignment(self, node):
+    operator = node[1].value
+    if operator == "=":
+      return Assignment(node[0], node[2])
+    else:
+      # Increment, decrement etc. operators are just syntactic sugar
+      bin_operator = {"+=": "+", "-=": "-", "*=": "*", "/=": "/", "//=": "//"}[operator]
+      return Assignment(node[0], BinaryExpression(node[0], bin_operator, node[2]))
 
   def expression_stmt(self, node):
     return ExpressionStatement(node[0])

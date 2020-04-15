@@ -52,11 +52,19 @@ class Duration(ABC):
     pass
 
   @abstractmethod
-  def __eq__(self):
+  def __eq__(self, other):
     pass
 
   @abstractmethod
-  def __add__(self):
+  def __add__(self, other):
+    pass
+
+  @abstractmethod
+  def __sub__(self, other):
+    pass
+
+  @abstractmethod
+  def __neg__(self):
     pass
 
   @abstractmethod
@@ -93,6 +101,13 @@ class _ZeroDuration(Duration):
 
   def __add__(self, other):
     return other
+
+  def __sub__(self, other):
+    return duration(-other.val, other.unit)
+
+  def __neg__(self):
+    return self
+
 
   def __mul__(self, other: int) -> Duration:
     return self
@@ -148,6 +163,15 @@ class _NonZeroDuration(Duration):
       return self
     self_val, other_val, unit = _same_unit(self, other)
     return duration(self_val + other_val, unit)
+
+  def __sub__(self, other):
+    if other is _zero:
+      return duration(-self.val, self.unit)
+    self_val, other_val, unit = _same_unit(self, other)
+    return duration(self_val - other_val, unit)
+
+  def __neg__(self):
+    return duration(-self.val, self.unit)
 
   def __mul__(self, other: int) -> Duration:
     if other == 0:

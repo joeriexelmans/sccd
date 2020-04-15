@@ -191,6 +191,19 @@ class IntLiteral(Expression):
         return str(self.i)
 
 @dataclass
+class FloatLiteral(Expression):
+    f: float
+
+    def init_expr(self, scope: Scope) -> SCCDType:
+        return SCCDFloat
+
+    def eval(self, memory: MemoryInterface):
+        return self.f
+
+    def render(self):
+        return str(self.f)
+
+@dataclass
 class BoolLiteral(Expression):
     b: bool 
 
@@ -268,8 +281,13 @@ class BinaryExpression(Expression):
 
         def same_type():
             if lhs_t != rhs_t:
-                raise StaticTypeError("Mixed LHS and RHS types in '%s' expression: %s and %s" % (self.operator, str(lhs_t), str(rhs_t)))
+                raise StaticTypeError("Mixed LHS and RHS types in binary '%s'-expression: %s and %s" % (self.operator, str(lhs_t), str(rhs_t)))
             return lhs_t
+
+        def sum_type():
+            if lhs_t != SCCDInt and lhs_t != SCCDFloat and lhs_t != SCCDDuration:
+                raise StaticTypeError("Invalid type '%s' for binary '%s'-expresion" % (lhs_t, self.operator))
+            return same_type()
 
         def mult_type():
             if lhs_t == rhs_t:
@@ -283,42 +301,42 @@ class BinaryExpression(Expression):
             return largest_type
 
         return {
-            "and": SCCDBool,
-            "or":  SCCDBool,
-            "==":  comparison_type(),
-            "!=":  comparison_type(),
-            ">":   comparison_type(),
-            ">=":  comparison_type(),
-            "<":   comparison_type(),
-            "<=":  comparison_type(),
-            "+":   same_type(),
-            "-":   same_type(),
-            "*":   mult_type(),
-            "/":   SCCDFloat,
-            "//":  same_type(),
-            "%":   same_type(),
-            "**":  same_type(),
-        }[self.operator]
+            "and": lambda: SCCDBool,
+            "or":  lambda: SCCDBool,
+            "==":  comparison_type,
+            "!=":  comparison_type,
+            ">":   comparison_type,
+            ">=":  comparison_type,
+            "<":   comparison_type,
+            "<=":  comparison_type,
+            "+":   sum_type,
+            "-":   sum_type,
+            "*":   mult_type,
+            "/":   lambda: SCCDFloat,
+            "//":  same_type,
+            "%":   same_type,
+            "**":  same_type,
+        }[self.operator]()
 
     def eval(self, memory: MemoryInterface):
         
         return {
-            "and": lambda x,y: x.eval(memory) and y.eval(memory),
-            "or": lambda x,y: x.eval(memory) or y.eval(memory),
-            "==": lambda x,y: x.eval(memory) == y.eval(memory),
-            "!=": lambda x,y: x.eval(memory) != y.eval(memory),
-            ">": lambda x,y: x.eval(memory) > y.eval(memory),
-            ">=": lambda x,y: x.eval(memory) >= y.eval(memory),
-            "<": lambda x,y: x.eval(memory) < y.eval(memory),
-            "<=": lambda x,y: x.eval(memory) <= y.eval(memory),
-            "+": lambda x,y: x.eval(memory) + y.eval(memory),
-            "-": lambda x,y: x.eval(memory) - y.eval(memory),
-            "*": lambda x,y: x.eval(memory) * y.eval(memory),
-            "/": lambda x,y: x.eval(memory) / y.eval(memory),
-            "//": lambda x,y: x.eval(memory) // y.eval(memory),
-            "%": lambda x,y: x.eval(memory) % y.eval(memory),
-            "**": lambda x,y: x.eval(memory) ** y.eval(memory),
-        }[self.operator](self.lhs, self.rhs) # Borrow Python's lazy evaluation
+            "and": lambda x,y: x and y.eval(memory),
+            "or": lambda x,y: x or y.eval(memory),
+            "==": lambda x,y: x == y.eval(memory),
+            "!=": lambda x,y: x != y.eval(memory),
+            ">": lambda x,y: x > y.eval(memory),
+            ">=": lambda x,y: x >= y.eval(memory),
+            "<": lambda x,y: x < y.eval(memory),
+            "<=": lambda x,y: x <= y.eval(memory),
+            "+": lambda x,y: x + y.eval(memory),
+            "-": lambda x,y: x - y.eval(memory),
+            "*": lambda x,y: x * y.eval(memory),
+            "/": lambda x,y: x / y.eval(memory),
+            "//": lambda x,y: x // y.eval(memory),
+            "%": lambda x,y: x % y.eval(memory),
+            "**": lambda x,y: x ** y.eval(memory),
+        }[self.operator](self.lhs.eval(memory), self.rhs) # Borrow Python's lazy evaluation
 
     def render(self):
         return self.lhs.render() + ' ' + self.operator + ' ' + self.rhs.render()
@@ -330,10 +348,14 @@ class UnaryExpression(Expression):
 
     def init_expr(self, scope: Scope) -> SCCDType:
         expr_type = self.expr.init_expr(scope)
+        def num_type():
+            if expr_type != SCCDInt and expr_type != SCCDFloat:
+                raise StaticTypeError("Invalid type '%s' for unary '%s'-expresion" % (expr_type, self.operator))
+            return expr_type
         return {
-            "not": SCCDBool,
-            "-":   expr_type,
-        }[self.operator]
+            "not": lambda: SCCDBool,
+            "-":   num_type,
+        }[self.operator]()
 
     def eval(self, memory: MemoryInterface):
         return {

@@ -5,43 +5,31 @@ from typing import *
 import math
 import functools
 
-@dataclass
 class _Unit:
-  notation: str
-  relative_size: int
-  larger: Optional[Tuple[Any, int]] = None
-  # smaller: Optional[Tuple[Any, int]] = None
+  __slots__ = ["notation", "larger", "conv_dict"]
+  def __init__(self, notation: str, larger: Optional[Tuple[int, '_Unit']] = None):
+    self.notation = notation
+    self.larger = larger
 
-  def __eq__(self, other):
-    return self is other
+    # Pre-calculate conversions to all larger units
+    self.conv_dict = {}
+    rel_size = 1
+    larger = (1, self)
+    while larger:
+      rel_size *= larger[0]
+      unit = larger[1]
+      self.conv_dict[unit] = rel_size
+      larger = unit.larger
 
-FemtoSecond = _Unit("fs", 1)
-PicoSecond = _Unit("ps", 1000)
-Nanosecond = _Unit("ns", 1000000)
-Microsecond = _Unit("µs", 1000000000)
-Millisecond = _Unit("ms", 1000000000000)
-Second = _Unit("s", 1000000000000000)
-Minute = _Unit("m", 60000000000000000)
-Hour = _Unit("h", 3600000000000000000)
-Day = _Unit("D", 86400000000000000000)
-
-FemtoSecond.larger = (PicoSecond, 1000)
-PicoSecond.larger = (Nanosecond, 1000)
-Nanosecond.larger = (Microsecond, 1000)
-Microsecond.larger = (Millisecond, 1000)
-Millisecond.larger = (Second, 1000)
-Second.larger = (Minute, 60)
-Minute.larger = (Hour, 60)
-Hour.larger = (Day, 24)
-
-# Day.smaller = (Hour, 24)
-# Hour.smaller = (Minute, 60)
-# Minute.smaller = (Second, 60)
-# Second.smaller = (Millisecond, 1000)
-# Millisecond.smaller = (Microsecond, 1000)
-# Microsecond.smaller = (Nanosecond, 1000)
-# Nanosecond.smaller = (PicoSecond, 1000)
-# PicoSecond.smaller = (FemtoSecond, 1000)
+Day = _Unit("D")
+Hour = _Unit("h", (24, Day))
+Minute = _Unit("m", (60, Hour))
+Second = _Unit("s", (60, Minute))
+Millisecond = _Unit("ms", (1000, Second))
+Microsecond = _Unit("µs", (1000, Millisecond))
+Nanosecond = _Unit("ns", (1000, Microsecond))
+PicoSecond = _Unit("ps", (1000, Nanosecond))
+FemtoSecond = _Unit("fs", (1000, PicoSecond))
 
 class Duration(ABC):
   def __repr__(self):
@@ -71,28 +59,30 @@ class Duration(ABC):
   def __mul__(self):
     pass
 
+  @abstractmethod
+  def __rmul__(self):
+    pass
+
+  @abstractmethod
+  def __bool__(self):
+    pass
+
   def __floordiv__(self, other: 'Duration') -> int:
     if other is _zero:
       raise ZeroDivisionError("duration floordiv by zero duration")
     self_val, other_val, _ = _same_unit(self, other)
     return self_val // other_val
 
-  def __mod__(self, other):
+  def __mod__(self, other: 'Duration'):
       self_val, other_val, unit = _same_unit(self, other)
       new_val = self_val % other_val
-      if new_val == 0:
-        return _zero
-      else:
-        return _NonZeroDuration(new_val, unit)
+      return _duration_no_checks(new_val, unit)
 
   def __lt__(self, other):
     self_val, other_val, unit = _same_unit(self, other)
     return self_val < other_val
 
 class _ZeroDuration(Duration):
-  def _convert(self, unit: _Unit) -> int:
-    return 0
-
   def __str__(self):
     return '0 d'
 
@@ -103,20 +93,44 @@ class _ZeroDuration(Duration):
     return other
 
   def __sub__(self, other):
-    return duration(-other.val, other.unit)
+    return other.__neg__()
 
   def __neg__(self):
     return self
 
-
   def __mul__(self, other: int) -> Duration:
     return self
 
-  # Commutativity
   __rmul__ = __mul__
+
+  def __floordiv__(self, other) -> int:
+    if isinstance(other, Duration):
+      return Duration.__floordiv__(self, other)
+    elif isinstance(other, int):
+      if other == 0:
+        raise ZeroDivisionError("duration floordiv by zero")
+      else:
+        return _ZeroDuration
+    else:
+      raise TypeError("cannot floordiv duration by %s" % type(other))
+
+  def __mod__(self, other):
+    if isinstance(other, Duration):
+      return Duration.__mod__(self, other)
+    elif isinstance(other, int):
+      if other == 0:
+        raise ZeroDivisionError("duration modulo by zero")
+      else:
+        return _ZeroDuration
+    else:
+      raise TypeError("cannot modulo duration by %s" % type(other))
+
+  def __bool__(self):
+    return False
 
 _zero = _ZeroDuration() # Singleton. Only place the constructor should be called.
 
+# Only exported way to construct a Duration object
 def duration(val: int, unit: Optional[_Unit] = None) -> Duration:
   if unit is None:
     if val != 0:
@@ -125,30 +139,29 @@ def duration(val: int, unit: Optional[_Unit] = None) -> Duration:
       return _zero
   else:
     if val == 0:
-      raise Exception("Duration: Zero value should not have unit")
+      raise Exception("Duration: Zero value should have pseudo-unit 'd'")
     else:
       return _NonZeroDuration(val, unit)
 
-# @dataclass
+def _duration_no_checks(val: int, unit: _Unit) -> Duration:
+  if val == 0:
+    return _zero
+  else:
+    return _NonZeroDuration(val, unit)
+
 class _NonZeroDuration(Duration):
+  __slots__ = ["val", "unit"]
   def __init__(self, val: int, unit: _Unit = None):
     self.val = val
     self.unit = unit
 
+    # Use largest possible unit without losing precision
     while self.unit.larger:
-      next_unit, factor = self.unit.larger
+      factor, next_unit = self.unit.larger
       if self.val % factor != 0:
         break
       self.val //= factor
       self.unit = next_unit
-
-  # Can only convert to smaller units.
-  # Returns new Duration.
-  def _convert(self, unit: _Unit) -> int:
-    # Precondition
-    assert self.unit.relative_size >= unit.relative_size
-    factor = self.unit.relative_size // unit.relative_size
-    return self.val * factor
 
   def __str__(self):
     return str(self.val)+' '+self.unit.notation
@@ -162,25 +175,51 @@ class _NonZeroDuration(Duration):
     if other is _zero:
       return self
     self_val, other_val, unit = _same_unit(self, other)
-    return duration(self_val + other_val, unit)
+    return _duration_no_checks(self_val + other_val, unit)
 
   def __sub__(self, other):
     if other is _zero:
-      return duration(-self.val, self.unit)
+      return self
     self_val, other_val, unit = _same_unit(self, other)
-    return duration(self_val - other_val, unit)
+    return _duration_no_checks(self_val - other_val, unit)
 
   def __neg__(self):
-    return duration(-self.val, self.unit)
+    return _NonZeroDuration(-self.val, self.unit)
 
   def __mul__(self, other: int) -> Duration:
     if other == 0:
       return _zero
     return _NonZeroDuration(self.val * other, self.unit)
 
-  # Commutativity
   __rmul__ = __mul__
 
+  def __floordiv__(self, other) -> int:
+    if isinstance(other, Duration):
+      return Duration.__floordiv__(self, other)
+    elif isinstance(other, int):
+      if other == 0:
+        raise ZeroDivisionError("duration floordiv by zero")
+      else:
+        new_val = self.val // other
+        if new_val == 0:
+          return _zero
+        else:
+          return _NonZeroDuration(self.val, self.unit)
+    else:
+      raise TypeError("cannot floordiv duration by %s" % type(other))
+
+  def __mod__(self, other):
+    if isinstance(other, Duration):
+      return Duration.__mod__(self, other)
+    elif isinstance(other, int):
+      return _duration_no_checks(self.val % other, self.unit)
+    else:
+      raise TypeError("cannot modulo duration by %s" % type(other))
+
+  def __bool__(self):
+    return True
+
+# Convert both durations to the largest unit among them.
 def _same_unit(x: Duration, y: Duration) -> Tuple[int, int, _Unit]:
   if x is _zero:
     if y is _zero:
@@ -190,16 +229,17 @@ def _same_unit(x: Duration, y: Duration) -> Tuple[int, int, _Unit]:
   if y is _zero:
     return (x.val, 0, x.unit)
 
-  if x.unit.relative_size >= y.unit.relative_size:
-    return (x._convert(y.unit), y.val, y.unit)
-  else:
-    return (x.val, y._convert(x.unit), x.unit)
-  return (x_conv, y_conv, unit)
+  try:
+    factor = x.unit.conv_dict[y.unit]
+    return (x.val, y.val * factor, x.unit)
+  except KeyError:
+    factor = y.unit.conv_dict[x.unit]
+    return (x.val * factor, y.val, y.unit)
 
 def gcd_pair(x: Duration, y: Duration) -> Duration:
   x_conv, y_conv, unit = _same_unit(x, y)
   gcd = math.gcd(x_conv, y_conv)
-  return duration(gcd, unit)
+  return _duration_no_checks(gcd, unit)
 
 def gcd(*iterable: Iterable[Duration]) -> Duration:
   return functools.reduce(gcd_pair, iterable, _zero)

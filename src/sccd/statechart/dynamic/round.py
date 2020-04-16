@@ -69,7 +69,8 @@ class EnabledEventsStrategy(GeneratorStrategy):
 
     def cache_init(self):
         cache = {}
-        for event_id in bm_items(self.statechart.events):
+        cache[(0, 0)] = self.generate(None, 0, 0)
+        for event_id in bm_items(self.statechart.internal_events):
             events_bitmap = bit(event_id)
             cache[(events_bitmap, 0)] = self.generate(None, events_bitmap, 0)
         return cache

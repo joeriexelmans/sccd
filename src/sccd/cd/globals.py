@@ -2,6 +2,7 @@ from typing import *
 from sccd.util.namespace import *
 from sccd.util.duration import *
 from sccd.util.debug import *
+from sccd.action_lang.static.exceptions import ModelError
 
 # Global values for all statecharts in a class diagram.
 class Globals:

@@ -275,48 +275,56 @@ class BinaryExpression(Expression):
         lhs_t = self.lhs.init_expr(scope)
         rhs_t = self.rhs.init_expr(scope)
 
-        def comparison_type():
-            same_type()
-            return SCCDBool
+        def logical():
+            if lhs_t.is_bool_castable() and rhs_t.is_bool_castable():
+                return SCCDBool
 
-        def same_type():
-            if lhs_t != rhs_t:
-                raise StaticTypeError("Mixed LHS and RHS types in binary '%s'-expression: %s and %s" % (self.operator, str(lhs_t), str(rhs_t)))
-            return lhs_t
+        def eq():
+            if lhs_t.is_eq(rhs_t):
+                return SCCDBool
 
-        def sum_type():
-            if lhs_t != SCCDInt and lhs_t != SCCDFloat and lhs_t != SCCDDuration:
-                raise StaticTypeError("Invalid type '%s' for binary '%s'-expresion" % (lhs_t, self.operator))
-            return same_type()
+        def ord():
+            if lhs_t.is_ord(rhs_t):
+                return SCCDBool
 
-        def mult_type():
-            if lhs_t == rhs_t:
-                if lhs_t == Duration:
-                    raise StaticTypeError("Cannot multiply 'Duration' and 'Duration'")
+        def sum():
+            if lhs_t.is_summable(rhs_t):
                 return lhs_t
-            key = lambda x: {SCCDInt: 1, SCCDFloat: 2, SCCDDuration: 3}[x]
-            [smallest_type, largest_type] = sorted([lhs_t, rhs_t], key=key)
-            if largest_type == SCCDDuration and smallest_type == SCCDFloat:
-                raise StaticTypeError("Cannot multiply 'float' and 'Duration'")
-            return largest_type
 
-        return {
-            "and": lambda: SCCDBool,
-            "or":  lambda: SCCDBool,
-            "==":  comparison_type,
-            "!=":  comparison_type,
-            ">":   comparison_type,
-            ">=":  comparison_type,
-            "<":   comparison_type,
-            "<=":  comparison_type,
-            "+":   sum_type,
-            "-":   sum_type,
-            "*":   mult_type,
-            "/":   lambda: SCCDFloat,
-            "//":  same_type,
-            "%":   same_type,
-            "**":  same_type,
+        def mult():
+            return lhs_t.mult(rhs_t)
+
+        def div():
+            return lhs_t.div(rhs_t)
+
+        def floordiv():
+            return lhs_t.floordiv(rhs_t)
+
+        def exp():
+            return lhs_t.exp(rhs_t)
+
+        t = {
+            "and": logical,
+            "or":  logical,
+            "==":  eq,
+            "!=":  eq,
+            ">":   ord,
+            ">=":  ord,
+            "<":   ord,
+            "<=":  ord,
+            "+":   sum,
+            "-":   sum,
+            "*":   mult,
+            "/":   div,
+            "//":  floordiv,
+            "%":   floordiv,
+            "**":  exp,
         }[self.operator]()
+
+        if t is None:
+            raise StaticTypeError("Illegal types for '%s'-operation: %s and %s" % (self.operator, lhs_t, rhs_t))
+
+        return t
 
     def eval(self, memory: MemoryInterface):
         
@@ -348,14 +356,24 @@ class UnaryExpression(Expression):
 
     def init_expr(self, scope: Scope) -> SCCDType:
         expr_type = self.expr.init_expr(scope)
-        def num_type():
-            if expr_type != SCCDInt and expr_type != SCCDFloat:
-                raise StaticTypeError("Invalid type '%s' for unary '%s'-expresion" % (expr_type, self.operator))
-            return expr_type
-        return {
-            "not": lambda: SCCDBool,
-            "-":   num_type,
+
+        def logical():
+            if expr_type.is_bool_castable():
+                return SCCDBool
+                
+        def neg():
+            if expr_type.is_neg():
+                return expr_type
+
+        t = {
+            "not": logical,
+            "-":   neg,
         }[self.operator]()
+
+        if t is None:
+            raise StaticTypeError("Illegal type for unary '%s'-expression: %s" % (self.operator, expr_type))
+
+        return t
 
     def eval(self, memory: MemoryInterface):
         return {

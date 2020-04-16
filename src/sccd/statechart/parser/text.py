@@ -19,7 +19,23 @@ class StatechartTransformer(action_lang.ExpressionTransformer):
 
   # override
   def duration_literal(self, node):
-    d = SCDurationLiteral(node[0])
+    val = int(node[0])
+    suffix = node[1]
+
+    unit = {
+      "d": None, # 'd' stands for "duration", the non-unit for all zero-durations.
+                 # need this to parse zero-duration as a duration instead of int.
+      "fs": FemtoSecond,
+      "ps": PicoSecond,
+      "ns": Nanosecond,
+      "us": Microsecond,
+      "ms": Millisecond,
+      "s": Second,
+      "m": Minute,
+      "h": Hour
+    }[suffix]
+
+    d = SCDurationLiteral(duration(val, unit))
     self.globals.durations.append(d)
     return d
 

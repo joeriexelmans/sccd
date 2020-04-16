@@ -94,9 +94,9 @@ class SemanticConfiguration:
 
 @dataclass
 class Statechart(Freezable):
-  __slots__ = ["semantics", "scope", "datamodel", "events", "internal_events", "inport_events", "event_outport", "tree"]
+  __slots__ = ["semantics", "scope", "datamodel", "internal_events", "internally_raised_events", "inport_events", "event_outport", "tree"]
 
-  def __init__(self, semantics: SemanticConfiguration, scope: Scope, datamodel: Optional[Block], events: Bitmap, internal_events: Bitmap, inport_events: Dict[str, Set[int]], event_outport: Dict[str, str], tree: StateTree):
+  def __init__(self, semantics: SemanticConfiguration, scope: Scope, datamodel: Optional[Block], internal_events: Bitmap, internally_raised_events: Bitmap, inport_events: Dict[str, Set[int]], event_outport: Dict[str, str], tree: StateTree):
     
     super().__init__()
   
@@ -109,12 +109,13 @@ class Statechart(Freezable):
     # Block of statements setting up the datamodel (variables in instance scope)
     self.datamodel: Optional[Block] = datamodel
 
-    # The union of all positive event triggers in the statechart.
-    self.events: Bitmap = events
-    # All internally raised events in the statechart, may overlap with input events.
+    # Union of internally raised and input events. Basically all the events that a transition could be triggered by.
     self.internal_events: Bitmap = internal_events
-    # Mapping from inport to set of event IDs
-    self.inport_events: Dict[str, Set[int]] = inport_events
+    # All internally raised events in the statechart, may overlap with input events.
+    self.internally_raised_events: Bitmap = internally_raised_events
+
+    # Mapping from inport to set of event IDs - currently unused
+    self.inport_events: Dict[str, Bitmap] = inport_events
     # Mapping from event name to outport
     self.event_outport: Dict[str, str] = event_outport
 

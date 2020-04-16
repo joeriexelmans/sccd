@@ -93,8 +93,8 @@ def test_parser_rules(statechart_parser_rules):
             #  All other fields remain the same
             scope=statechart.scope,
             datamodel=statechart.datamodel,
-            events=statechart.events,
             internal_events=statechart.internal_events,
+            internally_raised_events=statechart.internally_raised_events,
             inport_events=statechart.inport_events,
             event_outport=statechart.event_outport,
             tree=statechart.tree)),

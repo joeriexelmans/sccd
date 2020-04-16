@@ -27,8 +27,8 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
         semantics=SemanticConfiguration(),
         scope=Scope("instance", parent=BuiltIn),
         datamodel=None,
-        events=Bitmap(),
         internal_events=Bitmap(),
+        internally_raised_events=Bitmap(),
         inport_events={},
         event_outport={},
         tree=None,
@@ -64,8 +64,10 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
       def parse_event(el):
         event_name = require_attribute(el, "name")
         event_id = globals.events.assign_id(event_name)
-        port_events = statechart.inport_events.setdefault(port_name, set())
-        port_events.add(event_id)
+        port_events = statechart.inport_events.setdefault(port_name, Bitmap())
+        port_events |= bit(event_id)
+        statechart.inport_events[port_name] = port_events
+        statechart.internal_events |= bit(event_id)
       return [("event+", parse_event)]
 
     def parse_outport(el):
@@ -103,7 +105,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             if port is None:
               # internal event
               event_id = globals.events.assign_id(event_name)
-              statechart.internal_events |= bit(event_id)
+              statechart.internally_raised_events |= bit(event_id)
               return RaiseInternalEvent(event_id=event_id, name=event_name, params=params)
             else:
               # output event - no ID in global namespace
@@ -216,9 +218,10 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
             if not negative_events:
               transition.trigger = Trigger(positive_events)
-              statechart.events |= transition.trigger.enabling_bitmap
+              statechart.internal_events |= transition.trigger.enabling_bitmap
             else:
               transition.trigger = NegatedTrigger(positive_events, negative_events)
+              statechart.internal_events |= transition.trigger.enabling_bitmap
 
           def parse_attr_after(after):
             nonlocal after_id

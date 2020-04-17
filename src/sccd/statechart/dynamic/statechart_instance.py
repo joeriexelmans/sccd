@@ -20,7 +20,7 @@ class Instance(ABC):
         pass
 
 # Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
-# TODO: make this configurable
+# TODO: make this a model parameter
 LIMIT = 100
 
 class StatechartInstance(Instance):

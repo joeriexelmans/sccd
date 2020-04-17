@@ -6,12 +6,12 @@ except KeyError:
   TIMINGS = False
 
 if TIMINGS:
+  from typing import Dict, Tuple
   import time
   import atexit
   import collections
 
-  timings = {}
-  counts = collections.Counter()
+  timings: Dict[str, Tuple[float, int]] = {}
 
   class Context:
     __slots__ = ["what", "started"]
@@ -21,14 +21,13 @@ if TIMINGS:
       self.started = time.perf_counter()
     def __exit__(self, type, value, traceback):
       duration = time.perf_counter() - self.started
-      old_val = timings.setdefault(self.what, 0)
-      timings[self.what] = old_val + duration
-      counts[self.what] += 1
+      old_val, old_count = timings.setdefault(self.what, (0, 0))
+      timings[self.what] = (old_val + duration, old_count + 1)
 
   def _print_stats():
       print("\ntimings:")
-      for key,val in sorted(timings.items()):
-        print("  %s: %.2f ms / %d = %.3f ms" % (key,val*1000,counts[key],val*1000/counts[key]))
+      for key, (val,count) in sorted(timings.items()):
+        print("  %s: %.2f ms / %d = %.3f ms" % (key,val*1000,count,val*1000/count))
 
   atexit.register(_print_stats)
 

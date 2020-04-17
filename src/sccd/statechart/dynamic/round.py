@@ -9,10 +9,11 @@ from sccd.util import timer
 
 @dataclass
 class CacheCounter:
-    cache_hits = 0
-    cache_misses = 0
+    __slots__ = ["cache_hits", "cache_misses"]
+    cache_hits: int
+    cache_misses: int
 
-ctr = CacheCounter()
+ctr = CacheCounter(0, 0)
 
 if timer.TIMINGS:
     import atexit
@@ -45,7 +46,7 @@ class GeneratorStrategy(ABC):
 
 # First filter on current state, then filter on current events
 class CurrentConfigStrategy(GeneratorStrategy):
-
+    __slots__ = []
     def cache_init(self):
         return {}
 
@@ -132,6 +133,7 @@ class CandidateGenerator:
 RoundResult = Tuple[Bitmap, Bitmap]
 
 class Round(ABC):
+    __slots__ = ["name", "parent", "callbacks", "remainder_events", "next_events"]
     def __init__(self, name):
         self.name = name
         self.parent = None
@@ -181,28 +183,33 @@ class Round(ABC):
         return self.name
 
 class SuperRoundMaximality(ABC):
+    __slots__ = []
     @staticmethod
     @abstractmethod
     def forbidden_arenas(forbidden_arenas: Bitmap, arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
         pass
 
 class TakeOne(SuperRoundMaximality):
+    __slots__ = []
     @staticmethod
     def forbidden_arenas(forbidden_arenas: Bitmap, arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
         return forbidden_arenas | arenas_changed
 
 class TakeMany(SuperRoundMaximality):
+    __slots__ = []
     @staticmethod
     def forbidden_arenas(forbidden_arenas: Bitmap, arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
         return Bitmap()
 
 class Syntactic(SuperRoundMaximality):
+    __slots__ = []
     @staticmethod
     def forbidden_arenas(forbidden_arenas: Bitmap, arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
         return forbidden_arenas | arenas_stabilized
 
 # Examples: Big step, combo step
 class SuperRound(Round):
+    __slots__ = ["subround", "maximality"]
     def __init__(self, name, subround: Round, maximality: SuperRoundMaximality):
         super().__init__(name)
         self.subround = subround
@@ -234,6 +241,7 @@ class SuperRound(Round):
 # Almost identical to SuperRound, but counts subrounds and raises exception if limit exceeded.
 # Useful for maximality options possibly causing infinite big steps like TakeMany and Syntactic.
 class SuperRoundWithLimit(SuperRound):
+    __slots__ = ["limit"]
     def __init__(self, name, subround: Round, maximality: SuperRoundMaximality, limit: int):
         super().__init__(name, subround, maximality)
         self.limit = limit
@@ -260,9 +268,10 @@ class SuperRoundWithLimit(SuperRound):
 
 
 class SmallStep(Round):
-    def __init__(self, name, state, generator: CandidateGenerator, concurrency=False):
+    __slots__ = ["execution", "generator", "concurrency"]
+    def __init__(self, name, execution, generator: CandidateGenerator, concurrency=False):
         super().__init__(name)
-        self.state = state
+        self.execution = execution
         self.generator = generator
         self.concurrency = concurrency
 
@@ -275,7 +284,7 @@ class SmallStep(Round):
                 # The cost of sorting our enabled events is smaller than the benefit gained by having to loop less often over it in our transition execution code:
                 enabled_events.sort(key=lambda e: e.id)
 
-            candidates = self.generator.generate(self.state, enabled_events, forbidden_arenas |  extra_forbidden)
+            candidates = self.generator.generate(self.execution, enabled_events, forbidden_arenas |  extra_forbidden)
 
             if DEBUG:
                 candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
@@ -297,7 +306,7 @@ class SmallStep(Round):
         while t:
             arena = t.opt.arena_bitmap
             if not (arenas & arena):
-                self.state.fire_transition(enabled_events, t)
+                self.execution.fire_transition(enabled_events, t)
                 arenas |= arena
                 if t.targets[0].stable:
                     stable_arenas |= arena

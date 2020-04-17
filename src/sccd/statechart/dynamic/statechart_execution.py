@@ -9,6 +9,7 @@ from sccd.util import timer
 
 # Set of current states etc.
 class StatechartExecution:
+    __slots__ = ["instance", "statechart", "gc_memory", "rhs_memory", "raise_internal", "raise_output", "configuration", "history_values", "timer_ids", "schedule_callback", "cancel_callback"]
 
     def __init__(self, instance, statechart: Statechart):
         self.instance = instance

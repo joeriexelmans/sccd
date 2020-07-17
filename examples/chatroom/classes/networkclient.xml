@@ -1,0 +1,216 @@
+<class name="NetworkClient">
+    <constructor>
+        <body>
+            self.socket = None
+            self.host = None
+            self.received_data = ""
+            self.send_data = ""
+            self.parsing_data = ""
+            self.queue = []
+        </body>
+    </constructor>
+
+    <scxml>
+        <parallel id="parallel">
+        <state id="client" initial="wait_for_destination">
+            <transition event="connect" cond="self.socket is not None" target="close">
+                <parameter name="hostname"/>
+                <parameter name="port"/>
+                <script>
+                    self.host = (hostname, port)
+                </script>
+            </transition>
+            <transition event="connect" cond="self.socket is None" target="init">
+                <parameter name="hostname"/>
+                <parameter name="port"/>
+                <script>
+                    self.host = (hostname, port)
+                </script>
+            </transition>
+
+            <state id="wait_for_destination"/>
+
+            <state id="init">
+                <onentry>
+                    <raise scope="output" event="create_socket" output="socket_out"/>
+                </onentry>
+                <transition port="socket_in" event="created_socket" target="../connecting">
+                    <parameter name="socket"/>
+                    <script>
+                        self.socket = socket
+                    </script>
+                </transition>
+            </state>
+
+            <state id="connecting">
+                <onentry>
+                    <raise scope="output" event="connect_socket" output="socket_out">
+                        <parameter expr="self.socket"/>
+                        <parameter expr="self.host"/>
+                    </raise>
+                </onentry>
+                <transition event="connected_socket" port="socket_in" target="../connected">
+                    <raise scope="broad" event="connected"/>
+                </transition>
+            </state>
+
+            <parallel id="connected">
+                <!-- We explicitly use the fact that there is no threading -->
+                <state id="processing" initial="processing">
+                    <state id="processing">
+                        <transition cond="'\0' in self.received_data" target="../parse">
+                            <script>
+                                self.parsing_data, self.received_data = self.received_data.split('\0', 1)
+                            </script>
+                        </transition>
+                    </state>
+                    <state id="parse">
+                        <transition cond="self.parsing_data.startswith('MSG ')" target="../processing">
+                            <raise scope="broad" event="receive_message">
+                                <parameter expr="self.parsing_data[4:]"/>
+                            </raise>
+                        </transition>
+                        <transition cond="self.parsing_data.startswith('ACK MSG')" target="../processing"/>
+                        <transition cond="self.parsing_data.startswith('ACK JOIN')" target="../processing">
+                            <raise scope="broad" event="joined">
+                                <parameter expr="self.parsing_data.split(' ')[2]"/>
+                            </raise>
+                        </transition>
+                        <transition cond="self.parsing_data.startswith('ALIVE')" target="../processing">
+                            <raise scope="broad" event="alive"/>
+                        </transition>
+                        <transition cond="self.parsing_data.startswith('ACK LEAVE')" target="../processing">
+                            <raise scope="broad" event="left"/>
+                        </transition>
+                    </state>
+                </state>
+
+                <state id="receiving">
+                    <state id="receive">
+                        <onentry>
+                            <raise scope="output" event="recv_socket" output="socket_out">
+                                <parameter expr="self.socket"/>
+                            </raise>
+                        </onentry>
+                        <transition port="socket_in" event="received_socket" cond="(self.socket == socket) and (data != '')" target=".">
+                            <parameter name="socket"/>
+                            <parameter name="data"/>
+                            <script>
+                                print("Got data " + repr(data))
+                                print("Total data: " + repr(self.received_data))
+                                self.received_data += data
+                            </script>
+                        </transition>
+                        <!-- For the sake of this exercise, wait for timeout instead of directly signaling this close -->
+                        <transition port="socket_in" event="received_socket" cond="(self.socket == socket) and (data == '')" target=".">
+                            <parameter name="socket"/>
+                            <parameter name="data"/>
+                            <raise event="close"/>
+                        </transition>
+                    </state>
+                </state>
+
+                <state id="sending" initial="waiting_for_inputdata">
+                    <state id="waiting_for_inputdata">
+                        <transition cond="len(self.queue) > 0" target="../transmitting">
+                            <script>
+                                self.send_data = self.queue.pop(0) + "\0"
+                            </script>
+                        </transition>
+                    </state>
+
+                    <state id="transmitting">
+                        <onentry>
+                            <raise scope="output" event="send_socket" output="socket_out">
+                                <parameter expr="self.socket"/>
+                                <parameter expr="self.send_data"/>
+                            </raise>
+                        </onentry>
+                        <transition port="socket_in" cond="self.socket == socket and (sent == len(self.send_data))" event="sent_socket" target="../waiting_for_inputdata">
+                            <parameter name="socket"/>
+                            <parameter name="sent"/>
+                            <script>
+                                self.send_data = ""
+                            </script>
+                        </transition>
+                        <transition port="socket_in" cond="self.socket == socket and (sent != len(self.send_data))" event="sent_socket" target=".">
+                            <parameter name="socket"/>
+                            <parameter name="sent"/>
+                            <script>
+                                self.send_data = self.send_data[sent:]
+                            </script>
+                        </transition>
+                    </state>
+                </state>
+            </parallel>
+            <transition event="close" target="error_close"/>
+
+            <state id="error_close">
+                <onentry>
+                    <raise scope="output" event="close_socket" output="socket_out">
+                        <parameter expr="self.socket"/>
+                    </raise>
+                </onentry>
+                <transition event="closed_socket" cond="self.socket == socket" target="../wait_for_destination">
+                    <parameter name="socket"/>
+                    <script>
+                        self.socket = None
+                        self.host = None
+                    </script>
+                </transition>
+            </state>
+
+            <state id="close">
+                <onentry>
+                    <raise scope="output" event="close_socket" output="socket_out">
+                        <parameter expr="self.socket"/>
+                    </raise>
+                </onentry>
+                <transition event="closed_socket" cond="self.socket == socket" target="../init">
+                    <parameter name="socket"/>
+                    <raise scope="broad" event="disconnected"/>
+                </transition>
+            </state>
+
+            <transition event="disconnect" cond="self.socket is not None" target="close">
+                <script>
+                    print("Closing socket")
+                </script>
+            </transition>
+            <transition event="disconnect" cond="self.socket is None" target="wait_for_destination">
+                <script>
+                    print("Signaling disconnectedness")
+                </script>
+                <raise scope="broad" event="disconnected"/>
+            </transition>
+        </state>
+
+        <state id="queue">
+            <state id="queue">
+                <transition event="send_message" target=".">
+                    <parameter name="data"/>
+                    <script>
+                        self.queue.append("MSG %s: %s" % (socket.gethostname(), data))
+                    </script>
+                </transition>
+                <transition event="join" target=".">
+                    <parameter name="data"/>
+                    <script>
+                        self.queue.append("JOIN %s" % data)
+                    </script>
+                </transition>
+                <transition event="leave" target=".">
+                    <script>
+                        self.queue.append("LEAVE")
+                    </script>
+                </transition>
+                <transition event="poll" target=".">
+                    <script>
+                        self.queue.append("POLL")
+                    </script>
+                </transition>
+            </state>
+        </state>
+        </parallel>
+    </scxml>
+</class>

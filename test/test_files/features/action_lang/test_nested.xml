@@ -9,7 +9,7 @@
         inner = func(j:int) {
           if (i > j) {
             ok = True;
-          };
+          }
         };
         inner(i-1);
       };

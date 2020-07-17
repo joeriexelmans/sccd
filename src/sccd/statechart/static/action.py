@@ -40,9 +40,6 @@ class RaiseEvent(Action):
     name: str
     params: List[Expression]
 
-    # just a simple string representation for rendering a transition label
-    def render(self) -> str:
-        return '^'+self.name
 
     def _eval_params(self, memory: MemoryInterface) -> List[Any]:
         return [p.eval(memory) for p in self.params]
@@ -50,6 +47,9 @@ class RaiseEvent(Action):
 @dataclass
 class RaiseInternalEvent(RaiseEvent):
     event_id: int
+
+    def render(self) -> str:
+        return '^'+self.name
 
     def exec(self, ctx: EvalContext):
         params = self._eval_params(ctx.memory)

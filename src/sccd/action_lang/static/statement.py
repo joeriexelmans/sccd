@@ -1,5 +1,6 @@
 from typing import *
 from sccd.action_lang.static.expression import *
+from sccd.util.debug import *
 
 @dataclass(frozen=True)
 class Return:
@@ -106,7 +107,7 @@ class Assignment(Statement):
         return DontReturn
 
     def render(self) -> str:
-        return self.lhs.render() + ' = ' + self.rhs.render()
+        return self.lhs.render() + ' = ' + self.rhs.render() + ';'
 
 
 
@@ -127,6 +128,8 @@ class Block(Statement):
     def exec(self, memory: MemoryInterface) -> Return:
         ret = DontReturn
         for stmt in self.stmts:
+            if DEBUG:
+                print("    "+termcolor.colored(stmt.render(), 'grey'))
             ret = stmt.exec(memory)
             if ret.ret:
                 break
@@ -160,6 +163,8 @@ class ReturnStatement(Statement):
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
         t = self.expr.init_expr(scope)
+        if t is None:
+            raise StaticTypeError("Return statement: Expression does not evaluate to a value.")
         return AlwaysReturns(t)
 
     def exec(self, memory: MemoryInterface) -> Return:
@@ -167,7 +172,7 @@ class ReturnStatement(Statement):
         return DoReturn(val)
 
     def render(self) -> str:
-        return "return " + self.expr.render()
+        return "return " + self.expr.render() + ";"
 
 @dataclass
 class IfStatement(Statement):

@@ -49,9 +49,17 @@ param_list: ( expr ("," expr)* )?  -> params
 
 func_decl: "func" params_decl stmt
 params_decl: ( "(" param_decl ("," param_decl)* ")" )?
-?param_decl: IDENTIFIER ":" TYPE_ANNOT
-TYPE_ANNOT: "int" | "str" | "dur" | "float"
+?param_decl: IDENTIFIER ":" type_annot
+type_annot: TYPE_INT | TYPE_STR | TYPE_DUR | TYPE_FLOAT
+          | "func" param_types? return_type? -> func_type
 
+param_types: "(" type_annot ( "," type_annot )* ")"
+?return_type: "->" type_annot
+
+TYPE_INT: "int"
+TYPE_STR: "str"
+TYPE_DUR: "dur"
+TYPE_FLOAT: "float"
 
 array: "[" (expr ("," expr)*)? "]"
 
@@ -108,11 +116,11 @@ TIME_D: "d" // for zero-duration
 
 // Statement parsing
 
-?block: (stmt ";")*
+?block: (stmt)*
 
-?stmt: assignment
-     | expr -> expression_stmt
-     | "return" expr -> return_stmt
+?stmt: assignment ";"
+     | expr ";" -> expression_stmt
+     | "return" expr ";" -> return_stmt
      | "{" block "}" -> block
      | "if" "(" expr ")" stmt ("else" stmt)? -> if_stmt
 

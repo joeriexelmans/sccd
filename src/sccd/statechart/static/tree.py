@@ -31,8 +31,17 @@ class State(Freezable):
         if self.parent is not None:
             self.parent.children.append(self)
 
+
+    # Subset of descendants that are always entered when this state is the target of a transition, minus history states.
+    def _static_target_states(self) -> Bitmap:
+        if self.default_state:
+            return self.opt.state_id_bitmap | self.default_state._static_target_states()
+        else:
+            return self.opt.state_id_bitmap
+
+    # States that are always entered when this state is part of the "enter path", but not the actual target of a transition.
     def _static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
-        return (self.opt.state_id_bitmap, [])
+        return self.opt.state_id_bitmap
 
     def __repr__(self):
         return "State(\"%s\")" % (self.short_name)
@@ -50,14 +59,17 @@ class HistoryState(State):
     def history_mask(self) -> Bitmap:
         pass
 
-    def _static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
+    def _static_target_states(self) -> Bitmap:
+        return Bitmap()
+
+    def _static_additional_target_states(self, exclude: 'State') -> Bitmap:
         assert False # history state cannot have children and therefore should never occur in a "enter path"
 
 class ShallowHistoryState(HistoryState):
 
     def history_mask(self) -> Bitmap:
         # Only direct children of parent:
-        return states_to_bitmap(self.parent.children)
+        return bm_union(s.opt.state_id_bitmap for s in self.parent.children)
 
     def __repr__(self):
         return "ShallowHistoryState(\"%s\")" % (self.short_name)
@@ -73,8 +85,11 @@ class DeepHistoryState(HistoryState):
 
 class ParallelState(State):
 
-    def _static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
-        return (self.opt.ts_static & ~exclude.opt.ts_static, [s for s in self.opt.ts_dynamic if s not in exclude.opt.ts_dynamic])
+    def _static_target_states(self) -> Bitmap:
+        return bm_union(c._static_target_states() for c in self.children if not isinstance(c, HistoryState)) | self.opt.state_id_bitmap
+
+    def _static_additional_target_states(self, exclude: 'State') -> Bitmap:
+        return self._static_target_states() & ~exclude._static_target_states()
 
     def __repr__(self):
         return "ParallelState(\"%s\")" % (self.short_name)
@@ -165,6 +180,8 @@ class AfterTrigger(Trigger):
     def copy_params_to_stack(self, ctx: EvalContext):
         pass
 
+_empty_trigger = Trigger(enabling=[])
+
 class Transition(Freezable):
     __slots__ = ["source", "targets", "scope", "target_string", "guard", "actions", "trigger", "opt"]
 
@@ -179,7 +196,7 @@ class Transition(Freezable):
 
         self.guard: Optional[Expression] = None
         self.actions: List[Action] = []
-        self.trigger: Optional[Trigger] = None
+        self.trigger: Trigger = _empty_trigger
 
         self.opt: Optional['TransitionOptimization'] = None        
                     
@@ -189,7 +206,7 @@ class Transition(Freezable):
 
 # Data that is generated for each state.
 class StateOptimization(Freezable):
-    __slots__ = ["full_name", "depth", "state_id", "state_id_bitmap", "ancestors", "descendants", "history", "ts_static", "ts_dynamic", "after_triggers"]
+    __slots__ = ["full_name", "depth", "state_id", "state_id_bitmap", "ancestors", "descendants", "history", "after_triggers"]
     def __init__(self):
         super().__init__()
 
@@ -202,14 +219,8 @@ class StateOptimization(Freezable):
         self.ancestors: Bitmap = Bitmap()
         self.descendants: Bitmap = Bitmap()
 
-        # Subset of children that are HistoryState.
-        # For each item, the second element of the tuple is the "history mask".
-        self.history: List[Tuple[HistoryState, Bitmap]] = []
-
-        # Subset of descendants that are always entered when this state is the target of a transition
-        self.ts_static: Bitmap = Bitmap() 
-        # Subset of descendants that are history states AND are in the subtree of states automatically entered if this state is the target of a transition.
-        self.ts_dynamic: List[HistoryState] = []
+        # Tuple for each children that is HistoryState: (history-id, history mask)
+        self.history: List[Tuple[int, Bitmap]] = []
 
         # Triggers of outgoing transitions that are AfterTrigger.
         self.after_triggers: List[AfterTrigger] = []
@@ -217,21 +228,23 @@ class StateOptimization(Freezable):
 
 # Data that is generated for each transition.
 class TransitionOptimization(Freezable):
-    __slots__ = ["arena", "arena_bitmap", "enter_states_static", "enter_states_dynamic"]
+    __slots__ = ["arena", "arena_bitmap", "enter_states_static", "target_history_id", "raised_events"]
 
-    def __init__(self, arena: State, arena_bitmap: Bitmap, enter_states_static: Bitmap, enter_states_dynamic: List[HistoryState]):
+    def __init__(self, arena: State, arena_bitmap: Bitmap, enter_states_static: Bitmap, target_history_id: Optional[int], raised_events: Bitmap):
         super().__init__()
         self.arena: State = arena
         self.arena_bitmap: Bitmap = arena_bitmap
-        self.enter_states_static: Bitmap = enter_states_static # The "enter set" can be computed partially statically, and if there are no history states in it, entirely statically
-        self.enter_states_dynamic: List[HistoryState] = enter_states_dynamic # The part of the "enter set" that cannot be computed statically.
+        # The "enter set" can be computed partially statically, or entirely statically if there are no history states in it.
+        self.enter_states_static: Bitmap = enter_states_static
+        self.target_history_id: Optional[int] = target_history_id # History ID if target of transition is a history state, otherwise None.
+        self.raised_events: Bitmap = raised_events # (internal) event IDs raised by this transition
         self.freeze()
 
 
 class StateTree(Freezable):
-    __slots__ = ["root", "transition_list", "state_list", "state_dict", "after_triggers", "stable_bitmap", "history_states"]
+    __slots__ = ["root", "transition_list", "state_list", "state_dict", "after_triggers", "stable_bitmap", "initial_history_values", "initial_states"]
 
-    def __init__(self, root: State, transition_list: List[Transition], state_list: List[State], state_dict: Dict[str, State], after_triggers: List[AfterTrigger], stable_bitmap: Bitmap, history_states: List[HistoryState]):
+    def __init__(self, root: State, transition_list: List[Transition], state_list: List[State], state_dict: Dict[str, State], after_triggers: List[AfterTrigger], stable_bitmap: Bitmap, initial_history_values: List[Bitmap], initial_states: Bitmap):
         super().__init__()
         self.root: State = root
         self.transition_list: List[Transition] = transition_list # depth-first document order
@@ -239,20 +252,14 @@ class StateTree(Freezable):
         self.state_dict: Dict[str, State] = state_dict # mapping from 'full name' to State
         self.after_triggers: List[AfterTrigger] = after_triggers # all after-triggers in the statechart
         self.stable_bitmap: Bitmap = stable_bitmap # set of states that are syntactically marked 'stable'
-        self.history_states: List[HistoryState] = history_states # all the history states in the statechart
+        self.initial_history_values: List[Bitmap] = initial_history_values # targets of each history state before history has been built.
+        self.initial_states: Bitmap = initial_states
         self.freeze()
-
-# Reduce a list of states to a set of states, as a bitmap
-def states_to_bitmap(state_list: List[State]) -> Bitmap:
-    return reduce(lambda x,y: x|y, (s.opt.state_id_bitmap for s in state_list), Bitmap())
 
 def optimize_tree(root: State) -> StateTree:
     with timer.Context("optimize tree"):
 
-        transition_list = []
-        after_triggers = []
-        history_states = []
-        def init_opt():
+        def assign_state_id():
             next_id = 0
             def f(state: State, _=None):
                 state.opt = StateOptimization()
@@ -262,21 +269,7 @@ def optimize_tree(root: State) -> StateTree:
                 state.opt.state_id_bitmap = bit(next_id)
                 next_id += 1
 
-                for t in state.transitions:
-                    transition_list.append(t)
-                    if t.trigger and isinstance(t.trigger, AfterTrigger):
-                        state.opt.after_triggers.append(t.trigger)
-                        after_triggers.append(t.trigger)
-
-                if isinstance(state, HistoryState):
-                    state.history_id = len(history_states)
-                    history_states.append(state)
-
             return f
-
-        def assign_depth(state: State, parent_depth: int = 0):
-            state.opt.depth = parent_depth + 1
-            return parent_depth + 1
 
         def assign_full_name(state: State, parent_full_name: str = ""):
             if state is root:
@@ -288,6 +281,10 @@ def optimize_tree(root: State) -> StateTree:
             state.opt.full_name = full_name
             return full_name
 
+        def assign_depth(state: State, parent_depth: int = 0):
+            state.opt.depth = parent_depth + 1
+            return parent_depth + 1
+
         state_dict = {}
         state_list = []
         stable_bitmap = Bitmap()
@@ -298,34 +295,34 @@ def optimize_tree(root: State) -> StateTree:
             if state.stable:
                 stable_bitmap |= state.opt.state_id_bitmap
 
-        def set_ancestors(state: State, ancestors=[]):
-            state.opt.ancestors = states_to_bitmap(ancestors)
-            return ancestors + [state]
+        transition_list = []
+        after_triggers = []
+        def visit_transitions(state: State, _=None):
+                for t in state.transitions:
+                    transition_list.append(t)
+                    if t.trigger and isinstance(t.trigger, AfterTrigger):
+                        state.opt.after_triggers.append(t.trigger)
+                        after_triggers.append(t.trigger)
+
+
+        def set_ancestors(state: State, ancestors=Bitmap()):
+            state.opt.ancestors = ancestors
+            return ancestors | state.opt.state_id_bitmap
 
         def set_descendants(state: State, children_descendants):
-            descendants = reduce(lambda x,y: x|y, children_descendants, Bitmap())
+            descendants = bm_union(children_descendants)
             state.opt.descendants = descendants
             return state.opt.state_id_bitmap | descendants
 
-        def set_static_target_states(state: State, _):
-            if isinstance(state, ParallelState):
-                state.opt.ts_static = reduce(lambda x,y: x|y, (s.opt.ts_static for s in state.children), state.opt.state_id_bitmap)
-                state.opt.ts_dynamic = list(itertools.chain.from_iterable(c.opt.ts_dynamic for c in state.children if not isinstance(c, HistoryState)))
-            elif isinstance(state, HistoryState):
-                state.opt.ts_static = Bitmap()
-                state.opt.ts_dynamic = [state]
-            else: # "regular" state:
-                if state.default_state:
-                    state.opt.ts_static = state.opt.state_id_bitmap | state.default_state.opt.ts_static
-                    state.opt.ts_dynamic = state.default_state.opt.ts_dynamic
-                else:
-                    state.opt.ts_static = state.opt.state_id_bitmap
-                    state.opt.ts_dynamic = []
+        # If a history state is entered whose parent has never been exited before, the parent's default states are entered.
+        initial_history_values = []
+        def deal_with_history(state: State, children_history):
+            state.opt.history = [(h.history_id, h.history_mask()) for h in children_history if h is not None]
 
-        def add_history(state: State, _= None):
-            for c in state.children:
-                if isinstance(c, HistoryState):
-                    state.opt.history.append((c, c.history_mask()))
+            if isinstance(state, HistoryState):
+                state.history_id = len(initial_history_values)
+                initial_history_values.append(state.parent._static_target_states())
+                return state
 
         def freeze(state: State, _=None):
             state.freeze()
@@ -333,16 +330,16 @@ def optimize_tree(root: State) -> StateTree:
 
         visit_tree(root, lambda s: s.children,
             before_children=[
-                init_opt(),
+                assign_state_id(),
                 assign_full_name,
                 assign_depth,
                 add_to_list,
+                visit_transitions,
                 set_ancestors,
             ],
             after_children=[
                 set_descendants,
-                add_history,
-                set_static_target_states,
+                deal_with_history,
                 freeze,
             ])
 
@@ -370,31 +367,40 @@ def optimize_tree(root: State) -> StateTree:
             enter_path_iter = bm_items(enter_path)
             state_id = next(enter_path_iter, None)
             enter_states_static = Bitmap()
-            enter_states_dynamic = []
             while state_id is not None:
                 state = state_list[state_id]
                 next_state_id = next(enter_path_iter, None)
                 if next_state_id:
                     # an intermediate state on the path from arena to target
                     next_state = state_list[next_state_id]
-                    static, dynamic = state._static_additional_target_states(next_state)
-                    enter_states_static |= static
-                    enter_states_dynamic += dynamic
+                    enter_states_static |= state._static_additional_target_states(next_state)
                 else:
                     # the actual target of the transition
-                    enter_states_static |= state.opt.ts_static
-                    enter_states_dynamic += state.opt.ts_dynamic
+                    enter_states_static |= state._static_target_states()
                 state_id = next_state_id
+
+            target_history_id = None
+            if isinstance(t.targets[0], HistoryState):
+                target_history_id = t.targets[0].history_id
+
+
+            raised_events = Bitmap()
+            for a in t.actions:
+                if isinstance(a, RaiseInternalEvent):
+                    raised_events |= bit(a.event_id)
 
             t.opt = TransitionOptimization(
                 arena=arena,
                 arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap,
                 enter_states_static=enter_states_static,
-                enter_states_dynamic=enter_states_dynamic)
+                target_history_id=target_history_id,
+                raised_events=raised_events)
 
             t.freeze()
 
-        return StateTree(root, transition_list, state_list, state_dict, after_triggers, stable_bitmap, history_states)
+        initial_states = root._static_target_states()
+
+        return StateTree(root, transition_list, state_list, state_dict, after_triggers, stable_bitmap, initial_history_values, initial_states)
 
 
 def priority_source_parent(tree: StateTree) -> List[Transition]:
@@ -404,28 +410,70 @@ def priority_source_parent(tree: StateTree) -> List[Transition]:
 # The following 3 priority implementations all do a stable sort with a partial order-key
 
 def priority_source_child(tree: StateTree) -> List[Transition]:
-    return list(sorted(tree.transition_list, key=lambda t: -t.source.opt.depth))
+    return sorted(tree.transition_list, key=lambda t: -t.source.opt.depth)
 
 def priority_arena_parent(tree: StateTree) -> List[Transition]:
-    return list(sorted(tree.transition_list, key=lambda t: t.opt.arena.opt.depth))
+    return sorted(tree.transition_list, key=lambda t: t.opt.arena.opt.depth)
 
 def priority_arena_child(tree: StateTree) -> List[Transition]:
-    return list(sorted(tree.transition_list, key=lambda t: -t.opt.arena.opt.depth))
+    return sorted(tree.transition_list, key=lambda t: -t.opt.arena.opt.depth)
 
 
 def concurrency_arena_orthogonal(tree: StateTree):
     with timer.Context("concurrency_arena_orthogonal"):
         import collections
-        nonoverlapping = collections.defaultdict(list)
-        for t1,t2 in itertools.combinations(tree.transition_list, r=2):
+        # arena_to_transition = collections.defaultdict(list)
+        # for t in tree.transition_list:
+        #     arena_to_transition[t.opt.arena].append(t)
+
+        # def sets(state: State):
+        #     sets = []
+        #     for t in arena_to_transition[state]:
+        #         sets.append(set((t,)))
+
+        #     for c in state.children:
+
+        #     return sets
+
+
+        # s = sets(tree.root)
+
+        # print(s)
+
+        sets = {}
+        unique_sets = []
+        for t1, t2 in itertools.combinations(tree.transition_list, r=2):
             if not (t1.opt.arena_bitmap & t2.opt.arena_bitmap):
-                nonoverlapping[t1].append(t2)
-                nonoverlapping[t2].append(t1)
+                if t1 in sets:
+                    sets[t1].add(t2)
+                    sets[t2] = sets[t1]
+                elif t2 in sets:
+                    sets[t2].add(t1)
+                    sets[t1] = sets[t2]
+                else:
+                    s = set((t1,t2))
+                    sets[t1] = s
+                    sets[t2] = s
+                    unique_sets.append(s)
+                    print('added', s)
+                    
 
-        for t, ts in nonoverlapping.items():
-            print(str(t), "does not overlap with", ",".join(str(t) for t in ts))
+        print((unique_sets))
 
-        print(len(nonoverlapping), "nonoverlapping pairs of transitions")
+        # concurrent_set = itertools.chain.from_iterable(itertools.combinations(ls,r) for r in range(len(ls)+1))
+        # print(concurrent_set)
+
+        # import collections
+        # nonoverlapping = collections.defaultdict(list)
+        # for t1,t2 in itertools.combinations(tree.transition_list, r=2):
+        #     if not (t1.opt.arena_bitmap & t2.opt.arena_bitmap):
+        #         nonoverlapping[t1].append(t2)
+        #         nonoverlapping[t2].append(t1)
+
+        # for t, ts in nonoverlapping.items():
+        #     print(str(t), "does not overlap with", ",".join(str(t) for t in ts))
+
+        # print(len(nonoverlapping), "nonoverlapping pairs of transitions")
 
 def concurrency_src_dst_orthogonal(tree: StateTree):
     with timer.Context("concurrency_src_dst_orthogonal"):

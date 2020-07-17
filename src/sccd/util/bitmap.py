@@ -41,8 +41,11 @@ def bit(pos):
 
 # Non-member function variants so they also work on integers:
 def bm_from_list(iterable):
-  v = reduce(lambda x,y: x|1<<y, iterable, 0) # iterable
+  v = reduce(lambda x,y: x|1<<y, iterable, 0)
   return Bitmap(v)
+
+def bm_union(iterable):
+  return reduce(lambda x,y: x|y, iterable, 0)
 
 def bm_has(self, pos):
   return self & 1 << pos

@@ -43,7 +43,7 @@ class SCCDType(ABC):
     def is_bool_castable(self):
         return False
 
-@dataclass(eq=False)
+@dataclass(eq=False, repr=False)
 class _SCCDSimpleType(SCCDType):
     name: str
     neg: bool = False
@@ -96,26 +96,26 @@ class _SCCDSimpleType(SCCDType):
     def is_bool_castable(self):
         return self.bool_cast
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class SCCDFunction(SCCDType):
     param_types: List[SCCDType]
     return_type: Optional[SCCDType] = None
 
     def _str(self):
         if self.param_types:
-            s = "func(" + ",".join(str(p) for p in self.param_types) + ")"
+            s = "func(" + ", ".join(p._str() for p in self.param_types) + ")"
         else:
             s = "func"
         if self.return_type:
-            s += " -> " + str(self.return_type)
+            s += " -> " + self.return_type._str()
         return s
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class SCCDArray(SCCDType):
     element_type: SCCDType
 
     def _str(self):
-        return "[" + str(self.element_type) + "]"
+        return "[" + self.element_type._str() + "]"
 
     def is_eq(self, other):
         if isinstance(other, SCCDArray) and self.element_type.is_eq(other.element_type):

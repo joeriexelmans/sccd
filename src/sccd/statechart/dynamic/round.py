@@ -115,18 +115,65 @@ class CandidateGenerator:
         self.strategy = strategy
         self.cache = strategy.cache_init()
 
-    def generate(self, execution, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> Iterable[Transition]:
-        events_bitmap = bm_from_list(e.id for e in enabled_events)
-        key = self.strategy.key(execution, events_bitmap, forbidden_arenas)
+    def generate(self, execution, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> List[Transition]:
+        with timer.Context("generate candidates"):
+            events_bitmap = bm_from_list(e.id for e in enabled_events)
+            key = self.strategy.key(execution, events_bitmap, forbidden_arenas)
 
-        try:
-            candidates = self.cache[key]
-            ctr.cache_hits += 1
-        except KeyError:
-            candidates = self.cache[key] = self.strategy.generate(execution, events_bitmap, forbidden_arenas)
-            ctr.cache_misses += 1
+            try:
+                candidates = self.cache[key]
+                ctr.cache_hits += 1
+            except KeyError:
+                candidates = self.cache[key] = self.strategy.generate(execution, events_bitmap, forbidden_arenas)
+                ctr.cache_misses += 1
 
-        return filter(self.strategy.filter_f(execution, enabled_events, events_bitmap), candidates)
+            candidates = filter(self.strategy.filter_f(execution, enabled_events, events_bitmap), candidates)
+
+            if DEBUG:
+                candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
+                if candidates:
+                    print()
+                    if enabled_events:
+                        print("events: " + str(enabled_events))
+                    print("candidates: " + ",  ".join(str(t) for t in candidates))
+                candidates = iter(candidates)
+
+            t = next(candidates, None)
+            if t:
+                return [t]
+            else:
+                return []
+
+
+class ConcurrentCandidateGenerator:
+    __slots__ = ["strategy", "cache", "synchronous"]
+    def __init__(self, strategy, synchronous):
+        self.strategy = strategy
+        self.cache = strategy.cache_init()
+        self.synchronous = synchronous
+
+    def generate(self, execution, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> List[Transition]:
+        with timer.Context("generate candidates"):
+            events_bitmap = bm_from_list(e.id for e in enabled_events)
+            transitions = []
+            while True:
+                key = self.strategy.key(execution, events_bitmap, forbidden_arenas)
+                try:
+                    candidates = self.cache[key]
+                    ctr.cache_hits += 1
+                except KeyError:
+                    candidates = self.cache[key] = self.strategy.generate(execution, events_bitmap, forbidden_arenas)
+                    ctr.cache_misses += 1
+                candidates = filter(self.strategy.filter_f(execution, enabled_events, events_bitmap), candidates)
+                t = next(candidates, None)
+                if t:
+                    transitions.append(t)
+                else:
+                    break
+                if self.synchronous:
+                    events_bitmap |= t.opt.raised_events
+                forbidden_arenas |= t.opt.arena_bitmap
+            return transitions
 
 # 1st bitmap: arenas covered by transitions fired
 # 2nd bitmap: arenas covered by transitions that had a stable target state
@@ -268,60 +315,29 @@ class SuperRoundWithLimit(SuperRound):
 
 
 class SmallStep(Round):
-    __slots__ = ["execution", "generator", "concurrency"]
-    def __init__(self, name, execution, generator: CandidateGenerator, concurrency=False):
+    __slots__ = ["execution", "generator"]
+    def __init__(self, name, execution, generator: CandidateGenerator):
         super().__init__(name)
         self.execution = execution
         self.generator = generator
-        self.concurrency = concurrency
 
     def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
-        enabled_events = None
-        def get_candidates(extra_forbidden):
-            nonlocal enabled_events
-            with timer.Context("get enabled events"):
-                enabled_events = self.enabled_events()
-                # The cost of sorting our enabled events is smaller than the benefit gained by having to loop less often over it in our transition execution code:
-                enabled_events.sort(key=lambda e: e.id)
+        enabled_events = self.enabled_events()
+        # The cost of sorting our enabled events is smaller than the benefit gained by having to loop less often over it in our transition execution code:
+        enabled_events.sort(key=lambda e: e.id)
 
-            candidates = self.generator.generate(self.execution, enabled_events, forbidden_arenas |  extra_forbidden)
+        transitions = self.generator.generate(self.execution, enabled_events, forbidden_arenas)
 
-            if DEBUG:
-                candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
-                if candidates:
-                    print()
-                    if enabled_events:
-                        print("events: " + str(enabled_events))
-                    print("candidates: " + ",  ".join(str(t) for t in candidates))
-                candidates = iter(candidates)
-
-            return candidates
-
-        arenas = Bitmap()
+        dirty_arenas = Bitmap()
         stable_arenas = Bitmap()
 
-        with timer.Context("candidate generation"):
-            candidates = get_candidates(0)
-            t = next(candidates, None)
-        while t:
+        for t in transitions:
             arena = t.opt.arena_bitmap
-            if not (arenas & arena):
-                self.execution.fire_transition(enabled_events, t)
-                arenas |= arena
-                if t.targets[0].stable:
-                    stable_arenas |= arena
+            self.execution.fire_transition(enabled_events, t)
+            dirty_arenas |= arena
+            if t.targets[0].stable:
+                stable_arenas |= arena
+            enabled_events = self.enabled_events()
+            enabled_events.sort(key=lambda e: e.id)
 
-                if not self.concurrency:
-                    # Return after first transition execution
-                    break
-
-                # need to re-generate candidates after firing transition
-                # because possibly the set of current events has changed
-                with timer.Context("candidate generation"):
-                    candidates = get_candidates(extra_forbidden=arenas)
-                    t = next(candidates, None)
-            else:
-                with timer.Context("candidate generation"):
-                    t = next(candidates, None)
-
-        return (arenas, stable_arenas)
+        return (dirty_arenas, stable_arenas)

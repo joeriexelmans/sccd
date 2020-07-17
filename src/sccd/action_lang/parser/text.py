@@ -89,13 +89,23 @@ class ExpressionTransformer(Transformer):
   params_decl = list
 
   def param_decl(self, node):
-    type = {
+    return ParamDecl(name=node[0].value, formal_type=node[1])
+
+  def type_annot(self, node):
+    return {
       "int": SCCDInt,
       "str": SCCDString,
       "float": SCCDFloat,
-      "dur": SCCDDuration
-    }[node[1]]
-    return ParamDecl(name=node[0].value, formal_type=type)
+      "dur": SCCDDuration,
+    }[node[0]]
+
+  def func_type(self, node):
+    if len(node) > 1:
+      return SCCDFunction(param_types=node[0], return_type=node[1])
+    else:
+      return SCCDFunction(param_types=node[0])
+
+  param_types = list
 
   def func_decl(self, node):
     return FunctionDeclaration(params_decl=node[0], body=node[1])

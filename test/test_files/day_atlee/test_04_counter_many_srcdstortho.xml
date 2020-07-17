@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="statechart_fig10_counter.xml">
+    <override_semantics
+      big_step_maximality="take_one"
+      concurrency="many"
+      internal_event_lifeline="same"/>
+  </statechart>
+
+  <input>
+    <!-- setup ... -->
+    <event port="in" name="tk0" time="10 ms"/>
+    <event port="in" name="tk0" time="20 ms"/>
+    <event port="in" name="tk0" time="30 ms"/>
+    <!-- we are now in Bit_12, Bit_22 and Counting -->
+    <event port="in" name="tk0" time="40 ms"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="done"/>
+    </big_step>
+  </output>
+</test>

@@ -23,6 +23,7 @@ class Instance(ABC):
 # TODO: make this a model parameter
 LIMIT = 100
 
+# An "instance" in the context of the SCCD runtime
 class StatechartInstance(Instance):
     def __init__(self, statechart: Statechart, object_manager, output_callback, schedule_callback, cancel_callback):
         # self.object_manager = object_manager
@@ -48,12 +49,16 @@ class StatechartInstance(Instance):
         strategy = EnabledEventsStrategy(priority_ordered_transitions, statechart)
         # strategy = CurrentConfigAndEnabledEventsStrategy(priority_ordered_transitions, statechart)
 
-        generator = CandidateGenerator(strategy)
+        if semantics.concurrency == Concurrency.SINGLE:
+            generator = CandidateGenerator(strategy)
+        elif semantics.concurrency == Concurrency.MANY:
+            generator = ConcurrentCandidateGenerator(strategy, synchronous=semantics.internal_event_lifeline == InternalEventLifeline.SAME)
+        else:
+            raise Exception("Unsupported option: %s" % semantics.concurrency)
 
         # Big step + combo step maximality semantics
 
-        small_step = SmallStep(termcolor.colored("small", 'blue'), self.execution, generator,
-            concurrency=semantics.concurrency==Concurrency.MANY)
+        small_step = SmallStep(termcolor.colored("small", 'blue'), self.execution, generator)
 
 
         if semantics.big_step_maximality == BigStepMaximality.TAKE_ONE:

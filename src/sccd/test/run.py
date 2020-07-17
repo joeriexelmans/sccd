@@ -73,6 +73,7 @@ class Test(unittest.TestCase):
 
       # start the controller
       thread = threading.Thread(target=controller_thread)
+      thread.daemon = True # make controller thread exit when main thread exits
       thread.start()
 
       # check output

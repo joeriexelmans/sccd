@@ -327,7 +327,6 @@ class BinaryExpression(Expression):
         return t
 
     def eval(self, memory: MemoryInterface):
-        
         return {
             "and": lambda x,y: x and y.eval(memory),
             "or": lambda x,y: x or y.eval(memory),

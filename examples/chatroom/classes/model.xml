@@ -1,0 +1,255 @@
+<class name="ChatWindow" default="true">
+	<relationships>
+		<association name="client" class="NetworkClient"/>
+	</relationships>
+	<method name="ChatWindow">
+		<parameter name="my_controller"/>
+	<body><![CDATA[
+self.colors = {'service': 'black', 'me': 'red', 'other': 'blue'}
+self.numbers = set([str(c) for c in range(10)])
+self.characters = set([chr(c) for c in range(32,126)])
+self.server_list = [('localhost', 8000), ('localhost', 8001)]
+self.connecting_server = 0
+self.buffer = ''
+self.my_controller = my_controller
+try:
+	data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_unhighlight","args":{}}'})
+	headers = {'Content-Type': 'text/plain'}
+	conn = httplib.HTTPConnection('127.0.0.1:8124')
+	conn.request('PUT', '/GET/console?wid=5', data, headers)
+	conn.getresponse()
+	conn.close()
+except:
+	pass
+	]]></body>
+	</method>
+	<method name="add_message">
+		<parameter name="msg"/>
+		<parameter name="color"/>
+	<body><![CDATA[
+self.my_controller.addMessage(msg, color)
+	]]></body>
+	</method>
+	<method name="append_to_buffer">
+		<parameter name="character"/>
+	<body><![CDATA[
+self.buffer = ''.join([self.buffer, character])
+self.my_controller.redraw_buffer(self.buffer)
+	]]></body>
+	</method>
+	<method name="remove_last_in_buffer">
+	<body><![CDATA[
+self.buffer = self.buffer[:-1]
+self.my_controller.redraw_buffer(self.buffer)
+	]]></body>
+	</method>
+	<method name="clear_input">
+	<body><![CDATA[
+self.buffer = ''
+self.my_controller.redraw_buffer(self.buffer)
+	]]></body>
+	</method>
+	<method name="input_join">
+	<body><![CDATA[self.my_controller.setColor('green')
+	]]></body>
+	</method>
+	<method name="input_msg">
+	<body><![CDATA[self.my_controller.setColor('white')
+	]]></body>
+	</method>
+	<method name="input_command">
+	<body><![CDATA[self.my_controller.setColor('grey')
+	]]></body>
+	</method>
+	<method name="get_buffer">
+	<body><![CDATA[return self.buffer
+	]]></body>
+	</method>
+<scxml initial="init_network" priority="source_child">
+<state id="connecting">
+<transition event="connected" target="./../connected" >
+</transition>
+<onentry>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_highlightState","args":{"asid":"232","followCrossFormalismLinks":"*"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+]]></script>
+<raise event="connect" scope="broad">
+<parameter expr="'localhost'"/>
+<parameter expr="8000"/>
+</raise>
+</onentry>
+<onexit>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_unhighlightState","args":{"asid":"232"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+]]></script>
+</onexit>
+</state>
+<state id="leaving">
+<transition event="left" target="./../left" >
+</transition>
+<onentry>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_highlightState","args":{"asid":"233","followCrossFormalismLinks":"*"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+self.add_message('leaving', self.colors['service'])]]></script>
+<raise event="leave" scope="broad">
+</raise>
+</onentry>
+<onexit>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_unhighlightState","args":{"asid":"233"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+]]></script>
+</onexit>
+</state>
+<state id="joined">
+<transition event="input" cond="character == 'k'" port="tkinter_input" target="./../leaving" >
+<parameter name="character"/>
+</transition>
+<transition after="10.0" target="./../leaving" >
+</transition>
+<onentry>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_highlightState","args":{"asid":"228","followCrossFormalismLinks":"*"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+self.add_message('joined room', self.colors['service'])]]></script>
+</onentry>
+<onexit>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_unhighlightState","args":{"asid":"228"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+]]></script>
+</onexit>
+</state>
+<state id="left">
+<onentry>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_highlightState","args":{"asid":"229","followCrossFormalismLinks":"*"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+self.add_message('left room', self.colors['service'])]]></script>
+</onentry>
+<onexit>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_unhighlightState","args":{"asid":"229"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+]]></script>
+</onexit>
+</state>
+<state id="connected">
+<transition event="joined" target="./../joined" >
+</transition>
+<onentry>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_highlightState","args":{"asid":"230","followCrossFormalismLinks":"*"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+self.add_message('joining room 1', self.colors['service'])]]></script>
+<raise event="join" scope="broad">
+<parameter expr="1"/>
+</raise>
+</onentry>
+<onexit>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_unhighlightState","args":{"asid":"230"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+]]></script>
+</onexit>
+</state>
+<state id="init_network">
+<transition event="instance_created" target="./../connecting" >
+<parameter name="association_name"/>
+<raise event="start_instance" scope="cd">
+<parameter expr="association_name"/>
+</raise>
+</transition>
+<onentry>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_highlightState","args":{"asid":"226","followCrossFormalismLinks":"*"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+]]></script>
+<raise event="create_instance" scope="cd">
+<parameter expr="'client'"/>
+</raise>
+</onentry>
+<onexit>
+<script><![CDATA[try:
+ data = json.dumps({'text':'CLIENT_BDAPI :: {"func":"_unhighlightState","args":{"asid":"226"}}'})
+ headers = {'Content-Type': 'text/plain'}
+ conn = httplib.HTTPConnection('127.0.0.1:8124')
+ conn.request('PUT', '/GET/console?wid=5', data, headers)
+ conn.getresponse()
+ conn.close()
+except:
+ pass
+]]></script>
+</onexit>
+</state>
+</scxml>
+</class>

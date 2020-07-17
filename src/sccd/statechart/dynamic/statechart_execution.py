@@ -24,24 +24,22 @@ class StatechartExecution:
         self.configuration: Bitmap = Bitmap()
 
         # Mapping from history_id to set of states to enter if history is target of transition
-        # By default, if the parent of a history state has never been exited before, the parent's default states should be entered.
-        self.history_values: List[Bitmap] = [h.parent.opt.ts_static for h in statechart.tree.history_states]
+        self.history_values: List[Bitmap] = list(statechart.tree.initial_history_values)
 
         # Scheduled IDs for after triggers
         self.timer_ids = [None] * len(statechart.tree.after_triggers)
 
     # enter default states
     def initialize(self):
-        states = self.statechart.tree.root.opt.ts_static
-        self.configuration = states
+        self.configuration = self.statechart.tree.initial_states
 
         ctx = EvalContext(execution=self, events=[], memory=self.rhs_memory)
         if self.statechart.datamodel is not None:
             self.statechart.datamodel.exec(self.rhs_memory)
 
-        for state in self._ids_to_states(bm_items(states)):
+        for state in self._ids_to_states(bm_items(self.configuration)):
             print_debug(termcolor.colored('  ENTER %s'%state.opt.full_name, 'green'))
-            self._perform_actions(ctx, state.enter)
+            _perform_actions(ctx, state.enter)
             self._start_timers(state.opt.after_triggers)
 
         self.rhs_memory.flush_transition()
@@ -60,10 +58,11 @@ class StatechartExecution:
                     exit_ids = self.configuration & t.opt.arena.opt.descendants
                     exit_set = self._ids_to_states(bm_reverse_items(exit_ids))
 
-
                 with timer.Context("enter set"):
                     # Sequence of enter states is more complex but has for a large part already been computed statically.
-                    enter_ids = t.opt.enter_states_static | reduce(lambda x,y: x|y, (self.history_values[s.history_id] for s in t.opt.enter_states_dynamic), Bitmap())
+                    enter_ids = t.opt.enter_states_static
+                    if t.opt.target_history_id is not None:
+                        enter_ids |= self.history_values[t.opt.target_history_id]
                     enter_set = self._ids_to_states(bm_items(enter_ids))
 
                 ctx = EvalContext(execution=self, events=events, memory=self.rhs_memory)
@@ -71,14 +70,13 @@ class StatechartExecution:
                 print_debug("fire " + str(t))
 
                 with timer.Context("exit states"):
-                    # exit states...
                     for s in exit_set:
                         print_debug(termcolor.colored('  EXIT %s' % s.opt.full_name, 'green'))
                         # remember which state(s) we were in if a history state is present
-                        for h, mask in s.opt.history:
-                            self.history_values[h.history_id] = exit_ids & mask
+                        for history_id, history_mask in s.opt.history:
+                            self.history_values[history_id] = exit_ids & history_mask
                         self._cancel_timers(s.opt.after_triggers)
-                        self._perform_actions(ctx, s.exit)
+                        _perform_actions(ctx, s.exit)
                         self.configuration &= ~s.opt.state_id_bitmap
 
                 # execute transition action(s)
@@ -86,26 +84,25 @@ class StatechartExecution:
                     self.rhs_memory.push_frame(t.scope) # make room for event parameters on stack
                     if t.trigger:
                         t.trigger.copy_params_to_stack(ctx)
-                    self._perform_actions(ctx, t.actions)
+                    _perform_actions(ctx, t.actions)
                     self.rhs_memory.pop_frame()
 
                 with timer.Context("enter states"):
-                    # enter states...
                     for s in enter_set:
                         print_debug(termcolor.colored('  ENTER %s' % s.opt.full_name, 'green'))
                         self.configuration |= s.opt.state_id_bitmap
-                        self._perform_actions(ctx, s.enter)
+                        _perform_actions(ctx, s.enter)
                         self._start_timers(s.opt.after_triggers)
 
                 self.rhs_memory.flush_transition()
 
             # input(">")
 
-        except SCCDRuntimeException as e:
+        except Exception as e:
             e.args = ("During execution of transition %s:\n" % str(t) +str(e),)
             raise
 
-    def check_guard(self, t, events) -> bool:
+    def check_guard(self, t: Transition, events: List[InternalEvent]) -> bool:
         try:
             if t.guard is None:
                 return True
@@ -118,14 +115,9 @@ class StatechartExecution:
                 result = t.guard.eval(self.gc_memory)
                 self.gc_memory.pop_frame()
                 return result
-        except SCCDRuntimeException as e:
+        except Exception as e:
             e.args = ("While checking guard of transition %s:\n" % str(t) +str(e),)
             raise
-
-    @staticmethod
-    def _perform_actions(ctx: EvalContext, actions: List[Action]):
-        for a in actions:
-            a.exec(ctx)
 
     def _start_timers(self, triggers: List[AfterTrigger]):
         for after in triggers:
@@ -141,10 +133,15 @@ class StatechartExecution:
 
     # Return whether the current configuration includes ALL the states given.
     def in_state(self, state_strings: List[str]) -> bool:
-        state_ids_bitmap = states_to_bitmap((self.statechart.tree.state_dict[state_string] for state_string in state_strings))
+        state_ids_bitmap = bm_union(self.statechart.tree.state_dict[state_string].opt.state_id_bitmap for state_string in state_strings)
         in_state = bm_has_all(self.configuration, state_ids_bitmap)
         # if in_state:
         #     print_debug("in state"+str(state_strings))
         # else:
         #     print_debug("not in state"+str(state_strings))
         return in_state
+
+
+def _perform_actions(ctx: EvalContext, actions: List[Action]):
+    for a in actions:
+        a.exec(ctx)

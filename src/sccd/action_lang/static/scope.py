@@ -10,7 +10,7 @@ import termcolor
 
 class ScopeError(ModelError):
   def __init__(self, scope, msg):
-    super().__init__(msg + '\n\nCurrent scope:\n' + str(scope))
+    super().__init__(msg + '\n\n' + str(scope))
 
 
 # Stateless stuff we know about a variable existing within a scope.

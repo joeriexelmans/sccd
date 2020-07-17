@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram author="Yentl Van Tendeloo" name="Chat window - Tkinter version">
+    <description>
+        Tkinter chat client, with some fault-tolerance when the server goes down.
+    </description>
+    <top>
+        import socket
+        import json
+        import httplib
+    </top>
+
+    <inport name="tkinter_input"/>
+    <inport name="socket_in"/>
+    <outport name="socket_out"/>
+
+    <class src="classes/model.xml" default="true"/>
+    <class src="classes/networkclient.xml"/>
+</diagram>

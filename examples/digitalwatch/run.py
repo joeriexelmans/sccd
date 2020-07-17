@@ -31,8 +31,8 @@ def main():
     cd = load_cd("model_digitalwatch.xml")
 
     # from sccd.statechart.static import tree
-    # # tree.concurrency_arena_orthogonal( cd.statechart.tree )
-    # tree.concurrency_src_dst_orthogonal( cd.statechart.tree )
+    # tree.concurrency_arena_orthogonal( cd.statechart.tree )
+    # # tree.concurrency_src_dst_orthogonal( cd.statechart.tree )
     # exit()
 
     controller = Controller(cd, output_callback=on_output)

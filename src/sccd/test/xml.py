@@ -1,7 +1,7 @@
 from sccd.statechart.parser.xml import *
-from sccd.cd.globals import *
+from sccd.statechart.static.globals import *
 from sccd.statechart.dynamic.event import InternalEvent
-from sccd.cd.cd import *
+from sccd.cd.static.cd import *
 
 _empty_scope = Scope("test", parent=None)
 

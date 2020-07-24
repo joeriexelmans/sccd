@@ -5,10 +5,11 @@ from sccd.action_lang.parser.text import *
 from lark.exceptions import *
 
 if __name__ == "__main__":
-  scope = Scope("interactive", parent=None)
+  scope = Scope("interactive", parent=None) # "global" scope
   memory = Memory()
   memory.push_frame(scope)
   readline.set_history_length(1000)
+
   print("Enter statements or expressions. Most statements end with ';'. Statements will be executed, expressions will be evaluated. Either can have side effects.")
   print("Examples:")
   print("  basic stuff:")

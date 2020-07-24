@@ -80,6 +80,7 @@ class Statement(ABC):
     def exec(self, memory: MemoryInterface) -> Return:
         pass
 
+    # Looks up identifiers in the given scope, and adds new identifiers to the scope.
     @abstractmethod
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
         pass

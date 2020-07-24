@@ -7,6 +7,9 @@ from sccd.statechart.dynamic.event import *
 
 @dataclass
 class SCDurationLiteral(DurationLiteral):
+    # optimization: to save us from runtime duration conversions,
+    # all durations in statechart are divided by model delta,
+    # and evaluate to integer instead of duration type.
     opt: Optional[int] = None
 
     # override

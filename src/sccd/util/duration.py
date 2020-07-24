@@ -245,7 +245,7 @@ def gcd(*iterable: Iterable[Duration]) -> Duration:
   return functools.reduce(gcd_pair, iterable, _zero)
 
 # Useful for efficiently converting many values from some fixed unit to some other fixed unit.
-def get_conversion_f(from_unit: Duration, to_unit: Duration):
+def get_conversion_f(from_unit: Duration, to_unit: Duration) -> Callable[[int], int]:
   if from_unit is _zero or to_unit is _zero:
     raise Exception("Cannot convert between zero-duration units")
     

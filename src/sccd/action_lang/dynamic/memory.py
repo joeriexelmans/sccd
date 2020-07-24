@@ -41,17 +41,16 @@ class Memory(MemoryInterface):
   def current_frame(self) -> StackFrame:
     return self._current_frame
 
+  # For function calls: context MAY differ from _current_frame if the function was
+  # called from a different context from where it was created.
+  # This enables function closures.
   def push_frame_w_context(self, scope: Scope, context: StackFrame):
-
     self._current_frame = StackFrame(
       storage=[None]*scope.size(),
       parent=self._current_frame,
       context=context,
       scope=scope)
 
-  # For function calls: context MAY differ from _current_frame if the function was
-  # called from a different context from where it was created.
-  # This enables function closures.
   def push_frame(self, scope: Scope):
     self.push_frame_w_context(scope, self._current_frame)
 

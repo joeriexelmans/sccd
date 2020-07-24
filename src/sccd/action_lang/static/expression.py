@@ -43,10 +43,13 @@ class Expression(ABC):
     def init_expr(self, scope: Scope) -> SCCDType:
         pass
 
-    # Evaluation should NOT have side effects.
-    # Motivation is that the evaluation of a guard condition cannot have side effects.
+    # Evaluation may have side effects.
     @abstractmethod
     def eval(self, memory: MemoryInterface):
+        pass
+
+    @abstractmethod
+    def render(self) -> str:
         pass
 
 # The LValue type is any type that can serve as an expression OR an LValue (left hand of assignment)

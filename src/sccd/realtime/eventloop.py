@@ -4,6 +4,7 @@ from sccd.controller.controller import *
 
 ScheduledID = Any
 
+# The interface for declaring 3rd party event loop implementations
 @dataclass
 class EventLoopImplementation(ABC):
     @abstractmethod
@@ -21,7 +22,7 @@ class EventLoopImplementation(ABC):
 
 class EventLoop:
     def __init__(self, controller: Controller, event_loop: EventLoopImplementation, time_impl: TimeImplementation = DefaultTimeImplementation):
-        delta = controller.get_model_delta()
+        delta = controller.cd.get_delta()
         self.timer = Timer(time_impl, unit=delta) # will give us timestamps in model unit
         self.controller = controller
         self.event_loop = event_loop
@@ -29,6 +30,8 @@ class EventLoop:
         # got to convert from model unit to eventloop native unit for scheduling
         self.to_event_loop_unit = lambda x: int(get_conversion_f(delta, event_loop.time_unit())(x))
 
+        # ID of currently scheduled task.
+        # The actual type of this attribute depends on the event loop implementation.
         self.scheduled = None
 
         # Keeps the model responsive if we cannot keep up with wallclock time.

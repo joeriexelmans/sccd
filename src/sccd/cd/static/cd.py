@@ -2,7 +2,7 @@ from abc import *
 from dataclasses import *
 from typing import *
 from sccd.statechart.static.statechart import *
-from sccd.cd.globals import *
+from sccd.statechart.static.globals import *
 
 @dataclass
 class AbstractCD(ABC):
@@ -11,6 +11,10 @@ class AbstractCD(ABC):
   @abstractmethod
   def get_default_class(self) -> Statechart:
     pass
+
+  # Get the "model delta", i.e. the smallest possible duration representable.
+  def get_delta(self) -> Duration:
+    return self.globals.delta
 
 @dataclass
 class CD(AbstractCD):

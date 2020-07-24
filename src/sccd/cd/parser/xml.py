@@ -1,7 +1,6 @@
 from sccd.action_lang.parser import text as action_lang_parser
 from sccd.statechart.parser.xml import *
-from sccd.cd.globals import *
-from sccd.cd.cd import *
+from sccd.cd.static.cd import *
 
 def cd_parser_rules(statechart_parser_rules, default_delta = duration(100, Microsecond)):
   globals = Globals()

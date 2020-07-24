@@ -204,7 +204,7 @@ class Transition(Freezable):
         return termcolor.colored("%s 🡪 %s" % (self.source.opt.full_name, self.targets[0].opt.full_name), 'green')
 
 
-# Data that is generated for each state.
+# Simply a collection of read-only fields, generated during "optimization" for each state, inferred from the model, i.e. the hierarchy of states and transitions
 class StateOptimization(Freezable):
     __slots__ = ["full_name", "depth", "state_id", "state_id_bitmap", "ancestors", "descendants", "history", "after_triggers"]
     def __init__(self):
@@ -219,7 +219,8 @@ class StateOptimization(Freezable):
         self.ancestors: Bitmap = Bitmap()
         self.descendants: Bitmap = Bitmap()
 
-        # Tuple for each children that is HistoryState: (history-id, history mask)
+        # Tuple for each child that is HistoryState: (history-id, history mask)
+        # Typically zero or one children are a HistoryState (shallow or deep)
         self.history: List[Tuple[int, Bitmap]] = []
 
         # Triggers of outgoing transitions that are AfterTrigger.

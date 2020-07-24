@@ -1,3 +1,6 @@
+# TODO: move this module to 'statechart.static' !
+# even though the 'globals' applies to the 'class diagram' (module 'cd'), the statechart is aware of it, and moving this module would make for a cleaner 'import' hierarchy
+
 from typing import *
 from sccd.util.namespace import *
 from sccd.util.duration import *
@@ -17,10 +20,13 @@ class Globals:
     self.durations: List[SCDurationLiteral] = []
 
     # The smallest unit for all durations in the model.
+    # Upon simulation, all timestamps are multiples of this value.
     # Calculated after all expressions have been parsed, based on all DurationLiterals.
     self.delta: Optional[Duration] = None
 
-  # delta: if set, this will be the model delta. otherwise, model delta will be the GCD of all durations registered.
+  # parameter delta: if set, this will be the model delta.
+  # otherwise, model delta will be the GCD of all durations registered.
+  # typically, a 'delta' of 100us to 1ms is desirable because this will also be the 'precision' of input event timestamps.
   def init_durations(self, delta: Optional[Duration]):
     gcd_delta = gcd(*(d.d for d in self.durations))
 

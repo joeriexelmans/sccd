@@ -2,7 +2,7 @@ import os
 from lark import Lark
 from sccd.action_lang.parser import text as action_lang
 from sccd.statechart.static.tree import *
-from sccd.cd.globals import *
+from sccd.statechart.static.globals import *
 
 _grammar_dir = os.path.dirname(__file__)
 
@@ -11,13 +11,14 @@ with open(os.path.join(_grammar_dir, "statechart.g")) as file:
 
 
 # Lark transformer for parsetree-less parsing of expressions
+# Extends action language's ExpressionTransformer
 class StatechartTransformer(action_lang.ExpressionTransformer):
   def __init__(self):
     super().__init__()
     self.globals: Globals = None
 
 
-  # override
+  # override: all durations must be added to 'globals'
   def duration_literal(self, node):
     val = int(node[0])
     suffix = node[1]

@@ -1,7 +1,12 @@
 from sccd.action_lang.static.expression import *
 from sccd.util.debug import *
 
+# Builtin "global" functions in statechart language
+
 BuiltIn = Scope("builtin", None)
+
+# The way we add our builtin functions is a bit hackish because they are implemented
+# "natively" in Python, rather than in action language code.
 
 BuiltIn.declare("INSTATE", SCCDFunction([SCCDArray(SCCDString)], SCCDBool), const=True)
 BuiltIn.declare("log10", SCCDFunction([SCCDInt], SCCDFloat), const=True)
@@ -14,6 +19,8 @@ def load_builtins(memory: MemoryInterface, state):
   import termcolor
   
   memory.push_frame(BuiltIn)
+
+  # Wrapper functions of the signature expected by the action language:
 
   def in_state(memory: MemoryInterface, state_list: List[str]) -> bool:
     return state.in_state(state_list)
@@ -29,6 +36,8 @@ def load_builtins(memory: MemoryInterface, state):
 
   def int_to_str(memory: MemoryInterface, i: int) -> str:
     return str(i)
+
+  # Manually write wrapper functions to memory:
 
   frame = memory.current_frame()
 

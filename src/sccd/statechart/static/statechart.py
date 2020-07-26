@@ -56,6 +56,8 @@ SemanticChoice = Union[_T, List[_T]]
 class SemanticConfiguration:
   # All semantic aspects and their default values.
   # Every field can be set to a list of multiple options, or just a value.
+
+  # The following is the default configuration:
   big_step_maximality: SemanticChoice[BigStepMaximality] = BigStepMaximality.TAKE_MANY
   combo_step_maximality: SemanticChoice[ComboStepMaximality] = ComboStepMaximality.COMBO_TAKE_ONE
   internal_event_lifeline: SemanticChoice[InternalEventLifeline] = InternalEventLifeline.NEXT_COMBO_STEP

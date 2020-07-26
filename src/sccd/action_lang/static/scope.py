@@ -117,7 +117,8 @@ class Scope:
     scope, scope_offset, var = found
     return (scope_offset + var.offset, var.type)
 
-  # Attempt to declare given name in this scope. Only succeeds if name does not exist yet in any scope.
+  # Attempt to declare given name in this scope.
+  # Similar to put_lvalue, but only succeeds if the name does not exist yet in any scope.
   # Returns offset relative to this scope (always a positive number since this function only creates new variables in this scope)
   def declare(self, name: str, type: SCCDType, const: bool = False) -> int:
     found = self._internal_lookup(name)

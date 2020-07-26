@@ -1,6 +1,3 @@
-# TODO: move this module to 'statechart.static' !
-# even though the 'globals' applies to the 'class diagram' (module 'cd'), the statechart is aware of it, and moving this module would make for a cleaner 'import' hierarchy
-
 from typing import *
 from sccd.util.namespace import *
 from sccd.util.duration import *

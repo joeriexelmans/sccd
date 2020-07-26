@@ -96,8 +96,6 @@ class FunctionCall(Expression):
     function: Expression
     params: List[Expression]
 
-    type: Optional[type] = None
-
     def init_expr(self, scope: Scope) -> SCCDType:
         function_type = self.function.init_expr(scope)
         if not isinstance(function_type, SCCDFunction):

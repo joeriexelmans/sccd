@@ -115,14 +115,11 @@ class Assignment(Statement):
 @dataclass
 class Block(Statement):
     stmts: List[Statement]
-    scope: Optional[Scope] = None
 
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
-        self.scope = scope
-
         so_far = NeverReturns
         for i, stmt in enumerate(self.stmts):
-            now_what = stmt.init_stmt(self.scope)
+            now_what = stmt.init_stmt(scope)
             so_far = ReturnBehavior.sequence(so_far, now_what)            
         return so_far
 

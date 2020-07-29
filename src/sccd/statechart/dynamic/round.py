@@ -233,26 +233,26 @@ class SuperRoundMaximality(ABC):
     __slots__ = []
     @staticmethod
     @abstractmethod
-    def forbidden_arenas(forbidden_arenas: Bitmap, arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
+    def forbidden_arenas(arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
         pass
 
 class TakeOne(SuperRoundMaximality):
     __slots__ = []
     @staticmethod
-    def forbidden_arenas(forbidden_arenas: Bitmap, arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
-        return forbidden_arenas | arenas_changed
+    def forbidden_arenas(arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
+        return arenas_changed
 
 class TakeMany(SuperRoundMaximality):
     __slots__ = []
     @staticmethod
-    def forbidden_arenas(forbidden_arenas: Bitmap, arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
+    def forbidden_arenas(arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
         return Bitmap()
 
 class Syntactic(SuperRoundMaximality):
     __slots__ = []
     @staticmethod
-    def forbidden_arenas(forbidden_arenas: Bitmap, arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
-        return forbidden_arenas | arenas_stabilized
+    def forbidden_arenas(arenas_changed: Bitmap, arenas_stabilized: Bitmap) -> Bitmap:
+        return arenas_stabilized
 
 # Examples: Big step, combo step
 class SuperRound(Round):
@@ -275,13 +275,14 @@ class SuperRound(Round):
         arenas_stabilized = Bitmap()
 
         while True:
-            forbidden = self.maximality.forbidden_arenas(forbidden_arenas, arenas_changed, arenas_stabilized)
-            changed, stabilized = self.subround.run_and_cycle_events(forbidden) # no forbidden arenas in subround
+            changed, stabilized = self.subround.run_and_cycle_events(forbidden_arenas) # no forbidden arenas in subround
             if not changed:
                 break # no more transitions could be executed, done!
 
             arenas_changed |= changed
             arenas_stabilized |= stabilized
+
+            forbidden_arenas |= self.maximality.forbidden_arenas(arenas_changed, arenas_stabilized)
 
         return (arenas_changed, arenas_stabilized)
 
@@ -299,8 +300,7 @@ class SuperRoundWithLimit(SuperRound):
 
         subrounds = 0
         while True:
-            forbidden = self.maximality.forbidden_arenas(forbidden_arenas, arenas_changed, arenas_stabilized)
-            changed, stabilized = self.subround.run_and_cycle_events(forbidden) # no forbidden arenas in subround
+            changed, stabilized = self.subround.run_and_cycle_events(forbidden_arenas) # no forbidden arenas in subround
             if not changed:
                 break # no more transitions could be executed, done!
 
@@ -310,6 +310,8 @@ class SuperRoundWithLimit(SuperRound):
 
             arenas_changed |= changed
             arenas_stabilized |= stabilized
+
+            forbidden_arenas |= self.maximality.forbidden_arenas(arenas_changed, arenas_stabilized)
 
         return (arenas_changed, arenas_stabilized)
 

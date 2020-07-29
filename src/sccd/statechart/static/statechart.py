@@ -113,7 +113,7 @@ class Statechart(Freezable):
 
     # Union of internally raised and input events. Basically all the events that a transition could be triggered by.
     self.internal_events: Bitmap = internal_events
-    # All internally raised events in the statechart, may overlap with input events.
+    # All internally raised events in the statechart, may overlap with input events, as an event can be both an input event and internally raised.
     self.internally_raised_events: Bitmap = internally_raised_events
 
     # Mapping from inport to set of event IDs - currently unused

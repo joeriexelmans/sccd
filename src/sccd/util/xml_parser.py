@@ -206,6 +206,9 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
   if len(results) > 0:
     return results[0] # return first item, since we expect at most one item since an XML file has only one root node
 
+
+# Utility functions to do more with less lines of code:
+
 def require_attribute(el, attr):
   val = el.get(attr)
   if val is None:

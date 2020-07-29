@@ -33,6 +33,8 @@ class Controller:
 
         self.simulated_time = 0 # integer
 
+        # Our instances should not have 'full access' to the global event queue (e.g. they shouldn't pop due events, that's the controller's task!). They are only allowed to schedule and cancel scheduled events. Hence we pass them 2 callbacks:
+
         def schedule_after(after, event, instances):
             entry = Controller.EventQueueEntry(event, instances)
             return self.queue.add(self.simulated_time + after, entry)

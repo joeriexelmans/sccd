@@ -17,7 +17,7 @@ def check_duration_type(type):
       msg += "\n Hint: Did you forget a duration unit suffix? ('s', 'ms', ...)"
     raise XmlError(msg)
 
-# path: path for finding external statecharts
+# path: filesystem path for finding external statecharts
 def statechart_parser_rules(globals, path, load_external = True, parse_f = parse_f) -> Rules:
   import os
   def parse_statechart(el):

@@ -35,13 +35,15 @@ class State(Freezable):
     # Subset of descendants that are always entered when this state is the target of a transition, minus history states.
     def _static_target_states(self) -> Bitmap:
         if self.default_state:
-            return self.opt.state_id_bitmap | self.default_state._static_target_states()
+            # this state + recursion on 'default state'
+            return self.opt.state_id_bitmap | self.default_state._static_target_states() 
         else:
+            # only this state
             return self.opt.state_id_bitmap
 
     # States that are always entered when this state is part of the "enter path", but not the actual target of a transition.
     def _static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
-        return self.opt.state_id_bitmap
+        return self.opt.state_id_bitmap # only this state
 
     def __repr__(self):
         return "State(\"%s\")" % (self.short_name)
@@ -86,9 +88,11 @@ class DeepHistoryState(HistoryState):
 class ParallelState(State):
 
     def _static_target_states(self) -> Bitmap:
+        # this state + recursive on all children that are not a history state
         return bm_union(c._static_target_states() for c in self.children if not isinstance(c, HistoryState)) | self.opt.state_id_bitmap
 
     def _static_additional_target_states(self, exclude: 'State') -> Bitmap:
+        # 
         return self._static_target_states() & ~exclude._static_target_states()
 
     def __repr__(self):
@@ -199,7 +203,7 @@ class Transition(Freezable):
         self.trigger: Trigger = _empty_trigger
 
         self.opt: Optional['TransitionOptimization'] = None        
-                    
+
     def __str__(self):
         return termcolor.colored("%s 🡪 %s" % (self.source.opt.full_name, self.targets[0].opt.full_name), 'green')
 

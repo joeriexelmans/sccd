@@ -150,10 +150,7 @@ class DigitalWatchGUI_Controller:
     # Check if time = alarm set time
     def checkTime(self):
         if self.GUI.getTime()[0] == self.GUI.getAlarm()[0] and self.GUI.getTime()[1] == self.GUI.getAlarm()[1] and self.GUI.getTime()[2] == self.GUI.getAlarm()[2]:
-            # this method is called by the statechart during transition execution,
-            # do not send an event direcly to the statechart!
-            # do it later on, from tk's event loop, asap:
-            self.GUI.parent.after(0, self.alarm)
+            self.alarm()
             return True
         else:
             return False

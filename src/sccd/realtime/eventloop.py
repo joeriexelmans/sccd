@@ -70,4 +70,4 @@ class EventLoop:
     def interrupt(self):
         if self.scheduled:
             self.event_loop.cancel(self.scheduled)
-        self._wakeup()
+        self.event_loop.schedule(0, self._wakeup)

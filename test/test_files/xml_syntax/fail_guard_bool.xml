@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <root>
+      <state id="a">
+        <!-- guard condition is not an expression of boolean type -->
+        <transition cond="42 + 10" target="."/>
+      </state>
+    </root>
+  </statechart>
+</test>

@@ -79,7 +79,7 @@ class StatechartExecution:
                             self.history_values[history_id] = exit_ids & history_mask
                         if s.opt.shallow_history is not None:
                             history_id = s.opt.shallow_history
-                            self.history_values[history_id] = just_exited._effective_targets()
+                            self.history_values[history_id] = just_exited.opt.effective_targets
                         self._cancel_timers(s.opt.after_triggers)
                         _perform_actions(ctx, s.exit)
                         self.configuration &= ~s.opt.state_id_bitmap

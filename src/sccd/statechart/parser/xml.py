@@ -242,7 +242,9 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
           def parse_attr_cond(cond):
             expr = parse_expression(globals, cond)
-            expr.init_expr(scope)
+            guard_type = expr.init_expr(scope)
+            if guard_type != SCCDBool:
+              raise XmlError("Guard should be an expression evaluating to 'bool'.")
             transition.guard = expr
 
           if_attribute(el, "event", parse_attr_event)

@@ -31,18 +31,18 @@ class State(Freezable):
         if self.parent is not None:
             self.parent.children.append(self)
 
-
     # Subset of descendants that are always entered when this state is the target of a transition, minus history states.
-    def _static_target_states(self) -> Bitmap:
+
+    def _effective_targets(self) -> Bitmap:
         if self.default_state:
             # this state + recursion on 'default state'
-            return self.opt.state_id_bitmap | self.default_state._static_target_states() 
+            return self.opt.state_id_bitmap | self.default_state._effective_targets() 
         else:
             # only this state
             return self.opt.state_id_bitmap
 
     # States that are always entered when this state is part of the "enter path", but not the actual target of a transition.
-    def _static_additional_target_states(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
+    def _additional_effective_targets(self, exclude: 'State') -> Tuple[Bitmap, List['HistoryState']]:
         return self.opt.state_id_bitmap # only this state
 
     def __repr__(self):
@@ -56,22 +56,22 @@ class HistoryState(State):
 
         self.history_id: Optional[int] = None
 
-    # Set of states that may be history values.
-    @abstractmethod
-    def history_mask(self) -> Bitmap:
-        pass
+    # # Set of states that may be history values.
+    # @abstractmethod
+    # def history_mask(self) -> Bitmap:
+    #     pass
 
-    def _static_target_states(self) -> Bitmap:
+    def _effective_targets(self) -> Bitmap:
         return Bitmap()
 
-    def _static_additional_target_states(self, exclude: 'State') -> Bitmap:
+    def _additional_effective_targets(self, exclude: 'State') -> Bitmap:
         assert False # history state cannot have children and therefore should never occur in a "enter path"
 
 class ShallowHistoryState(HistoryState):
 
-    def history_mask(self) -> Bitmap:
-        # Only direct children of parent:
-        return bm_union(s.opt.state_id_bitmap for s in self.parent.children)
+    # def history_mask(self) -> Bitmap:
+    #     # Only direct children of parent:
+    #     return bm_union(s.opt.state_id_bitmap for s in self.parent.children)
 
     def __repr__(self):
         return "ShallowHistoryState(\"%s\")" % (self.short_name)
@@ -87,13 +87,13 @@ class DeepHistoryState(HistoryState):
 
 class ParallelState(State):
 
-    def _static_target_states(self) -> Bitmap:
+    def _effective_targets(self) -> Bitmap:
         # this state + recursive on all children that are not a history state
-        return bm_union(c._static_target_states() for c in self.children if not isinstance(c, HistoryState)) | self.opt.state_id_bitmap
+        return bm_union(c._effective_targets() for c in self.children if not isinstance(c, HistoryState)) | self.opt.state_id_bitmap
 
-    def _static_additional_target_states(self, exclude: 'State') -> Bitmap:
+    def _additional_effective_targets(self, exclude: 'State') -> Bitmap:
         # 
-        return self._static_target_states() & ~exclude._static_target_states()
+        return self._effective_targets() & ~exclude._effective_targets()
 
     def __repr__(self):
         return "ParallelState(\"%s\")" % (self.short_name)
@@ -210,7 +210,7 @@ class Transition(Freezable):
 
 # Simply a collection of read-only fields, generated during "optimization" for each state, inferred from the model, i.e. the hierarchy of states and transitions
 class StateOptimization(Freezable):
-    __slots__ = ["full_name", "depth", "state_id", "state_id_bitmap", "ancestors", "descendants", "history", "after_triggers"]
+    __slots__ = ["full_name", "depth", "state_id", "state_id_bitmap", "ancestors", "descendants", "effective_targets", "deep_history", "shallow_history", "after_triggers"]
     def __init__(self):
         super().__init__()
 
@@ -223,9 +223,13 @@ class StateOptimization(Freezable):
         self.ancestors: Bitmap = Bitmap()
         self.descendants: Bitmap = Bitmap()
 
-        # Tuple for each child that is HistoryState: (history-id, history mask)
-        # Typically zero or one children are a HistoryState (shallow or deep)
-        self.history: List[Tuple[int, Bitmap]] = []
+        self.effective_targets: Bitmap = Bitmap()
+
+        # If a direct child of this state is a deep history state, then "deep history" needs to be recorded when exiting this state. This value contains a tuple, with the (history-id, history_mask) of that child state.
+        self.deep_history: Optional[Tuple[int, Bitmap]] = None
+
+        # If a direct child of this state is a shallow history state, then "shallow history" needs to be recorded when exiting this state. This value is the history-id of that child state
+        self.shallow_history: Optional[int] = None
 
         # Triggers of outgoing transitions that are AfterTrigger.
         self.after_triggers: List[AfterTrigger] = []
@@ -309,7 +313,6 @@ def optimize_tree(root: State) -> StateTree:
                         state.opt.after_triggers.append(t.trigger)
                         after_triggers.append(t.trigger)
 
-
         def set_ancestors(state: State, ancestors=Bitmap()):
             state.opt.ancestors = ancestors
             return ancestors | state.opt.state_id_bitmap
@@ -319,14 +322,22 @@ def optimize_tree(root: State) -> StateTree:
             state.opt.descendants = descendants
             return state.opt.state_id_bitmap | descendants
 
-        # If a history state is entered whose parent has never been exited before, the parent's default states are entered.
+        def calculate_effective_targets(state: State, _=None):
+            # implementation of "_effective_targets"-method is recursive (slow)
+            # store the result, it is always the same:
+            state.opt.effective_targets = state._effective_targets()
+
         initial_history_values = []
         def deal_with_history(state: State, children_history):
-            state.opt.history = [(h.history_id, h.history_mask()) for h in children_history if h is not None]
+            for h in children_history:
+                if isinstance(h, DeepHistoryState):
+                    state.opt.deep_history = (h.history_id, h.history_mask())
+                elif isinstance(h, ShallowHistoryState):
+                    state.opt.shallow_history = h.history_id
 
             if isinstance(state, HistoryState):
                 state.history_id = len(initial_history_values)
-                initial_history_values.append(state.parent._static_target_states())
+                initial_history_values.append(state.parent._effective_targets())
                 return state
 
         def freeze(state: State, _=None):
@@ -344,6 +355,7 @@ def optimize_tree(root: State) -> StateTree:
             ],
             after_children=[
                 set_descendants,
+                calculate_effective_targets,
                 deal_with_history,
                 freeze,
             ])
@@ -378,10 +390,10 @@ def optimize_tree(root: State) -> StateTree:
                 if next_state_id:
                     # an intermediate state on the path from arena to target
                     next_state = state_list[next_state_id]
-                    enter_states_static |= state._static_additional_target_states(next_state)
+                    enter_states_static |= state._additional_effective_targets(next_state)
                 else:
                     # the actual target of the transition
-                    enter_states_static |= state._static_target_states()
+                    enter_states_static |= state.opt.effective_targets
                 state_id = next_state_id
 
             target_history_id = None
@@ -403,7 +415,7 @@ def optimize_tree(root: State) -> StateTree:
 
             t.freeze()
 
-        initial_states = root._static_target_states()
+        initial_states = root._effective_targets()
 
         return StateTree(root, transition_list, state_list, state_dict, after_triggers, stable_bitmap, initial_history_values, initial_states)
 

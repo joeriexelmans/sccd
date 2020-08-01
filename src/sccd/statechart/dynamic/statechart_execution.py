@@ -70,14 +70,20 @@ class StatechartExecution:
                 print_debug("fire " + str(t))
 
                 with timer.Context("exit states"):
+                    just_exited = None
                     for s in exit_set:
                         print_debug(termcolor.colored('  EXIT %s' % s.opt.full_name, 'green'))
-                        # remember which state(s) we were in if a history state is present
-                        for history_id, history_mask in s.opt.history:
+                        if s.opt.deep_history is not None:
+                            # s has a deep-history child:
+                            history_id, history_mask = s.opt.deep_history
                             self.history_values[history_id] = exit_ids & history_mask
+                        if s.opt.shallow_history is not None:
+                            history_id = s.opt.shallow_history
+                            self.history_values[history_id] = just_exited._effective_targets()
                         self._cancel_timers(s.opt.after_triggers)
                         _perform_actions(ctx, s.exit)
                         self.configuration &= ~s.opt.state_id_bitmap
+                        just_exited = s
 
                 # execute transition action(s)
                 with timer.Context("actions"):

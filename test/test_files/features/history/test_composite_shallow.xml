@@ -1,0 +1,49 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+    <outport name="out">
+      <event name="s1"/>
+      <event name="s2"/>
+    </outport>
+
+    <root initial="outer">
+      <state id="outer">
+        <transition target="/composite/b/s1"/>
+      </state>
+      <state id="outer2">
+        <transition target="/composite/history"/>
+      </state>
+      <state id="composite" initial="a">
+        <state id="a"/>
+        <state id="b" initial="s2">
+          <state id="s1">
+            <onentry>
+              <raise event="s1"/>
+            </onentry>
+            <transition target="/outer2"/>
+          </state>
+          <state id="s2">
+            <onentry>
+              <raise event="s2"/>
+            </onentry>
+          </state>
+        </state>
+        <history id="history" type="shallow"/>
+      </state>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="s1"/>
+      <event port="out" name="s2"/>
+    </big_step>
+  </output>
+</test>

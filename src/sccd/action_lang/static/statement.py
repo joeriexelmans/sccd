@@ -217,9 +217,11 @@ class ImportStatement(Statement):
             if isinstance(type, SCCDFunction):
                 # Function values are a bit special, in the action language they are secretly passed a MemoryInterface object as first parameter, followed by the other (visible) parameters.
                 # I don't really like this solution, but it works for now.
-                def wrapper(memory: MemoryInterface, *params):
-                    return value(*params)
-                self.declarations.append((offset, wrapper))
+                def make_wrapper(func):
+                    def wrapper(memory: MemoryInterface, *params):
+                        return func(*params)
+                    return wrapper
+                self.declarations.append((offset, make_wrapper(value)))
             else:
                 self.declarations.append((offset, value))
         return NeverReturns

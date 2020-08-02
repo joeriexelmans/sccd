@@ -2,6 +2,8 @@
 <test>
   <statechart>
     <datamodel>
+      import sccd.action_lang.lib.utils;
+
       digit = func(i:int, pos:int) {
         pow = 10 ** pos;
         return i // pow % 10;      

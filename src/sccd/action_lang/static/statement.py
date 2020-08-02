@@ -75,14 +75,16 @@ AlwaysReturns = lambda t: ReturnBehavior(ReturnBehavior.When.ALWAYS, t)
 
 # A statement is NOT an expression.
 class Statement(ABC):
-    # Execution typically has side effects.
-    @abstractmethod
-    def exec(self, memory: MemoryInterface) -> Return:
-        pass
-
+    # Run static analysis on the statement.
     # Looks up identifiers in the given scope, and adds new identifiers to the scope.
     @abstractmethod
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
+        pass
+
+    # Execute the statement.
+    # Execution typically has side effects.
+    @abstractmethod
+    def exec(self, memory: MemoryInterface) -> Return:
         pass
 
     @abstractmethod
@@ -197,3 +199,35 @@ class IfStatement(Statement):
 
     def render(self) -> str:
         return "if (%s) [[" % self.cond.render() + self.if_body.render() + "]]"
+
+
+@dataclass
+class ImportStatement(Statement):
+    module_name: str
+
+    # Offsets and values of imported stuff
+    declarations: Optional[List[Tuple[int, Any]]] = None
+
+    def init_stmt(self, scope: Scope) -> ReturnBehavior:
+        import importlib
+        self.module = importlib.import_module(self.module_name)
+        self.declarations = []
+        for name, (value, type) in self.module.SCCD_EXPORTS.items():
+            offset = scope.declare(name, type, const=True)
+            if isinstance(type, SCCDFunction):
+                # Function values are a bit special, in the action language they are secretly passed a MemoryInterface object as first parameter, followed by the other (visible) parameters.
+                # I don't really like this solution, but it works for now.
+                def wrapper(memory: MemoryInterface, *params):
+                    return value(*params)
+                self.declarations.append((offset, wrapper))
+            else:
+                self.declarations.append((offset, value))
+        return NeverReturns
+
+    def exec(self, memory: MemoryInterface) -> Return:
+        for offset, value in self.declarations:
+            memory.store(offset, value)
+        return DontReturn
+
+    def render(self) -> str:
+        return "import " + self.module_name + ";"

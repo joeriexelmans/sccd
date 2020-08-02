@@ -36,6 +36,7 @@ class StaticTypeError(ModelError):
     pass
 
 class Expression(ABC):
+    # Run static analysis on the expression.
     # Must be called exactly once on each expression, before any call to eval is made.
     # Determines the static type of the expression. May throw if there is a type error.
     # Returns static type of expression.
@@ -43,6 +44,7 @@ class Expression(ABC):
     def init_expr(self, scope: Scope) -> SCCDType:
         pass
 
+    # Evaluate the expression.
     # Evaluation may have side effects.
     @abstractmethod
     def eval(self, memory: MemoryInterface):

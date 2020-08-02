@@ -14,7 +14,7 @@ BuiltIn.declare("float_to_int", SCCDFunction([SCCDFloat], SCCDInt), const=True)
 BuiltIn.declare("log", SCCDFunction([SCCDString]), const=True)
 BuiltIn.declare("int_to_str", SCCDFunction([SCCDInt], SCCDString), const=True)
 
-def load_builtins(memory: MemoryInterface, state):
+def load_builtins(memory: MemoryInterface, execution):
   import math
   import termcolor
   
@@ -23,7 +23,7 @@ def load_builtins(memory: MemoryInterface, state):
   # Wrapper functions of the signature expected by the action language:
 
   def in_state(memory: MemoryInterface, state_list: List[str]) -> bool:
-    return state.in_state(state_list)
+    return execution.in_state(state_list)
 
   def log10(memory: MemoryInterface, i: int) -> float:
     return math.log10(i)

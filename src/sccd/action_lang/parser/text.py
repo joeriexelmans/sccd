@@ -86,6 +86,9 @@ class ExpressionTransformer(Transformer):
     else:
       return IfStatement(cond=node[0], if_body=node[1], else_body=node[2])
 
+  def import_stmt(self, node):
+    return ImportStatement(module_name=node[0])
+
   params_decl = list
 
   def param_decl(self, node):

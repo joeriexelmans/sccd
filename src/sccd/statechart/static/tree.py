@@ -32,7 +32,6 @@ class State(Freezable):
             self.parent.children.append(self)
 
     # Subset of descendants that are always entered when this state is the target of a transition, minus history states.
-
     def _effective_targets(self) -> Bitmap:
         if self.default_state:
             # this state + recursion on 'default state'

@@ -118,11 +118,14 @@ TIME_D: "d" // for zero-duration
 
 ?block: (stmt)*
 
+MODULE_NAME: IDENTIFIER ("." IDENTIFIER)*
+
 ?stmt: assignment ";"
      | expr ";" -> expression_stmt
      | "return" expr ";" -> return_stmt
      | "{" block "}" -> block
      | "if" "(" expr ")" stmt ("else" stmt)? -> if_stmt
+     | "import" MODULE_NAME ";" -> import_stmt
 
 assignment: lhs assign_operator expr
 

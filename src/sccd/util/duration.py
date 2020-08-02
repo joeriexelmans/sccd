@@ -255,3 +255,14 @@ def get_conversion_f(from_unit: Duration, to_unit: Duration) -> Callable[[int], 
   else:
     factor = to_unit // from_unit
     return lambda x: x // factor
+
+def get_conversion_f_float(from_unit: Duration, to_unit: Duration) -> Callable[[Union[int,float]], Union[int,float]]:
+  if from_unit is _zero or to_unit is _zero:
+    raise Exception("Cannot convert between zero-duration units")
+    
+  if from_unit > to_unit:
+    factor = from_unit // to_unit
+    return lambda x: x * factor
+  else:
+    factor = to_unit // from_unit
+    return lambda x: x / factor

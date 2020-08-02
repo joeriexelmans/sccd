@@ -19,7 +19,7 @@ class EventLoopImplementation(ABC):
     def cancel(self, id: ScheduledID):
         pass
 
-
+# Event loop "platform"
 class EventLoop:
     def __init__(self, controller: Controller, event_loop: EventLoopImplementation, time_impl: TimeImplementation = DefaultTimeImplementation):
         delta = controller.cd.get_delta()
@@ -43,7 +43,7 @@ class EventLoop:
         # back to sleep
         now = self.timer.now()
         next_wakeup = self.controller.next_wakeup()
-        if next_wakeup:
+        if next_wakeup is not None:
             sleep_duration = self.to_event_loop_unit(next_wakeup - now)
             if sleep_duration < 0:
                 self.purposefully_behind = now - next_wakeup

@@ -1,6 +1,7 @@
 from abc import *
 from sccd.realtime.time import *
 from sccd.controller.controller import *
+import queue
 
 ScheduledID = Any
 
@@ -19,7 +20,8 @@ class EventLoopImplementation(ABC):
     def cancel(self, id: ScheduledID):
         pass
 
-# Event loop "platform"
+# Event loop "platform".
+# This class is NOT thread-safe.
 class EventLoop:
     def __init__(self, controller: Controller, event_loop: EventLoopImplementation, time_impl: TimeImplementation = DefaultTimeImplementation):
         delta = controller.cd.get_delta()
@@ -38,19 +40,20 @@ class EventLoop:
         self.purposefully_behind = 0
 
     def _wakeup(self):
-        self.controller.run_until(self.timer.now() - self.purposefully_behind)
+        self.controller.run_until(self.timer.now() + self.purposefully_behind)
 
         # back to sleep
-        now = self.timer.now()
         next_wakeup = self.controller.next_wakeup()
+
         if next_wakeup is not None:
-            sleep_duration = self.to_event_loop_unit(next_wakeup - now)
+            sleep_duration = next_wakeup - self.timer.now()
             if sleep_duration < 0:
-                self.purposefully_behind = now - next_wakeup
+                self.purposefully_behind = sleep_duration
                 sleep_duration = 0
             else:
                 self.purposefully_behind = 0
-            self.scheduled = self.event_loop.schedule(sleep_duration, self._wakeup)
+
+            self.scheduled = self.event_loop.schedule(self.to_event_loop_unit(sleep_duration), self._wakeup)
         else:
             self.scheduled = None
 
@@ -59,15 +62,55 @@ class EventLoop:
         self._wakeup()
 
     def now(self):
-        return self.timer.now() - self.purposefully_behind
+        return self.timer.now() + self.purposefully_behind
 
-    # Uncomment if ever needed:
-    # Does not mix well with interrupt().
-    # def pause(self):
-    #     self.timer.pause()
-    #     self.event_loop.cancel()(self.scheduled)
-
-    def interrupt(self):
+    # Add input event with timestamp 'now'
+    def add_input_now(self, port, event_name, params=[]):
+        self.controller.add_input(
+            timestamp=self.now(), port=port, event_name=event_name, params=params)
         if self.scheduled:
             self.event_loop.cancel(self.scheduled)
         self.event_loop.schedule(0, self._wakeup)
+
+
+# Extension to the EventLoop class with a thread-safe method for adding input events.
+# Allows other threads to add input to the Controller, which is useful when doing blocking IO.
+# It is probably cleaner to do async IO and use the regular EventLoop class instead.
+# Input events added in a thread-safe manner are added to a separate (thread-safe) queue. A bit hackish, this queue is regularly checked (polled) for new events from the 3rd party (e.g. Tk) event loop.
+# Perhaps a better alternative to polling is Yentl's tk.event_generate solution.
+class ThreadSafeEventLoop(EventLoop):
+    def __init__(self, controller: Controller, event_loop: EventLoopImplementation, time_impl: TimeImplementation = DefaultTimeImplementation):
+        super().__init__(controller, event_loop, time_impl)
+
+        # thread-safe queue
+        self.queue = queue.Queue()
+
+        # check regularly if queue contains new events
+        self.poll_interval = duration(100, Millisecond) // event_loop.time_unit()
+
+    # override
+    def _wakeup(self):
+        while True:
+            try:
+                timestamp, port, event_name, params = self.queue.get_nowait()
+            except queue.Empty:
+                break
+            self.controller.add_input(timestamp, port, event_name, params)
+
+        self.controller.run_until(self.timer.now() + self.purposefully_behind)
+
+        next_wakeup = self.controller.next_wakeup()
+        if next_wakeup is not None:
+            sleep_duration = next_wakeup - self.timer.now()
+            if sleep_duration < 0:
+                self.purposefully_behind = sleep_duration
+                sleep_duration = 0
+            else:
+                self.purposefully_behind = 0
+            self.scheduled = self.event_loop.schedule(min(self.to_event_loop_unit(sleep_duration), self.poll_interval), self._wakeup)
+        else:
+            self.scheduled = self.event_loop.schedule(self.poll_interval, self._wakeup)
+
+    # Safe to call this method from any thread
+    def add_input_now_threadsafe(self, port, event_name, params=[]):
+        self.queue.put((self.now(), port, event_name, params))

@@ -355,10 +355,13 @@ def optimize_tree(root: State) -> StateTree:
             after_children=[
                 set_descendants,
                 calculate_effective_targets,
+            ])
+
+        visit_tree(root, lambda s: s.children,
+            after_children=[
                 deal_with_history,
                 freeze,
             ])
-
 
         for t in transition_list:
             # Arena can be computed statically. First compute Lowest-common ancestor:

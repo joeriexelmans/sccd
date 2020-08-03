@@ -1,0 +1,218 @@
+<single_instance_cd>
+  <delta>1 ms</delta>
+
+  <statechart>
+    <datamodel>
+      import sccd.action_lang.lib.utils;
+      
+      import lib.network_client;
+      import lib.ui;
+      import lib.utils;
+
+      # Statechart's variables
+      curr_server = 0;
+      room_number = 0;
+      reconnected = False;
+    </datamodel>
+
+    <inport name="network">
+      <event name="connected"/>
+      <event name="disconnected"/>
+      <event name="joined"/>
+      <event name="left"/>
+      <event name="receive_message"/>
+      <event name="alive"/>
+    </inport>
+
+    <inport name="ui">
+      <event name="input"/>
+    </inport>
+
+    <outport name="network">
+      <event name="connect"/>
+      <event name="disconnect"/>
+      <event name="join"/>
+      <event name="leave"/>
+      <event name="send_message"/>
+      <event name="poll"/>
+    </outport>
+
+    <root>
+      <parallel id="p">
+        <!-- main orthogonal region -->
+        <state id="main" initial="disconnected">
+          <state id="disconnected" initial="initial">
+            <onentry>
+              <code> input_command(); </code>
+            </onentry>
+            <state id="initial">
+              <transition after="100 ms" target="../trying_connect">
+                <code> add_message("trying to connect to server " + get_server(curr_server), "info"); </code>
+                <raise event="connect">
+                  <param expr="get_server(curr_server)"/>
+                </raise>
+              </transition>
+            </state>
+            <state id="trying_connect">
+              <transition event="connected" target="/p/main/connected">
+                <code> add_message("connected to server " + get_server(curr_server), "info"); </code>
+              </transition>
+              <transition after="5 s" target="../initial">
+                <code>
+                  add_message("unable to connect to server " + get_server(curr_server), "info");
+                  curr_server = (curr_server + 1) % get_nr_of_servers();
+                </code>
+              </transition>
+            </state>
+          </state>
+
+          <state id="reconnecting" initial="initial">
+            <onentry>
+              <code> input_command(); </code>
+            </onentry>
+            <state id="initial">
+              <transition after="100 ms" target="../trying_connect">
+                <code> add_message("trying to connect to server " + get_server(curr_server), "info"); </code>
+                <raise event="connect">
+                  <param expr="get_server(curr_server)"/>
+                </raise>
+              </transition>
+            </state>
+            <state id="trying_connect">
+              <transition event="connected" target="/p/main/connected/joining">
+                <code> add_message("connected to server" + get_server(curr_server), "info"); </code>
+              </transition>
+              <transition after="5 s" target="../initial">
+                  <code> add_message("unable to connect to server " + get_server(curr_server), "info"); </code>
+              </transition>
+            </state>
+
+            <!-- ?? -->
+          </state>
+
+          <state id="connected" initial="connected">
+            <transition event="do_disconnect" target="../reconnecting">
+              <code> add_message("disconnected", "info"); </code>
+            </transition>
+
+            <state id="leaving">
+              <transition event="left" target="../connected">
+                <code> add_message("left room", "info"); </code>
+              </transition>
+            </state>
+
+            <state id="connected">
+              <transition event="input(char: str)" cond='char == "j"' target="../getting_roomnumber">
+                <code> input_join(); </code>
+              </transition>
+            </state>
+
+            <state id="getting_roomnumber">
+              <transition event="input(char: str)" cond="is_backspace(char)" target=".">
+                <code> remove_last_in_buffer(); </code>
+              </transition>
+              <transition event="input(char: str)" cond="is_enter(char)" target="../joining">
+                <code>
+                  room_number = stoi(get_buffer());
+                  clear_input();
+                  input_command();
+                </code>
+              </transition>
+              <transition event="input(char: str)" cond="is_numerical(char)" target=".">
+                <code> append_to_buffer(char); </code>
+              </transition>
+              <transition event="input(char: str)" cond="not is_numerical(char)" target=".">
+                <code> add_message("only numerical input allowed!", "warning"); </code>
+              </transition>
+            </state>
+
+            <state id="joining">
+              <onentry>
+                <raise event="join">
+                  <param expr="room_number"/>
+                </raise>
+              </onentry>
+              <onexit>
+              </onexit>
+
+              <transition event="joined" target="../joined/H">
+                <code> add_message("joined room " + int_to_str(room_number), "info"); </code>
+              </transition>
+            </state>
+
+            <state id="joined" initial="initial">
+              <state id="initial">
+                <!--<onentry>
+                  <code> input_command(); </code>
+                </onentry>-->
+
+                <transition event="input(char: str)" cond='char == "m"' target="../entering_message"/>
+                <transition event="input(char: str)" cond='char == "l"' target="../../leaving">
+                  <raise event="leave"/>
+                  <code> input_command(); </code>
+                </transition>
+              </state>
+
+              <state id="entering_message">
+                <onentry>
+                  <code> input_msg(); </code>
+                </onentry>
+                <!-- explicit (document order) priority used here: -->
+                <transition event="input(char: str)" cond="is_backspace(char)" target=".">
+                  <code> remove_last_in_buffer(); </code>
+                </transition>
+                <transition event="input(char: str)" cond="is_enter(char)" target="../initial">
+                  <raise event="send_message">
+                    <param expr="get_buffer()"/>
+                  </raise>
+                  <code>
+                    add_message(get_buffer(), "local_message");
+                    clear_input();
+                    input_command();
+                  </code>
+                </transition>
+                <transition event="input(char: str)" target=".">
+                  <code> append_to_buffer(char); </code>
+                </transition>
+              </state>
+
+              <history id="H" type="shallow"/>
+            </state>
+          </state>
+        </state>
+
+        <!-- polling orthogonal region -->
+        <state id="polling" initial="initial">
+          <state id="initial">
+            <transition event="connected" target="../polling"/>
+          </state>
+          <state id="polling">
+            <transition after="1 s" target="../expecting_answer">
+              <raise event="poll"/>
+              <!-- <code> print("sent POLL"); </code> -->
+            </transition>
+          </state>
+          <state id="expecting_answer">
+            <transition event="alive" target="../polling">
+              <!-- <code> print("got ALIVE"); </code> -->
+            </transition>
+            <transition after="2 s" target="../initial">
+              <raise event="do_disconnect"/>
+              <code> print("polling timeout... disconnect"); </code>
+            </transition>
+          </state>
+        </state>
+
+        <!-- listening orthogonal region -->
+        <state id="listening">
+          <state id="l">
+            <transition event="receive_message(msg:str)" target=".">
+              <code> add_message(msg, "remote_message"); </code>
+            </transition>
+          </state>
+        </state>
+      </parallel>
+    </root>
+
+  </statechart>
+</single_instance_cd>

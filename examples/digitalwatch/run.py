@@ -15,9 +15,7 @@ def main():
     gui = DigitalWatchGUI(topLevel)
 
     def on_gui_event(event: str):
-        controller.add_input(
-            timestamp=eventloop.now(), event_name=event, port="in", params=[])
-        eventloop.interrupt()
+        eventloop.add_input_now(port="in", event_name=event)
 
     gui.controller.send_event = on_gui_event
 

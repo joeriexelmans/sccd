@@ -110,7 +110,7 @@ class Assignment(Statement):
         return DontReturn
 
     def render(self) -> str:
-        return self.lhs.render() + ' = ' + self.rhs.render() + ';'
+        return self.lhs.render() + ' = ' + self.rhs.render() #+ '⁏'
 
 
 
@@ -172,7 +172,7 @@ class ReturnStatement(Statement):
         return DoReturn(val)
 
     def render(self) -> str:
-        return "return " + self.expr.render() + ";"
+        return "return " + self.expr.render() #+ ";"
 
 @dataclass
 class IfStatement(Statement):
@@ -232,4 +232,4 @@ class ImportStatement(Statement):
         return DontReturn
 
     def render(self) -> str:
-        return "import " + self.module_name + ";"
+        return "import " + self.module_name #+ ";"

@@ -3,18 +3,19 @@ import unittest
 import threading
 import queue
 import functools
-from sccd.util.os_tools import *
-from sccd.util.debug import *
-from sccd.cd.static.cd import *
-from sccd.controller.controller import *
-from sccd.test.xml import *
-from sccd.util import timer
 
 import sys
 if sys.version_info.minor >= 7:
   QueueImplementation = queue.SimpleQueue
 else:
   QueueImplementation = queue.Queue
+sys.path.append("..")
+from util.os_tools import *
+from util.debug import *
+from cd.static.cd import *
+from controller.controller import *
+from xml import *
+from util import timer
 
 # A TestCase loading and executing a statechart test file.
 class Test(unittest.TestCase):

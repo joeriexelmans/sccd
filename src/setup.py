@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(name="sccd",
       version="1.0.0",
@@ -6,20 +6,6 @@ setup(name="sccd",
       author="Simon Van Mierlo",
       author_email="Simon.VanMierlo@uantwerpen.be",
       url="http://msdl.cs.mcgill.ca/people/simonvm",
-      packages=[
-        'sccd',
-        'sccd.action_lang',
-        'sccd.action_lang.cmd',
-        'sccd.action_lang.dynamic',
-        'sccd.action_lang.parser',
-        'sccd.action_lang.static',
-        'sccd.controller',
-        'sccd.model',
-        'sccd.statechart',
-        'sccd.statechart.cmd',
-        'sccd.statechart.dynamic',
-        'sccd.statechart.parser',
-        'sccd.statechart.static',
-        'sccd.util',
-      ]
+      packages=find_packages(exclude=['sccd.test']),
+      include_package_data=True
 )

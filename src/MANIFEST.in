@@ -1,0 +1,2 @@
+include sccd/action_lang/parser/action_lang.g
+include sccd/statechart/parser/statechart.g

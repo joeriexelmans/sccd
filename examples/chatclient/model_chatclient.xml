@@ -2,6 +2,15 @@
   <delta>1 ms</delta>
 
   <statechart>
+
+    <semantics
+      big_step_maximality="take_one"
+      internal_event_lifeline="reMainder"
+      input_event_lifeline="whole"
+      enabledness_memory_protocol="small_step"
+      assignment_memory_protocol="small_step"
+    />
+
     <datamodel>
       import sccd.action_lang.lib.utils;
       
@@ -12,7 +21,7 @@
       # Statechart's variables
       curr_server = 0;
       room_number = 0;
-      reconnected = False;
+      reconnecting = False;
     </datamodel>
 
     <inport name="network">
@@ -38,174 +47,158 @@
     </outport>
 
     <root>
-      <parallel id="p">
-        <!-- main orthogonal region -->
-        <state id="main" initial="disconnected">
-          <state id="disconnected" initial="initial">
+      <parallel id="P">
+        <!-- Main orthogonal region: all user interaction and Main window state -->
+        <state id="Main" initial="Connecting">
+
+          <state id="Connecting" initial="Initial">
             <onentry>
               <code> input_command(); </code>
             </onentry>
-            <state id="initial">
-              <transition after="100 ms" target="../trying_connect">
+            <state id="Initial">
+              <transition after="100 ms" target="../TryingConnect">
                 <code> add_message("trying to connect to server " + get_server(curr_server), "info"); </code>
                 <raise event="connect">
                   <param expr="get_server(curr_server)"/>
                 </raise>
               </transition>
             </state>
-            <state id="trying_connect">
-              <transition event="connected" target="/p/main/connected">
+            <state id="TryingConnect">
+              <transition event="connected" target="/P/Main/Connected/H">
                 <code> add_message("connected to server " + get_server(curr_server), "info"); </code>
               </transition>
-              <transition after="5 s" target="../initial">
+              <transition after="5 s" target="../Initial">
                 <code>
                   add_message("unable to connect to server " + get_server(curr_server), "info");
-                  curr_server = (curr_server + 1) % get_nr_of_servers();
+                  if (not reconnecting) {
+                    curr_server = (curr_server + 1) % get_nr_of_servers();
+                  }
                 </code>
               </transition>
             </state>
           </state>
 
-          <state id="reconnecting" initial="initial">
-            <onentry>
-              <code> input_command(); </code>
-            </onentry>
-            <state id="initial">
-              <transition after="100 ms" target="../trying_connect">
-                <code> add_message("trying to connect to server " + get_server(curr_server), "info"); </code>
-                <raise event="connect">
-                  <param expr="get_server(curr_server)"/>
-                </raise>
-              </transition>
-            </state>
-            <state id="trying_connect">
-              <transition event="connected" target="/p/main/connected/joining">
-                <code> add_message("connected to server" + get_server(curr_server), "info"); </code>
-              </transition>
-              <transition after="5 s" target="../initial">
-                  <code> add_message("unable to connect to server " + get_server(curr_server), "info"); </code>
-              </transition>
-            </state>
-
-            <!-- ?? -->
-          </state>
-
-          <state id="connected" initial="connected">
-            <transition event="do_disconnect" target="../reconnecting">
-              <code> add_message("disconnected", "info"); </code>
+          <state id="Connected" initial="LeavingOrLeft">
+            <transition event="timeout" target="/P/Main/Connecting">
+              <code>
+                add_message("disconnected", "info");
+                reconnecting = True;
+              </code>
             </transition>
 
-            <state id="leaving">
-              <transition event="left" target="../connected">
-                <code> add_message("left room", "info"); </code>
-              </transition>
-            </state>
-
-            <state id="connected">
-              <transition event="input(char: str)" cond='char == "j"' target="../getting_roomnumber">
-                <code> input_join(); </code>
-              </transition>
-            </state>
-
-            <state id="getting_roomnumber">
-              <transition event="input(char: str)" cond="is_backspace(char)" target=".">
-                <code> remove_last_in_buffer(); </code>
-              </transition>
-              <transition event="input(char: str)" cond="is_enter(char)" target="../joining">
-                <code>
-                  room_number = stoi(get_buffer());
-                  clear_input();
-                  input_command();
-                </code>
-              </transition>
-              <transition event="input(char: str)" cond="is_numerical(char)" target=".">
-                <code> append_to_buffer(char); </code>
-              </transition>
-              <transition event="input(char: str)" cond="not is_numerical(char)" target=".">
-                <code> add_message("only numerical input allowed!", "warning"); </code>
-              </transition>
-            </state>
-
-            <state id="joining">
-              <onentry>
-                <raise event="join">
-                  <param expr="room_number"/>
-                </raise>
-              </onentry>
-              <onexit>
-              </onexit>
-
-              <transition event="joined" target="../joined/H">
-                <code> add_message("joined room " + int_to_str(room_number), "info"); </code>
-              </transition>
-            </state>
-
-            <state id="joined" initial="initial">
-              <state id="initial">
-                <!--<onentry>
-                  <code> input_command(); </code>
-                </onentry>-->
-
-                <transition event="input(char: str)" cond='char == "m"' target="../entering_message"/>
-                <transition event="input(char: str)" cond='char == "l"' target="../../leaving">
-                  <raise event="leave"/>
-                  <code> input_command(); </code>
+            <state id="LeavingOrLeft" initial="NotJoined">
+              <state id="NotJoined">
+                <transition event="input(char: str)" cond='char == "j"' target="../GettingRoomNumber">
+                  <code> input_join(); </code>
                 </transition>
               </state>
 
-              <state id="entering_message">
-                <onentry>
-                  <code> input_msg(); </code>
-                </onentry>
-                <!-- explicit (document order) priority used here: -->
+              <state id="GettingRoomNumber">
                 <transition event="input(char: str)" cond="is_backspace(char)" target=".">
                   <code> remove_last_in_buffer(); </code>
                 </transition>
-                <transition event="input(char: str)" cond="is_enter(char)" target="../initial">
-                  <raise event="send_message">
-                    <param expr="get_buffer()"/>
-                  </raise>
+                <transition event="input(char: str)" cond="is_enter(char)" target="../../JoiningOrJoined">
                   <code>
-                    add_message(get_buffer(), "local_message");
+                    room_number = stoi(get_buffer());
                     clear_input();
                     input_command();
                   </code>
                 </transition>
-                <transition event="input(char: str)" target=".">
+                <transition event="input(char: str)" cond="is_numerical(char)" target=".">
                   <code> append_to_buffer(char); </code>
+                </transition>
+                <transition event="input(char: str)" cond="not is_numerical(char)" target=".">
+                  <code> add_message("only numerical input allowed!", "warning"); </code>
                 </transition>
               </state>
 
-              <history id="H" type="shallow"/>
+              <state id="Leaving">
+                <transition event="left" target="../NotJoined">
+                  <code> add_message("left room", "info"); </code>
+                </transition>
+              </state>
             </state>
+
+            <state id="JoiningOrJoined" initial="Joining">
+              <state id="Joining">
+                <onentry>
+                  <raise event="join">
+                    <param expr="room_number"/>
+                  </raise>
+                </onentry>
+                <onexit>
+                </onexit>
+
+                <transition event="joined" target="../Joined/H">
+                  <code> add_message("joined room " + int_to_str(room_number), "info"); </code>
+                </transition>
+              </state>
+
+              <state id="Joined" initial="Initial">
+                <state id="Initial">
+                  <transition event="input(char: str)" cond='char == "m"' target="../EnteringMessage"/>
+                  <transition event="input(char: str)" cond='char == "l"' target="/P/Main/Connected/LeavingOrLeft/Leaving">
+                    <raise event="leave"/>
+                    <code> input_command(); </code>
+                  </transition>
+                </state>
+
+                <state id="EnteringMessage">
+                  <onentry>
+                    <code> input_msg(); </code>
+                  </onentry>
+                  <!-- explicit (document order) priority used here: -->
+                  <transition event="input(char: str)" cond="is_backspace(char)" target=".">
+                    <code> remove_last_in_buffer(); </code>
+                  </transition>
+                  <transition event="input(char: str)" cond="is_enter(char)" target="../Initial">
+                    <raise event="send_message">
+                      <param expr="get_buffer()"/>
+                    </raise>
+                    <code>
+                      add_message(get_buffer(), "local_message");
+                      clear_input();
+                      input_command();
+                    </code>
+                  </transition>
+                  <transition event="input(char: str)" target=".">
+                    <code> append_to_buffer(char); </code>
+                  </transition>
+                </state>
+
+                <history id="H" type="shallow"/>
+              </state>
+            </state>
+
+            <history id="H" type="shallow"/>
           </state>
         </state>
 
-        <!-- polling orthogonal region -->
-        <state id="polling" initial="initial">
-          <state id="initial">
-            <transition event="connected" target="../polling"/>
+        <!-- pinging orthogonal region -->
+        <state id="Pinging" initial="Initial">
+          <state id="Initial">
+            <transition event="connected" target="../Pinging"/>
           </state>
-          <state id="polling">
-            <transition after="1 s" target="../expecting_answer">
+          <state id="Pinging">
+            <transition after="1 s" target="../ExpectingAnswer">
               <raise event="poll"/>
               <!-- <code> print("sent POLL"); </code> -->
             </transition>
           </state>
-          <state id="expecting_answer">
-            <transition event="alive" target="../polling">
+          <state id="ExpectingAnswer">
+            <transition event="alive" target="../Pinging">
               <!-- <code> print("got ALIVE"); </code> -->
             </transition>
-            <transition after="2 s" target="../initial">
-              <raise event="do_disconnect"/>
+            <transition after="2 s" target="../Initial">
+              <raise event="timeout"/>
               <code> print("polling timeout... disconnect"); </code>
             </transition>
           </state>
         </state>
 
         <!-- listening orthogonal region -->
-        <state id="listening">
-          <state id="l">
+        <state id="Receiving">
+          <state id="Receiving">
             <transition event="receive_message(msg:str)" target=".">
               <code> add_message(msg, "remote_message"); </code>
             </transition>

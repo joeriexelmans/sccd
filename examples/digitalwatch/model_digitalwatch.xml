@@ -5,7 +5,7 @@
     <semantics
       big_step_maximality="take_one"
       internal_event_lifeline="next_small_step"
-      input_event_lifeline="whole"
+      input_event_lifeline="first_small_step"
     />
 
     <inport name="in">
@@ -59,19 +59,16 @@
             </state>
 
             <state id="Blinking" initial="On">
-              <onexit>
-                <raise event="unsetIndiglo"/>
-              </onexit>
               <state id="On">
                 <onentry>
                   <raise event="setIndiglo"/>
                 </onentry>
+                <onexit>
+                  <raise event="unsetIndiglo"/>
+                </onexit>
                 <transition after="500 ms" target="../Off"/>
               </state>
               <state id="Off">
-                <onentry>
-                  <raise event="unsetIndiglo"/>
-                </onentry>
                 <transition after="500 ms" target="../On"/>
               </state>
               <!-- user interrupt alarm: also toggle off alarm -->
@@ -141,7 +138,7 @@
 
           <state id="WaitingToEdit">
             <transition after="1500 ms" target="../EditingTime">
-              <raise event="time_edit"/>
+              <!-- <raise event="time_edit"/> -->
             </transition>
             <transition event="bottomRightReleased" target="../TimeUpdate"/>
           </state>
@@ -159,16 +156,18 @@
           <state id="EditingTime" initial="Waiting">
             <onentry>
               <raise event="startSelection"/>
+              <raise event="time_edit"/>
             </onentry>
             <onexit>
               <raise event="stopSelection"/>
+              <raise event="edit_done"/>
             </onexit>
 
             <state id="Waiting">
               <transition event="bottomLeftPressed" target="../Increasing"/>
               <transition event="bottomRightPressed" target="../GoingToNext"/>
               <transition after="5 s" target="../../TimeUpdate">
-                <raise event="edit_done"/>
+                <!-- <raise event="edit_done"/> -->
               </transition>
             </state>
 
@@ -177,7 +176,7 @@
                 <raise event="selectNext"/>
               </transition>
               <transition after="2 s" target="../../TimeUpdate">
-                <raise event="edit_done"/>
+                <!-- <raise event="edit_done"/> -->
               </transition>
             </state>
 
@@ -202,13 +201,14 @@
 
         <state id="Time" initial="Increasing">
           <state id="Increasing">
-            <transition after="1 s" cond='INSTATE(["/P/Alarm/On"])' target=".">
+<!--             <transition after="1 s" cond='INSTATE(["/P/Alarm/On"])' target=".">
               <raise event="increaseTimeByOne"/>
               <raise event="checkTime"/>
               <raise event="int_refresh_time"/>
             </transition>
-            <transition after="1 s" target=".">
+ -->            <transition after="1 s" target=".">
               <raise event="increaseTimeByOne"/>
+              <raise event="checkTime"/>
               <raise event="int_refresh_time"/>
             </transition>
             <transition event="time_edit" target="../Editing"/>

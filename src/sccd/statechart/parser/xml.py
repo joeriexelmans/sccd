@@ -1,4 +1,5 @@
 from typing import *
+from lark.exceptions import *
 from sccd.statechart.static.statechart import *
 from sccd.statechart.static.tree import *
 from sccd.statechart.dynamic.builtin_scope import *
@@ -8,7 +9,7 @@ from sccd.statechart.parser.text import *
 class SkipFile(Exception):
   pass
 
-parse_f = functools.partial(parse, decorate_exceptions=(ModelError,))
+parse_f = functools.partial(parse, decorate_exceptions=(ModelError,LarkError))
 
 def check_duration_type(type):
   if type != SCCDDuration:

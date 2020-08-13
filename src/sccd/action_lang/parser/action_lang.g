@@ -39,6 +39,7 @@
      | "(" expr ")"             -> group
      | literal
      | func_call
+     | array_indexed
      | func_decl
      | array
 
@@ -46,6 +47,8 @@ IDENTIFIER: /[A-Za-z_][A-Za-z_0-9]*/
 
 func_call: atom "(" param_list ")"
 param_list: ( expr ("," expr)* )?  -> params
+
+array_indexed: atom "[" expr "]"
 
 func_decl: "func" params_decl stmt
 params_decl: ( "(" param_decl ("," param_decl)* ")" )?
@@ -132,6 +135,7 @@ assignment: lhs assign_operator expr
 increment: lhs "+=" expr
 
 ?lhs: IDENTIFIER -> identifier
+    | array_indexed
 
 ?assign_operator: ASSIGN | INCREMENT | DECREMENT | MULTIPLY | DIVIDE
 

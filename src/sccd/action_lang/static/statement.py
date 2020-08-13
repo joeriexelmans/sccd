@@ -103,9 +103,7 @@ class Assignment(Statement):
 
     def exec(self, memory: MemoryInterface) -> Return:
         rhs_val = self.rhs.eval(memory)
-        offset = self.lhs.eval_lvalue()
-
-        memory.store(offset, rhs_val)
+        self.lhs.assign(memory, rhs_val)
 
         return DontReturn
 

@@ -1,0 +1,59 @@
+<statechart>
+  <!-- this statechart is shown as an example in the thesis -->
+  <!-- is included here and can be "checked" for syntax correctness with the tool in sccd.statechart.cmd.check_model -->
+  <datamodel>
+    burners = [0, 0, 0, 0];
+    selected = 0;
+
+    min = func(a: int, b: int) {
+      if (a &lt; b) return a;
+      return b;
+    };
+
+    increase = func {
+      burners[selected] = min(burners[selected] + 1, 9);
+    };
+  </datamodel>
+
+  <inport name="in">
+    <event name="pressed_increase"/>
+    <event name="released_increase"/>
+    <event name="select_next"/>
+  </inport>
+
+  <root>
+    <parallel id="p">
+      <!-- upper orthogonal region -->
+      <state id="heat" initial="Released">
+        <state id="Released">
+          <transition event="pressed_increase" target="../Pushed"/>
+        </state>
+
+        <state id="Pushed" initial="Waiting">
+          <onentry>
+            <code> increase(); </code>
+          </onentry>
+          <transition event="released_increase" target="../Released"/>
+
+          <state id="Waiting">
+            <transition after="1 s" target="../Increasing"/>
+          </state>
+          <state id="Increasing">
+            <transition after="200 ms" target=".">
+              <code> increase(); </code>
+            </transition>
+          </state>
+        </state>
+      </state>
+
+      <!-- lower orthogonal region -->
+      <state id="burner_select">
+        <state id="BurnerSelect">
+          <transition event="select_next" target=".">
+            <code> selected = (selected + 1) % 4; </code>
+          </transition>
+        </state>
+      </state>
+    </parallel>
+  </root>
+</statechart>

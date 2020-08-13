@@ -67,13 +67,8 @@ class LValue(Expression):
     #   offset ∈ [0, +∞[ : variable's memory address is within current scope
     #   offset ∈ ]-∞, 0[ : variable's memory address is in a parent scope (or better: 'context scope')
     @abstractmethod
-    def eval_lvalue(self) -> int:
+    def assign(self, memory: MemoryInterface, value: Any):
         pass
-
-    # Any type that is an LValue can also serve as an expression!
-    def eval(self, memory: MemoryInterface):
-        offset = self.eval_lvalue()
-        return memory.load(offset)
 
 @dataclass
 class Identifier(LValue):
@@ -87,8 +82,11 @@ class Identifier(LValue):
     def init_lvalue(self, scope: Scope, type):
         self.offset = scope.put_lvalue(self.name, type)
 
-    def eval_lvalue(self) -> int:
-        return self.offset
+    def assign(self, memory: MemoryInterface, value: Any):
+        memory.store(self.offset, value)
+
+    def eval(self, memory: MemoryInterface):
+        return memory.load(self.offset)
 
     def render(self):
         return self.name
@@ -165,6 +163,38 @@ class FunctionDeclaration(Expression):
     def render(self) -> str:
         return "func(%s) [...]" % ", ".join(p.render() for p in self.params_decl) # todo
         
+@dataclass
+class ArrayIndexed(LValue):
+    array: Expression
+    index: Expression
+
+    def init_expr(self, scope: Scope) -> SCCDType:
+        array_type = self.array.init_expr(scope)
+        if not isinstance(array_type, SCCDArray):
+            raise StaticTypeError("Array indexation: Expression '%s' is not an array" % self.array.render())
+        index_type = self.index.init_expr(scope)
+        if index_type is not SCCDInt:
+            raise StaticTypeError("Array indexation: Expression '%s' is not an integer" % self.index_type.render())
+        return array_type.element_type
+
+    def init_lvalue(self, scope: Scope, type):
+        if not isinstance(self.array, LValue):
+            raise StaticTypeError("Array indexation as LValue: Expression '%s' must be an LValue" % self.array.render())
+
+        self.array.init_lvalue(scope, SCCDArray(element_type=type))
+
+    def assign(self, memory: MemoryInterface, value):
+        self.array.eval(memory)[self.index.eval(memory)] = value
+
+    def render(self):
+        return self.name
+
+    def eval(self, memory: MemoryInterface):
+        index = self.index.eval()
+        return array.eval(memory)[index]
+
+    def render(self):
+        return self.array.render() + '[' + self.index.render() + ']'
 
 @dataclass
 class StringLiteral(Expression):

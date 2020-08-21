@@ -6,10 +6,10 @@
 
 * CPython >= 3.6 or PyPy >= 7.3.0 (Compatible with Python 3.6)
 * The following packages from PyPi:
-  * [lark-parser](https://github.com/lark-parser/lark) for parsing action code and various fragments of the statechart language
-  * [lxml](https://lxml.de/) for parsing the statechart XML input format
+  * [lark-parser](https://github.com/lark-parser/lark) for parsing action language code and various fragments of the statechart language (such as target state references in an XPath-like syntax)
+  * [lxml](https://lxml.de/), wraps the C-library libxml2, used for parsing the statechart XML input format
   * [termcolor](https://pypi.org/project/termcolor/) for colored terminal output
-  * [dataclasses](https://pypi.org/project/dataclasses/) (not needed for Python >= 3.7)
+  * [dataclasses](https://pypi.org/project/dataclasses/) standard library backport, not needed for Python >= 3.7.
 
 ### Optional
 

@@ -18,6 +18,7 @@ class BigStepMaximality(SemanticAspect, Enum):
 class ComboStepMaximality(SemanticAspect, Enum):
   COMBO_TAKE_ONE = auto()
   COMBO_TAKE_MANY = auto()
+  COMBO_SYNTACTIC = auto()
 
 class InternalEventLifeline(SemanticAspect, Enum):
   QUEUE = auto()

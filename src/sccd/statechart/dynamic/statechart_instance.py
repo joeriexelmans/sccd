@@ -62,12 +62,12 @@ class StatechartInstance(Instance):
 
 
         if semantics.big_step_maximality == BigStepMaximality.TAKE_ONE:
-            self._big_step = combo_step = SuperRound(termcolor.colored("big_one", 'red'), small_step, maximality=TakeOne()) # No combo steps
+            self._big_step = combo_step = SuperRound(termcolor.colored("big_one", 'red'), subround=small_step, maximality=TakeOne()) # No combo steps
 
         elif semantics.big_step_maximality == BigStepMaximality.TAKE_MANY or semantics.big_step_maximality == BigStepMaximality.SYNTACTIC:
             # Always add a layer of 'fairness' above our small steps, so
             # orthogonal transitions take turns fairly.
-            combo_one = SuperRound(termcolor.colored("combo_one", 'magenta'), small_step, maximality=TakeOne())
+            combo_one = SuperRound(termcolor.colored("combo_one", 'magenta'), subround=small_step, maximality=TakeOne())
 
             if semantics.combo_step_maximality == ComboStepMaximality.COMBO_TAKE_ONE:
                 # Fairness round becomes our combo step round
@@ -75,15 +75,19 @@ class StatechartInstance(Instance):
 
             elif semantics.combo_step_maximality == ComboStepMaximality.COMBO_TAKE_MANY:
                 # Add even more layers, basically an onion at this point.
-                combo_step = SuperRoundWithLimit(termcolor.colored("combo_many", 'cyan'), combo_one, maximality=TakeMany(), limit=LIMIT)
+                combo_step = SuperRoundWithLimit(termcolor.colored("combo_many", 'cyan'), subround=combo_one, maximality=TakeMany(), limit=LIMIT)
+
+            elif semantics.combo_step_maximality == ComboStepMaximality.COMBO_SYNTACTIC:
+                combo_step = SuperRoundWithLimit(termcolor.colored("combo_syntactic", 'cyan'), subround=combo_one, maximality=Syntactic(), limit=LIMIT)
 
             else:
                 raise Exception("Unsupported option: %s" % semantics.combo_step_maximality)
 
             if semantics.big_step_maximality == BigStepMaximality.TAKE_MANY:
-                self._big_step = SuperRoundWithLimit(termcolor.colored("big_many", 'red'), combo_step, maximality=TakeMany(), limit=LIMIT)
-            else:
-                self._big_step = SuperRoundWithLimit(termcolor.colored("big_syntactic", 'red'), combo_step, maximality=Syntactic(), limit=LIMIT)
+                self._big_step = SuperRoundWithLimit(termcolor.colored("big_many", 'red'), subround=combo_step, maximality=TakeMany(), limit=LIMIT)
+
+            elif semantics.big_step_maximality == BigStepMaximality.SYNTACTIC:
+                self._big_step = SuperRoundWithLimit(termcolor.colored("big_syntactic", 'red'), subround=combo_step, maximality=Syntactic(), limit=LIMIT)
 
         else:
             raise Exception("Unsupported option: %s" % semantics.big_step_maximality)

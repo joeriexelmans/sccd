@@ -66,7 +66,7 @@ class MemoryPartialSnapshot(MemoryInterface):
       variables = self.frame.scope.variables
       # some variable written to twice before refresh
       raise SCCDRuntimeException("Race condition in %s memory: More than one transition assigned a new value to variables: %s" %
-          (self.description, ", ".join(variables[offset].name for offset in race_conditions.items())))
+          (self.description, ", ".join(variables[offset].name for offset in bm_items(race_conditions))))
 
     self.round_dirty |= self.trans_dirty
     self.trans_dirty = Bitmap() # reset

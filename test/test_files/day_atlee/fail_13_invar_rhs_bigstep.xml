@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<test>
+  <!-- Example 13 in BSML paper with RHS Big Step semantics contains multiple assignments to variables 'a' and 'b' during the big-step, which we (correctly) detect as a race condition, making the example invalid -->
+  
+  <statechart src="statechart_fig20_invar.xml">
+    <override_semantics
+      assignment_memory_protocol="big_step"/>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="done">
+        <param val="21"/>
+        <param val="16"/>
+      </event>
+    </big_step>
+  </output>
+</test>

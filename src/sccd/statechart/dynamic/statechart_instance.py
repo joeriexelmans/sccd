@@ -130,19 +130,22 @@ class StatechartInstance(Instance):
 
         if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
             self._big_step.when_done(rhs_memory.flush_round)
-        elif semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP:
+        elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:
             combo_step.when_done(rhs_memory.flush_round)
-        elif semantics.enabledness_memory_protocol == MemoryProtocol.SMALL_STEP:
+        elif semantics.assignment_memory_protocol == MemoryProtocol.SMALL_STEP:
             small_step.when_done(rhs_memory.flush_round)
 
-        gc_memory = MemoryPartialSnapshot("GC", memory, read_only=True)
-
-        if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
-            self._big_step.when_done(gc_memory.flush_round)
-        elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:
-            combo_step.when_done(gc_memory.flush_round)
-        elif semantics.assignment_memory_protocol == MemoryProtocol.SMALL_STEP:
-            small_step.when_done(gc_memory.flush_round)
+        if semantics.enabledness_memory_protocol == semantics.assignment_memory_protocol:
+            gc_memory = rhs_memory
+            gc_memory.description = "RHS/GC"
+        else:
+            gc_memory = MemoryPartialSnapshot("GC", memory)
+            if semantics.enabledness_memory_protocol == MemoryProtocol.BIG_STEP:
+                self._big_step.when_done(gc_memory.flush_round)
+            elif semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP:
+                combo_step.when_done(gc_memory.flush_round)
+            elif semantics.enabledness_memory_protocol == MemoryProtocol.SMALL_STEP:
+                small_step.when_done(gc_memory.flush_round)
 
         print_debug("\nRound hierarchy: " + str(self._big_step) + '\n')
 

@@ -1,13 +1,13 @@
 from sccd.action_lang.dynamic.memory import *
-from sccd.util import timer
+from sccd.util import timer  
 
 class MemoryPartialSnapshot(MemoryInterface):
   __slots__ = ["description", "memory", "read_only", "frame", "actual", "snapshot", "trans_dirty", "round_dirty"]
 
-  def __init__(self, description: str, memory: Memory, read_only: bool = False):
+  def __init__(self, description: str, memory: Memory):
     self.description = description
     self.memory = memory
-    self.read_only = read_only
+    self.read_only = False
 
     self.frame = memory.current_frame()
 
@@ -19,6 +19,9 @@ class MemoryPartialSnapshot(MemoryInterface):
 
     # Positions in stack frame written to during current big, combo or small step (depending on semantic option chosen)
     self.round_dirty = Bitmap()
+
+  def set_read_only(self, read_only: bool):
+    self.read_only = read_only
 
   def current_frame(self) -> StackFrame:
     return self.memory.current_frame()
@@ -50,9 +53,9 @@ class MemoryPartialSnapshot(MemoryInterface):
   def store(self, offset: int, value: Any):
     frame, offset = self.memory._get_frame(offset)
     if frame is self.frame:
+      # "our" frame! :)
       if self.read_only:
         raise SCCDRuntimeException("Attempt to write to read-only %s memory." % self.description)
-      # "our" frame! :)
       # Remember that we wrote, such that next read during same transition will be the value we wrote.
       self.trans_dirty |= bit(offset)
 
@@ -60,7 +63,7 @@ class MemoryPartialSnapshot(MemoryInterface):
     frame.storage[offset] = value
 
 
-  def flush_transition(self, read_only: bool = False):
+  def flush_transition(self):
     race_conditions = self.trans_dirty & self.round_dirty
     if race_conditions:
       variables = self.frame.scope.variables

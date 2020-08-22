@@ -1,0 +1,34 @@
+<?xml version="1.0" ?>
+<test>
+  <!-- A guard condition's evaluation is not allowed to write to the statechart's variables -->
+  <statechart>
+    <semantics
+      big_step_maximality="take_many"/>
+    <datamodel>
+      x = 0;
+
+      inc_x = func {
+        x += 1;
+
+        # to make the type checker happy (expression 'inc_x()' should evaluate to boolean so it is a valid guard condition):
+        return False;
+      };
+    </datamodel>
+
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+
+    <root>
+      <state id="s1">
+        <!-- Guard condition will write to the statechart's variable 'x'.
+             This results in a runtime error -->
+        <transition cond="inc_x()" target="."/>
+      </state>
+    </root>
+  </statechart>
+
+  <input>
+    <event name="start" port="in" time="0 d"/>
+  </input>
+</test>

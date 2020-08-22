@@ -1,0 +1,49 @@
+<?xml version="1.0" ?>
+<test>
+  <!-- A guard condition evaluation is allowed to write to temporary (stack) variables -->
+  <statechart>
+    <semantics
+      big_step_maximality="take_many"/>
+    <datamodel>
+      inc_x = func(x: int) {
+        x += 1;
+        return False;
+      };
+    </datamodel>
+
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+    <outport name="out">
+      <event name="ok"/>
+    </outport>
+
+    <root initial="s1">
+      <state id="s1">
+        <!-- 1st guard to be evaluated -->
+        <!-- increments 'x', but only locally in the function inc_x -->
+        <transition event="start(x: int)" cond="inc_x(x)" target="."/>
+
+        <!-- 2nd guard to be evaluated. x is still 42 -->
+        <transition event="start(x: int)" cond="x == 42" target="../s2"/>
+      </state>
+      <state id="s2">
+        <onentry>
+          <raise port="out" event="ok"/>
+        </onentry>
+      </state>
+    </root>
+  </statechart>
+
+  <input>
+    <event name="start" port="in" time="0 d">
+      <param name="x" expr="42"/>
+    </event>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="ok"/>
+    </big_step>
+  </output>
+</test>

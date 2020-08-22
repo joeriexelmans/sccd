@@ -129,21 +129,21 @@ class Trigger:
     def render(self) -> str:
         return ' ∧ '.join(e.render() for e in self.enabling)
 
-    def copy_params_to_stack(self, ctx: EvalContext):
-        # Both 'ctx.events' and 'self.enabling' are sorted by event ID,
+    def copy_params_to_stack(self, events: List[InternalEvent], memory: MemoryInterface):
+        # Both 'events' and 'self.enabling' are sorted by event ID,
         # this way we have to iterate over each of both lists at most once.
         iterator = iter(self.enabling)
         try:
             event_decl = next(iterator)
             offset = 0
-            for e in ctx.events:
+            for e in events:
                 if e.id < event_decl.id:
                     continue
                 else:
                     while e.id > event_decl.id:
                         event_decl = next(iterator)
                     for p in e.params:
-                        ctx.memory.store(offset, p)
+                        memory.store(offset, p)
                         offset += 1
         except StopIteration:
             pass
@@ -180,7 +180,7 @@ class AfterTrigger(Trigger):
     # Override.
     # An 'after'-event also has 1 parameter, but it is not accessible to the user,
     # hence the override.
-    def copy_params_to_stack(self, ctx: EvalContext):
+    def copy_params_to_stack(self, events: List[InternalEvent], memory: MemoryInterface):
         pass
 
 _empty_trigger = Trigger(enabling=[])

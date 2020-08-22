@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<statechart>
+  <semantics
+    big_step_maximality="take_many"/>
+
+  <datamodel>
+    a = 7;
+    b = 2;
+  </datamodel>
+
+  <inport name="in">
+    <event name="start"/>
+  </inport>
+
+  <outport name="out">
+    <event name="done"/>
+  </outport>
+
+  <root initial="Invar">
+    <parallel id="Invar">
+      <state id="I1" initial="S1">
+        <state id="S1">
+          <transition target="../S2">
+            <code> b = 2 * b; </code>
+          </transition>
+        </state>
+        <state id="S2">
+          <transition target="../S3">
+            <code> b = 2 * a + b; </code>
+          </transition>
+        </state>
+        <state id="S3"/>
+      </state>
+
+      <state id="I2" initial="S4">
+        <state id="S4">
+          <transition target="../S5">
+            <code> a = a + b; </code>
+          </transition>
+        </state>
+        <state id="S5">
+          <transition target="../S6">
+            <code> a = 3 * a; </code>
+          </transition>
+        </state>
+        <state id="S6">
+          <transition cond='INSTATE(["/Invar/I1/S3"])' target="/Done"/>
+        </state>
+      </state>
+    </parallel>
+
+    <!-- this state is not in the example, but we introduce it to allow a final transition with output event the values of a and b -->
+    <state id="Done">
+      <onentry>
+        <raise port="out" event="done">
+          <param expr="a"/>
+          <param expr="b"/>
+        </raise>
+      </onentry>
+    </state>
+  </root>
+</statechart>

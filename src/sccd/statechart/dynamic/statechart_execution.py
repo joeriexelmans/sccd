@@ -65,6 +65,7 @@ class StatechartExecution:
                         enter_ids |= self.history_values[t.opt.target_history_id]
                     enter_set = self._ids_to_states(bm_items(enter_ids))
 
+                self.rhs_memory.set_read_only(False)
                 ctx = EvalContext(execution=self, events=events, memory=self.rhs_memory)
 
                 print_debug("fire " + str(t))
@@ -89,7 +90,7 @@ class StatechartExecution:
                 with timer.Context("actions"):
                     self.rhs_memory.push_frame(t.scope) # make room for event parameters on stack
                     if t.trigger:
-                        t.trigger.copy_params_to_stack(ctx)
+                        t.trigger.copy_params_to_stack(events, self.rhs_memory)
                     _perform_actions(ctx, t.actions)
                     self.rhs_memory.pop_frame()
 
@@ -113,16 +114,16 @@ class StatechartExecution:
             if t.guard is None:
                 return True
             else:
-                ctx = EvalContext(execution=self, events=events, memory=self.gc_memory)
+                self.gc_memory.set_read_only(True)
                 self.gc_memory.push_frame(t.scope)
                 # Guard conditions can also refer to event parameters
                 if t.trigger:
-                    t.trigger.copy_params_to_stack(ctx)
+                    t.trigger.copy_params_to_stack(events, self.gc_memory)
                 result = t.guard.eval(self.gc_memory)
                 self.gc_memory.pop_frame()
                 return result
         except Exception as e:
-            e.args = ("While checking guard of transition %s:\n" % str(t) +str(e),)
+            e.args = ("While checking guard of transition %s:\n" % str(t) + str(e),)
             raise
 
     def _start_timers(self, triggers: List[AfterTrigger]):
@@ -139,7 +140,10 @@ class StatechartExecution:
 
     # Return whether the current configuration includes ALL the states given.
     def in_state(self, state_strings: List[str]) -> bool:
-        state_ids_bitmap = bm_union(self.statechart.tree.state_dict[state_string].opt.state_id_bitmap for state_string in state_strings)
+        try:
+            state_ids_bitmap = bm_union(self.statechart.tree.state_dict[state_string].opt.state_id_bitmap for state_string in state_strings)
+        except KeyError as e:
+            raise SCCDRuntimeException("INSTATE argument %s: invalid state" % str(e)) from e
         in_state = bm_has_all(self.configuration, state_ids_bitmap)
         # if in_state:
         #     print_debug("in state"+str(state_strings))

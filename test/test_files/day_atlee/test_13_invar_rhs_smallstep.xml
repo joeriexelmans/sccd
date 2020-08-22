@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="statechart_fig20_invar.xml">
+    <override_semantics
+      assignment_memory_protocol="small_step"/>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <!-- BSML paper gives example of big step t1, t2, t3, t4.
+           Due to fairness, we instead take the big step t1, t3, t2, t4,
+           giving the following values for a,b: -->
+      <event port="out" name="done">
+        <param val="33"/>
+        <param val="26"/>
+      </event>
+    </big_step>
+  </output>
+</test>

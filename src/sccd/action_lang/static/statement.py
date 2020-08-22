@@ -104,6 +104,8 @@ class Assignment(Statement):
     def exec(self, memory: MemoryInterface) -> Return:
         rhs_val = self.rhs.eval(memory)
         self.lhs.assign(memory, rhs_val)
+        if DEBUG:
+            print("    "+termcolor.colored(self.lhs.render() + ' = ' + str(rhs_val), 'grey'))
 
         return DontReturn
 
@@ -126,8 +128,8 @@ class Block(Statement):
     def exec(self, memory: MemoryInterface) -> Return:
         ret = DontReturn
         for stmt in self.stmts:
-            if DEBUG:
-                print("    "+termcolor.colored(stmt.render(), 'grey'))
+            # if DEBUG:
+            #     print("    "+termcolor.colored(stmt.render(), 'grey'))
             ret = stmt.exec(memory)
             if ret.ret:
                 break

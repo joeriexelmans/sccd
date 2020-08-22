@@ -65,7 +65,6 @@ class StatechartExecution:
                         enter_ids |= self.history_values[t.opt.target_history_id]
                     enter_set = self._ids_to_states(bm_items(enter_ids))
 
-                self.rhs_memory.set_read_only(False)
                 ctx = EvalContext(execution=self, events=events, memory=self.rhs_memory)
 
                 print_debug("fire " + str(t))
@@ -114,7 +113,6 @@ class StatechartExecution:
             if t.guard is None:
                 return True
             else:
-                self.gc_memory.set_read_only(True)
                 self.gc_memory.push_frame(t.scope)
                 # Guard conditions can also refer to event parameters
                 if t.trigger:

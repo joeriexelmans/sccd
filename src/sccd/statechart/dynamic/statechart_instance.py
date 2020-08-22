@@ -126,26 +126,29 @@ class StatechartInstance(Instance):
         load_builtins(memory, self.execution)
         memory.push_frame(statechart.scope)
 
-        rhs_memory = MemoryPartialSnapshot("RHS", memory)
+        instance_frame = memory.current_frame() # this is the stack frame that contains the statechart's "instance" variables
 
-        if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
-            self._big_step.when_done(rhs_memory.flush_round)
-        elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:
-            combo_step.when_done(rhs_memory.flush_round)
-        elif semantics.assignment_memory_protocol == MemoryProtocol.SMALL_STEP:
-            small_step.when_done(rhs_memory.flush_round)
+        def get_memory_protocol(protocol: MemoryProtocol) -> StatechartMemory:
+            if protocol == MemoryProtocol.SMALL_STEP:
+                return StatechartMemory(delegate=memory) # no snapshots
+            else:
+                m = SnapshottingStatechartMemory(delegate=memory, frame=instance_frame)
+                if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
+                    self._big_step.when_done(m.flush_round)
+                elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:
+                    combo_step.when_done(m.flush_round)
+                return m
 
         if semantics.enabledness_memory_protocol == semantics.assignment_memory_protocol:
-            gc_memory = rhs_memory
-            gc_memory.description = "RHS/GC"
+            # use the same memory object for RHS and GC, for performance
+            gc_memory = rhs_memory = get_memory_protocol(semantics.assignment_memory_protocol)
+
         else:
-            gc_memory = MemoryPartialSnapshot("GC", memory)
-            if semantics.enabledness_memory_protocol == MemoryProtocol.BIG_STEP:
-                self._big_step.when_done(gc_memory.flush_round)
-            elif semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP:
-                combo_step.when_done(gc_memory.flush_round)
-            elif semantics.enabledness_memory_protocol == MemoryProtocol.SMALL_STEP:
-                small_step.when_done(gc_memory.flush_round)
+            rhs_memory = get_memory_protocol(semantics.assignment_memory_protocol)
+            gc_memory = get_memory_protocol(semantics.enabledness_memory_protocol)
+
+        # Finally, wrap gc_memory in a layer of 'read-onlyness'
+        gc_memory = ReadOnlyStatechartMemory(gc_memory, frame=instance_frame)
 
         print_debug("\nRound hierarchy: " + str(self._big_step) + '\n')
 

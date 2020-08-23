@@ -129,14 +129,17 @@ class StatechartInstance(Instance):
         instance_frame = memory.current_frame() # this is the stack frame that contains the statechart's "instance" variables
 
         def get_memory_protocol(protocol: MemoryProtocol) -> StatechartMemory:
-            if protocol == MemoryProtocol.SMALL_STEP:
+            if protocol == MemoryProtocol.SMALL_STEP and semantics.concurrency == Concurrency.SINGLE:
                 return StatechartMemory(delegate=memory) # no snapshots
             else:
                 m = SnapshottingStatechartMemory(delegate=memory, frame=instance_frame)
-                if semantics.assignment_memory_protocol == MemoryProtocol.BIG_STEP:
+                # refresh snapshot at end of big/combo/small step:
+                if protocol == MemoryProtocol.BIG_STEP:
                     self._big_step.when_done(m.flush_round)
-                elif semantics.assignment_memory_protocol == MemoryProtocol.COMBO_STEP:
+                elif protocol == MemoryProtocol.COMBO_STEP:
                     combo_step.when_done(m.flush_round)
+                elif protocol == MemoryProtocol.SMALL_STEP:
+                    small_step.when_done(m.flush_round)
                 return m
 
         if semantics.enabledness_memory_protocol == semantics.assignment_memory_protocol:

@@ -162,7 +162,7 @@ class NegatedTrigger(Trigger):
         return Trigger.check(self, events_bitmap) and not (self.disabling_bitmap & events_bitmap)
 
     def render(self) -> str:
-        return Trigger.render(self) + ' ∧ ' + ' ∧ '.join('¬'+e.render() for e in self.disabling)
+        return ' ∧ '.join(itertools.chain((e.render() for e in self.enabling), ('¬'+e.render() for e in self.disabling)))
 
 class AfterTrigger(Trigger):
     def __init__(self, id: int, name: str, after_id: int, delay: Expression):

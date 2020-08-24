@@ -144,10 +144,12 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           elif len(state.children) > 1:
             raise XmlError("More than 1 child state: must set 'initial' attribute.")
 
-      def state_child_rules(parent, sibling_dict: Dict[str, State]={}):
+      def state_child_rules(parent, sibling_dict: Dict[str, State]):
 
         def common(el, constructor):
           short_name = require_attribute(el, "id")
+          if short_name == "":
+            raise XmlError("attribute 'id' must be non-empty string")
           state = constructor(short_name, parent)
 
           already_there = sibling_dict.setdefault(short_name, state)
@@ -170,7 +172,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
         def parse_parallel(el):
           state = common_nonpseudo(el, ParallelState)
-          return state_child_rules(parent=state)
+          return state_child_rules(parent=state, sibling_dict={})
 
         def parse_history(el):
           history_type = el.get("type", "shallow")

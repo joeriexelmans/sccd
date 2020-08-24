@@ -1,8 +1,19 @@
 from sccd.action_lang.dynamic.memory import *
 from sccd.util import timer
 
+class StatechartMemoryInterface(MemoryInterface):
+  # Notify the memory implementation that a transition was completed.
+  @abstractmethod
+  def flush_transition(self):
+    pass
+
+  # Notify the memory implementation that its 'round' was completed and therefore the snapshot should be refreshed.
+  @abstractmethod
+  def flush_round(self):
+    pass
+
 # Non-snapshotting memory. Basically delegates all operations.
-class StatechartMemory(MemoryInterface):
+class StatechartMemory(StatechartMemoryInterface):
   __slots__ = ["delegate"]
 
   def __init__(self, delegate: MemoryInterface):
@@ -28,6 +39,8 @@ class StatechartMemory(MemoryInterface):
 
   def _get_frame(self, offset):
     return self.delegate._get_frame(offset)
+
+  # No shapshots are maintained, so the following 2 methods don't have to do anything:
 
   def flush_transition(self):
     pass

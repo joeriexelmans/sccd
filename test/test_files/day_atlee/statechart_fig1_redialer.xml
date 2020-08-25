@@ -16,7 +16,7 @@
 
     digit = func(i:int, pos:int) {
       result = i // 10**pos % 10;
-      print("digit " + int_to_str(pos) + " of " + int_to_str(i) + " is " + int_to_str(result));
+      # print("digit " + int_to_str(pos) + " of " + int_to_str(i) + " is " + int_to_str(result));
       return result;
     };
 
@@ -52,7 +52,7 @@
           <!-- t2 -->
           <transition event="dial(d:int), redial" cond="c == 0" target="../DialDigits">
             <code>
-              print("got dial("+int_to_str(d)+")");
+              # print("got dial("+int_to_str(d)+")");
               lp = d;
               c = 1;
             </code>
@@ -65,7 +65,7 @@
           <!-- t3 -->
           <transition event="dial(d:int)" cond="c &lt; 10" target=".">
             <code>
-              print("got dial("+int_to_str(d)+")");
+              # print("got dial("+int_to_str(d)+")");
               lp = lp * 10 + d;
               c += 1;
             </code>

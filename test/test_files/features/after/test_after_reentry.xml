@@ -3,7 +3,7 @@
   <statechart>
     <semantics
         big_step_maximality="take_many"
-        combo_step_maximality="combo_take_one"/>
+        combo_step_maximality="take_one"/>
 
     <outport name="out">
       <event name="in_b"/>

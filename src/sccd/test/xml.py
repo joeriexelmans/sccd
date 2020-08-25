@@ -75,7 +75,7 @@ def test_parser_rules(statechart_parser_rules):
 
     def finish_test(statechart):
       globals.init_durations(delta=None)
-      variants = statechart.semantics.generate_variants()
+      variants = statechart.generate_semantic_variants()
 
       def variant_description(i, variant) -> str:
         if not variant:
@@ -85,19 +85,8 @@ def test_parser_rules(statechart_parser_rules):
         return text
 
       return [TestVariant(
-        name=variant_description(i, variant),
-        cd=SingleInstanceCD(
-          globals,
-          Statechart(
-            semantics=variant,
-            #  All other fields remain the same
-            scope=statechart.scope,
-            datamodel=statechart.datamodel,
-            internal_events=statechart.internal_events,
-            internally_raised_events=statechart.internally_raised_events,
-            inport_events=statechart.inport_events,
-            event_outport=statechart.event_outport,
-            tree=statechart.tree)),
+        name=variant_description(i, variant.semantics),
+        cd=SingleInstanceCD(globals=globals, statechart=variant),
         input=input,
         output=output)
       for i, variant in enumerate(variants)]

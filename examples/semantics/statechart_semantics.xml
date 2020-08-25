@@ -1,0 +1,203 @@
+<?xml version="1.0" ?>
+<statechart>
+  <semantics
+    big_step_maximality="take_one, syntactic, take_many"
+    combo_step_maximality="take_one, syntactic, take_many"
+    input_event_lifeline="first_small_step, first_combo_step, whole"
+    internal_event_lifeline="next_small_step, next_combo_step, remainder, queue"
+    enabledness_memory_protocol="small_step, combo_step, big_step"
+    assignment_memory_protocol="small_step, combo_step, big_step"
+    concurrency="single"
+    priority="source_child, source_parent"/>
+
+  <datamodel>
+    x = 0;
+  </datamodel>
+
+  <inport name="in">
+    <event name="input0"/>
+    <event name="bigstep1"/>
+  </inport>
+
+
+  <root>
+    <parallel id="P">
+
+      <state id="BigStepMaximality" initial="Initial">
+        <state id="Initial">
+          <transition target="../TakeOne"/>
+        </state>
+        <state id="TakeOne">
+          <transition target="../Syntactic"/>
+        </state>
+        <state id="Syntactic" stable="true">
+          <transition target="../TakeMany"/>
+        </state>
+        <state id="TakeMany">
+        </state>
+      </state>
+
+      <state id="InputEventLifeline" initial="FirstSmallStep">
+        <!-- because BigStepMaximality region has higher priority,
+             it will 'consume' the input event upon FirstSmallStep -->
+        <state id="FirstSmallStep">
+          <transition event="input0" target="../Whole"/>
+        </state>
+        <state id="Whole">
+          <transition event="not input0" target="../FirstComboStep"/>
+        </state>
+        <state id="FirstComboStep">
+        </state>
+      </state>
+
+      <parallel id="InternalEventLifeline" >
+        <state id="RegionBroadcast" initial="Initial">
+          <state id="Initial">
+            <transition target="../Done">
+              <raise event="internal0"/>
+            </transition>
+          </state>
+          <state id="Done"/>
+        </state>
+        <state id="RegionReceive1" initial="Initial">
+          <state id="Initial">
+            <transition event="internal0" target="../GotEvent"/>
+          </state>
+          <state id="GotEvent">
+          </state>
+        </state>
+        <state id="RegionReceive2" initial="Initial">
+          <state id="Initial">
+            <transition event="internal0" target="../GotEvent"/>
+          </state>
+          <state id="GotEvent">
+          </state>
+        </state>
+
+        <state id="InternalEventLifeline" initial="Initial">
+          <!-- <state id="NonRemainder" initial="Initial"> -->
+          <state id="Initial">
+            <transition cond='INSTATE(["/P/InternalEventLifeline/RegionReceive1/GotEvent"]) and not INSTATE(["/P/InternalEventLifeline/RegionReceive2/GotEvent"])' target="../NextSmallStep"/>
+            <transition cond='INSTATE(["/P/InternalEventLifeline/RegionReceive1/GotEvent", "/P/InternalEventLifeline/RegionReceive2/GotEvent"])' target="../Remainder"/>
+            <transition target="../Queue"/>
+          </state>
+          <state id="NextSmallStep">
+          </state>
+          <state id="Remainder">
+          </state>
+          <state id="NextComboStep">
+          </state>
+          <state id="Queue">
+            <transition cond='INSTATE(["/P/InternalEventLifeline/RegionReceive1/GotEvent", "/P/InternalEventLifeline/RegionReceive2/GotEvent"])' target="../NextComboStep"/>
+          </state>
+        </state>
+      </parallel>
+
+      <parallel id="MemoryProtocol">
+        <state id="RegionAssign" initial="Initial">
+          <state id="Initial">
+            <transition target="../Assigned">
+              <code> x = 1; </code>
+            </transition>
+          </state>
+          <state id="Assigned">
+          </state>
+        </state>
+        <state id="MemoryProtocol" initial="Initial">
+          <state id="Initial">
+            <transition cond="x == 1" target="../SmallStep"/>
+            <transition cond="x == 0" target="../BigStep"/>
+          </state>
+          <state id="BigStep">
+            <transition cond="x == 1" target="../ComboStep"/>
+          </state>
+          <state id="ComboStep">
+          </state>
+          <state id="SmallStep">
+          </state>
+        </state>
+      </parallel>
+
+      <state id="Priority" initial="Composite">
+        <state id="Composite">
+          <state id="Basic">
+            <transition target="../../SourceChild"/>
+          </state>
+          <transition target="../SourceParent"/>
+        </state>
+
+        <state id="SourceParent"/>
+        <state id="SourceChild"/>
+      </state>
+
+      <parallel id="ComboStepMaximality">
+
+        <state id="InputEventDeducer" initial="Initial">
+          <!-- suppose Input Event Lifeline is first_combo_step, then the "final" state of this region will indicate combo step maximality -->
+          <state id="Initial">
+            <transition event="input0" target="../TakeOne"/>
+          </state>
+          <state id="TakeOne">
+            <transition event="input0" target="../Syntactic"/>
+          </state>
+          <state id="Syntactic" stable="true">
+            <transition event="input0" target="../TakeMany"/>
+          </state>
+          <state id="TakeMany">
+          </state>
+        </state>
+        <state id="InternalEventDeducer" initial="Initial">
+          <!-- suppose Internal Event Lifeline is next_combo_step, then the "final" state of this region will indicate combo step maximality -->
+          <state id="Initial">
+            <transition event="internal0" target="../TakeOne"/>
+          </state>
+          <state id="TakeOne">
+            <transition event="internal0" target="../Syntactic"/>
+          </state>
+          <state id="Syntactic" stable="true">
+            <transition event="internal0" target="../TakeMany"/>
+          </state>
+          <state id="TakeMany">
+          </state>
+        </state>
+        <state id="MemoryProtocolDeducer" initial="Initial">
+          <!-- suppose Memory Protocol is combo_step, then the "final" state of this region will indicate combo step maximality -->
+          <state id="Initial">
+            <transition cond="x == 0" target="../TakeOne">
+              <!-- <code> y = 1; </code> y will be 1 in the next combo step -->
+            </transition>
+          </state>
+          <state id="TakeOne">
+            <transition cond="x == 0" target="../Syntactic"/>
+          </state>
+          <state id="Syntactic" stable="true">
+            <transition cond="x == 0" target="../TakeMany"/>
+          </state>
+          <state id="TakeMany">
+          </state>
+        </state>
+
+
+        <state id="ComboStepMaximality" initial="NoComboSteps">
+          <state id="NoComboSteps">
+            <transition event="not input0" cond='INSTATE(["/P/InputEventLifeline/FirstComboStep", "/P/ComboStepMaximality/InputEventDeducer/TakeOne"])' target="../TakeOne"/>
+            <transition event="not input0" cond='INSTATE(["/P/InputEventLifeline/FirstComboStep", "/P/ComboStepMaximality/InputEventDeducer/Syntactic"])' target="../Syntactic"/>
+            <transition event="not input0" cond='INSTATE(["/P/InputEventLifeline/FirstComboStep", "/P/ComboStepMaximality/InputEventDeducer/TakeMany"])' target="../TakeMany"/>
+
+            <transition event="not internal0" cond='INSTATE(["/P/InternalEventLifeline/InternalEventLifeline/NextComboStep", "/P/ComboStepMaximality/InternalEventDeducer/TakeOne"])' target="../TakeOne"/>
+            <transition event="not internal0" cond='INSTATE(["/P/InternalEventLifeline/InternalEventLifeline/NextComboStep", "/P/ComboStepMaximality/InternalEventDeducer/Syntactic"])' target="../Syntactic"/>
+            <transition event="not internal0" cond='INSTATE(["/P/InternalEventLifeline/InternalEventLifeline/NextComboStep", "/P/ComboStepMaximality/InternalEventDeducer/TakeMany"])' target="../TakeMany"/>
+
+            <transition cond='x == 1 and INSTATE(["/P/MemoryProtocol/MemoryProtocol/ComboStep", "/P/ComboStepMaximality/MemoryProtocolDeducer/TakeOne"])' target="../TakeOne"/>
+            <transition cond='x == 1 and INSTATE(["/P/MemoryProtocol/MemoryProtocol/ComboStep", "/P/ComboStepMaximality/MemoryProtocolDeducer/Syntactic"])' target="../Syntactic"/>
+            <transition cond='x == 1 and INSTATE(["/P/MemoryProtocol/MemoryProtocol/ComboStep", "/P/ComboStepMaximality/MemoryProtocolDeducer/TakeMany"])' target="../TakeMany"/>
+          </state>
+
+          <state id="TakeOne"/>
+          <state id="Syntactic"/>
+          <state id="TakeMany"/>
+        </state>
+      </parallel>
+    </parallel>
+  </root>
+</statechart>

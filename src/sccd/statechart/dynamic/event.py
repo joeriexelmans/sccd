@@ -22,8 +22,7 @@ class InternalEvent:
         return termcolor.colored(s, 'yellow')
 
     __repr__ = __str__
-
-
+    
 
 @dataclass
 class OutputEvent:

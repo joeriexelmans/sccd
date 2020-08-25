@@ -4,7 +4,7 @@
   <statechart>
     <semantics
       big_step_maximality="take_many"
-      combo_step_maximality="combo_take_many"
+      combo_step_maximality="take_many"
       internal_event_lifeline="queue"/>
 
     <inport name="in">

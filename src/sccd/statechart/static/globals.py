@@ -24,7 +24,7 @@ class Globals:
   # parameter delta: if set, this will be the model delta.
   # otherwise, model delta will be the GCD of all durations registered.
   # typically, a 'delta' of 100us to 1ms is desirable because this will also be the 'precision' of input event timestamps.
-  def init_durations(self, delta: Optional[Duration]):
+  def init_durations(self, delta: Optional[Duration] = None):
     gcd_delta = gcd(*(d.d for d in self.durations))
 
     # Ensure delta not too big

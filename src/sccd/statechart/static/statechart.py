@@ -10,15 +10,32 @@ class SemanticAspect:
     # Override default: only print field, not the type (e.g. "TAKE_ONE" instead of "BigStepMaximality.TAKE_ONE")
     return self.name
 
-class BigStepMaximality(SemanticAspect, Enum):
-  TAKE_ONE = auto()
-  TAKE_MANY = auto()
-  SYNTACTIC = auto()
+  __repr__ = __str__
 
-class ComboStepMaximality(SemanticAspect, Enum):
-  COMBO_TAKE_ONE = auto()
-  COMBO_TAKE_MANY = auto()
-  COMBO_SYNTACTIC = auto()
+class Maximality(SemanticAspect, Enum):
+  TAKE_ONE = auto()
+  SYNTACTIC = auto()
+  TAKE_MANY = auto()
+
+  # We define an ordering TAKE_ONE < SYNTACTIC < TAKE_MANY
+
+  def __lt__(self, other):
+    if self == other:
+      return False
+    if other == Maximality.TAKE_MANY:
+      return True
+    if other == Maximality.SYNTACTIC:
+      return self == Maximality.TAKE_ONE
+    return False
+
+  def __le__(self, other):
+    return self == other or self < other
+
+  def __gt__(self, other):
+    return not (self <= other)
+
+  def __ge__(self, other):
+    return not (self < other)
 
 class InternalEventLifeline(SemanticAspect, Enum):
   QUEUE = auto()
@@ -58,9 +75,9 @@ class SemanticConfiguration:
   # All semantic aspects and their default values.
   # Every field can be set to a list of multiple options, or just a value.
 
-  # The following is the default configuration:
-  big_step_maximality: SemanticChoice[BigStepMaximality] = BigStepMaximality.TAKE_MANY
-  combo_step_maximality: SemanticChoice[ComboStepMaximality] = ComboStepMaximality.COMBO_TAKE_ONE
+  # The following is the default configuration. Changing these values changes SCCD's default semantics:
+  big_step_maximality: SemanticChoice[Maximality] = Maximality.TAKE_MANY
+  combo_step_maximality: SemanticChoice[Maximality] = Maximality.TAKE_ONE
   internal_event_lifeline: SemanticChoice[InternalEventLifeline] = InternalEventLifeline.NEXT_COMBO_STEP
   input_event_lifeline: SemanticChoice[InputEventLifeline] = InputEventLifeline.FIRST_COMBO_STEP
   enabledness_memory_protocol: SemanticChoice[MemoryProtocol] = MemoryProtocol.COMBO_STEP
@@ -123,3 +140,16 @@ class Statechart(Freezable):
     self.event_outport: Dict[str, str] = event_outport
 
     self.tree: StateTree = tree
+
+  def generate_semantic_variants(self) -> List['Statechart']:
+    return [Statechart(
+        semantics=variant,
+        #  All other fields remain the same.
+        scope=self.scope,
+        datamodel=self.datamodel,
+        internal_events=self.internal_events,
+        internally_raised_events=self.internally_raised_events,
+        inport_events=self.inport_events,
+        event_outport=self.event_outport,
+        tree=self.tree)
+      for variant in self.semantics.generate_variants()]

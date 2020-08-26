@@ -194,7 +194,7 @@ class Round(ABC):
         self.callbacks.append(callback)
 
     def run_and_cycle_events(self, forbidden_arenas: Bitmap = Bitmap()) -> RoundResult:
-        with timer.Context("round: %s" % self.name):
+        # with timer.Context("round: %s" % self.name):
             changed, stable = self._run(forbidden_arenas)
             if changed:
                 # notify round observers

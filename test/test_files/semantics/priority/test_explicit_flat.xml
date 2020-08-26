@@ -1,0 +1,18 @@
+<test>
+  <statechart src="statechart_flat.xml">
+    <override_semantics
+      hierarchical_priority="none"
+      same_source_priority="explicit"
+      orthogonal_priority="none"/>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="in_B" time="0 d"/>
+    </big_step>
+  </output>
+</test>

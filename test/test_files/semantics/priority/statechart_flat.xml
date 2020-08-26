@@ -1,0 +1,29 @@
+<statechart>
+  <inport name="in">
+    <event name="start"/>
+  </inport>
+
+  <outport name="out">
+    <event name="in_B"/>
+    <event name="in_C"/>
+  </outport>
+
+  <root initial="A">
+    <state id="A">
+      <transition target="../B"/>
+      <transition target="../C"/>
+    </state>
+
+    <state id="B">
+      <onentry>
+        <raise event="in_B"/>
+      </onentry>
+    </state>
+
+    <state id="C">
+      <onentry>
+        <raise event="in_C"/>
+      </onentry>
+    </state>
+  </root>
+</statechart>

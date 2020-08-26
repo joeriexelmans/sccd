@@ -1,0 +1,5 @@
+<test>
+  <statechart src="statechart_ortho.xml">
+    <override_semantics orthogonal_priority="none"/>
+  </statechart>
+</test>

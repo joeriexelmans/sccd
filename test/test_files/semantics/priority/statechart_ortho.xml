@@ -1,0 +1,33 @@
+<statechart>
+  <inport name="in">
+    <event name="start"/>
+  </inport>
+  
+  <outport name="out">
+    <event name="t1"/>
+    <event name="t2"/>
+  </outport>
+
+  <root>
+    <parallel id="P">
+      <state id="R1" initial="A">
+        <state id="A">
+          <transition target="../B">
+            <raise event="t1"/>
+          </transition>
+        </state>
+        <state id="B">
+        </state>
+      </state>
+      <state id="R2" initial="C">
+        <state id="C">
+          <transition target="../D">
+            <raise event="t2"/>
+          </transition>
+        </state>
+        <state id="D">
+        </state>
+      </state>
+    </parallel>
+  </root>
+</statechart>

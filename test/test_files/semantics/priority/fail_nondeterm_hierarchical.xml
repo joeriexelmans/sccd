@@ -1,0 +1,5 @@
+<test>
+  <statechart src="statechart_hierarchical.xml">
+    <override_semantics hierarchical_priority="none"/>
+  </statechart>
+</test>

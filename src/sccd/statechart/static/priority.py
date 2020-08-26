@@ -48,18 +48,19 @@ def explicit(tree: StateTree) -> EdgeList:
 # hierarchical Source-Parent ordering
 def source_parent(tree: StateTree) -> EdgeList:
     edges: EdgeList = []
-    def visit_state(s: State, parent_transitions: List[Transition] = []) -> List[Transition]:
-        edges.extend(itertools.product(parent_transitions, s.transitions))
-        return s.transitions
+    def visit_state(s: State, ancestor_transitions: List[Transition] = []) -> List[Transition]:
+        edges.extend(itertools.product(ancestor_transitions, s.transitions))
+        return ancestor_transitions + s.transitions
     visit_tree(tree.root, lambda s: s.children, before_children=[visit_state])
     return edges
 
 # hierarchical Source-Child ordering
 def source_child(tree: StateTree) -> EdgeList:
     edges: EdgeList = []
-    def visit_state(s: State, children_transitions: List[List[Transition]]) -> List[Transition]:
-        edges.extend(itertools.product(itertools.chain.from_iterable(children_transitions), s.transitions))
-        return s.transitions
+    def visit_state(s: State, ts: List[List[Transition]]) -> List[Transition]:
+        descendant_transitions = list(itertools.chain.from_iterable(ts))
+        edges.extend(itertools.product(descendant_transitions, s.transitions))
+        return s.transitions + descendant_transitions
     visit_tree(tree.root, lambda s: s.children, after_children=[visit_state])
     return edges
 
@@ -120,10 +121,13 @@ def get_total_ordering(tree: StateTree, *priorities: Callable[[StateTree], EdgeL
             lca = tree.state_list[lca_id]
             # Transitions are orthogonal to each other (LCA is And-state):
             if isinstance(lca, ParallelState):
-                raise Exception("Nondeterminism! No priority between orthogonal transitions: " + str(highest_priority))
-            # Their source states are the same state or ancestors of one another:
-            if lca_id == t1.source.opt.state_id or lca_id == t2.source.opt.state_id:
-                raise Exception("Nondeterminism! No priority between ancestral transitions: " + str(highest_priority))
+                raise Exception("Nondeterminism! No priority between orthogonal transitions: " + str(transitions))
+            # They have the same source:
+            if t1.source is t2.source:
+                raise Exception("Nondeterminism! No priority between outgoing transitions of same state: %s, %s" % (t1, t2))
+            # Their source states are ancestors of one another:
+            if bm_has(t1.source.opt.ancestors, t2.source.opt.state_id) or bm_has(t2.source.opt.ancestors, t1.source.opt.state_id):
+                raise Exception("Nondeterminism! No priority between ancestral transitions: %s, %s" % (t1, t2))
 
     remaining_transitions = set(tree.transition_list)
     remaining_edges = edges

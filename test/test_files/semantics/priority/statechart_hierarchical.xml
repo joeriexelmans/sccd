@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<statechart>
+
+  <inport name="in">
+    <event name="start"/>
+  </inport>
+
+  <outport name="out">
+    <event name="source_parent"/>
+    <event name="source_child"/>
+  </outport>
+
+  <root initial="A">
+    <state id="A">
+      <transition target="/C">
+        <raise event="source_parent"/>
+      </transition>
+      <state id="B">
+        <transition target="/C">
+          <raise event="source_child"/>
+        </transition>
+      </state>
+    </state>
+
+    <state id="C"/>
+  </root>
+
+</statechart>

@@ -7,8 +7,10 @@
     internal_event_lifeline="next_small_step, next_combo_step, remainder, queue"
     enabledness_memory_protocol="small_step, combo_step, big_step"
     assignment_memory_protocol="small_step, combo_step, big_step"
-    concurrency="single"
-    priority="source_child, source_parent"/>
+    same_source_priority="explicit"
+    hierarchical_priority="source_child, source_parent"
+    orthogonal_priority="explicit"
+    concurrency="single"/>
 
   <datamodel>
     x = 0;

@@ -1,9 +1,10 @@
 <?xml version="1.0" ?>
 <test>
-  <statechart src="statechart_priority_hierarchical.xml">
+  <statechart src="statechart_hierarchical.xml">
     <override_semantics
-      big_step_maximality="take_one"
-      priority="source_parent"/>
+      orthogonal_priority="none"
+      same_source_priority="none"
+      hierarchical_priority="source_parent"/>
   </statechart>
   <input>
       <event name="start" port="in" time="0 d"/>

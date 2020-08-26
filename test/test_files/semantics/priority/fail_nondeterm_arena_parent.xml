@@ -1,0 +1,6 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart src="statechart_hierarchical.xml">
+    <override_semantics hierarchical_priority="arena_parent"/>
+  </statechart>
+</test>

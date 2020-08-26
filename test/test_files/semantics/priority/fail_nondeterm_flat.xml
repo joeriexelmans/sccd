@@ -1,0 +1,6 @@
+<test>
+  <!-- attempting to instantiate the statechart with semantics below should raise an error -->
+  <statechart src="statechart_flat.xml">
+    <override_semantics same_source_priority="none"/>
+  </statechart>
+</test>

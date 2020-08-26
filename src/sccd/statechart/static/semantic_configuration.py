@@ -55,6 +55,8 @@ class MemoryProtocol(SemanticAspect, Enum):
   # NONE = auto()
 
 class HierarchicalPriority(SemanticAspect, Enum):
+  NONE = auto()
+  
   SOURCE_PARENT = auto()
   SOURCE_CHILD = auto()
 
@@ -91,7 +93,7 @@ class SemanticConfiguration:
   enabledness_memory_protocol: SemanticChoice[MemoryProtocol] = MemoryProtocol.COMBO_STEP
   assignment_memory_protocol: SemanticChoice[MemoryProtocol] = MemoryProtocol.COMBO_STEP
 
-  priority: SemanticChoice[HierarchicalPriority] = HierarchicalPriority.SOURCE_PARENT
+  hierarchical_priority: SemanticChoice[HierarchicalPriority] = HierarchicalPriority.SOURCE_PARENT
   orthogonal_priority: SemanticChoice[OrthogonalPriority] = OrthogonalPriority.EXPLICIT
   same_source_priority: SemanticChoice[SameSourcePriority] = SameSourcePriority.EXPLICIT
   

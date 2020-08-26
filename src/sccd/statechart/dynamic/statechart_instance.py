@@ -40,11 +40,12 @@ class StatechartInstance(Instance):
 
         with timer.Context("priority"):
             hierarchical = {
+                HierarchicalPriority.NONE: priority.none,
                 HierarchicalPriority.SOURCE_PARENT: priority.source_parent,
                 HierarchicalPriority.SOURCE_CHILD: priority.source_child,
                 HierarchicalPriority.ARENA_PARENT: priority.arena_parent,
                 HierarchicalPriority.ARENA_CHILD: priority.arena_child,
-            }[semantics.priority]
+            }[semantics.hierarchical_priority]
 
             same_state = {
                 SameSourcePriority.NONE: priority.none,

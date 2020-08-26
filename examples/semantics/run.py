@@ -76,8 +76,8 @@ if __name__ == "__main__":
     "/P/MemoryProtocol/MemoryProtocol/ComboStep": ("enabledness_memory_protocol", MemoryProtocol.COMBO_STEP),
     "/P/MemoryProtocol/MemoryProtocol/SmallStep": ("enabledness_memory_protocol", MemoryProtocol.SMALL_STEP),
 
-    "/P/Priority/SourceParent": ("priority", Priority.SOURCE_PARENT),
-    "/P/Priority/SourceChild": ("priority", Priority.SOURCE_CHILD),
+    "/P/Priority/SourceParent": ("priority", HierarchicalPriority.SOURCE_PARENT),
+    "/P/Priority/SourceChild": ("priority", HierarchicalPriority.SOURCE_CHILD),
   }
 
   state_id_to_semantics = {

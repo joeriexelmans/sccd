@@ -17,7 +17,7 @@
       <state id="s2" initial="s3">
         <state id="s3">
           <transition target="/s1/s5">
-            <!-- with source-child, this transition is preferred above the other
+            <!-- with source-child, and same-source-priority 'explicit'  this transition is preferred above the other
                  outgoing ones, because this one occurs first in the document -->
             <raise event="source_child"/>
           </transition>

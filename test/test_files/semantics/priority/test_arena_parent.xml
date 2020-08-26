@@ -3,7 +3,8 @@
   <statechart src="statechart_priority_hierarchical.xml">
     <override_semantics
       big_step_maximality="take_one"
-      priority="arena_parent"/>
+      priority="arena_parent"
+      same_source_priority="none"/>
   </statechart>
   <input>
       <event name="start" port="in" time="0 d"/>

@@ -2,6 +2,7 @@ import argparse
 import sys
 import termcolor
 from sccd.statechart.parser.xml import *
+from sccd.statechart.static.priority import *
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -11,12 +12,11 @@ if __name__ == "__main__":
 
     src = args.path
 
-    try:
-      path = os.path.dirname(src)
-      rules = [("statechart", statechart_parser_rules(Globals(), path, load_external=True))]
+    path = os.path.dirname(src)
+    rules = [("statechart", statechart_parser_rules(Globals(), path, load_external=True))]
 
-      statechart = parse(src, rules, decorate_exceptions=(ModelError,))
+    statechart = parse_f(src, rules)
 
-      assert isinstance(statechart, Statechart)
-    except Exception as e:
-      print(e)
+    assert isinstance(statechart, Statechart)
+
+    print("Model is OK.")

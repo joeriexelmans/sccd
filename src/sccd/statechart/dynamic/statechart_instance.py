@@ -4,11 +4,11 @@ from typing import List, Tuple, Iterable
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
 from sccd.statechart.static.statechart import *
+import sccd.statechart.static.priority as priority
 from sccd.statechart.dynamic.builtin_scope import *
 from sccd.statechart.dynamic.round import *
 from sccd.statechart.dynamic.statechart_execution import *
 from sccd.statechart.dynamic.memory_snapshot import *
-
 # Interface for all instances and also the Object Manager
 class Instance(ABC):
     @abstractmethod
@@ -36,14 +36,28 @@ class StatechartInstance(Instance):
         if semantics.has_multiple_variants():
             raise Exception("Cannot execute model with multiple semantics.")
 
-        priority_function = {
-            Priority.SOURCE_PARENT: priority_source_parent,
-            Priority.SOURCE_CHILD: priority_source_child,
-            Priority.ARENA_PARENT: priority_arena_parent,
-            Priority.ARENA_CHILD: priority_arena_child,
-        }[semantics.priority]
+        # Priority semantics
 
-        priority_ordered_transitions = priority_function(statechart.tree)
+        with timer.Context("priority"):
+            hierarchical = {
+                HierarchicalPriority.SOURCE_PARENT: priority.source_parent,
+                HierarchicalPriority.SOURCE_CHILD: priority.source_child,
+                HierarchicalPriority.ARENA_PARENT: priority.arena_parent,
+                HierarchicalPriority.ARENA_CHILD: priority.arena_child,
+            }[semantics.priority]
+
+            same_state = {
+                SameSourcePriority.NONE: priority.none,
+                SameSourcePriority.EXPLICIT: priority.explicit,
+            }[semantics.same_source_priority]
+
+            orthogonal = {
+                OrthogonalPriority.NONE: priority.none,
+                OrthogonalPriority.EXPLICIT: priority.ooss_explicit_ordering,
+            }[semantics.orthogonal_priority]
+
+            priority_ordered_transitions = priority.get_total_ordering(statechart.tree,
+                hierarchical, same_state, orthogonal)
 
         # strategy = CurrentConfigStrategy(priority_ordered_transitions)
         strategy = EnabledEventsStrategy(priority_ordered_transitions, statechart)

@@ -206,6 +206,8 @@ class Transition(Freezable):
     def __str__(self):
         return termcolor.colored("%s 🡪 %s" % (self.source.opt.full_name, self.targets[0].opt.full_name), 'green')
 
+    __repr__ = __str__
+
 
 # Simply a collection of read-only fields, generated during "optimization" for each state, inferred from the model, i.e. the hierarchy of states and transitions
 class StateOptimization(Freezable):
@@ -420,92 +422,3 @@ def optimize_tree(root: State) -> StateTree:
         initial_states = root._effective_targets()
 
         return StateTree(root, transition_list, state_list, state_dict, after_triggers, stable_bitmap, initial_history_values, initial_states)
-
-
-def priority_source_parent(tree: StateTree) -> List[Transition]:
-    # Tree's transition list already ordered parent-first
-    return tree.transition_list
-
-# The following 3 priority implementations all do a stable sort with a partial order-key
-
-def priority_source_child(tree: StateTree) -> List[Transition]:
-    return sorted(tree.transition_list, key=lambda t: -t.source.opt.depth)
-
-def priority_arena_parent(tree: StateTree) -> List[Transition]:
-    return sorted(tree.transition_list, key=lambda t: t.opt.arena.opt.depth)
-
-def priority_arena_child(tree: StateTree) -> List[Transition]:
-    return sorted(tree.transition_list, key=lambda t: -t.opt.arena.opt.depth)
-
-
-def concurrency_arena_orthogonal(tree: StateTree):
-    with timer.Context("concurrency_arena_orthogonal"):
-        import collections
-        # arena_to_transition = collections.defaultdict(list)
-        # for t in tree.transition_list:
-        #     arena_to_transition[t.opt.arena].append(t)
-
-        # def sets(state: State):
-        #     sets = []
-        #     for t in arena_to_transition[state]:
-        #         sets.append(set((t,)))
-
-        #     for c in state.children:
-
-        #     return sets
-
-
-        # s = sets(tree.root)
-
-        # print(s)
-
-        sets = {}
-        unique_sets = []
-        for t1, t2 in itertools.combinations(tree.transition_list, r=2):
-            if not (t1.opt.arena_bitmap & t2.opt.arena_bitmap):
-                if t1 in sets:
-                    sets[t1].add(t2)
-                    sets[t2] = sets[t1]
-                elif t2 in sets:
-                    sets[t2].add(t1)
-                    sets[t1] = sets[t2]
-                else:
-                    s = set((t1,t2))
-                    sets[t1] = s
-                    sets[t2] = s
-                    unique_sets.append(s)
-                    print('added', s)
-                    
-
-        print((unique_sets))
-
-        # concurrent_set = itertools.chain.from_iterable(itertools.combinations(ls,r) for r in range(len(ls)+1))
-        # print(concurrent_set)
-
-        # import collections
-        # nonoverlapping = collections.defaultdict(list)
-        # for t1,t2 in itertools.combinations(tree.transition_list, r=2):
-        #     if not (t1.opt.arena_bitmap & t2.opt.arena_bitmap):
-        #         nonoverlapping[t1].append(t2)
-        #         nonoverlapping[t2].append(t1)
-
-        # for t, ts in nonoverlapping.items():
-        #     print(str(t), "does not overlap with", ",".join(str(t) for t in ts))
-
-        # print(len(nonoverlapping), "nonoverlapping pairs of transitions")
-
-def concurrency_src_dst_orthogonal(tree: StateTree):
-    with timer.Context("concurrency_src_dst_orthogonal"):
-        import collections
-        nonoverlapping = collections.defaultdict(list)
-        for t1,t2 in itertools.combinations(tree.transition_list, r=2):
-            lca_src = tree.state_list[bm_highest_bit(t1.source.opt.ancestors & t2.source.opt.ancestors)]
-            lca_dst = tree.state_list[bm_highest_bit(t1.targets[0].opt.ancestors & t2.targets[0].opt.ancestors)]
-            if isinstance(lca_src, ParallelState) and isinstance(lca_dst, ParallelState):
-                nonoverlapping[t1].append(t2)
-                nonoverlapping[t2].append(t1)
-
-        for t, ts in nonoverlapping.items():
-            print(str(t), "does not overlap with", ",".join(str(t) for t in ts))
-
-        print(len(nonoverlapping), "nonoverlapping pairs of transitions")

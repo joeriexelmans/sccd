@@ -40,19 +40,20 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
       statechart = parse_f(os.path.join(path, ext_file), [("statechart", statechart_parser_rules(globals, path, load_external=False, parse_f=parse_f))])
 
     def parse_semantics(el):
-      # Use reflection to find the possible XML attributes and their values
-      for aspect_name, aspect_type in SemanticConfiguration.get_fields():
-        def parse_semantic_attribute(text):
-          result = parse_semantic_choice(text)
-          if result.data == "wildcard":
-            semantic_choice = list(aspect_type) # all options
-          elif result.data == "list":
-            semantic_choice = [aspect_type[token.value.upper()] for token in result.children]
-          if len(semantic_choice) == 1:
-            semantic_choice = semantic_choice[0]
-          setattr(statechart.semantics, aspect_name, semantic_choice)
-
-        if_attribute(el, aspect_name, parse_semantic_attribute)
+      available_aspects = SemanticConfiguration.get_fields()
+      for aspect_name, text in el.attrib.items():
+        try:
+          aspect_type = available_aspects[aspect_name]
+        except KeyError:
+          raise XmlError("invalid semantic aspect: '%s'" % aspect_name)
+        result = parse_semantic_choice(text)
+        if result.data == "wildcard":
+          semantic_choice = list(aspect_type) # all options
+        elif result.data == "list":
+          semantic_choice = [aspect_type[token.value.upper()] for token in result.children]
+        if len(semantic_choice) == 1:
+          semantic_choice = semantic_choice[0]
+        setattr(statechart.semantics, aspect_name, semantic_choice)
 
     def parse_datamodel(el):
       body = parse_block(globals, el.text)

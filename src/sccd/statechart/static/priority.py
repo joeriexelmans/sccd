@@ -23,11 +23,12 @@ def ooss_explicit_ordering(tree: StateTree) -> EdgeList:
     def visit_parallel_state(s: State, _=None):
         if isinstance(s, ParallelState):
             prev = []
-            # s.children is document order
+            # s.children are the orthogonal regions in document order
             for region in s.children:
                 curr = get_transitions(region)
-                edges.extend(itertools.product(prev, curr))
-                prev = curr
+                if len(curr) > 0: # skip empty regions
+                    edges.extend(itertools.product(prev, curr))
+                    prev = curr
     visit_tree(tree.root, lambda s: s.children,
         before_children=[visit_parallel_state])
     return edges
@@ -37,7 +38,7 @@ def explicit(tree: StateTree) -> EdgeList:
     edges: EdgeList = []
     def visit_state(s: State, _=None):
         prev = None
-        # s.transitions is document order
+        # s.transitions are s' outgoing transitions in document order
         for t in s.transitions:
             if prev is not None:
                 edges.append((prev, t))
@@ -49,9 +50,11 @@ def explicit(tree: StateTree) -> EdgeList:
 # hierarchical Source-Parent ordering
 def source_parent(tree: StateTree) -> EdgeList:
     edges: EdgeList = []
-    def visit_state(s: State, ancestor_transitions: List[Transition] = []) -> List[Transition]:
-        edges.extend(itertools.product(ancestor_transitions, s.transitions))
-        return ancestor_transitions + s.transitions
+    def visit_state(s: State, parent_transitions: List[Transition] = []) -> List[Transition]:
+        if len(s.transitions) > 0: # skip states without transitions
+            edges.extend(itertools.product(parent_transitions, s.transitions))
+            return s.transitions
+        return parent_transitions
     visit_tree(tree.root, lambda s: s.children, before_children=[visit_state])
     return edges
 
@@ -59,9 +62,12 @@ def source_parent(tree: StateTree) -> EdgeList:
 def source_child(tree: StateTree) -> EdgeList:
     edges: EdgeList = []
     def visit_state(s: State, ts: List[List[Transition]]) -> List[Transition]:
-        descendant_transitions = list(itertools.chain.from_iterable(ts))
-        edges.extend(itertools.product(descendant_transitions, s.transitions))
-        return s.transitions + descendant_transitions
+        children_transitions = list(itertools.chain.from_iterable(ts))
+        if len(s.transitions) > 0: # skip states without transitions
+            edges.extend(itertools.product(children_transitions, s.transitions))
+            return s.transitions
+        else:
+            return children_transitions
     visit_tree(tree.root, lambda s: s.children, after_children=[visit_state])
     return edges
 

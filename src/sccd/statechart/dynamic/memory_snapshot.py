@@ -95,7 +95,7 @@ class SnapshottingStatechartMemory(StatechartMemory):
     if race_conditions:
       variables = self.frame.scope.variables
       # some variable written to twice before refresh
-      raise SCCDRuntimeException("Race condition: More than one transition assigned a new value to variables: %s" % (", ".join(variables[offset].name for offset in bm_items(race_conditions))))
+      raise ModelRuntimeError("Race condition: More than one transition assigned a new value to variables: %s" % (", ".join(variables[offset].name for offset in bm_items(race_conditions))))
 
     self.round_dirty |= self.trans_dirty
     self.trans_dirty = Bitmap() # reset
@@ -120,7 +120,7 @@ class ReadOnlyStatechartMemory(StatechartMemory):
   def store(self, offset: int, value: Any):
     frame, offset = self.delegate._get_frame(offset)
     if frame is self.frame:
-      raise SCCDRuntimeException("Attempt to write to read-only memory.")
+      raise ModelRuntimeError("Attempt to write to read-only memory.")
 
     self.delegate.store(offset, value)
 

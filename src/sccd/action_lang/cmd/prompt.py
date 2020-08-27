@@ -48,7 +48,7 @@ if __name__ == "__main__":
     except (UnexpectedToken, UnexpectedCharacters) as e:
       print(" " + " "*e.column + "^")
       print(type(e).__name__+":", e)
-    except (LarkError, ModelError, SCCDRuntimeException) as e:
+    except (LarkError, ModelStaticError, ModelRuntimeError) as e:
       print(type(e).__name__+":", e)
     except (KeyboardInterrupt, EOFError):
       print()

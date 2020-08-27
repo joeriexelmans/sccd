@@ -2,7 +2,7 @@ from typing import *
 from sccd.util.namespace import *
 from sccd.util.duration import *
 from sccd.util.debug import *
-from sccd.action_lang.static.exceptions import ModelError
+from sccd.common.exceptions import *
 
 # Global values for all statecharts in a class diagram.
 class Globals:
@@ -30,7 +30,7 @@ class Globals:
     # Ensure delta not too big
     if delta:
       if duration(0) < gcd_delta < delta:
-        raise ModelError("Model contains duration deltas (smallest = %s) not representable with delta of %s." % (str(self.delta), str(delta)))
+        raise ModelStaticError("Model contains duration deltas (smallest = %s) not representable with delta of %s." % (str(self.delta), str(delta)))
       else:
         self.delta = delta
     else:

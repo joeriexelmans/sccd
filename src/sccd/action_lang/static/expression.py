@@ -32,7 +32,7 @@ class MemoryInterface(ABC):
 
 # Thrown if the type checker encountered something illegal.
 # Not to be confused with Python's TypeError exception.
-class StaticTypeError(ModelError):
+class StaticTypeError(ModelStaticError):
     pass
 
 class Expression(ABC):

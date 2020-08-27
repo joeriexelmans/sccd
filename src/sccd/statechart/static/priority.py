@@ -1,3 +1,4 @@
+from sccd.common.exceptions import *
 from sccd.statechart.static.tree import StateTree, Transition, State, ParallelState
 from sccd.util.graph import strongly_connected_components
 from typing import *
@@ -102,13 +103,14 @@ def get_graph(tree: StateTree, *priorities: Callable[[StateTree], EdgeList]) -> 
 # Checks whether the 'priorities' given yield a valid ordering of transitions in the statechart.
 # Returns list of all transitions in statechart, ordered by priority (high -> low).
 def get_total_ordering(tree: StateTree, *priorities: Callable[[StateTree], EdgeList]) -> List[Transition]:
+    # "edges" is a list of pairs (t1, t2) of transitions, where t1 has higher priority than t2.
     edges = get_graph(tree, *priorities)
     scc = strongly_connected_components(edges)
     if len(scc) != len(tree.transition_list):
         # Priority graph contains cycles
         for component in scc:
             if len(component) > 1:
-                raise Exception("Nondeterminism! Cycle among transition priorities: " + str(component))
+                raise ModelStaticError("Cycle among transition priorities: " + str(component))
 
     total_ordering = []
 
@@ -121,18 +123,18 @@ def get_total_ordering(tree: StateTree, *priorities: Callable[[StateTree], EdgeL
             lca = tree.state_list[lca_id]
             # Transitions are orthogonal to each other (LCA is And-state):
             if isinstance(lca, ParallelState):
-                raise Exception("Nondeterminism! No priority between orthogonal transitions: " + str(transitions))
+                raise ModelStaticError("Nondeterminism! No priority between orthogonal transitions: %s, %s" % (t1, t2))
             # They have the same source:
             if t1.source is t2.source:
-                raise Exception("Nondeterminism! No priority between outgoing transitions of same state: %s, %s" % (t1, t2))
+                raise ModelStaticError("Nondeterminism! No priority between outgoing transitions of same state: %s, %s" % (t1, t2))
             # Their source states are ancestors of one another:
             if bm_has(t1.source.opt.ancestors, t2.source.opt.state_id) or bm_has(t2.source.opt.ancestors, t1.source.opt.state_id):
-                raise Exception("Nondeterminism! No priority between ancestral transitions: %s, %s" % (t1, t2))
+                raise ModelStaticError("Nondeterminism! No priority between ancestral transitions: %s, %s" % (t1, t2))
 
     remaining_transitions = set(tree.transition_list)
     remaining_edges = edges
     while len(remaining_edges) > 0:
-        # 1. Find set of highest-priority transitions (= the ones that only have outgoing edges)
+        # 1. Find set of highest-priority transitions (= the ones that have no incoming edges)
         # Such a set must exist, because we've already assured that are no cycles in the graph.
         highs = set()
         lows = set()

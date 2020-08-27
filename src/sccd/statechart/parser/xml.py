@@ -9,7 +9,7 @@ from sccd.statechart.parser.text import *
 class SkipFile(Exception):
   pass
 
-parse_f = functools.partial(parse, decorate_exceptions=(ModelError,LarkError))
+parse_f = functools.partial(parse, decorate_exceptions=(ModelStaticError,LarkError))
 
 def check_duration_type(type):
   if type != SCCDDuration:

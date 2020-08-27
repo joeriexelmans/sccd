@@ -4,7 +4,7 @@ from sccd.statechart.dynamic.event import *
 from sccd.util.bitmap import *
 from sccd.statechart.static.tree import *
 from sccd.util.debug import *
-from sccd.action_lang.dynamic.exceptions import *
+from sccd.common.exceptions import *
 from sccd.util import timer
 
 @dataclass
@@ -306,7 +306,7 @@ class SuperRoundWithLimit(SuperRound):
 
             subrounds += 1
             if subrounds >= self.limit:
-                raise SCCDRuntimeException("%s: Limit reached! (%d×%s) Possibly a never-ending big step." % (self.name, subrounds, self.subround.name))
+                raise ModelRuntimeError("%s: Limit reached! (%d×%s) Possibly a never-ending big step." % (self.name, subrounds, self.subround.name))
 
             arenas_changed |= changed
             arenas_stabilized |= stabilized

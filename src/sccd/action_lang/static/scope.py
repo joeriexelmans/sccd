@@ -3,12 +3,12 @@ from typing import *
 from dataclasses import *
 from inspect import signature
 from sccd.action_lang.static.types import *
-from sccd.action_lang.static.exceptions import *
+from sccd.common.exceptions import *
 import itertools
 import termcolor
 
 
-class ScopeError(ModelError):
+class ScopeError(ModelStaticError):
   def __init__(self, scope, msg):
     super().__init__(msg + '\n\n' + str(scope))
 

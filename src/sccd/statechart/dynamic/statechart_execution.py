@@ -4,7 +4,7 @@ from sccd.statechart.dynamic.event import *
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
 from sccd.action_lang.static.scope import *
-from sccd.action_lang.dynamic.exceptions import *
+from sccd.common.exceptions import *
 from sccd.util import timer
 
 # Set of current states etc.
@@ -141,7 +141,7 @@ class StatechartExecution:
         try:
             state_ids_bitmap = bm_union(self.statechart.tree.state_dict[state_string].opt.state_id_bitmap for state_string in state_strings)
         except KeyError as e:
-            raise SCCDRuntimeException("INSTATE argument %s: invalid state" % str(e)) from e
+            raise ModelRuntimeError("INSTATE argument %s: invalid state" % str(e)) from e
         in_state = bm_has_all(self.configuration, state_ids_bitmap)
         # if in_state:
         #     print_debug("in state"+str(state_strings))

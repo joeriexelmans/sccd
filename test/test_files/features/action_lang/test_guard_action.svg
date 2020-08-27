@@ -33,7 +33,7 @@
 <title>_done</title>
 <polygon fill="transparent" stroke="transparent" stroke-width="2" points="94,-46 0,-46 0,0 94,0 94,-46"/>
 <text text-anchor="start" x="33.6584" y="-29.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">done</text>
-<text text-anchor="start" x="5.8364" y="-9.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">entry ^out.done</text>
+<text text-anchor="start" x="5.501" y="-9.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">enter ^out.done</text>
 <polygon fill="#000000" stroke="#000000" points="0,-23 0,-23 94,-23 94,-23 0,-23"/>
 <path fill="none" stroke="#000000" stroke-width="2" d="M13,-1C13,-1 81,-1 81,-1 87,-1 93,-7 93,-13 93,-13 93,-33 93,-33 93,-39 87,-45 81,-45 81,-45 13,-45 13,-45 7,-45 1,-39 1,-33 1,-33 1,-13 1,-13 1,-7 7,-1 13,-1"/>
 </g>

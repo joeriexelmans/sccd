@@ -29,12 +29,14 @@ Assuming you followed the installation instructions above, run:
 python3 -m sccd.test.run test/test_files
 ```
 
+It will recursively visit the directory tree of `test_files` and look for XML files starting with with `test_` (tests that should succeed) or `fail_` (for tests that should fail), and execute them. The tree also contains XML files starting with `statechart_`: these are individual statechart models that are not directly executable, but are used by test files. The tree also contains SVG files: these contain automatically rendered images of statechart models.
+
 ## Runtime environment variables
 
 The following environment variables can be set to change the behavior of the runtime. These options can be set while running the tests, or while running one of the examples.
 
-* `SCCDDEBUG`: When set, additional debug information is printed, such as the individual transitions taken.
-* `SCCDTIMINGS`: When set, at exit, the runtime will print information about how much time in total was spent during various parts of its execution, such as loading the model (if model was loaded from a file), generating transition candidates, executing transitions, executing actions, and more.
+* `SCCDDEBUG`: When set, additional debug information is printed, such as a trace of the individual transitions taken.
+* `SCCDTIMINGS`: When set, at exit, the runtime will print information about how much time in total was spent during various parts of its execution, such as loading the model, generating transition candidates, executing transitions, executing actions, and more.
 
 ## Included tools
 

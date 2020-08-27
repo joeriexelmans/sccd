@@ -15,6 +15,7 @@ if __name__ == "__main__":
 
   print("Total variants:", len(variants))
   
+  # These rules perfectly partition the set of variants into "valid" and "invalid":
   def is_valid(semantics):
     # Combo-steps should be smaller (or equal to) big-steps, obviously.
     if semantics.combo_step_maximality > semantics.big_step_maximality:
@@ -31,7 +32,7 @@ if __name__ == "__main__":
           semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP)
 
     # "Combo Take One" is the default combo-step maximality option in SCCD, and is also the option
-    # that is chosen when no combo-steps are being defined. Options different from "Combo Take One"
+    # that is chosen when no combo-steps are being defined. Therefore, options different from "Combo Take One"
     # are only allowed when combo-step semantics are being used.
     if not must_have_combo_steps and semantics.combo_step_maximality > Maximality.TAKE_ONE:
       return False
@@ -86,7 +87,7 @@ if __name__ == "__main__":
   }
 
 
-  # Some mock callbacks that we have pass to the StatechartInstance
+  # Some mock callbacks that we have to pass to the StatechartInstance
   def on_output(e: OutputEvent):
     pass
 
@@ -100,7 +101,7 @@ if __name__ == "__main__":
   input0_id = globals.events.get_id("input0")
   input_events = [InternalEvent(id=input0_id, name="", params=[])]
 
-  # Here we will accumulate our wrongly-inferred semantic configurations
+
   def check_variants(variants):
     correct = []
     incorrect = []
@@ -123,7 +124,6 @@ if __name__ == "__main__":
           setattr(inferred_semantics, aspect_name, aspect_val)
       inferred_semantics.assignment_memory_protocol = inferred_semantics.enabledness_memory_protocol
 
-
       # print("\nActual semantics:")
       # print(v.semantics)
 
@@ -137,6 +137,7 @@ if __name__ == "__main__":
 
 
     return (correct, incorrect)
+
 
   correct, incorrect = check_variants(valid_variants)
   print("\nOf the valid variants, corrently inferred %d, incorrectly inferred %d." % (len(correct), len(incorrect)))

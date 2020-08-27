@@ -142,8 +142,8 @@ def get_total_ordering(tree: StateTree, *priorities: Callable[[StateTree], EdgeL
     while len(remaining_edges) > 0:
         # 1. Find set of highest-priority transitions (= the ones that have no incoming edges)
         # Such a set must exist, because we've already assured that are no cycles in the graph.
-        highs = set()
-        lows = set()
+        highs = set() # all transitions that have outgoing edges ("higher priority")
+        lows = set() # all transitions that have incoming edges ("lower priority")
         for high, low in remaining_edges:
             highs.add(high)
             lows.add(low)

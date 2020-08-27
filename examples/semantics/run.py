@@ -76,8 +76,8 @@ if __name__ == "__main__":
     "/P/MemoryProtocol/MemoryProtocol/ComboStep": ("enabledness_memory_protocol", MemoryProtocol.COMBO_STEP),
     "/P/MemoryProtocol/MemoryProtocol/SmallStep": ("enabledness_memory_protocol", MemoryProtocol.SMALL_STEP),
 
-    "/P/Priority/SourceParent": ("priority", HierarchicalPriority.SOURCE_PARENT),
-    "/P/Priority/SourceChild": ("priority", HierarchicalPriority.SOURCE_CHILD),
+    "/P/Priority/SourceParent": ("hierarchical_priority", HierarchicalPriority.SOURCE_PARENT),
+    "/P/Priority/SourceChild": ("hierarchical_priority", HierarchicalPriority.SOURCE_CHILD),
   }
 
   state_id_to_semantics = {
@@ -123,6 +123,7 @@ if __name__ == "__main__":
           setattr(inferred_semantics, aspect_name, aspect_val)
       inferred_semantics.assignment_memory_protocol = inferred_semantics.enabledness_memory_protocol
 
+
       # print("\nActual semantics:")
       # print(v.semantics)
 
@@ -133,6 +134,7 @@ if __name__ == "__main__":
         correct.append(inferred_semantics)
       else:
         incorrect.append((v.semantics, inferred_semantics))
+
 
     return (correct, incorrect)
 

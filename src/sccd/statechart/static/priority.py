@@ -1,5 +1,6 @@
-from sccd.common.exceptions import *
 from sccd.statechart.static.tree import StateTree, Transition, State, ParallelState
+from sccd.statechart.static.concurrency import check_nondeterminism, SmallStepConsistency
+from sccd.statechart.static.semantic_configuration import *
 from sccd.util.graph import strongly_connected_components
 from typing import *
 from sccd.util.visit_tree import visit_tree
@@ -9,108 +10,128 @@ import itertools
 
 EdgeList = List[Tuple[Transition,Transition]]
 
-# explicit ordering of orthogonal regions
-def ooss_explicit_ordering(tree: StateTree) -> EdgeList:
-    edges: EdgeList = []
-    # get all outgoing transitions of state or one of its descendants
-    def get_transitions(s: State) -> List[Transition]:
-        transitions = []
+# Get the (partial) priority ordering between transitions in the state tree, according to given semantics, as a graph
+def get_graph(tree: StateTree, semantics: SemanticConfiguration) -> EdgeList:
+
+    # explicit ordering of orthogonal regions
+    def explicit_ortho(tree: StateTree) -> EdgeList:
+        edges: EdgeList = []
+        # get all outgoing transitions of state or one of its descendants
+        def get_transitions(s: State) -> List[Transition]:
+            transitions = []
+            def visit_state(s: State, _=None):
+                transitions.extend(s.transitions)
+            visit_tree(s, lambda s: s.children, before_children=[visit_state])
+            return transitions
+        # create edges between transitions in one region to another
+        def visit_parallel_state(s: State, _=None):
+            if isinstance(s, ParallelState):
+                prev = []
+                # s.children are the orthogonal regions in document order
+                for region in s.children:
+                    curr = get_transitions(region)
+                    if len(curr) > 0: # skip empty regions
+                        edges.extend(itertools.product(prev, curr))
+                        prev = curr
+        visit_tree(tree.root, lambda s: s.children,
+            before_children=[visit_parallel_state])
+        return edges
+
+    # explicit ordering of outgoing transitions of the same state
+    def explicit_same_state(tree: StateTree) -> EdgeList:
+        edges: EdgeList = []
         def visit_state(s: State, _=None):
-            transitions.extend(s.transitions)
-        visit_tree(s, lambda s: s.children, before_children=[visit_state])
-        return transitions
-    # create edges between transitions in one region to another
-    def visit_parallel_state(s: State, _=None):
-        if isinstance(s, ParallelState):
-            prev = []
-            # s.children are the orthogonal regions in document order
-            for region in s.children:
-                curr = get_transitions(region)
-                if len(curr) > 0: # skip empty regions
-                    edges.extend(itertools.product(prev, curr))
-                    prev = curr
-    visit_tree(tree.root, lambda s: s.children,
-        before_children=[visit_parallel_state])
-    return edges
+            prev = None
+            # s.transitions are s' outgoing transitions in document order
+            for t in s.transitions:
+                if prev is not None:
+                    edges.append((prev, t))
+                prev = t
+        visit_tree(tree.root, lambda s: s.children,
+            before_children=[visit_state])
+        return edges
 
-# explicit ordering of outgoing transitions of the same state
-def explicit(tree: StateTree) -> EdgeList:
-    edges: EdgeList = []
-    def visit_state(s: State, _=None):
-        prev = None
-        # s.transitions are s' outgoing transitions in document order
-        for t in s.transitions:
-            if prev is not None:
-                edges.append((prev, t))
-            prev = t
-    visit_tree(tree.root, lambda s: s.children,
-        before_children=[visit_state])
-    return edges
+    # hierarchical Source-Parent ordering
+    def source_parent(tree: StateTree) -> EdgeList:
+        edges: EdgeList = []
+        def visit_state(s: State, parent_transitions: List[Transition] = []) -> List[Transition]:
+            if len(s.transitions) > 0: # skip states without transitions
+                edges.extend(itertools.product(parent_transitions, s.transitions))
+                return s.transitions
+            return parent_transitions
+        visit_tree(tree.root, lambda s: s.children, before_children=[visit_state])
+        return edges
 
-# hierarchical Source-Parent ordering
-def source_parent(tree: StateTree) -> EdgeList:
-    edges: EdgeList = []
-    def visit_state(s: State, parent_transitions: List[Transition] = []) -> List[Transition]:
-        if len(s.transitions) > 0: # skip states without transitions
-            edges.extend(itertools.product(parent_transitions, s.transitions))
-            return s.transitions
-        return parent_transitions
-    visit_tree(tree.root, lambda s: s.children, before_children=[visit_state])
-    return edges
+    # hierarchical Source-Child ordering
+    def source_child(tree: StateTree) -> EdgeList:
+        edges: EdgeList = []
+        def visit_state(s: State, ts: List[List[Transition]]) -> List[Transition]:
+            children_transitions = list(itertools.chain.from_iterable(ts))
+            if len(s.transitions) > 0: # skip states without transitions
+                edges.extend(itertools.product(children_transitions, s.transitions))
+                return s.transitions
+            else:
+                return children_transitions
+        visit_tree(tree.root, lambda s: s.children, after_children=[visit_state])
+        return edges
 
-# hierarchical Source-Child ordering
-def source_child(tree: StateTree) -> EdgeList:
-    edges: EdgeList = []
-    def visit_state(s: State, ts: List[List[Transition]]) -> List[Transition]:
-        children_transitions = list(itertools.chain.from_iterable(ts))
-        if len(s.transitions) > 0: # skip states without transitions
-            edges.extend(itertools.product(children_transitions, s.transitions))
-            return s.transitions
-        else:
-            return children_transitions
-    visit_tree(tree.root, lambda s: s.children, after_children=[visit_state])
-    return edges
+    # hierarchical Arena-Parent ordering
+    def arena_parent(tree: StateTree) -> EdgeList:
+        edges: EdgeList = []
+        partitions = collections.defaultdict(list) # mapping of transition's arena depth to list of transitions
+        for t in tree.transition_list:
+            partitions[t.opt.arena.opt.depth].append(t)
+        ordered_partitions = sorted(partitions.items(), key=lambda tup: tup[0])
+        prev = []
+        for depth, curr in ordered_partitions:
+            edges.extend(itertools.product(prev, curr))
+            prev = curr
+        return edges
 
-# hierarchical Arena-Parent ordering
-def arena_parent(tree: StateTree) -> EdgeList:
-    edges: EdgeList = []
-    partitions = collections.defaultdict(list) # mapping of transition's arena depth to list of transitions
-    for t in tree.transition_list:
-        partitions[t.opt.arena.opt.depth].append(t)
-    ordered_partitions = sorted(partitions.items(), key=lambda tup: tup[0])
-    prev = []
-    for depth, curr in ordered_partitions:
-        edges.extend(itertools.product(prev, curr))
-        prev = curr
-    return edges
+    # hierarchical Arena-Child ordering
+    def arena_child(tree: StateTree) -> EdgeList:
+        edges: EdgeList = []
+        partitions = collections.defaultdict(list) # mapping of transition's arena depth to list of transitions
+        for t in tree.transition_list:
+            partitions[t.opt.arena.opt.depth].append(t)
+        ordered_partitions = sorted(partitions.items(), key=lambda tup: -tup[0])
+        prev = []
+        for depth, curr in ordered_partitions:
+            edges.extend(itertools.product(prev, curr))
+            prev = curr
+        return edges
 
-# hierarchical Arena-Child ordering
-def arena_child(tree: StateTree) -> EdgeList:
-    edges: EdgeList = []
-    partitions = collections.defaultdict(list) # mapping of transition's arena depth to list of transitions
-    for t in tree.transition_list:
-        partitions[t.opt.arena.opt.depth].append(t)
-    ordered_partitions = sorted(partitions.items(), key=lambda tup: -tup[0])
-    prev = []
-    for depth, curr in ordered_partitions:
-        edges.extend(itertools.product(prev, curr))
-        prev = curr
-    return edges
+    # no priority
+    def none(tree: StateTree) -> EdgeList:
+        return []
 
-# no priority
-def none(tree: StateTree) -> EdgeList:
-    return []
 
-# Apply the graph-yielding functions to the given statetree, and merge their results into a single graph
-def get_graph(tree: StateTree, *priorities: Callable[[StateTree], EdgeList]) -> EdgeList:
-    edges = list(itertools.chain.from_iterable(p(tree) for p in priorities))
+    hierarchical = {
+        HierarchicalPriority.NONE: none,
+        HierarchicalPriority.SOURCE_PARENT: source_parent,
+        HierarchicalPriority.SOURCE_CHILD: source_child,
+        HierarchicalPriority.ARENA_PARENT: arena_parent,
+        HierarchicalPriority.ARENA_CHILD: arena_child,
+    }[semantics.hierarchical_priority]
+
+    same_state = {
+        SameSourcePriority.NONE: none,
+        SameSourcePriority.EXPLICIT: explicit_same_state,
+    }[semantics.same_source_priority]
+
+    orthogonal = {
+        OrthogonalPriority.NONE: none,
+        OrthogonalPriority.EXPLICIT: explicit_ortho,
+    }[semantics.orthogonal_priority]
+
+    edges = list(itertools.chain.from_iterable(p(tree) for p in [hierarchical, same_state, orthogonal]))
     return edges
 
 # Checks whether the 'priorities' given yield a valid ordering of transitions in the statechart.
 # Returns list of all transitions in statechart, ordered by priority (high -> low).
-def get_total_ordering(tree: StateTree, *priorities: Callable[[StateTree], EdgeList]) -> List[Transition]:
+def generate_total_ordering(tree: StateTree, graph: EdgeList, consistency: SmallStepConsistency) -> List[Transition]:
     # "edges" is a list of pairs (t1, t2) of transitions, where t1 has higher priority than t2.
-    edges = get_graph(tree, *priorities)
+    edges = graph
     scc = strongly_connected_components(edges)
     if len(scc) != len(tree.transition_list):
         # Priority graph contains cycles
@@ -119,23 +140,6 @@ def get_total_ordering(tree: StateTree, *priorities: Callable[[StateTree], EdgeL
                 raise ModelStaticError("Cycle among transition priorities: " + str(component))
 
     total_ordering = []
-
-    # Raises an exception if the given set of transitions can potentially be enabled simulatenously, wrt. their source states in the state tree.
-    def check_unordered(transitions):
-        pairs = itertools.combinations(transitions, 2)
-        for t1, t2 in pairs:
-            # LCA of their sources
-            lca_id = bm_highest_bit(t1.source.opt.ancestors & t2.source.opt.ancestors)
-            lca = tree.state_list[lca_id]
-            # Transitions are orthogonal to each other (LCA is And-state):
-            if isinstance(lca, ParallelState):
-                raise ModelStaticError("Nondeterminism! No priority between orthogonal transitions: %s, %s" % (t1, t2))
-            # They have the same source:
-            if t1.source is t2.source:
-                raise ModelStaticError("Nondeterminism! No priority between outgoing transitions of same state: %s, %s" % (t1, t2))
-            # Their source states are ancestors of one another:
-            if bm_has(t1.source.opt.ancestors, t2.source.opt.state_id) or bm_has(t2.source.opt.ancestors, t1.source.opt.state_id):
-                raise ModelStaticError("Nondeterminism! No priority between ancestral transitions: %s, %s" % (t1, t2))
 
     remaining_transitions = set(tree.transition_list)
     remaining_edges = edges
@@ -149,7 +153,7 @@ def get_total_ordering(tree: StateTree, *priorities: Callable[[StateTree], EdgeL
             lows.add(low)
         highest_priority = highs - lows
         # 2. Check if the transitions in this set are allowed to have equal priority.
-        check_unordered(highest_priority) # may raise Exception
+        check_nondeterminism(tree, highest_priority, consistency) # may raise Exception
         # 3. All good. Add the transitions in the highest-priority set in any order to the total ordering
         total_ordering.extend(highest_priority)
         # 4. Remove the transitions of the highest-priority set from the graph, and repeat.
@@ -157,7 +161,7 @@ def get_total_ordering(tree: StateTree, *priorities: Callable[[StateTree], EdgeL
         remaining_transitions -= highest_priority
 
     # Finally, there may be transitions that occur in the priority graph only as vertices, e.g. in flat statecharts:
-    check_unordered(remaining_transitions)
+    check_nondeterminism(tree, remaining_transitions, consistency)
     total_ordering.extend(remaining_transitions)
 
     return total_ordering

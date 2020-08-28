@@ -4,7 +4,7 @@ from typing import List, Tuple, Iterable
 from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
 from sccd.statechart.static.statechart import *
-import sccd.statechart.static.priority as priority
+from sccd.statechart.static import priority, concurrency
 from sccd.statechart.dynamic.builtin_scope import *
 from sccd.statechart.dynamic.round import *
 from sccd.statechart.dynamic.statechart_execution import *
@@ -39,26 +39,15 @@ class StatechartInstance(Instance):
         # Priority semantics
 
         with timer.Context("priority"):
-            hierarchical = {
-                HierarchicalPriority.NONE: priority.none,
-                HierarchicalPriority.SOURCE_PARENT: priority.source_parent,
-                HierarchicalPriority.SOURCE_CHILD: priority.source_child,
-                HierarchicalPriority.ARENA_PARENT: priority.arena_parent,
-                HierarchicalPriority.ARENA_CHILD: priority.arena_child,
-            }[semantics.hierarchical_priority]
 
-            same_state = {
-                SameSourcePriority.NONE: priority.none,
-                SameSourcePriority.EXPLICIT: priority.explicit,
-            }[semantics.same_source_priority]
+            graph = priority.get_graph(statechart.tree, semantics)
 
-            orthogonal = {
-                OrthogonalPriority.NONE: priority.none,
-                OrthogonalPriority.EXPLICIT: priority.ooss_explicit_ordering,
-            }[semantics.orthogonal_priority]
+            consistency = {
+                Concurrency.SINGLE: concurrency.NoConcurrency(),
+                Concurrency.MANY: concurrency.ArenaOrthogonal(),
+            }[semantics.concurrency]
 
-            priority_ordered_transitions = priority.get_total_ordering(statechart.tree,
-                hierarchical, same_state, orthogonal)
+            priority_ordered_transitions = priority.generate_total_ordering(statechart.tree, graph, consistency)
 
         # strategy = CurrentConfigStrategy(priority_ordered_transitions)
         strategy = EnabledEventsStrategy(priority_ordered_transitions, statechart)
@@ -90,19 +79,19 @@ class StatechartInstance(Instance):
 
             elif semantics.combo_step_maximality == Maximality.TAKE_MANY:
                 # Add even more layers, basically an onion at this point.
-                combo_step = SuperRoundWithLimit(termcolor.colored("combo_many", 'cyan'), subround=combo_one, maximality=TakeMany(), limit=LIMIT)
+                combo_step = SuperRound(termcolor.colored("combo_many", 'cyan'), subround=combo_one, maximality=TakeMany(), limit=LIMIT)
 
             elif semantics.combo_step_maximality == Maximality.SYNTACTIC:
-                combo_step = SuperRoundWithLimit(termcolor.colored("combo_syntactic", 'cyan'), subround=combo_one, maximality=Syntactic(), limit=LIMIT)
+                combo_step = SuperRound(termcolor.colored("combo_syntactic", 'cyan'), subround=combo_one, maximality=Syntactic(), limit=LIMIT)
 
             else:
                 raise Exception("Unsupported option: %s" % semantics.combo_step_maximality)
 
             if semantics.big_step_maximality == Maximality.TAKE_MANY:
-                self._big_step = SuperRoundWithLimit(termcolor.colored("big_many", 'red'), subround=combo_step, maximality=TakeMany(), limit=LIMIT)
+                self._big_step = SuperRound(termcolor.colored("big_many", 'red'), subround=combo_step, maximality=TakeMany(), limit=LIMIT)
 
             elif semantics.big_step_maximality == Maximality.SYNTACTIC:
-                self._big_step = SuperRoundWithLimit(termcolor.colored("big_syntactic", 'red'), subround=combo_step, maximality=Syntactic(), limit=LIMIT)
+                self._big_step = SuperRound(termcolor.colored("big_syntactic", 'red'), subround=combo_step, maximality=Syntactic(), limit=LIMIT)
 
         else:
             raise Exception("Unsupported option: %s" % semantics.big_step_maximality)

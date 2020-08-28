@@ -6,13 +6,11 @@ import os
 from sccd.util.os_tools import *
 from sccd.util.indenting_writer import *
 from sccd.statechart.parser.xml import *
-import lxml.etree as ET
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Render statecharts as SVG images.")
     parser.add_argument('path', metavar='PATH', type=str, nargs='*', help="Models to render. Can be a XML file or a directory. If a directory, it will be recursively scanned for XML files.")
-    parser.add_argument('--build-dir', metavar='DIR', type=str, default='build', help="As a first step, input XML files first must be compiled to python files. Directory to store these files. Defaults to 'build'")
     parser.add_argument('--output-dir', metavar='DIR', type=str, default='.', help="Directory for SVG rendered output. Defaults to '.' (putting the SVG files with the XML source files)")
     parser.add_argument('--keep-smcat', action='store_true', help="Whether to NOT delete intermediary SMCAT files after producing SVG output. Default = off (delete files)")
     parser.add_argument('--no-svg', action='store_true', help="Don't produce SVG output. This option only makes sense in combination with the --keep-smcat option. Default = off")
@@ -87,9 +85,9 @@ if __name__ == '__main__':
             self.opt = PseudoState.Opt(name)
         # Used for drawing initial state
         class PseudoTransition:
-          def __init__(self, source, targets):
+          def __init__(self, source, target):
             self.source = source
-            self.targets = targets
+            self.target = target
             self.guard = None
             self.trigger = None
             self.actions = []
@@ -124,7 +122,7 @@ if __name__ == '__main__':
               w.indent()
             if s.default_state:
               w.write(name_to_name(s.opt.full_name)+'_initial [type=initial],')
-              transitions.append(PseudoTransition(source=PseudoState(s.opt.full_name+'/initial'), targets=[s.default_state]))
+              transitions.append(PseudoTransition(source=PseudoState(s.opt.full_name+'/initial'), target=s.default_state))
             s.children.reverse() # this appears to put orthogonal components in the right order :)
             for i, c in enumerate(s.children):
               write_state(c)
@@ -146,20 +144,10 @@ if __name__ == '__main__':
           if t.actions:
             label += ' '.join(a.render() for a in t.actions)
 
-          if len(t.targets) == 1:
-            w.write(name_to_name(t.source.opt.full_name) + ' -> ' + name_to_name(t.targets[0].opt.full_name))
-            if label:
-              w.extendWrite(': '+label)
-            w.extendWrite(';')
-          else:
-            w.write(name_to_name(t.source.opt.full_name) + ' -> ' + ']split'+str(ctr))
-            if label:
-                w.extendWrite(': '+label)
-            w.extendWrite(';')
-            for tt in t.targets:
-              w.write(']split'+str(ctr) + ' -> ' + name_to_name(tt.opt.full_name))
-              w.extendWrite(';')
-            ctr += 1
+          w.write(name_to_name(t.source.opt.full_name) + ' -> ' + name_to_name(t.target.opt.full_name))
+          if label:
+            w.extendWrite(': '+label)
+          w.extendWrite(';')
 
         f.close()
         if args.keep_smcat:

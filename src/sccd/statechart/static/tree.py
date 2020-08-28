@@ -346,10 +346,7 @@ class StateTree(Freezable):
 
             for t in self.transition_list:
                 # Arena can be computed statically. First compute Lowest-common ancestor:
-                # Intersection between source & target ancestors, last member in depth-first sorted state list.
-                lca_id = bm_highest_bit(t.source.opt.ancestors & t.target.opt.ancestors)
-                lca = self.state_list[lca_id]
-                arena = lca
+                arena = self.lca(t.source, t.target)
                 # Arena must be an Or-state:
                 while isinstance(arena, (ParallelState, HistoryState)):
                     arena = arena.parent
@@ -404,5 +401,12 @@ class StateTree(Freezable):
     def bitmap_to_states_reverse(self, bitmap: Bitmap) -> Iterator[State]:
         return (self.state_list[id] for id in bm_reverse_items(bitmap))
 
+    def lca(self, s1: State, s2: State) -> State:
+        # Intersection between source & target ancestors, last member in depth-first sorted state list.
+        return self.state_list[bm_highest_bit(s1.opt.ancestors & s2.opt.ancestors)]
+
 def states_to_bitmap(states: Iterable[State]) -> Bitmap:
     return bm_from_list(s.opt.state_id for s in states)
+
+def is_ancestor(parent: State, child: State) -> bool:
+    return bm_has(child.opt.ancestors, parent.opt.state_id)

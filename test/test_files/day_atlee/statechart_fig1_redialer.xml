@@ -3,6 +3,7 @@
   <semantics
     big_step_maximality="syntactic"
     concurrency="many"
+    orthogonal_priority="none"
     input_event_lifeline="whole"
     enabledness_memory_protocol="small_step"
     assignment_memory_protocol="small_step"/>

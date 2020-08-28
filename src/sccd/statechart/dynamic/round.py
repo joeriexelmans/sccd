@@ -337,7 +337,7 @@ class SmallStep(Round):
             arena = t.opt.arena_bitmap
             self.execution.fire_transition(enabled_events, t)
             dirty_arenas |= arena
-            if t.targets[0].stable:
+            if t.opt.target_stable:
                 stable_arenas |= arena
             enabled_events = self.enabled_events()
             enabled_events.sort(key=lambda e: e.id)

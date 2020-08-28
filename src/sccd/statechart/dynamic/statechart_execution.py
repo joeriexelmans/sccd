@@ -27,7 +27,7 @@ class StatechartExecution:
         self.history_values: List[Bitmap] = list(statechart.tree.initial_history_values)
 
         # Scheduled IDs for after triggers
-        self.timer_ids = [None] * len(statechart.tree.after_triggers)
+        self.timer_ids = [None] * statechart.tree.timer_count
 
     # enter default states
     def initialize(self):
@@ -37,7 +37,7 @@ class StatechartExecution:
         if self.statechart.datamodel is not None:
             self.statechart.datamodel.exec(self.rhs_memory)
 
-        for state in self._ids_to_states(bm_items(self.configuration)):
+        for state in self.statechart.tree.bitmap_to_states(self.configuration):
             print_debug(termcolor.colored('  ENTER %s'%state.opt.full_name, 'green'))
             _perform_actions(ctx, state.enter)
             self._start_timers(state.opt.after_triggers)
@@ -46,24 +46,21 @@ class StatechartExecution:
         self.rhs_memory.flush_round()
         self.gc_memory.flush_round()
 
-    def _ids_to_states(self, id_iter):
-        return (self.statechart.tree.state_list[id] for id in id_iter)
-
     # events: list SORTED by event id
     def fire_transition(self, events: List[InternalEvent], t: Transition):
         try:
             with timer.Context("transition"):
                 # Sequence of exit states is the intersection between set of current states and the arena's descendants.
                 with timer.Context("exit set"):
-                    exit_ids = self.configuration & t.opt.arena.opt.descendants
-                    exit_set = self._ids_to_states(bm_reverse_items(exit_ids))
+                    exit_ids = self.configuration & t.opt.exit_mask
+                    exit_set = self.statechart.tree.bitmap_to_states_reverse(exit_ids)
 
                 with timer.Context("enter set"):
                     # Sequence of enter states is more complex but has for a large part already been computed statically.
                     enter_ids = t.opt.enter_states_static
                     if t.opt.target_history_id is not None:
                         enter_ids |= self.history_values[t.opt.target_history_id]
-                    enter_set = self._ids_to_states(bm_items(enter_ids))
+                    enter_set = self.statechart.tree.bitmap_to_states(enter_ids)
 
                 ctx = EvalContext(execution=self, events=events, memory=self.rhs_memory)
 
@@ -139,7 +136,7 @@ class StatechartExecution:
     # Return whether the current configuration includes ALL the states given.
     def in_state(self, state_strings: List[str]) -> bool:
         try:
-            state_ids_bitmap = bm_union(self.statechart.tree.state_dict[state_string].opt.state_id_bitmap for state_string in state_strings)
+            state_ids_bitmap = bm_union(self.statechart.tree.state_dict[s].opt.state_id_bitmap for s in state_strings)
         except KeyError as e:
             raise ModelRuntimeError("INSTATE argument %s: invalid state" % str(e)) from e
         in_state = bm_has_all(self.configuration, state_ids_bitmap)

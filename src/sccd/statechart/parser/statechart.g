@@ -8,7 +8,7 @@
 
 // Parsing target of a transition as a sequence of nodes
 
-state_ref: path | "(" path ("," path)+ ")" 
+state_ref: path
 
 ?path: absolute_path | relative_path 
 absolute_path: _PATH_SEP _path_sequence

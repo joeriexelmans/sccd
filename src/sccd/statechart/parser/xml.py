@@ -200,7 +200,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
           scope = Scope("event_params", parent=statechart.scope)
           target_string = require_attribute(el, "target")
-          transition = Transition(parent, [], scope, target_string)
+          transition = Transition(source=parent, target=None, scope=scope, target_string=target_string)
 
           have_event_attr = False
           def parse_attr_event(event):
@@ -290,11 +290,11 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             return state
 
           try:
-            transition.targets = [find_target(seq) for seq in parse_tree.children]
+            transition.target = find_target(parse_tree.children[0])
           except Exception as e:
             raise XmlErrorElement(t_el, "target=\"%s\": %s" % (transition.target_string, str(e))) from e
 
-        statechart.tree = optimize_tree(root)
+        statechart.tree = StateTree(root)
 
       return (state_child_rules(root, sibling_dict=children_dict), finish_root)
 

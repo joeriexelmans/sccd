@@ -38,11 +38,14 @@ if __name__ == '__main__':
           # All other nodes will be ignored.
           return ({"statechart": parse_sc}, when_done)
 
-        statechart = parse_f(src, {
-          "test": find_statechart,
-          "single_instance_cd": find_statechart,
-          "statechart": parse_sc,
-        }, ignore_unmatched=True)
+        try:
+            statechart = parse_f(src, {
+              "test": find_statechart,
+              "single_instance_cd": find_statechart,
+              "statechart": parse_sc,
+            }, ignore_unmatched=True)
+        except SkipFile:
+            continue
 
         assert isinstance(statechart, Statechart)
 
@@ -51,6 +54,29 @@ if __name__ == '__main__':
           continue
 
         tree = statechart.tree
+        semantics = statechart.semantics
+
+        hierarchical = {
+            HierarchicalPriority.NONE: priority.none,
+            HierarchicalPriority.SOURCE_PARENT: priority.source_parent,
+            HierarchicalPriority.SOURCE_CHILD: priority.source_child,
+            HierarchicalPriority.ARENA_PARENT: priority.arena_parent,
+            HierarchicalPriority.ARENA_CHILD: priority.arena_child,
+        }[semantics.hierarchical_priority]
+
+        same_state = {
+            SameSourcePriority.NONE: priority.none,
+            SameSourcePriority.EXPLICIT: priority.explicit_same_state,
+        }[semantics.same_source_priority]
+
+        orthogonal = {
+            OrthogonalPriority.NONE: priority.none,
+            OrthogonalPriority.EXPLICIT: priority.explicit_ortho,
+        }[semantics.orthogonal_priority]
+
+        same_state_edges = same_state(tree)
+        hierarchical_edges = hierarchical(tree)
+        orthogonal_edges = orthogonal(tree)
 
         dot_target = dropext(src)+'_priorities.dot'
         svg_target = dropext(src)+'_priorities.svg'
@@ -60,15 +86,25 @@ if __name__ == '__main__':
             w.write("digraph priorities {")
             w.indent()
 
-            graph = priority.get_graph(tree, statechart.semantics)
+            pseudo_dict = {}
 
-            print("Priority graph has", len(graph), "edges")
+            def node_label(t):
+                if isinstance(t, priority.PseudoVertex):
+                    try:
+                        label = pseudo_dict[t]
+                    except KeyError:
+                        pseudo_dict[t] = label = "pseudo"+str(len(pseudo_dict))
+                        w.write("%s [label=\"\" shape=circle style=filled fixedsize=true width=0.4 height=0.4 fillcolor=\"grey\"];" % label)
+                    return label
+                elif isinstance(t, Transition):
+                    return '"'+str(tree.transition_list.index(t)) + ". " + t.source.short_name + "->" + t.target.short_name+'"'
+            def draw_edges(edges, color):
+                for high, low in edges:
+                    w.write("%s -> %s [color=%s];" % (node_label(high), node_label(low), color))
 
-            def label(t):
-                return '"'+str(tree.transition_list.index(t)) + ". " + t.source.short_name + "->" + t.target.short_name+'"'
-
-            for high, low in graph:
-                w.write(label(high) + " -> " + label(low) + ";")
+            draw_edges(same_state_edges, "green")
+            draw_edges(hierarchical_edges, "red")
+            draw_edges(orthogonal_edges, "blue")
 
             w.dedent()
             w.write("}")

@@ -14,6 +14,7 @@
 ### Optional
 
 * [state-machine-cat](https://github.com/sverweij/state-machine-cat) to render statecharts as SVG images. Runs on NodeJS, installable from NPM.
+* [Graphviz dot](https://graphviz.org/) to render the priorities between a statechart's transitions as a graph.
 
 ## Installation
 
@@ -43,6 +44,7 @@ The following environment variables can be set to change the behavior of the run
 The following Python modules are runnable from terminal:
 
 * `sccd.test.run`, already mentioned, runs tests.
-* `sccd.render` will render test files and statecharts as SVG images. Depends on `state-machine-cat` command.
+* `sccd.render` will render test files and statecharts as SVG images. Depends on `state-machine-cat` command. [Example of a rendered file](examples/digitalwatch/model_digitalwatch.svg)
+* `sccd.statechart.cmd.render_priorities` will render the statechart's transition priorities, as determined by the chosen semantics, as a graph. Depends on `dot` command. [Example of a rendered file](examples/digitalwatch/model_digitalwatch_priorities.svg)
 * `sccd.statechart.cmd.check_model` will check if a model is valid.
 * `sccd.action_lang.cmd.prompt` is an interactive prompt for the action language that is part of the statechart language.

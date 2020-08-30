@@ -1,0 +1,87 @@
+<test>
+  <statechart>
+    <semantics
+      big_step_maximality="take_many"
+      combo_step_maximality="take_one"
+      input_event_lifeline="first_combo_step"
+      internal_event_lifeline="next_combo_step"
+      enabledness_memory_protocol="small_step"
+      assignment_memory_protocol="small_step"
+    />
+    
+    <datamodel>
+      a = 0;
+      b = 0;
+    </datamodel>
+
+    <inport name="in">
+      <event name="inc_one"/>
+      <event name="inc_two"/>
+    </inport>
+
+    <outport name="out">
+      <event name="start_process"/>
+    </outport>
+
+    <root>
+      <parallel id="Plant">
+        <state id="Process_1" initial="Idle_1">
+          <state id="Idle_1">
+            <transition port="in" event="inc_one" target="../Wait_1">
+              <code> a += 1; b += 1; </code>
+              <raise event="process"/>
+            </transition>
+          </state>
+          <state id="Wait_1">
+            <transition port="in" event="end_process" target="../Idle_1"/>
+          </state>
+        </state>
+
+        <state id="Process_2" initial="Idle_2">
+          <state id="Idle_2">
+            <transition port="in" event="inc_two" target="../Wait_2">
+              <code> a += 2; b += 2; </code>
+              <raise event="process"/>
+            </transition>
+          </state>
+          <state id="Wait_2">
+            <transition port="in" event="end_process" target="../Idle_2"/>
+          </state>
+        </state>
+
+        <state id="Controller" initial="Idle">
+          <state id="Idle">
+            <transition event="process" target="../Wait">
+              <raise event="start_process">
+                <param expr="a"/>
+                <param expr="b"/>
+              </raise>
+            </transition>
+          </state>
+          <state id="Wait">
+            <transition port="in" event="end_process" target="../Idle">
+              <code> a = 0; b = 0; </code>
+            </transition>
+          </state>
+        </state>
+      </parallel>
+    </root>
+  </statechart>
+
+  <input>
+    <bag time="0 d">
+      <!-- 2 simultaneous input events -->
+      <event port="in" name="inc_one"/>
+      <event port="in" name="inc_two"/>
+    </bag>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="start_process">
+        <param val="3"/>
+        <param val="3"/>
+      </event>
+    </big_step>
+  </output>
+</test>

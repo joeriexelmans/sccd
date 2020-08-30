@@ -1,0 +1,27 @@
+<?xml version="1.0" ?>
+<test>
+  <!-- Same as Example 6, but with combo steps :)
+  
+   We deviate a bit from Example 21 by using big-step maximality: Take Many,
+   because in SCCD, if Big-Step Maximality is "Take One", combo steps are disabled. -->
+  <statechart src="statechart_fig8_counter.xml">
+    <override_semantics
+      big_step_maximality="take_many"
+      combo_step_maximality="take_one"
+      input_event_lifeline="first_combo_step"
+      internal_event_lifeline="next_combo_step"/>
+  </statechart>
+
+  <input>
+    <event port="in" name="tk0" time="0 d"/>
+    <event port="in" name="tk0" time="0 d"/>
+    <event port="in" name="tk0" time="0 d"/>
+    <event port="in" name="tk0" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="done"/>
+    </big_step>
+  </output>
+</test>

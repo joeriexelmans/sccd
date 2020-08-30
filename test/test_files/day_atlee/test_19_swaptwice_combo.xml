@@ -1,4 +1,5 @@
 <test>
+  <!-- Example 19. Statechart from Figure 21, extended with an input event to set the variables a,b, and with an output event to retreive the values (because currently, testing is black-box) -->
   <statechart>
     <semantics
       big_step_maximality="take_many"

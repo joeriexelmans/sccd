@@ -20,8 +20,8 @@ class Controller:
 
     @dataclasses.dataclass(eq=False, frozen=True)
     class EventQueueEntry:
-        __slots__ = ["event", "targets"]
-        event: InternalEvent
+        __slots__ = ["events", "targets"]
+        events: List[InternalEvent]
         targets: List[Instance]
 
         def __repr__(self):
@@ -36,7 +36,7 @@ class Controller:
         # Our instances should not have 'full access' to the global event queue (e.g. they shouldn't pop due events, that's the controller's task!). They are only allowed to schedule and cancel scheduled events. Hence we pass them 2 callbacks:
 
         def schedule_after(after, event, instances):
-            entry = Controller.EventQueueEntry(event, instances)
+            entry = Controller.EventQueueEntry([event], instances)
             return self.queue.add(self.simulated_time + after, entry)
 
         def cancel_after(entry):
@@ -55,8 +55,8 @@ class Controller:
 
     # Lower-level way of adding an event to the queue
     # See also method 'add_input'
-    def schedule(self, timestamp: int, event: InternalEvent, instances: List[Instance]):
-        self.queue.add(timestamp, Controller.EventQueueEntry(event, instances))
+    def schedule(self, timestamp: int, events: List[InternalEvent], instances: List[Instance]):
+        self.queue.add(timestamp, Controller.EventQueueEntry(events, instances))
 
     # Low-level utility function, intended to map a port name to a list of instances
     # For now, all known ports map to all instances (i.e. all ports are broadcast ports)
@@ -71,6 +71,9 @@ class Controller:
         # TODO: multicast event only to instances that subscribe to this port.
         return self.object_manager.instances
 
+    def all_instances(self) -> List[Instance]:
+        return self.object_manager.instances
+
     # Higher-level way of adding an event to the queue.
     # See also method 'schedule'
     def add_input(self, timestamp: int, port: str, event_name: str, params = []):
@@ -82,7 +85,7 @@ class Controller:
         instances = self.inport_to_instances(port)
         event = InternalEvent(event_id, event_name, params)
 
-        self.schedule(timestamp, event, instances)
+        self.schedule(timestamp, [event], instances)
 
     # Get timestamp of earliest entry in event queue
     def next_wakeup(self) -> Optional[int]:
@@ -120,5 +123,5 @@ class Controller:
             # print("remaining", self.queue)
             # run all instances for whom there are events
             for instance in entry.targets:
-                instance.big_step([entry.event])
+                instance.big_step(entry.events)
                 # print_debug("completed big step (time = %s)" % str(self.cd.globals.delta * self.simulated_time))

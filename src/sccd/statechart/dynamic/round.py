@@ -55,7 +55,7 @@ class Round(ABC):
         else:
             return self.remainder_events
 
-    def __repr__(self):
+    def __str__(self):
         return self.name
 
 class SuperRoundMaximality(ABC):
@@ -92,6 +92,9 @@ class SuperRound(Round):
         subround.parent = self
         self.maximality = maximality
         self.limit = limit
+
+    def __str__(self):
+        return self.name + " > " + str(self.subround)
 
     def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
         arenas_changed = Bitmap()

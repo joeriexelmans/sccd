@@ -6,16 +6,15 @@ from sccd.cd.static.cd import *
 _empty_scope = Scope("test", parent=None)
 
 @dataclass
-class TestInputEvent:
-  event: InternalEvent
-  port: str
+class TestInputBag:
+  events: List[InternalEvent]
   timestamp: Expression
 
 @dataclass
 class TestVariant:
   name: str
   cd: AbstractCD
-  input: List[TestInputEvent]
+  input: List[TestInputBag]
   output: List[List[OutputEvent]]
 
 def test_parser_rules(statechart_parser_rules):
@@ -25,29 +24,52 @@ def test_parser_rules(statechart_parser_rules):
 
   def parse_test(el):
     def parse_input(el):
-      def parse_input_event(el):
-        name = require_attribute(el, "name")
-        port = require_attribute(el, "port")
-        time = require_attribute(el, "time")
-        time_expr = parse_expression(globals, time)
-        time_type = time_expr.init_expr(scope=_empty_scope)
-        check_duration_type(time_type)
-        params = []
-        event_id = globals.events.get_id(name)
-        input.append(TestInputEvent(
-          event=InternalEvent(id=event_id, name=name, params=params),
-          port=port,
-          timestamp=time_expr))
 
+      def param_parser_rules():
+        params = []
         def parse_param(el):
           text = require_attribute(el, "expr")
           expr = parse_expression(globals, text)
           expr.init_expr(scope=_empty_scope)
           params.append(expr.eval(memory=None))
+        return (params, parse_param)
 
-        return [("param*", parse_param)]
+      def parse_time(time: str) -> Expression:
+        expr = parse_expression(globals, time)
+        type = expr.init_expr(scope=_empty_scope)
+        check_duration_type(type)
+        return expr
 
-      return [("event+", parse_input_event)]
+      def make_input_event(name: str, params):
+        event_id = globals.events.get_id(name)
+        return InternalEvent(id=event_id, name=name, params=params)
+
+      def parse_input_event(el):
+        # port = require_attribute(el, "port")
+        name = require_attribute(el, "name")
+        time = require_attribute(el, "time")
+        time_expr = parse_time(time)
+        params, params_parser = param_parser_rules()
+        input.append(TestInputBag(
+          events=[make_input_event(name, params)],
+          timestamp=time_expr))
+        return {"param": params_parser}
+
+      def parse_bag(el):
+        # bag of (simultaneous) input events
+        time = require_attribute(el, "time")
+        time_expr = parse_time(time)
+        events = []
+        input.append(TestInputBag(events, time_expr))
+        def parse_bag_event(el):
+          # port = require_attribute(el, "port")
+          name = require_attribute(el, "name")
+          params, params_parser = param_parser_rules()
+          events.append(make_input_event(name, params))
+          return {"param": params_parser}
+        return {"event": parse_bag_event}
+
+      return {"event": parse_input_event, "bag": parse_bag}
 
     def parse_output(el):
       def parse_big_step(el):

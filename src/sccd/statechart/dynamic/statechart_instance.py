@@ -66,6 +66,9 @@ class StatechartInstance(Instance):
 
 
         if semantics.big_step_maximality == Maximality.TAKE_ONE:
+            # If Big-Step Maximality is Take One, we disable combo steps.
+            # This is not entirely according to the BSML spec, but in 99% of cases, this is what you'd want.
+            # If we did not do this, we would have to allow the user to explicitly disable combo-steps instead.
             self._big_step = combo_step = SuperRound(termcolor.colored("big_one", 'red'), subround=small_step, maximality=TakeOne()) # No combo steps
 
         elif semantics.big_step_maximality == Maximality.TAKE_MANY or semantics.big_step_maximality == Maximality.SYNTACTIC:

@@ -2,7 +2,9 @@
 <test>
   <statechart src="statechart_fig20_invar.xml">
     <override_semantics
-      assignment_memory_protocol="small_step"/>
+      big_step_maximality="take_many"
+      combo_step_maximality="take_one"
+      assignment_memory_protocol="combo_step"/>
   </statechart>
 
   <input>
@@ -11,12 +13,9 @@
 
   <output>
     <big_step>
-      <!-- BSML paper gives example of big step t1, t2, t3, t4.
-           Due to "always on"-fairness, we instead take the big step t1, t3, t2, t4,
-           giving the following values for a,b: -->
       <event port="out" name="done">
-        <param val="33"/>
-        <param val="26"/>
+        <param val="27"/>
+        <param val="22"/>
       </event>
     </big_step>
   </output>

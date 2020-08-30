@@ -54,8 +54,11 @@ class Test(unittest.TestCase):
 
         controller = Controller(test.cd, on_output)
 
-        for i in test.input:
-          controller.schedule(i.timestamp.eval(None), i.event, controller.inport_to_instances(i.port))
+        for bag in test.input:
+          controller.schedule(
+            bag.timestamp.eval(None),
+            bag.events,
+            controller.all_instances()) # broadcast input events to all instances
 
         def controller_thread():
           try:

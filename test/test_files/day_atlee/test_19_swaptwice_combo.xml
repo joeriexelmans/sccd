@@ -1,0 +1,91 @@
+<test>
+  <statechart>
+    <semantics
+      big_step_maximality="take_many"
+      combo_step_maximality="take_one"
+      input_event_lifeline="first_combo_step"
+      internal_event_lifeline="next_combo_step"
+      enabledness_memory_protocol="combo_step"
+      assignment_memory_protocol="combo_step"
+    />
+
+    <datamodel>
+      a = 0;
+      b = 0;
+    </datamodel>
+
+    <inport name="in">
+      <event name="set_a_b"/>
+      <event name="swap_twice"/>
+    </inport>
+
+    <outport name="out">
+      <event name="swapped"/>
+    </outport>
+
+
+    <root initial="Swap">
+      <parallel id="Swap">
+        <transition event="set_a_b(a_: int, b_: int)" target=".">
+          <code> a = a_; b = b_; </code>
+        </transition>
+
+        <state id="A" initial="S1">
+          <state id="S1">
+            <transition port="in" event="swap_twice" target="../S2">
+              <code> a = b; </code>
+              <raise event="swap_a"/>
+            </transition>
+          </state>
+          <state id="S2">
+            <transition event="swap_a" target="../S3">
+              <code> a = b; </code>
+            </transition>
+          </state>
+          <state id="S3"/>
+        </state>
+
+        <state id="B" initial="S4">
+          <state id="S4">
+            <transition port="in" event="swap_twice" target="../S5">
+              <code> b = a; </code>
+              <raise event="swap_a"/>
+            </transition>
+          </state>
+          <state id="S5">
+            <transition event="swap_a" target="../S6">
+              <code> b = a; </code>
+            </transition>
+          </state>
+          <state id="S6">
+            <transition cond='INSTATE(["/Swap/A/S3"])' target="/done">
+              <raise event="swapped">
+                <param expr="a"/>
+                <param expr="b"/>
+              </raise>
+            </transition>
+          </state>
+        </state>
+      </parallel>
+
+      <state id="done"/>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="set_a_b" time="0 d">
+      <param expr="42"/>
+      <param expr="7"/>
+    </event>
+    <event port="in" name="swap_twice" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="swapped">
+        <param val="42"/>
+        <param val="7"/>
+      </event>
+    </big_step>
+  </output>
+</test>

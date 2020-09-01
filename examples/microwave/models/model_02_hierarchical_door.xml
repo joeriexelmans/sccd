@@ -1,4 +1,5 @@
 <single_instance_cd>
+  <!-- Safety feature extension through hierarchical state: microwave can't be running while door is open -->
   <delta>1 ms</delta>
   <statechart>
     <semantics

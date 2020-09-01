@@ -1,11 +1,10 @@
 <single_instance_cd>
-  <!-- "Take Many"-variant -->
+  <!-- "Syntactic"-variant with "Choice" state, modeled as non-stable state -->
   <delta>1 ms</delta>
   <statechart>
     <semantics
-      big_step_maximality="take_many"
-      combo_step_maximality="take_one"
-      input_event_lifeline="first_combo_step"
+      big_step_maximality="syntactic"
+      input_event_lifeline="whole"
       same_source_priority="explicit"
       />
     <datamodel>
@@ -28,11 +27,11 @@
       <event name="ping"/>
     </outport>
     <root initial="NotRunning">
-      <state id="Running">
+      <state id="Running" stable="true">
         <onentry> <raise port="out" event="micro_on"/> </onentry>
         <onexit> <raise port="out" event="micro_off"/> </onexit>
         <transition port="in" event="stop" target="../NotRunning"/>
-        <transition after="1 s" target=".">
+        <transition after="1 s" target="../Choice">
           <code> time -= 1; </code>
           <raise port="out" event="set_time">
             <param expr="time"/>
@@ -44,9 +43,12 @@
               <param expr="time"/>
             </raise>
         </transition>
+      </state>
+      <state id="Choice">
+        <transition cond="time > 0" target="../Running"/>
         <transition cond="time == 0" target="../NotRunning"/>
       </state>
-      <state id="NotRunning">
+      <state id="NotRunning" stable="true">
         <transition port="in" event="start" target="../Running">
           <code> checkStartTime(); </code>
           <raise port="out" event="set_time">

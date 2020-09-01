@@ -1,11 +1,11 @@
 <single_instance_cd>
-  <!-- "Take Many"-variant -->
+  <!-- "Take One"-variant with 2 after-transitions -->
   <delta>1 ms</delta>
   <statechart>
     <semantics
-      big_step_maximality="take_many"
-      combo_step_maximality="take_one"
-      input_event_lifeline="first_combo_step"
+      big_step_maximality="take_one"
+      input_event_lifeline="whole"
+      hierarchical_priority="source_parent"
       same_source_priority="explicit"
       />
     <datamodel>
@@ -32,7 +32,7 @@
         <onentry> <raise port="out" event="micro_on"/> </onentry>
         <onexit> <raise port="out" event="micro_off"/> </onexit>
         <transition port="in" event="stop" target="../NotRunning"/>
-        <transition after="1 s" target=".">
+        <transition after="1 s" cond="time > 1" target=".">
           <code> time -= 1; </code>
           <raise port="out" event="set_time">
             <param expr="time"/>
@@ -44,7 +44,12 @@
               <param expr="time"/>
             </raise>
         </transition>
-        <transition cond="time == 0" target="../NotRunning"/>
+        <transition after="1 s" cond="time == 1" target="../NotRunning">
+          <code> time -= 1; </code>
+          <raise port="out" event="set_time">
+            <param expr="time"/>
+          </raise>
+        </transition>
       </state>
       <state id="NotRunning">
         <transition port="in" event="start" target="../Running">

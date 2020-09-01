@@ -1,0 +1,78 @@
+<single_instance_cd>
+  <delta>1 ms</delta>
+  <statechart>
+    <semantics
+      big_step_maximality="take_many"
+      combo_step_maximality="take_one"
+      input_event_lifeline="first_combo_step"
+      hierarchical_priority="source_parent"
+      orthogonal_priority="explicit"
+      same_source_priority="explicit"
+      />
+    <datamodel>
+      time = 0;
+      checkStartTime = func {
+        if (time == 0) time = 30;
+      };
+    </datamodel>
+    <inport name="in">
+      <event name="start"/>
+      <event name="stop"/>
+      <event name="door_opened"/>
+      <event name="door_closed"/>
+    </inport>
+    <outport name="out">
+      <event name="micro_on"/>
+      <event name="micro_off"/>
+      <event name="set_time"/>
+    </outport>
+    <root>
+      <parallel id="P">
+        <state id="Main" initial="DoorClosed">
+          <state id="DoorClosed" initial="NotRunning">
+            <transition port="in" event="door_opened" target="../DoorOpen"/>
+            <state id="Running">
+              <onentry> <raise port="out" event="micro_on"/> </onentry>
+              <onexit> <raise port="out" event="micro_off"/> </onexit>
+              <transition port="in" event="stop" target="../NotRunning"/>
+              <transition after="1 s" target=".">
+                <code> time -= 1; </code>
+                <raise port="out" event="set_time">
+                  <param expr="time"/>
+                </raise>
+              </transition>
+              <transition cond="time == 0" target="../NotRunning"/>
+            </state>
+            <state id="NotRunning">
+              <transition port="in" event="start" target="../Running">
+                <code> checkStartTime(); </code>
+                <raise port="out" event="set_time">
+                  <param expr="time"/>
+                </raise>
+              </transition>
+              <transition port="in" event="stop" target=".">
+                <code> time = 0; </code>
+                <raise port="out" event="set_time">
+                  <param expr="time"/>
+                </raise>
+              </transition>
+            </state>
+          </state>
+          <state id="DoorOpen">
+            <transition port="in" event="door_closed" target="../DoorClosed"/>
+          </state>
+        </state>
+        <state id="TimeIncrease">
+          <state id="Default">
+            <transition port="in" event="increase_time" target=".">
+              <code> time += 10; </code>
+                <raise port="out" event="set_time">
+                  <param expr="time"/>
+                </raise>
+            </transition>
+          </state>
+        </state>
+      </parallel>
+    </root>
+  </statechart>
+</single_instance_cd>

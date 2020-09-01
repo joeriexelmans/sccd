@@ -4,9 +4,15 @@ from sccd.cd.parser.xml import *
 import GUI
 import tkinter
 from tkinter.constants import NO
+import sys
 
 if __name__ == '__main__':
-    cd = load_cd("model_microwave.xml")
+    if len(sys.argv) == 2:
+        model_path = sys.argv[1]
+    else:
+        model_path = "models/model_03_orthogonal.xml"
+
+    cd = load_cd(model_path)
 
     def send_event(event: str):
         eventloop.add_input_now(port="in", event_name=event)

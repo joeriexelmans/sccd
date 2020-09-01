@@ -18,6 +18,7 @@
     <inport name="in">
       <event name="start"/>
       <event name="stop"/>
+      <event name="increase_time"/>
       <event name="door_opened"/>
       <event name="door_closed"/>
     </inport>
@@ -42,9 +43,7 @@
                   <param expr="time"/>
                 </raise>
               </transition>
-              <transition cond="time == 0" target="../NotRunning">
-                <raise port="out" event="ping"/>
-              </transition>
+              <transition cond="time == 0" target="../NotRunning"/>
             </state>
             <state id="NotRunning">
               <transition port="in" event="start" target="../Running">

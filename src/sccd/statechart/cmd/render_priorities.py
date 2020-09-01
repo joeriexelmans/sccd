@@ -97,7 +97,13 @@ if __name__ == '__main__':
                         w.write("%s [label=\"\" shape=circle style=filled fixedsize=true width=0.4 height=0.4 fillcolor=\"grey\"];" % label)
                     return label
                 elif isinstance(t, Transition):
-                    return '"'+str(tree.transition_list.index(t)) + ". " + t.source.short_name + "->" + t.target.short_name+'"'
+                    trigger = ""
+                    guard = ""
+                    if t.trigger is not None:
+                        trigger = t.trigger.render()
+                    if t.guard is not None:
+                        guard = "["+t.guard.render()+"]"
+                    return '"'+str(tree.transition_list.index(t)) + ". " + trigger + guard + " / " + t.source.short_name + "->" + t.target.short_name+'"'
             def draw_edges(edges, color):
                 for high, low in edges:
                     w.write("%s -> %s [color=%s];" % (node_label(high), node_label(low), color))

@@ -45,7 +45,8 @@ class GUI(Frame):
 
         self.imgClosedOff = PhotoImage(file="./small_closed_off.png")
         self.imgClosedOn = PhotoImage(file="./small_closed_on.png")
-        self.imgOpened = PhotoImage(file="./small_opened.png")
+        self.imgOpenedOff = PhotoImage(file="./small_opened_off.png")
+        self.imgOpenedOn = PhotoImage(file="./small_opened_on.png")
 
         # state
         self.doorOpened = False
@@ -126,7 +127,10 @@ class GUI(Frame):
 
     def refresh_background(self):
         if self.doorOpened:
-            self.canvas.itemconfig(self.background, image=self.imgOpened)
+            if self.running:
+                self.canvas.itemconfig(self.background, image=self.imgOpenedOn)
+            else:
+                self.canvas.itemconfig(self.background, image=self.imgOpenedOff)
         else:
             if self.running:
                 self.canvas.itemconfig(self.background, image=self.imgClosedOn)

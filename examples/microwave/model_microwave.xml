@@ -25,6 +25,7 @@
       <event name="micro_on"/>
       <event name="micro_off"/>
       <event name="set_time"/>
+      <event name="ping"/>
     </outport>
     <root>
       <parallel id="P">
@@ -41,7 +42,9 @@
                   <param expr="time"/>
                 </raise>
               </transition>
-              <transition cond="time == 0" target="../NotRunning"/>
+              <transition cond="time == 0" target="../NotRunning">
+                <raise port="out" event="ping"/>
+              </transition>
             </state>
             <state id="NotRunning">
               <transition port="in" event="start" target="../Running">

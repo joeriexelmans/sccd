@@ -1,3 +1,5 @@
+# Based on "Digital Watch GUI" OCT 2008 by Reehan Shaikh reehan.shaikh@cs.mcgill.ca
+
 from tkinter import Frame, PhotoImage, Canvas
 from tkinter.constants import BOTH
 
@@ -68,18 +70,10 @@ class GUI(Frame):
             (INCTIME_X0, INCTIME_X1, INCTIME_Y0, INCTIME_Y1, "INCTIME"),
             (DOOR_X0, DOOR_X1, DOOR_Y0, DOOR_Y1, "DOOR"),
         ]
-                        
-        # self.buttonStart = self.canvas.create_rectangle(START_X0, START_Y0, START_X1, START_Y1)
-        # self.buttonStop = self.canvas.create_rectangle(STOP_X0, STOP_Y0, STOP_X1, STOP_Y1)
-        # self.buttonIncTime = self.canvas.create_rectangle(INCTIME_X0, INCTIME_Y0, INCTIME_X1, INCTIME_Y1)
-        # self.buttonDoor = self.canvas.create_rectangle(DOOR_X0, DOOR_Y0, DOOR_X1, DOOR_Y1, fill='')
 
         self.timeTag = self.canvas.create_text(
             TIME_X1-16, TIME_Y0+7,
             font=FONT_TIME, justify="center", fill="#0f0", text="0")
-
-        # self.timeTag = None
-        # self.setTime(0)
 
         self.canvas.bind("<ButtonPress-1>", self.mouse1Click)
         self.canvas.bind("<ButtonRelease-1>", self.mouse1Release)

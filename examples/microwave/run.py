@@ -15,7 +15,7 @@ if __name__ == '__main__':
     tk.withdraw()
     topLevel = tkinter.Toplevel(tk)
     topLevel.resizable(width=NO, height=NO)
-    topLevel.title("Microwave oven")
+    topLevel.title("Microwave oven simulator")
     gui = GUI.GUI(topLevel, send_event)
 
     def on_output(event):

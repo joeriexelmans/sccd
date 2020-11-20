@@ -1,7 +1,9 @@
 # Based on "Digital Watch GUI" OCT 2008 by Reehan Shaikh reehan.shaikh@cs.mcgill.ca
 
-from tkinter import Frame, PhotoImage, Canvas
-from tkinter.constants import BOTH
+import tkinter
+from tkinter.constants import BOTH, NO
+
+import audio
 
 CANVAS_W = 520
 CANVAS_H = 348
@@ -37,16 +39,14 @@ DOOR_Y1 = 285
 
 FONT_TIME = ("terminal", 14)
 
-class GUI(Frame):
+class GUI(tkinter.Frame):
 
-    def __init__(self, parent, send_event):
-        Frame.__init__(self, parent)
-        self.send_event = send_event
-
-        self.imgClosedOff = PhotoImage(file="./small_closed_off.png")
-        self.imgClosedOn = PhotoImage(file="./small_closed_on.png")
-        self.imgOpenedOff = PhotoImage(file="./small_opened_off.png")
-        self.imgOpenedOn = PhotoImage(file="./small_opened_on.png")
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.imgClosedOff = tkinter.PhotoImage(file="./small_closed_off.png")
+        self.imgClosedOn = tkinter.PhotoImage(file="./small_closed_on.png")
+        self.imgOpenedOff = tkinter.PhotoImage(file="./small_opened_off.png")
+        self.imgOpenedOn = tkinter.PhotoImage(file="./small_opened_on.png")
 
         # state
         self.doorOpened = False
@@ -55,7 +55,7 @@ class GUI(Frame):
         self.lastPressed = ""
                 
         self.pack()
-        self.canvas = Canvas(master=self,
+        self.canvas = tkinter.Canvas(master=self,
                              takefocus=1,
                              width=CANVAS_W, height=CANVAS_H,
                              background="black")
@@ -79,7 +79,6 @@ class GUI(Frame):
         self.canvas.bind("<ButtonPress-1>", self.mouse1Click)
         self.canvas.bind("<ButtonRelease-1>", self.mouse1Release)
         
-        # self.b_playpause.focus_force()
         parent.protocol("WM_DELETE_WINDOW", self.window_close)
 
     def mouse1Click(self, event):
@@ -96,11 +95,11 @@ class GUI(Frame):
                 self.lastPressed = "increase_time"
             elif what == "DOOR":
                 self.doorOpened = not self.doorOpened
-                self.refresh_background()
                 if self.doorOpened:
                     self.send_event("door_opened")
                 else:
                     self.send_event("door_closed")
+                self.refresh_background()
                 self.lastPressed = ""
             else:
                 self.lastPressed = ""
@@ -136,7 +135,12 @@ class GUI(Frame):
                 self.canvas.itemconfig(self.background, image=self.imgClosedOn)
             else:
                 self.canvas.itemconfig(self.background, image=self.imgClosedOff)
-        print("refreshed")
+
+        # play or stop sound
+        if self.running:
+            audio.play_running()
+        else:
+            audio.stop_running()
 
     def handle_event(self, event):
         if event.name == "micro_on":
@@ -147,6 +151,8 @@ class GUI(Frame):
             self.refresh_background()
         elif event.name == "set_time":
             self.setTime(event.params[0])
+        elif event.name == "bell":
+            audio.play_bell()
                              
     def setTime(self, time: int):
         self.canvas.itemconfig(self.timeTag, text=str(time))
@@ -155,3 +161,16 @@ class GUI(Frame):
         import sys
         sys.exit(0)
         self.send_event('GUIQuit')
+
+tk = tkinter.Tk()
+tk.withdraw()
+topLevel = tkinter.Toplevel(tk)
+topLevel.resizable(width=NO, height=NO)
+topLevel.title("Microwave oven simulator")
+gui = GUI(topLevel)
+
+from sccd.action_lang.static.types import *
+
+SCCD_EXPORTS = {
+    "display_time": (gui.setTime, SCCDFunction([SCCDInt])),
+}

@@ -2,8 +2,6 @@ from sccd.realtime.eventloop import *
 from sccd.realtime.tkinter import TkInterImplementation
 from sccd.cd.parser.xml import *
 import GUI
-import tkinter
-from tkinter.constants import NO
 import sys
 
 if __name__ == '__main__':
@@ -17,19 +15,14 @@ if __name__ == '__main__':
     def send_event(event: str):
         eventloop.add_input_now(port="in", event_name=event)
 
-    tk = tkinter.Tk()
-    tk.withdraw()
-    topLevel = tkinter.Toplevel(tk)
-    topLevel.resizable(width=NO, height=NO)
-    topLevel.title("Microwave oven simulator")
-    gui = GUI.GUI(topLevel, send_event)
+    GUI.gui.send_event = send_event
 
     def on_output(event):
         if event.port == "out":
-            gui.handle_event(event)
+            GUI.gui.handle_event(event)
 
     controller = Controller(cd, output_callback=on_output)
-    eventloop = EventLoop(controller, TkInterImplementation(tk))
+    eventloop = EventLoop(controller, TkInterImplementation(GUI.tk))
 
     eventloop.start()
-    tk.mainloop()
+    GUI.tk.mainloop()

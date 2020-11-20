@@ -8,9 +8,13 @@
       same_source_priority="explicit"
       />
     <datamodel>
+      import GUI;
       time = 0;
       checkStartTime = func {
-        if (time == 0) time = 30;
+        if (time == 0) {
+          time = 30;
+          display_time(time);
+        }
       };
     </datamodel>
     <inport name="in">
@@ -23,49 +27,37 @@
     <outport name="out">
       <event name="micro_on"/>
       <event name="micro_off"/>
-      <event name="set_time"/>
-      <event name="ping"/>
+      <event name="bell"/>
     </outport>
     <root initial="NotRunning">
-      <state id="Running" stable="true">
+      <state id="Running" initial="Running">
         <onentry> <raise port="out" event="micro_on"/> </onentry>
         <onexit> <raise port="out" event="micro_off"/> </onexit>
         <transition port="in" event="stop" target="../NotRunning"/>
-        <transition after="1 s" target="../Choice">
-          <code> time -= 1; </code>
-          <raise port="out" event="set_time">
-            <param expr="time"/>
-          </raise>
-        </transition>
-        <transition port="in" event="increase_time" target=".">
-          <code> time += 10; </code>
-            <raise port="out" event="set_time">
-              <param expr="time"/>
-            </raise>
-        </transition>
-      </state>
-      <state id="Choice">
-        <transition cond="time > 0" target="../Running"/>
-        <transition cond="time == 0" target="../NotRunning"/>
+        <state id="Running" stable="true">
+          <transition after="1 s" target="../Choice">
+            <code> time -= 1; display_time(time); </code>
+          </transition>
+          <transition port="in" event="increase_time" target=".">
+            <code> time += 10; display_time(time); </code>
+          </transition>
+        </state>
+        <state id="Choice">
+          <transition cond="time > 0" target="../Running"/>
+          <transition cond="time == 0" target="/NotRunning">
+            <raise port="out" event="bell"/>
+          </transition>
+        </state>
       </state>
       <state id="NotRunning" stable="true">
         <transition port="in" event="start" target="../Running">
           <code> checkStartTime(); </code>
-          <raise port="out" event="set_time">
-            <param expr="time"/>
-          </raise>
         </transition>
         <transition port="in" event="stop" target=".">
-          <code> time = 0; </code>
-          <raise port="out" event="set_time">
-            <param expr="time"/>
-          </raise>
+          <code> time = 0; display_time(time); </code>
         </transition>
         <transition port="in" event="increase_time" target=".">
-          <code> time += 10; </code>
-            <raise port="out" event="set_time">
-              <param expr="time"/>
-            </raise>
+          <code> time += 10; display_time(time); </code>
         </transition>
       </state>
     </root>

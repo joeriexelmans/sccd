@@ -3,7 +3,7 @@ Notes about the future of SCCD
 
 Long-term vision:
 
-  - run SCCD in web browsers
+  - execute SCCD models in web browsers
     - through supporting JavaScript (or TypeScript) as:
         - a port of the runtime
         - a target language

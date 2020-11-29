@@ -21,7 +21,6 @@ if __name__ == "__main__":
 
     assert isinstance(statechart, Statechart)
 
-    print("Loaded model.")
-    print()
+    sys.stderr.write("Loaded model.\n")
 
     compile_to_rust(statechart.tree)

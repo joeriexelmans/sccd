@@ -24,12 +24,14 @@ def compile_to_rust(tree: StateTree):
     # 1.1 Write 'current state' types
     def write_state_type(state: State, children: str):
         def as_struct():
+            print("#[allow(non_camel_case_types)]")
             print("struct %s {" % ident_type(state))
             for child in children:
                 print("  %s: %s," % (ident_field(child), ident_type(child)))
             print("}")
 
         def as_enum():
+            print("#[allow(non_camel_case_types)]")
             print("enum %s {" % ident_type(state))
             for child in children:
                 print("  %s(%s)," % (ident_field(child), ident_type(child)))
@@ -62,19 +64,35 @@ def compile_to_rust(tree: StateTree):
         return state
 
     visit_tree(tree.root, lambda s: s.children,
-        parent_first=[],
         child_first=[write_state_type])
 
     # 1.2 Write statechart type
-    print("struct Statechart {")
+    print("pub struct Statechart {")
     print("  current_state: %s," % ident_type(tree.root))
     print("  // TODO: history values")
     print("  // TODO: timers")
     print("}")
+    print()
 
 
     # 2. Write "enter default state" functions
 
+    print("pub trait State {")
+    print("  fn enter_default();")
+    print("}")
+    print()
+
+    def write_enter_default(state: State, children: str):
+        print("impl State for %s {" % ident_type(state))
+        print("  fn enter_default() {")
+        if isinstance(state, ParallelState):
+            pass
+        print("  }")
+        print("}")
+        print()
+
+    visit_tree(tree.root, lambda s: s.children,
+        child_first=[write_enter_default])
 
     # 3. Write transition functions
 

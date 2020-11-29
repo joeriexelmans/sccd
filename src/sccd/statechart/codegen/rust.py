@@ -2,14 +2,17 @@ from typing import *
 from sccd.statechart.static.tree import *
 from sccd.util.visit_tree import *
 
-def ident(state: State) -> str:
+
+# Conversion functions from abstract syntax elements to identifiers in Rust
+
+def snake_case(state: State) -> str:
     return state.opt.full_name.replace('/', '_');
 
 def ident_type(state: State) -> str:
     if state.opt.full_name == "/":
         return "Root" # no technical reason, just make this type 'pop out' a little
     else:
-        return "State" + ident(state)
+        return "State" + snake_case(state)
 
 def ident_enum_variant(state: State) -> str:
     # We know the direct children of a state must have unique names relative to each other,
@@ -17,7 +20,14 @@ def ident_enum_variant(state: State) -> str:
     return "S_" + state.short_name
 
 def ident_field(state: State) -> str:
-    return "s" + ident(state)
+    return "s" + snake_case(state)
+
+def ident_source_target(state: State) -> str:
+    # drop the first '_' (this is safe, the root state itself can never be source or target)
+    return snake_case(state)[1:]
+
+def ident_transition(t: Transition) -> str:
+    return "transition%d_FROM_%s_TO_%s" % (t.opt.id, ident_source_target(t.source), ident_source_target(t.target))
 
 
 def compile_to_rust(tree: StateTree):
@@ -73,6 +83,7 @@ def compile_to_rust(tree: StateTree):
     print("  fn exit_actions(&self);")
     print("  fn enter(&self);")
     print("  fn exit(&self);")
+    print("  fn fire(&mut self) -> bool;")
     print("}")
     print()
 
@@ -83,18 +94,17 @@ def compile_to_rust(tree: StateTree):
         if isinstance(state, HistoryState):
             return None # we got no time for pseudo-states!
 
-        # TODO: This is where parent/child first should be implemented.
-        #       For now, it's always "parent first"
-
         print("impl State for %s {" % ident_type(state))
         print("  fn enter_actions(&self) {")
         print("    // TODO: execute enter actions")
         print("    println!(\"enter %s\");" % state.opt.full_name);
         print("  }")
+
         print("  fn exit_actions(&self) {")
         print("    // TODO: execute exit actions")
         print("    println!(\"exit %s\");" % state.opt.full_name);
         print("  }")
+
         print("  fn enter(&self) {")
         print("    self.enter_actions();")
         if isinstance(state, ParallelState):
@@ -107,6 +117,7 @@ def compile_to_rust(tree: StateTree):
                     print("      Self::%s(s) => s.enter()," % ident_enum_variant(child))
                 print("    }")
         print("  }")
+
         print("  fn exit(&self) {")
         if isinstance(state, ParallelState):
             # For symmetry, we exit regions in opposite order of entering them
@@ -122,6 +133,32 @@ def compile_to_rust(tree: StateTree):
                 print("    }")
         print("    self.exit_actions();")
         print("  }")
+
+        # TODO: This is where parent/child-first should be implemented
+        #       For now, it's always "parent first"
+
+        print("  fn fire(&mut self) -> bool {")
+        for t in state.transitions:
+            print("    println!(\"fire %s\");" % str(t))
+            print("    return true;")
+            break
+        else:
+            if isinstance(state, ParallelState):
+                for child in children:
+                    print("    if self.%s.fire() {" % ident_field(child))
+                    print("      return true;")
+                    print("    }")
+                    print("    return false;")
+            elif isinstance(state, State):
+                if len(children) > 0:
+                    print("    return match self {")
+                    for child in children:
+                        print("      Self::%s(s) => s.fire()," % ident_enum_variant(child))
+                    print("    };")
+                else:
+                    print("    return false;")
+        print("  }")
+
         print("}")
         print()
         return state
@@ -157,6 +194,12 @@ def compile_to_rust(tree: StateTree):
         print()
         return state
 
+    # # Write transition selection
+
+    # def write_fire(state: State, children: List[State]):
+    #     if isinstance(state, HistoryState):
+    #         return None # we got no time for pseudo-states!
+
 
     visit_tree(tree.root, lambda s: s.children,
         child_first=[
@@ -165,7 +208,7 @@ def compile_to_rust(tree: StateTree):
             write_enter_default,
         ])
 
-    # 3 Write statechart type
+    # Write statechart type
     print("pub struct Statechart {")
     print("  current_state: %s," % ident_type(tree.root))
     print("  // TODO: history values")
@@ -174,9 +217,25 @@ def compile_to_rust(tree: StateTree):
     print()
 
 
+    # Write transitions
+    for t in tree.transition_list:
+        print("#[allow(non_snake_case)]")
+        print("fn %s(sc: &mut Statechart) {" % (ident_transition(t)))
+        # print(list(tree.bitmap_to_states(t.opt.arena.opt.ancestors)))
+        path = ""
+        # for s in tree.bitmap_to_states(t.opt.arena.opt.ancestors):
+            # path += 
+        # print("  sc.current_state.;")
+        print("}")
+        print()
+
+
+
+    # See if it works
     print("fn main() {")
-    print("  let sc = Statechart{current_state: Default::default()};")
+    print("  let mut sc = Statechart{current_state: Default::default()};")
     print("  sc.current_state.enter();")
+    print("  sc.current_state.fire();")
     print("  sc.current_state.exit();")
     print("}")
     print()

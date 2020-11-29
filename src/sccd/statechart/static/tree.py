@@ -225,11 +225,13 @@ class StateStatic(Freezable):
 
 # Data that is generated for each transition.
 class TransitionStatic(Freezable):
-    __slots__ = ["exit_mask", "arena_bitmap", "enter_states_static", "target_history_id", "target_stable", "raised_events"]
+    __slots__ = ["id", "exit_mask", "arena", "arena_bitmap", "enter_states_static", "target_history_id", "target_stable", "raised_events"]
 
-    def __init__(self, exit_mask: Bitmap, arena_bitmap: Bitmap, enter_states_static: Bitmap, target_history_id: Optional[int], target_stable: bool, raised_events: Bitmap):
+    def __init__(self, id: int, exit_mask: Bitmap, arena: State, arena_bitmap: Bitmap, enter_states_static: Bitmap, target_history_id: Optional[int], target_stable: bool, raised_events: Bitmap):
         super().__init__()
+        self.id: int = id # just a unique number, >= 0
         self.exit_mask: State = exit_mask
+        self.arena: State = arena
         self.arena_bitmap: Bitmap = arena_bitmap
         # The "enter set" can be computed partially statically, or entirely statically if there are no history states in it.
         self.enter_states_static: Bitmap = enter_states_static
@@ -344,7 +346,7 @@ class StateTree(Freezable):
                     freeze,
                 ])
 
-            for t in self.transition_list:
+            for t_id, t in enumerate(self.transition_list):
                 # Arena can be computed statically. First compute Lowest-common ancestor:
                 arena = self.lca(t.source, t.target)
                 # Arena must be an Or-state:
@@ -384,7 +386,9 @@ class StateTree(Freezable):
                         raised_events |= bit(a.event_id)
 
                 t.opt = TransitionStatic(
+                    id=t_id,
                     exit_mask=arena.opt.descendants,
+                    arena=arena,
                     arena_bitmap=arena.opt.descendants | arena.opt.state_id_bitmap,
                     enter_states_static=enter_states_static,
                     target_history_id=target_history_id,

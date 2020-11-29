@@ -19,9 +19,7 @@ def ident_field(state: State) -> str:
 
 
 def compile_to_rust(tree: StateTree):
-    # 1. Write types
-
-    # 1.1 Write 'current state' types
+    # 1 Write 'current state' types
     def write_state_type(state: State, children: List[State]):
         def as_struct():
             print("#[allow(non_camel_case_types)]")
@@ -32,14 +30,9 @@ def compile_to_rust(tree: StateTree):
 
         def as_enum():
             print("#[allow(non_camel_case_types)]")
-            print("enum E%s {" % ident_type(state))
+            print("enum %s {" % ident_type(state))
             for child in children:
                 print("  %s(%s)," % (ident_enum_variant(child), ident_type(child)))
-            print("}")
-            print("// Wrap enum in struct")
-            print("#[allow(non_camel_case_types)]")
-            print("struct %s {" % ident_type(state))
-            print("  e: E%s" % ident_type(state))
             print("}")
 
         if isinstance(state, ParallelState):
@@ -68,10 +61,52 @@ def compile_to_rust(tree: StateTree):
         print()
         return state
 
-    visit_tree(tree.root, lambda s: s.children,
-        child_first=[write_state_type])
 
-    # 1.2 Write statechart type
+    # 2. Write "enter default state" functions for above types
+
+    def write_enter_default(state: State, children: List[State]):
+        # We use Rust's Default-trait to record default states,
+        # this way, constructing a state instance without parameters will initialize it as the default state.
+
+        def begin_default():
+            print("impl Default for %s {" % ident_type(state))
+            # print("  fn default() -> %s {" % ident_type(state))
+            print("  fn default() -> Self {")
+            # print("    %s {" % ident_type(state))
+
+        def end_default():
+            print("  }")
+            print("}")
+            print()
+
+        if isinstance(state, ParallelState):
+            begin_default()
+            print("    return Self {")
+            for child in children:
+                print("      %s: Default::default()," % (ident_field(child)))
+            print("    }")
+            end_default()
+        elif isinstance(state, HistoryState):
+            pass
+        elif isinstance(state, State):
+            begin_default()
+            if state.default_state is not None:
+                # Or-state
+                print("      %s::%s(Default::default())" % (ident_type(state), ident_enum_variant(state.default_state)))
+            else:
+                # Basic state
+                print("      return Self{}")
+            end_default()
+
+        return state
+
+    visit_tree(tree.root, lambda s: s.children,
+        child_first=[
+            write_state_type,
+            write_enter_default,
+        ])
+
+    # 3 Write statechart type
     print("pub struct Statechart {")
     print("  current_state: %s," % ident_type(tree.root))
     print("  // TODO: history values")
@@ -79,58 +114,6 @@ def compile_to_rust(tree: StateTree):
     print("}")
     print()
 
-
-    # 2. Write "enter default state" functions
-
-    # print("pub trait State {")
-    # print("  fn enter_default(&mut self);")
-    # print("}")
-    # print()
-
-    def write_enter_default(state: State, children: List[State]):
-        def begin_default():
-            print("impl Default for %s {" % ident_type(state))
-            print("  fn default() -> %s {" % ident_type(state))
-            print("    %s {" % ident_type(state))
-
-        def end_default():
-            print("    }")
-            print("  }")
-            print("}")
-            print()            
-
-        if isinstance(state, ParallelState):
-            begin_default()
-            for child in children:
-                print("      %s: %s{..Default::default()}," % (ident_field(child), ident_type(child)))
-            end_default()
-        elif isinstance(state, HistoryState):
-            pass
-        elif isinstance(state, State):
-            begin_default()
-            if state.default_state is not None:
-                print("      e: E%s::%s(%s{..Default::default()})," % (ident_type(state), ident_enum_variant(state.default_state), ident_type(state.default_state)))
-            end_default()
-
-
-        # print("impl State for %s {" % ident_type(state))
-        # print("  fn enter_default(&mut self) {")
-        # if isinstance(state, ParallelState):
-        #     for child in children:
-        #         print("    self.%s.enter_default();" % ident_field(child))
-        # elif isinstance(state, HistoryState):
-        #     pass
-        # elif isinstance(state, State):
-        #     if state.default_state is not None:
-        #         print("    self.e = E%s::%s();" % (ident_type(state), ident_enum_variant(state.default_state)))
-        #         # print("    self.%s.enter_default();" % ident_enum_variant(state.default_state))
-        # print("  }")
-        # print("}")
-        # print()
-        return state
-
-    visit_tree(tree.root, lambda s: s.children,
-        child_first=[write_enter_default])
 
     # 3. Write transition functions
 

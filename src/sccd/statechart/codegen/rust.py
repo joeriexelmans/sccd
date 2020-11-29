@@ -25,6 +25,9 @@ def compile_to_rust(tree: StateTree):
     # Write 'current state' types
 
     def write_state_type(state: State, children: List[State]):
+        if isinstance(state, HistoryState):
+            return None # we got no time for pseudo-states!
+
         def as_struct():
             print("#[allow(non_camel_case_types)]")
             print("struct %s {" % ident_type(state))
@@ -42,8 +45,6 @@ def compile_to_rust(tree: StateTree):
         if isinstance(state, ParallelState):
             print("// And-state")
             as_struct()
-        elif isinstance(state, HistoryState):
-            print("Skipping HistoryState: ", state.opt.full_name)
         elif isinstance(state, State):
             if len(state.children) > 0:
                 print("// Or-state")
@@ -79,6 +80,12 @@ def compile_to_rust(tree: StateTree):
     # Write "enter/exit state" functions
 
     def write_enter_exit(state: State, children: List[State]):
+        if isinstance(state, HistoryState):
+            return None # we got no time for pseudo-states!
+
+        # TODO: This is where parent/child first should be implemented.
+        #       For now, it's always "parent first"
+
         print("impl State for %s {" % ident_type(state))
         print("  fn enter_actions(&self) {")
         print("    // TODO: execute enter actions")
@@ -101,6 +108,19 @@ def compile_to_rust(tree: StateTree):
                 print("    }")
         print("  }")
         print("  fn exit(&self) {")
+        if isinstance(state, ParallelState):
+            # For symmetry, we exit regions in opposite order of entering them
+            # Not sure whether this is semantically "correct" or relevant!
+            # (what are the semantics of statecharts, after all?)
+            for child in reversed(children):
+                print("    self.%s.exit();" % ident_field(child))
+        elif isinstance(state, State):
+            if len(children) > 0:
+                print("    match self {")
+                for child in children:
+                    print("      Self::%s(s) => s.exit()," % ident_enum_variant(child))
+                print("    }")
+        print("    self.exit_actions();")
         print("  }")
         print("}")
         print()
@@ -157,6 +177,7 @@ def compile_to_rust(tree: StateTree):
     print("fn main() {")
     print("  let sc = Statechart{current_state: Default::default()};")
     print("  sc.current_state.enter();")
+    print("  sc.current_state.exit();")
     print("}")
     print()
 

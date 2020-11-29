@@ -12,7 +12,9 @@ def ident_type(state: State) -> str:
         return "State" + ident(state)
 
 def ident_enum_variant(state: State) -> str:
-    return "S" + ident(state)
+    # We know the direct children of a state must have unique names relative to each other,
+    # and enum variants are scoped locally, so we can use the short name here:
+    return "S_" + state.short_name
 
 def ident_field(state: State) -> str:
     return "s" + ident(state)
@@ -70,9 +72,7 @@ def compile_to_rust(tree: StateTree):
 
         def begin_default():
             print("impl Default for %s {" % ident_type(state))
-            # print("  fn default() -> %s {" % ident_type(state))
             print("  fn default() -> Self {")
-            # print("    %s {" % ident_type(state))
 
         def end_default():
             print("  }")
@@ -92,7 +92,7 @@ def compile_to_rust(tree: StateTree):
             begin_default()
             if state.default_state is not None:
                 # Or-state
-                print("      %s::%s(Default::default())" % (ident_type(state), ident_enum_variant(state.default_state)))
+                print("      Self::%s(Default::default())" % (ident_enum_variant(state.default_state)))
             else:
                 # Basic state
                 print("      return Self{}")

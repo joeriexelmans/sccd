@@ -323,7 +323,7 @@ class StateTree(Freezable):
                 state.opt.freeze()
 
             visit_tree(root, lambda s: s.children,
-                before_children=[
+                parent_first=[
                     assign_state_id(),
                     assign_full_name,
                     assign_depth,
@@ -331,7 +331,7 @@ class StateTree(Freezable):
                     visit_transitions,
                     set_ancestors,
                 ],
-                after_children=[
+                child_first=[
                     set_descendants,
                     calculate_effective_targets,
                 ])
@@ -339,7 +339,7 @@ class StateTree(Freezable):
             self.initial_states = root.opt.effective_targets
 
             visit_tree(root, lambda s: s.children,
-                after_children=[
+                child_first=[
                     deal_with_history,
                     freeze,
                 ])

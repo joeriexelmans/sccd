@@ -23,7 +23,7 @@ def explicit_ortho(tree: StateTree) -> EdgeList:
         transitions = []
         def visit_state(s: State, _=None):
             transitions.extend(s.transitions)
-        visit_tree(s, lambda s: s.children, before_children=[visit_state])
+        visit_tree(s, lambda s: s.children, parent_first=[visit_state])
         return transitions
     # create edges between transitions in one region to another
     def visit_parallel_state(s: State, _=None):
@@ -40,7 +40,7 @@ def explicit_ortho(tree: StateTree) -> EdgeList:
                         edges.extend((connector, t) for t in curr)
                     prev = curr
     visit_tree(tree.root, lambda s: s.children,
-        before_children=[visit_parallel_state])
+        parent_first=[visit_parallel_state])
     return edges
 
 # explicit ordering of outgoing transitions of the same state
@@ -54,7 +54,7 @@ def explicit_same_state(tree: StateTree) -> EdgeList:
                 edges.append((prev, t))
             prev = t
     visit_tree(tree.root, lambda s: s.children,
-        before_children=[visit_state])
+        parent_first=[visit_state])
     return edges
 
 # hierarchical Source-Parent ordering
@@ -65,7 +65,7 @@ def source_parent(tree: StateTree) -> EdgeList:
             edges.extend(itertools.product(parent_transitions, s.transitions))
             return s.transitions
         return parent_transitions
-    visit_tree(tree.root, lambda s: s.children, before_children=[visit_state])
+    visit_tree(tree.root, lambda s: s.children, parent_first=[visit_state])
     return edges
 
 # hierarchical Source-Child ordering
@@ -78,7 +78,7 @@ def source_child(tree: StateTree) -> EdgeList:
             return s.transitions
         else:
             return children_transitions
-    visit_tree(tree.root, lambda s: s.children, after_children=[visit_state])
+    visit_tree(tree.root, lambda s: s.children, child_first=[visit_state])
     return edges
 
 # hierarchical Arena-Parent ordering

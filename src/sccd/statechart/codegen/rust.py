@@ -21,7 +21,9 @@ def ident_field(state: State) -> str:
 
 
 def compile_to_rust(tree: StateTree):
-    # 1 Write 'current state' types
+
+    # Write 'current state' types
+
     def write_state_type(state: State, children: List[State]):
         def as_struct():
             print("#[allow(non_camel_case_types)]")
@@ -64,45 +66,82 @@ def compile_to_rust(tree: StateTree):
         return state
 
 
-    # 2. Write "enter default state" functions for above types
+
+    print("pub trait State {")
+    print("  fn enter_actions(&self);")
+    print("  fn exit_actions(&self);")
+    print("  fn enter(&self);")
+    print("  fn exit(&self);")
+    print("}")
+    print()
+
+
+    # Write "enter/exit state" functions
+
+    def write_enter_exit(state: State, children: List[State]):
+        print("impl State for %s {" % ident_type(state))
+        print("  fn enter_actions(&self) {")
+        print("    // TODO: execute enter actions")
+        print("    println!(\"enter %s\");" % state.opt.full_name);
+        print("  }")
+        print("  fn exit_actions(&self) {")
+        print("    // TODO: execute exit actions")
+        print("    println!(\"exit %s\");" % state.opt.full_name);
+        print("  }")
+        print("  fn enter(&self) {")
+        print("    self.enter_actions();")
+        if isinstance(state, ParallelState):
+            for child in children:
+                print("    self.%s.enter();" % ident_field(child))
+        elif isinstance(state, State):
+            if len(children) > 0:
+                print("    match self {")
+                for child in children:
+                    print("      Self::%s(s) => s.enter()," % ident_enum_variant(child))
+                print("    }")
+        print("  }")
+        print("  fn exit(&self) {")
+        print("  }")
+        print("}")
+        print()
+        return state
+
+
+    # Write "enter default state" functions
 
     def write_enter_default(state: State, children: List[State]):
+        if isinstance(state, HistoryState):
+            return None # we got no time for pseudo-states!
+
         # We use Rust's Default-trait to record default states,
         # this way, constructing a state instance without parameters will initialize it as the default state.
 
-        def begin_default():
-            print("impl Default for %s {" % ident_type(state))
-            print("  fn default() -> Self {")
-
-        def end_default():
-            print("  }")
-            print("}")
-            print()
+        print("impl Default for %s {" % ident_type(state))
+        print("  fn default() -> Self {")
 
         if isinstance(state, ParallelState):
-            begin_default()
             print("    return Self {")
             for child in children:
                 print("      %s: Default::default()," % (ident_field(child)))
-            print("    }")
-            end_default()
-        elif isinstance(state, HistoryState):
-            pass
+            print("    };")
         elif isinstance(state, State):
-            begin_default()
             if state.default_state is not None:
                 # Or-state
-                print("      Self::%s(Default::default())" % (ident_enum_variant(state.default_state)))
+                print("    return Self::%s(Default::default());" % (ident_enum_variant(state.default_state)))
             else:
                 # Basic state
-                print("      return Self{}")
-            end_default()
+                print("    return Self{};")
 
+        print("  }")
+        print("}")
+        print()
         return state
+
 
     visit_tree(tree.root, lambda s: s.children,
         child_first=[
             write_state_type,
+            write_enter_exit,
             write_enter_default,
         ])
 
@@ -111,6 +150,13 @@ def compile_to_rust(tree: StateTree):
     print("  current_state: %s," % ident_type(tree.root))
     print("  // TODO: history values")
     print("  // TODO: timers")
+    print("}")
+    print()
+
+
+    print("fn main() {")
+    print("  let sc = Statechart{current_state: Default::default()};")
+    print("  sc.current_state.enter();")
     print("}")
     print()
 

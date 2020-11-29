@@ -1,0 +1,64 @@
+
+===============
+Code generation
+===============
+
+
+Roadmap
+=======
+
+  Milestone 1: Initial compilation to Rust
+  
+    - entering and exiting states correctly
+    - no history
+    - no action language
+      - guards evals and action stmts are just logged to console
+      - guards always true, actions no effect
+
+    - incoming event triggers the right transition
+    
+    - no event parameters
+
+    - main operation:
+       statechart_process(:StatechartState, :Event) -> StatechartState
+          old state -> new state
+          
+    - fixed semantics (YAKINDU-like)
+
+    - goal: some subset of SCCD tests passes
+
+
+Implementation
+==============
+
+Data types
+----------
+
+- state machine's state
+  - [M1] current state(s)
+      nested structure of
+        - tagged unions (OR-states)
+        - structs (AND-states)
+  - history values
+  - timer IDs
+
+Operations
+----------
+
+  - hierarchical operations
+    - [M1] entering a state's default state
+    - entering a state's (deep/shallow) history
+    
+  - "flat" operations
+    - [M1] firing a transition
+      - [M1] exit states
+          + save history values
+          + canceling timers
+          + exit actions
+      - transition's actions
+      - [M1] enter states
+          + enter actions
+          + reading history values
+          + starting timers
+
+  - [M1] select and execute transition given an event

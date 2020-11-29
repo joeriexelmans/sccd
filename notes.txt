@@ -17,7 +17,7 @@ Long-term vision:
         - statechart editing plugin
 
   - code generation
-    - generating portable C code may be the most flexible option:
+    - generating portable C code (or: Rust) may be the most flexible option:
       - compile to WebAssembly
       - call from Python, Java, ...
 

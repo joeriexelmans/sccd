@@ -1,7 +1,8 @@
 from typing import *
 from sccd.statechart.static.tree import *
 from sccd.util.visit_tree import *
-
+from sccd.statechart.static.statechart import *
+from sccd.statechart.static.globals import *
 
 # Conversion functions from abstract syntax elements to identifiers in Rust
 
@@ -23,7 +24,7 @@ def ident_type(state: State) -> str:
 def ident_enum_variant(state: State) -> str:
     # We know the direct children of a state must have unique names relative to each other,
     # and enum variants are scoped locally, so we can use the short name here:
-    return "S_" + state.short_name
+    return state.short_name
 
 def ident_field(state: State) -> str:
     return "s" + snake_case(state)
@@ -42,7 +43,18 @@ def ident_arena_label(state: State) -> str:
         return "arena" + snake_case(state)
 
 
-def compile_to_rust(tree: StateTree):
+def compile_to_rust(sc: Statechart, globals: Globals):
+
+    tree = sc.tree
+
+    # Note: The reason for the
+    #    #[allow(non_camel_case_types)]
+    # lines is that we cannot convert the casing of our state's names:
+    # SCCD allows any combination of upper and lower case symbols, and
+    # converting to, say, camelcase, as Rust likes it for type names,
+    # could cause naming collisions.
+    # (these naming collisions would be detected by the Rust compiler, so the error would not go unnoticed,
+    # still, it's better to NOT break our model :)
 
     # Write 'current state' types
 
@@ -166,6 +178,15 @@ def compile_to_rust(tree: StateTree):
             write_enter_exit,
             write_enter_default,
         ])
+
+    # Write event type
+
+    print("#[allow(non_camel_case_types)]")
+    print("enum Event {")
+    for event_name in (globals.events.names[i] for i in bm_items(sc.internal_events)):
+        print("  %s," % event_name)
+    print("}")
+    print()
 
     # Write statechart type
     print("pub struct Statechart {")
@@ -319,7 +340,8 @@ def compile_to_rust(tree: StateTree):
                     w.print("match %s {" % ident_var(state))
                     for child in state.children:
                         w.indent()
-                        w.print("%s::%s(%s) => {" % (ident_type(state), ident_enum_variant(child), ident_var(child)))
+                        # w.print("%s::%s(%s) => {" % (ident_type(state), ident_enum_variant(child), ident_var(child)))
+                        w.print("%s::%s(_) => {" % (ident_type(state), ident_enum_variant(child)))
                         w.indent()
                         write_transitions(child)
                         w.dedent()

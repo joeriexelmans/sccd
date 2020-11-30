@@ -21,7 +21,8 @@ if __name__ == "__main__":
     src = args.path
 
     path = os.path.dirname(src)
-    rules = [("statechart", statechart_parser_rules(Globals(), path, load_external=True))]
+    globals = Globals()
+    rules = [("statechart", statechart_parser_rules(globals, path, load_external=True))]
 
     statechart = parse_f(src, rules)
 
@@ -29,4 +30,4 @@ if __name__ == "__main__":
 
     sys.stderr.write("Loaded model.\n")
 
-    compile_to_rust(statechart.tree)
+    compile_to_rust(statechart, globals)

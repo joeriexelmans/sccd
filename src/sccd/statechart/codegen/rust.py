@@ -158,17 +158,17 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("  fn default() -> Self {")
 
         if isinstance(state, ParallelState):
-            w.writeln("    return Self {")
+            w.writeln("    Self {")
             for child in children:
                 w.writeln("      %s: Default::default()," % (ident_field(child)))
-            w.writeln("    };")
+            w.writeln("    }")
         elif isinstance(state, State):
             if state.default_state is not None:
                 # Or-state
-                w.writeln("    return Self::%s(Default::default());" % (ident_enum_variant(state.default_state)))
+                w.writeln("    Self::%s(Default::default())" % (ident_enum_variant(state.default_state)))
             else:
                 # Basic state
-                w.writeln("    return Self{};")
+                w.writeln("    Self{}")
 
         w.writeln("  }")
         w.writeln("}")

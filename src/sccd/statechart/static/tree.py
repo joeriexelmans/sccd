@@ -191,7 +191,7 @@ class Transition(Freezable):
         self.opt: Optional['TransitionStatic'] = None        
 
     def __str__(self):
-        return termcolor.colored("%s 🡪 %s" % (self.source.opt.full_name, self.target.opt.full_name), 'green')
+        return termcolor.colored("%s -> %s" % (self.source.opt.full_name, self.target.opt.full_name), 'green')
 
     __repr__ = __str__
 

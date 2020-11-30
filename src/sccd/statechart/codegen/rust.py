@@ -83,7 +83,6 @@ def compile_to_rust(tree: StateTree):
     print("  fn exit_actions(&self);")
     print("  fn enter(&self);")
     print("  fn exit(&self);")
-    print("  fn fire(&mut self) -> bool;")
     print("}")
     print()
 
@@ -95,6 +94,7 @@ def compile_to_rust(tree: StateTree):
             return None # we got no time for pseudo-states!
 
         print("impl State for %s {" % ident_type(state))
+
         print("  fn enter_actions(&self) {")
         print("    // TODO: execute enter actions")
         print("    println!(\"enter %s\");" % state.opt.full_name);
@@ -134,31 +134,6 @@ def compile_to_rust(tree: StateTree):
         print("    self.exit_actions();")
         print("  }")
 
-        # TODO: This is where parent/child-first should be implemented
-        #       For now, it's always "parent first"
-
-        print("  fn fire(&mut self) -> bool {")
-        for t in state.transitions:
-            print("    println!(\"fire %s\");" % str(t))
-            print("    return true;")
-            break
-        else:
-            if isinstance(state, ParallelState):
-                for child in children:
-                    print("    if self.%s.fire() {" % ident_field(child))
-                    print("      return true;")
-                    print("    }")
-                    print("    return false;")
-            elif isinstance(state, State):
-                if len(children) > 0:
-                    print("    return match self {")
-                    for child in children:
-                        print("      Self::%s(s) => s.fire()," % ident_enum_variant(child))
-                    print("    };")
-                else:
-                    print("    return false;")
-        print("  }")
-
         print("}")
         print()
         return state
@@ -194,13 +169,6 @@ def compile_to_rust(tree: StateTree):
         print()
         return state
 
-    # # Write transition selection
-
-    # def write_fire(state: State, children: List[State]):
-    #     if isinstance(state, HistoryState):
-    #         return None # we got no time for pseudo-states!
-
-
     visit_tree(tree.root, lambda s: s.children,
         child_first=[
             write_state_type,
@@ -216,26 +184,83 @@ def compile_to_rust(tree: StateTree):
     print("}")
     print()
 
+    class IndentingWriter:
+        def __init__(self, spaces = 0):
+            self.spaces = spaces
+        def indent(self):
+            self.spaces += 2
+        def dedent(self):
+            self.spaces -= 2
+        def print(self, str):
+            print(' '*self.spaces + str)
 
-    # Write transitions
-    for t in tree.transition_list:
-        print("#[allow(non_snake_case)]")
-        print("fn %s(sc: &mut Statechart) {" % (ident_transition(t)))
-        # print(list(tree.bitmap_to_states(t.opt.arena.opt.ancestors)))
-        path = ""
-        # for s in tree.bitmap_to_states(t.opt.arena.opt.ancestors):
-            # path += 
-        # print("  sc.current_state.;")
-        print("}")
-        print()
+    print("impl Statechart {")
+    print("  fn big_step(&mut self) {")
+    print("    let s = &mut self.current_state;")
 
+    w = IndentingWriter(4)
+
+    def write_transitions(state: State, parent: State=None):
+        if isinstance(state, HistoryState):
+            return None # we got no time for pseudo-states!
+
+        def parent():
+            for t in state.transitions:
+                w.print("println!(\"fire %s\");" % str(t))
+
+        def child():
+            if isinstance(state, ParallelState):
+                for child in state.children:
+                    w.print("{")
+                    w.indent()
+                    w.print("// Orthogonal region")
+                    w.print("let s = &mut s.%s;" % ident_field(child))
+                    write_transitions(child, state)
+                    w.dedent()
+                    w.print("}")
+            elif isinstance(state, State):
+                if state.default_state is not None:
+                    w.print("match s {")
+                    for child in state.children:
+                        w.indent()
+                        w.print("%s::%s(s) => {" % (ident_type(state), ident_enum_variant(child)))
+                        w.indent()
+                        write_transitions(child, state)
+                        w.dedent()
+                        w.print("},")
+                        w.dedent()
+                    w.print("};")
+
+        # TODO: This is where parent/child-first semantic variability should be implemented
+        #       For now, it's always "parent first"
+        parent()
+        child()
+
+    write_transitions(tree.root)
+
+    print("  }")
+    print("}")
+    print()
+
+
+    # # Write transitions
+    # for t in tree.transition_list:
+    #     print("#[allow(non_snake_case)]")
+    #     print("fn %s(sc: &mut Statechart) {" % (ident_transition(t)))
+    #     # print(list(tree.bitmap_to_states(t.opt.arena.opt.ancestors)))
+    #     path = ""
+    #     # for s in tree.bitmap_to_states(t.opt.arena.opt.ancestors):
+    #         # path += 
+    #     # print("  sc.current_state.;")
+    #     print("}")
+    #     print()
 
 
     # See if it works
     print("fn main() {")
     print("  let mut sc = Statechart{current_state: Default::default()};")
     print("  sc.current_state.enter();")
-    print("  sc.current_state.fire();")
+    print("  sc.big_step();")
     print("  sc.current_state.exit();")
     print("}")
     print()

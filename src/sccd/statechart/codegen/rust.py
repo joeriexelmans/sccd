@@ -8,9 +8,15 @@ from sccd.util.visit_tree import *
 def snake_case(state: State) -> str:
     return state.opt.full_name.replace('/', '_');
 
+def ident_var(state: State) -> str:
+    if state.opt.full_name == "/":
+        return "root" # no technical reason, it's just clearer than "s_"
+    else:
+        return "s" + snake_case(state)
+
 def ident_type(state: State) -> str:
     if state.opt.full_name == "/":
-        return "Root" # no technical reason, just make this type 'pop out' a little
+        return "Root" # no technical reason, it's just clearer than "State_"
     else:
         return "State" + snake_case(state)
 
@@ -77,17 +83,15 @@ def compile_to_rust(tree: StateTree):
         return state
 
 
+    # Write "enter/exit state" functions
 
+    # This fragment should be moved to a library:
     print("pub trait State {")
-    print("  fn enter_actions(&self);")
-    print("  fn exit_actions(&self);")
-    print("  fn enter(&self);")
-    print("  fn exit(&self);")
+    print("  fn enter_actions();")
+    print("  fn exit_actions();")
+    print("  fn enter_default();")
     print("}")
     print()
-
-
-    # Write "enter/exit state" functions
 
     def write_enter_exit(state: State, children: List[State]):
         if isinstance(state, HistoryState):
@@ -95,43 +99,20 @@ def compile_to_rust(tree: StateTree):
 
         print("impl State for %s {" % ident_type(state))
 
-        print("  fn enter_actions(&self) {")
+        print("  fn enter_actions() {")
         print("    // TODO: execute enter actions")
         print("    println!(\"enter %s\");" % state.opt.full_name);
         print("  }")
 
-        print("  fn exit_actions(&self) {")
+        print("  fn exit_actions() {")
         print("    // TODO: execute exit actions")
         print("    println!(\"exit %s\");" % state.opt.full_name);
         print("  }")
 
-        print("  fn enter(&self) {")
-        print("    self.enter_actions();")
-        if isinstance(state, ParallelState):
-            for child in children:
-                print("    self.%s.enter();" % ident_field(child))
-        elif isinstance(state, State):
-            if len(children) > 0:
-                print("    match self {")
-                for child in children:
-                    print("      Self::%s(s) => s.enter()," % ident_enum_variant(child))
-                print("    }")
-        print("  }")
-
-        print("  fn exit(&self) {")
-        if isinstance(state, ParallelState):
-            # For symmetry, we exit regions in opposite order of entering them
-            # Not sure whether this is semantically "correct" or relevant!
-            # (what are the semantics of statecharts, after all?)
-            for child in reversed(children):
-                print("    self.%s.exit();" % ident_field(child))
-        elif isinstance(state, State):
-            if len(children) > 0:
-                print("    match self {")
-                for child in children:
-                    print("      Self::%s(s) => s.exit()," % ident_enum_variant(child))
-                print("    }")
-        print("    self.exit_actions();")
+        print("  fn enter_default() {")
+        print("    %s::enter_actions();" % ident_type(state))
+        for child in children:
+            print("    %s::enter_default();" % ident_type(child))
         print("  }")
 
         print("}")
@@ -196,7 +177,7 @@ def compile_to_rust(tree: StateTree):
 
     print("impl Statechart {")
     print("  fn big_step(&mut self) {")
-    print("    let s%s = &mut self.current_state;" % snake_case(tree.root))
+    print("    let %s = &mut self.current_state;" % ident_var(tree.root))
 
     w = IndentingWriter(4)
 
@@ -204,26 +185,127 @@ def compile_to_rust(tree: StateTree):
         if isinstance(state, HistoryState):
             return None # we got no time for pseudo-states!
 
-        # w.print("let %s = &mut self%s" % path)
+        # Many of the states to exit can be computed statically (i.e. they are always the same)
+        # The one we cannot compute statically are:
+        #
+        # (1) The descendants of S2, S3, etc. if S1 is part of the "exit path":
+        #
+        #      A        ---> And-state
+        #    / \   \
+        #   S1  S2  S3 ...
+        # 
+        # (2) The descendants of S, if S is the transition target
+        def write_exit(exit_path: List[State]):
+            if len(exit_path) == 0:
+                w.print("%s.exit();" % ident_var(s))
+            else:
+                s = exit_path[0]
+                if isinstance(s, HistoryState):
+                    raise Exception("Can't deal with history yet!")
+                elif isinstance(s, ParallelState):
+                    for c in reversed(s.children):
+                        if exit_path[1] is c:
+                            write_exit(exit_path[1:]) # continue recursively
+                        else:
+                            w.print("%s.exit();" % ident_var(c))
+                elif isinstance(s, State):
+                    if s.default_state is not None:
+                        # Or-state
+                        write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
+                w.print("%s::exit_actions();" % ident_type(s))
+
+        def write_new_configuration(enter_path: List[State]):
+            if len(enter_path) > 0:
+                s = enter_path[0]
+                if len(enter_path) == 1:
+                    # Construct target state.
+                    # Whatever the type of parent (And/Or/Basic), just construct the default value:
+                    w.print("let new_%s: %s = Default::default();" % (ident_var(s), ident_type(s)))
+                else:
+                    if isinstance(s, ParallelState):
+                        for c in s.children:
+                            if enter_path[1] is c:
+                                write_new_configuration(enter_path[1:]) # recurse
+                            else:
+                                # Other children's default states are constructed
+                                w.print("let new_%s: %s = Default::default();" % (ident_var(c), ident_type(c)))
+                        # Construct struct
+                        w.print("let new_%s = %s{%s:%s, ..Default::default()};" % (ident_var(s), ident_type(s), ident_field(enter_path[1]), ident_var(enter_path[1])))
+
+                    elif isinstance(s, State):
+                        if len(s.children) > 0:
+                            # Or-state
+                            write_new_configuration(enter_path[1:]) # recurse
+                            w.print("let new_%s = %s::%s(new_%s);" % (ident_var(s), ident_type(s), ident_enum_variant(enter_path[1]), ident_var(enter_path[1])))
+                        else:
+                            # The following should never occur
+                            # The parser should have rejected the model before we even get here
+                            raise Exception("Basic state in the middle of enter path")
+
+        def write_enter(enter_path: List[State]):
+            if len(enter_path) > 0:
+                s = enter_path[0]
+                if len(enter_path) == 1:
+                    # Target state.
+                    w.print("%s::enter_default();" % ident_type(s))
+                else:
+                    if isinstance(s, ParallelState):
+                        for c in s.children:
+                            if enter_path[1] is c:
+                                w.print("%s::enter_actions();" % ident_type(c))
+                                write_enter(enter_path[1:]) # continue recursively
+                            else:
+                                w.print("%s::enter_default();" % ident_type(c))
+                    elif isinstance(s, State):
+                        if len(s.children) > 0:
+                            # Or-state
+                            w.print("%s::enter_actions();" & ident_type(s))
+                            write_enter(enter_path[1:]) # continue recursively with the next child on the enter path
+                        else:
+                            # The following should never occur
+                            # The parser should have rejected the model before we even get here
+                            raise Exception("Basic state in the middle of enter path")
 
         def parent():
             for t in state.transitions:
-                # w.print()
-                w.print("// TODO: execute transition's actions")
-                w.print("println!(\"fire %s\");" % str(t))
+                w.print("// Outgoing transition")
+                # TODO: optimize: static calculation for Or-state ancestors of transition's source
+
+                # Path from arena to source, including source but not including arena
+                exit_path_bm = t.opt.arena.opt.descendants & (t.source.opt.state_id_bitmap | t.source.opt.ancestors) # bitmap
+                exit_path = list(tree.bitmap_to_states(exit_path_bm)) # list of states
+
+                # Path from arena to target, including target but not including arena
+                enter_path_bm = t.opt.arena.opt.descendants & (t.target.opt.state_id_bitmap | t.target.opt.ancestors) # bitmap
+                enter_path = list(tree.bitmap_to_states(enter_path_bm)) # list of states
+
+                w.print("// Exit states")
+                write_exit(exit_path)
+
+                w.print("// TODO: execute transition's actions here")
+                w.print("println!(\"%s\");" % str(t))
+
+                w.print("// Construct new states")
+                write_new_configuration([t.opt.arena] + enter_path)
+
+                w.print("// Enter states")
+                write_enter(enter_path)
+
+                w.print("// Update arena configuration")
+                w.print("*%s = new_%s;" % (ident_var(t.opt.arena), ident_var(t.opt.arena)))
 
         def child():
             if isinstance(state, ParallelState):
                 for child in state.children:
                     w.print("// Orthogonal region")
-                    w.print("let s%s = &mut s%s.%s;" % (snake_case(child), snake_case(state), ident_field(child)))
+                    w.print("let %s = &mut %s.%s;" % (ident_var(child), ident_var(state), ident_field(child)))
                     write_transitions(child)
             elif isinstance(state, State):
                 if state.default_state is not None:
-                    w.print("match s%s {" % snake_case(state))
+                    w.print("match %s {" % ident_var(state))
                     for child in state.children:
                         w.indent()
-                        w.print("%s::%s(s%s) => {" % (ident_type(state), ident_enum_variant(child), snake_case(child)))
+                        w.print("%s::%s(%s) => {" % (ident_type(state), ident_enum_variant(child), ident_var(child)))
                         w.indent()
                         write_transitions(child)
                         w.dedent()
@@ -243,30 +325,12 @@ def compile_to_rust(tree: StateTree):
     print()
 
 
-    # # Write transitions
-    # for t in tree.transition_list:
-    #     print("#[allow(non_snake_case)]")
-    #     print("fn %s(sc: &mut Statechart) {" % (ident_transition(t)))
-    #     # print(list(tree.bitmap_to_states(t.opt.arena.opt.ancestors)))
-    #     path = ""
-    #     # for s in tree.bitmap_to_states(t.opt.arena.opt.ancestors):
-    #         # path += 
-    #     # print("  sc.current_state.;")
-    #     print("}")
-    #     print()
-
-
     # See if it works
     print("fn main() {")
     print("  let mut sc = Statechart{current_state: Default::default()};")
-    print("  sc.current_state.enter();")
+    print("  Root::enter_default();")
     print("  sc.big_step();")
-    print("  sc.current_state.exit();")
+    print("  sc.big_step();")
+    # print("  sc.current_state.exit();")
     print("}")
     print()
-
-
-    # 3. Write transition functions
-
-
-    # 4. Write transition candidate generation function

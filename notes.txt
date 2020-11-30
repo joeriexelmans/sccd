@@ -36,6 +36,7 @@ Random notes:
       - The (flattened) set of states representable by an Or-state is the *sum* of the sets of states of its children. If an Or-state has no children, mathematically its set of states has 0 elements, as 0 is the neutral element for addition.
       - The (flattened) set of states representable by an And-state is the *product* of the sets of states of its children. If an And-state has no children, mathematically its set of states has 1 element, as 1 is the neutral element for multiplication.
       - Since a basic state represents exactly 1 state, an empty And-state is the right way to model it.
+    This change will have a positive impact on the complexity of the Rust code generator.
 
   - Possible "innovative" performance optimization: immediately after making a transition, based on the new set of current states, already calculate a superset of transition candidates for the next transition.
     Rationale: This will speed up the next transition, as fewer transitions have to be evaluated when generating the set of candidates. The total amount of "calculation time" remains the same, we have merely made some calculations sooner, i.e. after firing the previous transition instead of as part of firing the current one. It is more likely that a "the computer" has resources available after firing a transition, as it may take some time before the next event arrives (user input, a timeout, ...).

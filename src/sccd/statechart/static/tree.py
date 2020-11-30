@@ -357,7 +357,7 @@ class StateTree(Freezable):
                 # Enter states are more complex but luckily, can be computed *partially* statically:
 
                 # As a start, we calculate the enter path:
-                # The enter path is the path from arena to the target state (not including the arena state itself).
+                # The enter path is the path from arena to the target state (including the target state, but not including the arena).
                 # Enter path is the intersection between:
                 #   1) the transition's target and its ancestors, and
                 #   2) the arena's descendants

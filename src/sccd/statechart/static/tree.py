@@ -169,7 +169,7 @@ class AfterTrigger(Trigger):
     def copy_params_to_stack(self, events: List[InternalEvent], memory: MemoryInterface):
         pass
 
-_empty_trigger = Trigger(enabling=[])
+EMPTY_TRIGGER = Trigger(enabling=[])
 
 class Transition(Freezable):
     __slots__ = ["source", "target", "scope", "target_string", "guard", "actions", "trigger", "opt"]
@@ -185,7 +185,7 @@ class Transition(Freezable):
 
         self.guard: Optional[Expression] = None
         self.actions: List[Action] = []
-        self.trigger: Trigger = _empty_trigger
+        self.trigger: Trigger = EMPTY_TRIGGER
 
         # Statically computed stuff from tree structure:
         self.opt: Optional['TransitionStatic'] = None        

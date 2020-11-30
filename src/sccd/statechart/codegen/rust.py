@@ -207,8 +207,8 @@ def compile_to_rust(sc: Statechart, globals: Globals):
             print(' '*self.spaces + str)
 
     print("impl Statechart {")
-    print("  fn big_step(&mut self) {")
-    print("    println!(\"big step\");")
+    print("  fn fair_step(&mut self, event: Option<Event>) {")
+    print("    println!(\"fair step\");")
     print("    let %s = &mut self.current_state;" % ident_var(tree.root))
 
     w = IndentingWriter(4)
@@ -274,6 +274,7 @@ def compile_to_rust(sc: Statechart, globals: Globals):
                             # The parser should have rejected the model before we even get here
                             raise Exception("Basic state in the middle of enter path")
 
+        # Comment of 'write_exit' applies here as well
         def write_enter(enter_path: List[State]):
             if len(enter_path) > 0:
                 s = enter_path[0]
@@ -301,7 +302,14 @@ def compile_to_rust(sc: Statechart, globals: Globals):
         def parent():
             for t in state.transitions:
                 w.print("// Outgoing transition")
-                # TODO: optimize: static calculation for Or-state ancestors of transition's source
+
+                if t.trigger is not EMPTY_TRIGGER:
+                    if len(t.trigger.enabling) > 1:
+                        raise Exception("Multi-event triggers currently unsupported")
+                    w.print("if let Some(Event::%s) = event {" % t.trigger.enabling[0].name)
+                    w.indent()
+
+                # 1. Execute transition's actions
 
                 # Path from arena to source, including source but not including arena
                 exit_path_bm = t.opt.arena.opt.descendants & (t.source.opt.state_id_bitmap | t.source.opt.ancestors) # bitmap
@@ -311,21 +319,30 @@ def compile_to_rust(sc: Statechart, globals: Globals):
                 enter_path_bm = t.opt.arena.opt.descendants & (t.target.opt.state_id_bitmap | t.target.opt.ancestors) # bitmap
                 enter_path = list(tree.bitmap_to_states(enter_path_bm)) # list of states
 
-                w.print("// Exit states")
+                w.print("// Exit actions")
                 write_exit(exit_path)
 
-                w.print("// TODO: execute transition's actions here")
+                w.print("// Transition's actions")
                 w.print("println!(\"%s\");" % str(t))
 
-                w.print("// Construct new states")
-                write_new_configuration([t.opt.arena] + enter_path)
-
-                w.print("// Enter states")
+                w.print("// Enter actions")
                 write_enter(enter_path)
+
+                # 2. Update state
+
+                # A state configuration is just a value
+                w.print("// Build new state configuration")
+                write_new_configuration([t.opt.arena] + enter_path)
 
                 w.print("// Update arena configuration")
                 w.print("*%s = new_%s;" % (ident_var(t.opt.arena), ident_var(t.opt.arena)))
+
+                # This arena is done:
                 w.print("break '%s;" % (ident_arena_label(t.opt.arena)))
+
+                if t.trigger is not EMPTY_TRIGGER:
+                    w.dedent()
+                    w.print("}")
 
         def child():
             if isinstance(state, ParallelState):
@@ -368,8 +385,8 @@ def compile_to_rust(sc: Statechart, globals: Globals):
     print("fn main() {")
     print("  let mut sc = Statechart{current_state: Default::default()};")
     print("  Root::enter_default();")
-    print("  sc.big_step();")
-    print("  sc.big_step();")
+    print("  sc.fair_step(None);")
+    print("  sc.fair_step(None);")
     # print("  sc.current_state.exit();")
     print("}")
     print()

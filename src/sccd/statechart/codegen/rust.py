@@ -185,6 +185,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     # Write event type
 
     w.writeln("#[allow(non_camel_case_types)]")
+    w.writeln("#[derive(Copy, Clone)]")
     w.writeln("enum Event {")
     for event_name in (globals.events.names[i] for i in bm_items(sc.internal_events)):
         w.writeln("  %s," % event_name)
@@ -209,7 +210,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("  }")
     w.writeln("}")
 
-    w.writeln("impl Statechart {")
+    w.writeln("impl SC<Event> for Statechart {")
     w.writeln("  fn fair_step(&mut self, event: Option<Event>) {")
     w.writeln("    println!(\"fair step\");")
     w.writeln("    let %s = &mut self.current_state;" % ident_var(tree.root))

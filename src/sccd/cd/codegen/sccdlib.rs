@@ -4,12 +4,12 @@ use std::cmp::Ordering;
 
 type Timestamp = usize; // unsigned integer, platform's word size
 
-trait Statechart<EventType> {
+trait SC<EventType> {
   fn fair_step(&mut self, event: Option<EventType>);
 }
 
 enum Target<'a, EventType> {
-  Narrowcast(&'a mut dyn Statechart<EventType>),
+  Narrowcast(&'a mut dyn SC<EventType>),
   Broadcast,
 }
 
@@ -100,33 +100,33 @@ impl<'a, EventType: Copy> Controller<'a, EventType> {
 
 /// TEST CODE
 
-#[derive(Copy, Clone)]
-enum Event {
-  A,
-  B,
-}
+// #[derive(Copy, Clone)]
+// enum Event {
+//   A,
+//   B,
+// }
 
-fn main() {
-  let mut c: Controller<Event> = Default::default();
-  c.add_input(Entry::<Event>{
-    timestamp: 3,
-    event: Event::A,
-    target: Target::Broadcast,
-  });
-  c.add_input(Entry::<Event>{
-    timestamp: 1,
-    event: Event::A,
-    target: Target::Broadcast,
-  });
-  c.add_input(Entry::<Event>{
-    timestamp: 30,
-    event: Event::A,
-    target: Target::Broadcast,
-  });
-  c.add_input(Entry::<Event>{
-    timestamp: 5,
-    event: Event::A,
-    target: Target::Broadcast,
-  });
-  c.run_until(Until::Timestamp(10));
-}
+// fn main() {
+//   let mut c: Controller<Event> = Default::default();
+//   c.add_input(Entry::<Event>{
+//     timestamp: 3,
+//     event: Event::A,
+//     target: Target::Broadcast,
+//   });
+//   c.add_input(Entry::<Event>{
+//     timestamp: 1,
+//     event: Event::A,
+//     target: Target::Broadcast,
+//   });
+//   c.add_input(Entry::<Event>{
+//     timestamp: 30,
+//     event: Event::A,
+//     target: Target::Broadcast,
+//   });
+//   c.add_input(Entry::<Event>{
+//     timestamp: 5,
+//     event: Event::A,
+//     target: Target::Broadcast,
+//   });
+//   c.run_until(Until::Timestamp(10));
+// }

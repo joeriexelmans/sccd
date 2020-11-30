@@ -43,7 +43,7 @@ def ident_arena_label(state: State) -> str:
         return "arena" + snake_case(state)
 
 
-def compile_to_rust(sc: Statechart, globals: Globals):
+def compile_statechart(sc: Statechart, globals: Globals):
 
     tree = sc.tree
 

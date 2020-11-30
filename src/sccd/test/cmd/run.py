@@ -15,7 +15,7 @@ from sccd.util.debug import *
 from sccd.cd.static.cd import *
 from sccd.controller.controller import *
 from sccd.statechart.parser.xml import *
-from sccd.test.xml import *
+from sccd.test.parser.xml import *
 from sccd.util import timer
 
 # A TestCase loading and executing a statechart test file.
@@ -35,7 +35,7 @@ class Test(unittest.TestCase):
     test_rules = test_parser_rules(sc_rules)
     try:
       with timer.Context("parse test"):
-        test_variants = parse_f(self.src, test_rules)
+        test_variants = parse_f(self.src, {"test" :test_rules})
 
       for test in test_variants:
         print_debug('\n'+test.name)

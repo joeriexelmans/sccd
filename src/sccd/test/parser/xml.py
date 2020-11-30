@@ -1,21 +1,7 @@
-from sccd.statechart.parser.xml import *
-from sccd.statechart.static.globals import *
-from sccd.statechart.dynamic.event import InternalEvent
-from sccd.cd.static.cd import *
+from sccd.test.static.syntax import *
 
 _empty_scope = Scope("test", parent=None)
 
-@dataclass
-class TestInputBag:
-  events: List[InternalEvent]
-  timestamp: Expression
-
-@dataclass
-class TestVariant:
-  name: str
-  cd: AbstractCD
-  input: List[TestInputBag]
-  output: List[List[OutputEvent]]
 
 def test_parser_rules(statechart_parser_rules):
   globals = Globals()
@@ -116,4 +102,4 @@ def test_parser_rules(statechart_parser_rules):
     sc_rules = statechart_parser_rules(globals)
     return ([("statechart", sc_rules), ("input?", parse_input), ("output?", parse_output)], finish_test)
 
-  return [("test", parse_test)]
+  return parse_test

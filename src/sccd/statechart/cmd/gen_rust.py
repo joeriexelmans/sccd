@@ -1,9 +1,12 @@
 import argparse
 import sys
 import termcolor
+from functools import partial
 from sccd.statechart.parser.xml import *
+from sccd.test.parser.xml import *
 
-from sccd.statechart.codegen.rust import compile_to_rust
+from sccd.statechart.codegen.rust import compile_statechart
+from sccd.test.codegen.rust import compile_test
 
 # Note: Rust code is written to stdout and should be compiled to a library
 
@@ -22,12 +25,20 @@ if __name__ == "__main__":
 
     path = os.path.dirname(src)
     globals = Globals()
-    rules = [("statechart", statechart_parser_rules(globals, path, load_external=True))]
 
-    statechart = parse_f(src, rules)
+    sc_parser_rules = partial(statechart_parser_rules, path=path, load_external=True)
 
-    assert isinstance(statechart, Statechart)
+    rules = {
+        "statechart": sc_parser_rules(globals),
+        "test": test_parser_rules(sc_parser_rules),
+    }
 
-    sys.stderr.write("Loaded model.\n")
+    statechart_or_test = parse_f(src, rules)
 
-    compile_to_rust(statechart, globals)
+    if isinstance(statechart_or_test, Statechart):
+        sys.stderr.write("Loaded statechart.\n")
+        compile_statechart(statechart_or_test, globals)
+
+    elif isinstance(statechart_or_test, list) and reduce(lambda x,y: x and y, (isinstance(test, TestVariant) for test in statechart_or_test)):
+        sys.stderr.write("Loaded test.\n")
+        compile_test(statechart_or_test)

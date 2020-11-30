@@ -35,6 +35,12 @@ def ident_source_target(state: State) -> str:
 def ident_transition(t: Transition) -> str:
     return "transition%d_FROM_%s_TO_%s" % (t.opt.id, ident_source_target(t.source), ident_source_target(t.target))
 
+def ident_arena_label(state: State) -> str:
+    if state.opt.full_name == "/":
+        return "arena_root"
+    else:
+        return "arena" + snake_case(state)
+
 
 def compile_to_rust(tree: StateTree):
 
@@ -100,19 +106,23 @@ def compile_to_rust(tree: StateTree):
         print("impl State for %s {" % ident_type(state))
 
         print("  fn enter_actions() {")
-        print("    // TODO: execute enter actions")
+        print("    // TODO: execute enter actions here")
         print("    println!(\"enter %s\");" % state.opt.full_name);
         print("  }")
 
         print("  fn exit_actions() {")
-        print("    // TODO: execute exit actions")
+        print("    // TODO: execute exit actions here")
         print("    println!(\"exit %s\");" % state.opt.full_name);
         print("  }")
 
         print("  fn enter_default() {")
         print("    %s::enter_actions();" % ident_type(state))
-        for child in children:
-            print("    %s::enter_default();" % ident_type(child))
+        if isinstance(state, ParallelState):
+            for child in children:
+                print("    %s::enter_default();" % ident_type(child))
+        else:
+            if state.default_state is not None:
+                print("    %s::enter_default();" % ident_type(state.default_state))
         print("  }")
 
         print("}")
@@ -177,6 +187,7 @@ def compile_to_rust(tree: StateTree):
 
     print("impl Statechart {")
     print("  fn big_step(&mut self) {")
+    print("    println!(\"big step\");")
     print("    let %s = &mut self.current_state;" % ident_var(tree.root))
 
     w = IndentingWriter(4)
@@ -293,6 +304,7 @@ def compile_to_rust(tree: StateTree):
 
                 w.print("// Update arena configuration")
                 w.print("*%s = new_%s;" % (ident_var(t.opt.arena), ident_var(t.opt.arena)))
+                w.print("break '%s;" % (ident_arena_label(t.opt.arena)))
 
         def child():
             if isinstance(state, ParallelState):
@@ -302,6 +314,8 @@ def compile_to_rust(tree: StateTree):
                     write_transitions(child)
             elif isinstance(state, State):
                 if state.default_state is not None:
+                    w.print("'%s: loop {" % ident_arena_label(state))
+                    w.indent()
                     w.print("match %s {" % ident_var(state))
                     for child in state.children:
                         w.indent()
@@ -312,6 +326,9 @@ def compile_to_rust(tree: StateTree):
                         w.print("},")
                         w.dedent()
                     w.print("};")
+                    w.print("break;")
+                    w.dedent()
+                    w.print("}")
 
         # TODO: This is where parent/child-first semantic variability should be implemented
         #       For now, it's always "parent first"

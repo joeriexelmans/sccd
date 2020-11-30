@@ -196,36 +196,36 @@ def compile_to_rust(tree: StateTree):
 
     print("impl Statechart {")
     print("  fn big_step(&mut self) {")
-    print("    let s = &mut self.current_state;")
+    print("    let s%s = &mut self.current_state;" % snake_case(tree.root))
 
     w = IndentingWriter(4)
 
-    def write_transitions(state: State, parent: State=None):
+    def write_transitions(state: State):
         if isinstance(state, HistoryState):
             return None # we got no time for pseudo-states!
 
+        # w.print("let %s = &mut self%s" % path)
+
         def parent():
             for t in state.transitions:
+                # w.print()
+                w.print("// TODO: execute transition's actions")
                 w.print("println!(\"fire %s\");" % str(t))
 
         def child():
             if isinstance(state, ParallelState):
                 for child in state.children:
-                    w.print("{")
-                    w.indent()
                     w.print("// Orthogonal region")
-                    w.print("let s = &mut s.%s;" % ident_field(child))
-                    write_transitions(child, state)
-                    w.dedent()
-                    w.print("}")
+                    w.print("let s%s = &mut s%s.%s;" % (snake_case(child), snake_case(state), ident_field(child)))
+                    write_transitions(child)
             elif isinstance(state, State):
                 if state.default_state is not None:
-                    w.print("match s {")
+                    w.print("match s%s {" % snake_case(state))
                     for child in state.children:
                         w.indent()
-                        w.print("%s::%s(s) => {" % (ident_type(state), ident_enum_variant(child)))
+                        w.print("%s::%s(s%s) => {" % (ident_type(state), ident_enum_variant(child), snake_case(child)))
                         w.indent()
-                        write_transitions(child, state)
+                        write_transitions(child)
                         w.dedent()
                         w.print("},")
                         w.dedent()

@@ -8,6 +8,8 @@ from sccd.test.parser.xml import *
 from sccd.statechart.codegen.rust import compile_statechart
 from sccd.test.codegen.rust import compile_test
 
+from sccd.util.indenting_writer import *
+
 # Note: Rust code is written to stdout and should be compiled to a library
 
 # Test syntax correctness as follows:
@@ -35,10 +37,12 @@ if __name__ == "__main__":
 
     statechart_or_test = parse_f(src, rules)
 
+    w = IndentingWriter()
+
     if isinstance(statechart_or_test, Statechart):
         sys.stderr.write("Loaded statechart.\n")
-        compile_statechart(statechart_or_test, globals)
+        compile_statechart(statechart_or_test, globals, w)
 
     elif isinstance(statechart_or_test, list) and reduce(lambda x,y: x and y, (isinstance(test, TestVariant) for test in statechart_or_test)):
         sys.stderr.write("Loaded test.\n")
-        compile_test(statechart_or_test)
+        compile_test(statechart_or_test, w)

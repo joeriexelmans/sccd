@@ -96,40 +96,40 @@ if __name__ == '__main__':
 
         def write_state(s, hide=False):
           if not hide:
-            w.write(name_to_name(s.opt.full_name))
-            w.extendWrite(' [label="')
-            w.extendWrite(name_to_label(s))
-            w.extendWrite('"')
+            w.writeln(name_to_name(s.opt.full_name))
+            w.write(' [label="')
+            w.write(name_to_label(s))
+            w.write('"')
             if isinstance(s, ParallelState):
-              w.extendWrite(' type=parallel')
+              w.write(' type=parallel')
             elif isinstance(s, ShallowHistoryState):
-              w.extendWrite(' type=history')
+              w.write(' type=history')
             elif isinstance(s, DeepHistoryState):
-              w.extendWrite(' type=deephistory')
+              w.write(' type=deephistory')
             else:
-              w.extendWrite(' type=regular')
-            w.extendWrite(']')
+              w.write(' type=regular')
+            w.write(']')
           if s.enter or s.exit:
-            w.extendWrite(' :')
+            w.write(' :')
             for a in s.enter:
-              w.write("enter "+a.render())
+              w.writeln("enter "+a.render())
             for a in s.exit:
-              w.write("exit "+a.render())
-            w.write()
+              w.writeln("exit "+a.render())
+            w.writeln()
           if s.children:
             if not hide:
-              w.extendWrite(' {')
+              w.write(' {')
               w.indent()
             if s.default_state:
-              w.write(name_to_name(s.opt.full_name)+'_initial [type=initial],')
+              w.writeln(name_to_name(s.opt.full_name)+'_initial [type=initial],')
               transitions.append(PseudoTransition(source=PseudoState(s.opt.full_name+'/initial'), target=s.default_state))
             s.children.reverse() # this appears to put orthogonal components in the right order :)
             for i, c in enumerate(s.children):
               write_state(c)
-              w.extendWrite(',' if i < len(s.children)-1 else ';')
+              w.write(',' if i < len(s.children)-1 else ';')
             if not hide:
               w.dedent()
-              w.write('}')
+              w.writeln('}')
           transitions.extend(s.transitions)
 
         write_state(root, hide=True)
@@ -144,10 +144,10 @@ if __name__ == '__main__':
           if t.actions:
             label += ' '.join(a.render() for a in t.actions)
 
-          w.write(name_to_name(t.source.opt.full_name) + ' -> ' + name_to_name(t.target.opt.full_name))
+          w.writeln(name_to_name(t.source.opt.full_name) + ' -> ' + name_to_name(t.target.opt.full_name))
           if label:
-            w.extendWrite(': '+label)
-          w.extendWrite(';')
+            w.write(': '+label)
+          w.write(';')
 
         f.close()
         if args.keep_smcat:

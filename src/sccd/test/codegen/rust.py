@@ -43,7 +43,12 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
             w.writeln("});")
 
         w.writeln("controller.run_until(Until::Eternity);")
-        pass
+        ctr = 0
+        for o in v.output:
+            for e in o:
+                w.writeln("assert!(raised[%d] == \"%s\");" % (ctr, e.name))
+                ctr += 1
+        w.writeln("println!(\"Test variant %d passed\");" % n)
 
     w.dedent()
     w.writeln("}")

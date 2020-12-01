@@ -22,8 +22,15 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
 
     for v in variants:
         w.writeln("// Test variant")
-        w.writeln("let mut controller: Controller<Event> = Default::default();")
+        # w.writeln("let mut raised = Vec::<&str>::new();")
+        # w.writeln("let output = |port, event| {")
+        w.writeln("fn output(port: &str, event: &str) {")
+        w.writeln("  println!(\"^{}:{}\", port, event);")
+        # w.writeln("  raised.push(event);")
+        w.writeln("}")
+        w.writeln("let mut controller = Controller::<Event>::new(output);")
         w.writeln("let mut sc: Statechart = Default::default();")
+        w.writeln("sc.init(output);")
         for i in v.input:
             if len(i.events) > 1:
                 raise Exception("Multiple simultaneous input events not supported")

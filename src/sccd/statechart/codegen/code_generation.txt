@@ -9,19 +9,21 @@ Roadmap
 
   Milestone 1: Initial compilation to Rust
   
-    - entering and exiting states correctly
+    - (DONE) entering and exiting states correctly
+    - (DONE) incoming event triggers the right transition
+    - a port of the Controller class to Rust
+    - one implemented action: raise output event
+
     - no history
     - no action language
       - guards evals and action stmts are just logged to console
       - guards always true, actions no effect
-
-    - incoming event triggers the right transition
-    
     - no event parameters
 
     - main operation:
-       statechart_process(:StatechartState, :Event) -> StatechartState
+       fair_step(:StatechartState, :Event) -> StatechartState
           old state -> new state
+        = "Take One"-maximality big-step
           
     - fixed semantics (YAKINDU-like)
 

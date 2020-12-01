@@ -3,17 +3,27 @@ use std::collections::binary_heap::PeekMut;
 use std::cmp::Ordering;
 
 type Timestamp = usize; // unsigned integer, platform's word size
+type OutputCallback = fn(&str, &str);
 
-trait SC<EventType> {
-  fn fair_step(&mut self, event: Option<EventType>);
+pub trait State {
+  fn enter_actions(output: OutputCallback);
+  fn exit_actions(output: OutputCallback);
+  fn enter_default(output: OutputCallback);
+
+  fn exit_current(&self, output: OutputCallback);
 }
 
-enum Target<'a, EventType> {
+pub trait SC<EventType> {
+  fn init(&self, output: OutputCallback);
+  fn fair_step(&mut self, event: Option<EventType>, output: OutputCallback);
+}
+
+pub enum Target<'a, EventType> {
   Narrowcast(&'a mut dyn SC<EventType>),
   Broadcast,
 }
 
-struct Entry<'a, EventType> {
+pub struct Entry<'a, EventType> {
   timestamp: Timestamp,
   event: EventType,
   target: Target<'a, EventType>,
@@ -40,26 +50,34 @@ impl<'a, EventType> PartialEq for Entry<'a, EventType> {
 impl<'a, EventType> Eq for Entry<'a, EventType> {}
 
 
-struct Controller<'a, EventType> {
+pub struct Controller<'a, EventType> {
   queue: BinaryHeap<Entry<'a, EventType>>,
   simtime: Timestamp,
+  output_callback: fn(&str, &str),
 }
 
-impl<'a, EventType> Default for Controller<'a, EventType> {
-  fn default() -> Self {
-    Self {
-      queue: BinaryHeap::new(),
-      simtime: 0,
-    }
-  }
-}
+// impl<'a, EventType> Default for Controller<'a, EventType> {
+//   fn default() -> Self {
+//     Self {
+//       queue: BinaryHeap::new(),
+//       simtime: 0,
+//     }
+//   }
+// }
 
-enum Until {
+pub enum Until {
   Timestamp(Timestamp),
   Eternity,
 }
 
 impl<'a, EventType: Copy> Controller<'a, EventType> {
+  fn new(output_callback: fn(&str, &str)) -> Self {
+    Self {
+      queue: BinaryHeap::new(),
+      simtime: 0,
+      output_callback,
+    }
+  }
   fn add_input(&mut self, entry: Entry<'a, EventType>) {
     self.queue.push(entry);
   }
@@ -81,14 +99,14 @@ impl<'a, EventType: Copy> Controller<'a, EventType> {
 
           match &mut entry.target {
             Target::Narrowcast(sc) => {
-              sc.fair_step(Some(e));
+              sc.fair_step(Some(e), self.output_callback);
             },
             Target::Broadcast => {
               println!("broadcast not implemented!")
             },
           };
 
-          PeekMut::<'_, Entry<'_, EventType>>::pop(entry);
+          PeekMut::<'_, Entry<'a, EventType>>::pop(entry);
         },
         None => { break 'running; },
       }

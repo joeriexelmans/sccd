@@ -145,23 +145,23 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         if isinstance(state, HistoryState):
             return None # we got no time for pseudo-states!
 
-        w.writeln("impl State for %s {" % ident_type(state))
+        w.writeln("impl<OutputCallback: FnMut(&'static str, &'static str)> State<OutputCallback> for %s {" % ident_type(state))
 
-        w.writeln("  fn enter_actions(output: OutputCallback) {")
+        w.writeln("  fn enter_actions(output: &mut OutputCallback) {")
         w.writeln("    println!(\"enter %s\");" % state.opt.full_name);
         w.indent(); w.indent()
         compile_actions(state.enter, w)
         w.dedent(); w.dedent()
         w.writeln("  }")
 
-        w.writeln("  fn exit_actions(output: OutputCallback) {")
+        w.writeln("  fn exit_actions(output: &mut OutputCallback) {")
         w.writeln("    println!(\"exit %s\");" % state.opt.full_name);
         w.indent(); w.indent()
         compile_actions(state.exit, w)
         w.dedent(); w.dedent()
         w.writeln("  }")
 
-        w.writeln("  fn enter_default(output: OutputCallback) {")
+        w.writeln("  fn enter_default(output: &mut OutputCallback) {")
         w.writeln("    %s::enter_actions(output);" % ident_type(state))
         if isinstance(state, ParallelState):
             for child in children:
@@ -171,7 +171,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 w.writeln("    %s::enter_default(output);" % ident_type(state.default_state))
         w.writeln("  }")
 
-        w.writeln("  fn exit_current(&self, output: OutputCallback) {")
+        w.writeln("  fn exit_current(&self, output: &mut OutputCallback) {")
         if isinstance(state, ParallelState):
             for child in children:
                 w.writeln("    self.%s.exit_current(output);" % ident_field(child));
@@ -223,11 +223,11 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("}")
     w.writeln()
 
-    w.writeln("impl SC<Event> for Statechart {")
-    w.writeln("  fn init(&self, output: OutputCallback) {")
+    w.writeln("impl<OutputCallback: FnMut(&'static str, &'static str)> SC<Event, OutputCallback> for Statechart {")
+    w.writeln("  fn init(&self, output: &mut OutputCallback) {")
     w.writeln("    %s::enter_default(output);" % ident_type(tree.root))
     w.writeln("  }")
-    w.writeln("  fn fair_step(&mut self, event: Option<Event>, output: OutputCallback) {")
+    w.writeln("  fn fair_step(&mut self, event: Option<Event>, output: &mut OutputCallback) {")
     w.writeln("    println!(\"fair step\");")
     w.writeln("    let %s = &mut self.current_state;" % ident_var(tree.root))
 

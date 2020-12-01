@@ -3,57 +3,57 @@ use std::collections::binary_heap::PeekMut;
 use std::cmp::Ordering;
 
 type Timestamp = usize; // unsigned integer, platform's word size
-type OutputCallback = fn(&str, &str);
+// type OutputCallback = fn(&str, &str);
 
-pub trait State {
-  fn enter_actions(output: OutputCallback);
-  fn exit_actions(output: OutputCallback);
-  fn enter_default(output: OutputCallback);
+pub trait State<OutputCallback> {
+  fn enter_actions(output: &mut OutputCallback);
+  fn exit_actions(output: &mut OutputCallback);
+  fn enter_default(output: &mut OutputCallback);
 
-  fn exit_current(&self, output: OutputCallback);
+  fn exit_current(&self, output: &mut OutputCallback);
 }
 
-pub trait SC<EventType> {
-  fn init(&self, output: OutputCallback);
-  fn fair_step(&mut self, event: Option<EventType>, output: OutputCallback);
+pub trait SC<EventType, OutputCallback> {
+  fn init(&self, output: &mut OutputCallback);
+  fn fair_step(&mut self, event: Option<EventType>, output: &mut OutputCallback);
 }
 
-pub enum Target<'a, EventType> {
-  Narrowcast(&'a mut dyn SC<EventType>),
+pub enum Target<'a, EventType, OutputCallback> {
+  Narrowcast(&'a mut dyn SC<EventType, OutputCallback>),
   Broadcast,
 }
 
-pub struct Entry<'a, EventType> {
+pub struct Entry<'a, EventType, OutputCallback> {
   timestamp: Timestamp,
   event: EventType,
-  target: Target<'a, EventType>,
+  target: Target<'a, EventType, OutputCallback>,
 }
 
-impl<'a, EventType> Ord for Entry<'a, EventType> {
+impl<'a, EventType, OutputCallback> Ord for Entry<'a, EventType, OutputCallback> {
   fn cmp(&self, other: &Self) -> Ordering {
     self.timestamp.cmp(&other.timestamp).reverse()
   }
 }
 
-impl<'a, EventType> PartialOrd for Entry<'a, EventType> {
+impl<'a, EventType, OutputCallback> PartialOrd for Entry<'a, EventType, OutputCallback> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a, EventType> PartialEq for Entry<'a, EventType> {
+impl<'a, EventType, OutputCallback> PartialEq for Entry<'a, EventType, OutputCallback> {
     fn eq(&self, other: &Self) -> bool {
         self.timestamp == other.timestamp
     }
 }
 
-impl<'a, EventType> Eq for Entry<'a, EventType> {}
+impl<'a, EventType, OutputCallback> Eq for Entry<'a, EventType, OutputCallback> {}
 
 
-pub struct Controller<'a, EventType> {
-  queue: BinaryHeap<Entry<'a, EventType>>,
+pub struct Controller<'a, EventType, OutputCallback> {
+  queue: BinaryHeap<Entry<'a, EventType, OutputCallback>>,
   simtime: Timestamp,
-  output_callback: fn(&str, &str),
+  output: OutputCallback,
 }
 
 // impl<'a, EventType> Default for Controller<'a, EventType> {
@@ -70,15 +70,15 @@ pub enum Until {
   Eternity,
 }
 
-impl<'a, EventType: Copy> Controller<'a, EventType> {
-  fn new(output_callback: fn(&str, &str)) -> Self {
+impl<'a, EventType: Copy, OutputCallback: FnMut(&'static str, &'static str)> Controller<'a, EventType, OutputCallback> {
+  fn new(output: OutputCallback) -> Self {
     Self {
       queue: BinaryHeap::new(),
       simtime: 0,
-      output_callback,
+      output,
     }
   }
-  fn add_input(&mut self, entry: Entry<'a, EventType>) {
+  fn add_input(&mut self, entry: Entry<'a, EventType, OutputCallback>) {
     self.queue.push(entry);
   }
   fn run_until(&mut self, until: Until) {
@@ -99,14 +99,14 @@ impl<'a, EventType: Copy> Controller<'a, EventType> {
 
           match &mut entry.target {
             Target::Narrowcast(sc) => {
-              sc.fair_step(Some(e), self.output_callback);
+              sc.fair_step(Some(e), &mut self.output);
             },
             Target::Broadcast => {
               println!("broadcast not implemented!")
             },
           };
 
-          PeekMut::<'_, Entry<'a, EventType>>::pop(entry);
+          PeekMut::<'_, Entry<'a, EventType, OutputCallback>>::pop(entry);
         },
         None => { break 'running; },
       }

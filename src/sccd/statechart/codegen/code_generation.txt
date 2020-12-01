@@ -7,28 +7,26 @@ Code generation
 Roadmap
 =======
 
-  Milestone 1: Initial compilation to Rust
+  (DONE) Milestone 1: Initial compilation to Rust
   
     - (DONE) entering and exiting states correctly
     - (DONE) incoming event triggers the right transition
-    - a port of the Controller class to Rust
-    - one implemented action: raise output event
+    - (DONE) a port of the Controller class to Rust
+    - (DONE) one implemented action: raise output event
+
+    - (DONE) fixed semantics (YAKINDU-like)
+        - "Take One" big step maximality
+        - parent-first 
+
+    - (DONE) goal: subset of SCCD tests passes:
+        semantics/big_step_maximality/test_flag_takeone.xml
+        semantics/big_step_maximality/test_ortho_takeone.xml
 
     - no history
     - no action language
       - guards evals and action stmts are just logged to console
       - guards always true, actions no effect
     - no event parameters
-
-    - main operation:
-       fair_step(:StatechartState, :Event) -> StatechartState
-          old state -> new state
-        = "Take One"-maximality big-step
-          
-    - fixed semantics (YAKINDU-like)
-
-    - goal: some subset of SCCD tests passes
-
 
 Implementation
 ==============

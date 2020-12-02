@@ -244,10 +244,8 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     # Write statechart type
     w.writeln("pub struct Statechart {")
     w.writeln("  current_state: %s," % ident_type(tree.root))
-    if len(tree.history_states) > 0:
-        # w.writeln("  // History values")
-        for h in tree.history_states:
-            w.writeln("  %s: %s," % (ident_history_field(h), ident_type(h.parent)))
+    for h in tree.history_states:
+        w.writeln("  %s: %s," % (ident_history_field(h), ident_type(h.parent)))
     w.writeln("  // TODO: timers")
     w.writeln("}")
     w.writeln()
@@ -397,7 +395,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                             # if isinstance(next_child, HistoryState):
                             #     w.writeln("let new_%s = %s{%s:%s, ..Default::default()};" % (ident_var(s), ident_type(s), ident_field(next_child), ident_var(next_child)))
                             # else:
-                            w.writeln("let new_%s = %s{%s:%s, ..Default::default()};" % (ident_var(s), ident_type(s), ident_field(next_child), ident_var(next_child)))
+                            w.writeln("let new_%s = %s{%s:new_%s, ..Default::default()};" % (ident_var(s), ident_type(s), ident_field(next_child), ident_var(next_child)))
                         elif isinstance(s, State):
                             if len(s.children) > 0:
                                 # Or-state
@@ -417,6 +415,9 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                         raise Exception("Multi-event triggers currently unsupported")
                     w.writeln("if let Some(Event::%s) = _event {" % t.trigger.enabling[0].name)
                     w.indent()
+
+                if t.guard is not None:
+                    raise Exception("Guard conditions currently unsupported")
 
                 # 1. Execute transition's actions
 

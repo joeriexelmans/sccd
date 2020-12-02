@@ -44,7 +44,7 @@ def run_variants(variants: List[TestVariant], unittest):
 
         if status != 0:
             # This does not indicate a test failure, but an error in our code generator
-            raise Exception("Rust compiler status %d. Sterr:" % (status, pipe.stderr.read().decode('UTF-8')))
+            raise Exception("Rust compiler status %d. Sterr:\n%s" % (status, pipe.stderr.read().decode('UTF-8')))
 
     print_debug("Generated binary. Running...")
 

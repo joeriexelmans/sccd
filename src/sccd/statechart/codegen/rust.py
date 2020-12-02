@@ -508,26 +508,40 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("    fired")
     w.writeln("  }")
 
-    w.writeln("  fn big_step(&mut self, event: Option<Event>, %s: &mut OutputCallback) {" % IDENT_OC)
-    w.writeln("    println!(\"big step\");")
-    if sc.semantics.big_step_maximality == Maximality.TAKE_ONE:
-        w.writeln("    // Big-Step Maximality: Take One")
-        w.writeln("    self.fair_step(event, %s);" % IDENT_OC)
-    elif sc.semantics.big_step_maximality == Maximality.TAKE_MANY:
-        w.writeln("    // Big-Step Maximality: Take Many")
-        w.writeln("    let mut e = event;")
-        w.writeln("    loop {")
-        w.writeln("      let fired = self.fair_step(e, %s);" % IDENT_OC)
-        w.writeln("      if !fired {")
-        w.writeln("        break;")
-        w.writeln("      }")
-        if sc.semantics.input_event_lifeline != InputEventLifeline.WHOLE:
-            w.writeln("      // Input Event Lifeline: %s" % sc.semantics.input_event_lifeline)
-            w.writeln("      e = None;")
-        w.writeln("    }")
-    else:
-        raise Exception("Unsupported semantics %s" % sc.semantics.big_step_maximality)
-    w.writeln("  }")
+    def write_stepping_function(name: str, title: str, maximality: Maximality, substep: str, input_whole: bool):
+        w.writeln("  fn %s(&mut self, event: Option<Event>, %s: &mut OutputCallback) -> bool {" % (name, IDENT_OC))
+        w.writeln("    println!(\"%s\");" % name)
+        if maximality == Maximality.TAKE_ONE:
+            w.writeln("    // %s Maximality: Take One" % title)
+            w.writeln("    self.fair_step(event, %s)" % IDENT_OC)
+        elif maximality == Maximality.TAKE_MANY:
+            w.writeln("    let mut fired = false;")
+            w.writeln("    // %s Maximality: Take Many" % title)
+            w.writeln("    let mut e = event;")
+            w.writeln("    loop {")
+            w.writeln("      let just_fired = self.%s(e, %s);" % (substep, IDENT_OC))
+            w.writeln("      if !just_fired {")
+            w.writeln("        break;")
+            w.writeln("      }")
+            w.writeln("      fired |= just_fired;")
+            if not input_whole:
+                w.writeln("      // Input Event Lifeline: %s" % sc.semantics.input_event_lifeline)
+                w.writeln("      e = None;")
+            w.writeln("    }")
+            w.writeln("    fired")
+        else:
+            raise Exception("Unsupported semantics %s" % sc.semantics.big_step_maximality)
+        w.writeln("  }")
+
+    write_stepping_function("combo_step", "Combo-Step", sc.semantics.combo_step_maximality, substep="fair_step", input_whole = sc.semantics.input_event_lifeline == InputEventLifeline.WHOLE or
+                sc.semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP)
+    write_stepping_function("big_step", "Big-Step", sc.semantics.big_step_maximality, substep="combo_step",
+        input_whole = sc.semantics.input_event_lifeline == InputEventLifeline.WHOLE)
+
+    # w.writeln("  fn combo_step(&mut self, event: Option<Event>, %s: &mut OutputCallback) {" % IDENT_OC)
+    # w.writeln("    ")
+    # w.writeln("  }")
+
 
     w.writeln("}")
     w.writeln()

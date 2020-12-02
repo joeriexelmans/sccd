@@ -243,15 +243,16 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         #
         # (1) The descendants of S2, S3, etc. if S1 is part of the "exit path":
         #
-        #      A        ---> And-state
+        #      A        ---> And-state on exit path
         #    / \   \
         #   S1  S2  S3 ...
-        # 
+        #
+        #    |
+        #    +--> S1 also on exit path
+        #
         # (2) The descendants of S, if S is the transition target
         def write_exit(exit_path: List[State]):
-            if len(exit_path) == 0:
-                w.writeln("%s.exit_current(output);" % ident_var(s))
-            else:
+            if len(exit_path) > 0:
                 s = exit_path[0]
                 if isinstance(s, HistoryState):
                     raise Exception("Can't deal with history yet!")
@@ -266,6 +267,9 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                         # Or-state
                         write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
                 w.writeln("%s::exit_actions(output);" % ident_type(s))
+            else:
+                # w.writeln("%s.exit_current(output);" % ident_var(s))
+                pass
 
         def write_new_configuration(enter_path: List[State]):
             if len(enter_path) > 0:

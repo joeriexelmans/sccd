@@ -92,38 +92,3 @@ Controller<EventType, OutputCallback, StatechartType> {
     }
   }
 }
-
-
-
-/// TEST CODE
-
-// #[derive(Copy, Clone)]
-// enum Event {
-//   A,
-//   B,
-// }
-
-// fn main() {
-//   let mut c: Controller<Event> = Default::default();
-//   c.add_input(Entry::<Event>{
-//     timestamp: 3,
-//     event: Event::A,
-//     target: Target::Broadcast,
-//   });
-//   c.add_input(Entry::<Event>{
-//     timestamp: 1,
-//     event: Event::A,
-//     target: Target::Broadcast,
-//   });
-//   c.add_input(Entry::<Event>{
-//     timestamp: 30,
-//     event: Event::A,
-//     target: Target::Broadcast,
-//   });
-//   c.add_input(Entry::<Event>{
-//     timestamp: 5,
-//     event: Event::A,
-//     target: Target::Broadcast,
-//   });
-//   c.run_until(Until::Timestamp(10));
-// }

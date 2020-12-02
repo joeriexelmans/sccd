@@ -21,6 +21,7 @@ Roadmap
     - (DONE) goal: subset of SCCD tests passes:
         semantics/big_step_maximality/test_flag_takeone.xml
         semantics/big_step_maximality/test_ortho_takeone.xml
+        semantics/priority/test_source_parent.xml
 
     - no history
     - no action language

@@ -42,6 +42,13 @@ Roadmap
         semantics/big_step_maximality/test_flat_takemany.xml
         semantics/big_step_maximality/test_ortho_takemany.xml
 
+Insights
+========
+
+- Rust compiler warnings are actually useful for the modeler:
+  - e.g. An unexecutable transition is detected as an unreachable statement
+  - e.g. An unused event is detected as an unused variable or never-constructed enum variant.
+
 Implementation
 ==============
 

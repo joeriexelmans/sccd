@@ -13,7 +13,7 @@ pub trait State<OutputCallback> {
 }
 
 pub trait SC<EventType, OutputCallback> {
-  fn init(&self, output: &mut OutputCallback);
+  fn init(output: &mut OutputCallback);
 
   // Execute a 'fair step'. This is a step with Maximality == Take One,
   // meaning that every orthogonal component gets to fire at most 1 transition.
@@ -60,11 +60,11 @@ pub enum Until {
   Eternity,
 }
 
-impl<'a, EventType: Copy, OutputCallback: FnMut(&'a str, &'a str), StatechartType: SC<EventType, OutputCallback>>
+impl<'a, EventType: Copy, OutputCallback: FnMut(&'a str, &'a str), StatechartType: SC<EventType, OutputCallback> + Default>
 Controller<EventType, OutputCallback, StatechartType> {
-  fn new(statechart: StatechartType, output: OutputCallback) -> Self {
+  fn new(output: OutputCallback) -> Self {
     Self {
-      statechart,
+      statechart: Default::default(),
       output,
       queue: BinaryHeap::new(),
       simtime: 0,
@@ -76,7 +76,7 @@ Controller<EventType, OutputCallback, StatechartType> {
   fn run_until(&mut self, until: Until) {
     'running: loop {
       match self.queue.peek_mut() {
-        Some(mut entry) => {
+        Some(entry) => {
           if let Until::Timestamp(t) = until {
             if entry.timestamp > t {
               println!("break, timestamp {}, t {}", entry.timestamp, t);
@@ -91,7 +91,7 @@ Controller<EventType, OutputCallback, StatechartType> {
 
           self.statechart.big_step(Some(e), &mut self.output);
 
-          PeekMut::<'_, Entry<EventType>>::pop(entry);
+          PeekMut::pop(entry);
         },
         None => { break 'running; },
       }

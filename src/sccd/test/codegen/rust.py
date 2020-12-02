@@ -27,9 +27,8 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
         w.writeln("  println!(\"^{}:{}\", port, event);")
         w.writeln("  raised.push(event); return;")
         w.writeln("};")
-        w.writeln("let mut sc: Statechart = Default::default();")
-        w.writeln("sc.init(&mut output);")
-        w.writeln("let mut controller = Controller::new(sc, output);")
+        w.writeln("Statechart::init(&mut output);")
+        w.writeln("let mut controller = Controller::<_,_,Statechart>::new(output);")
         for i in v.input:
             if len(i.events) > 1:
                 raise Exception("Multiple simultaneous input events not supported")
@@ -39,7 +38,6 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
             w.writeln("controller.add_input(Entry{")
             w.writeln("  timestamp: %d," % i.timestamp.opt)
             w.writeln("  event: Event::%s," % i.events[0].name)
-            # w.writeln("  target: Target::Narrowcast(&mut sc),")
             w.writeln("});")
 
         w.writeln("controller.run_until(Until::Eternity);")

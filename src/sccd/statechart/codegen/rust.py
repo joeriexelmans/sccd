@@ -43,11 +43,14 @@ def ident_arena_label(state: State) -> str:
     else:
         return "arena" + snake_case(state)
 
+# Name of the output callback parameter, everywhere
+IDENT_OC = "_output" # underscore to keep Rust from warning us for unused variable
+
 def compile_actions(actions: List[Action], w: IndentingWriter):
     for a in actions:
         if isinstance(a, RaiseOutputEvent):
             # TODO: evaluate event parameters
-            w.writeln("output(\"%s\", \"%s\");" % (a.outport, a.name))
+            w.writeln("%s(\"%s\", \"%s\");" % (IDENT_OC, a.outport, a.name))
         else:
             w.writeln("println!(\"UNIMPLEMENTED: %s\");" % a.render())
 
@@ -151,39 +154,39 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
         w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> State<OutputCallback> for %s {" % ident_type(state))
 
-        w.writeln("  fn enter_actions(output: &mut OutputCallback) {")
+        w.writeln("  fn enter_actions(%s: &mut OutputCallback) {" % IDENT_OC)
         w.writeln("    println!(\"enter %s\");" % state.opt.full_name);
         w.indent(); w.indent()
         compile_actions(state.enter, w)
         w.dedent(); w.dedent()
         w.writeln("  }")
 
-        w.writeln("  fn exit_actions(output: &mut OutputCallback) {")
+        w.writeln("  fn exit_actions(%s: &mut OutputCallback) {" % IDENT_OC)
         w.writeln("    println!(\"exit %s\");" % state.opt.full_name);
         w.indent(); w.indent()
         compile_actions(state.exit, w)
         w.dedent(); w.dedent()
         w.writeln("  }")
 
-        w.writeln("  fn enter_default(output: &mut OutputCallback) {")
-        w.writeln("    %s::enter_actions(output);" % ident_type(state))
+        w.writeln("  fn enter_default(%s: &mut OutputCallback) {" % IDENT_OC)
+        w.writeln("    %s::enter_actions(%s);" % (ident_type(state), IDENT_OC))
         if isinstance(state, ParallelState):
             for child in children:
-                w.writeln("    %s::enter_default(output);" % ident_type(child))
+                w.writeln("    %s::enter_default(%s);" % (ident_type(child), IDENT_OC))
         else:
             if state.default_state is not None:
-                w.writeln("    %s::enter_default(output);" % ident_type(state.default_state))
+                w.writeln("    %s::enter_default(%s);" % (ident_type(state.default_state), IDENT_OC))
         w.writeln("  }")
 
-        w.writeln("  fn exit_current(&self, output: &mut OutputCallback) {")
+        w.writeln("  fn exit_current(&self, %s: &mut OutputCallback) {" % IDENT_OC)
         if isinstance(state, ParallelState):
             for child in children:
-                w.writeln("    self.%s.exit_current(output);" % ident_field(child));
+                w.writeln("    self.%s.exit_current(%s);" % (ident_field(child), IDENT_OC))
         else:
             if len(children) > 0:
                 w.writeln("    match self {")
                 for child in children:
-                    w.writeln("      Self::%s(s) => { s.exit_current(output); }," % ident_enum_variant(child))
+                    w.writeln("      Self::%s(s) => { s.exit_current(%s); }," % (ident_enum_variant(child), IDENT_OC))
                 w.writeln("    }")
         w.writeln("  }")
 
@@ -228,10 +231,12 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln()
 
     w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> SC<Event, OutputCallback> for Statechart {")
-    w.writeln("  fn init(&self, output: &mut OutputCallback) {")
-    w.writeln("    %s::enter_default(output);" % ident_type(tree.root))
+    w.writeln("  fn init(%s: &mut OutputCallback) {" % IDENT_OC)
+    w.writeln("    %s::enter_default(%s);" % (ident_type(tree.root), IDENT_OC))
     w.writeln("  }")
-    w.writeln("  fn fair_step(&mut self, event: Option<Event>, output: &mut OutputCallback) -> bool {")
+    w.writeln("  fn fair_step(&mut self, _event: Option<Event>, %s: &mut OutputCallback) -> bool {" % IDENT_OC)
+    w.writeln("    #![allow(non_snake_case)]")
+    w.writeln("    #![allow(unused_labels)]")
     w.writeln("    println!(\"fair step\");")
     w.writeln("    let mut fired = false;")
     w.writeln("    let %s = &mut self.current_state;" % ident_var(tree.root))
@@ -266,15 +271,12 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                         if exit_path[1] is c:
                             write_exit(exit_path[1:]) # continue recursively
                         else:
-                            w.writeln("%s.exit_current(output);" % ident_var(c))
+                            w.writeln("%s.exit_current(%s);" % (ident_var(c), IDENT_OC))
                 elif isinstance(s, State):
                     if s.default_state is not None:
                         # Or-state
                         write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
-                w.writeln("%s::exit_actions(output);" % ident_type(s))
-            else:
-                # w.writeln("%s.exit_current(output);" % ident_var(s))
-                pass
+                w.writeln("%s::exit_actions(%s);" % (ident_type(s), IDENT_OC))
 
         def write_new_configuration(enter_path: List[State]):
             if len(enter_path) > 0:
@@ -310,19 +312,19 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 s = enter_path[0]
                 if len(enter_path) == 1:
                     # Target state.
-                    w.writeln("%s::enter_default(output);" % ident_type(s))
+                    w.writeln("%s::enter_default(%s);" % (ident_type(s), IDENT_OC))
                 else:
                     if isinstance(s, ParallelState):
                         for c in s.children:
                             if enter_path[1] is c:
-                                w.writeln("%s::enter_actions(output);" % ident_type(c))
+                                w.writeln("%s::enter_actions(%s);" % (ident_type(c), IDENT_OC))
                                 write_enter(enter_path[1:]) # continue recursively
                             else:
-                                w.writeln("%s::enter_default(output);" % ident_type(c))
+                                w.writeln("%s::enter_default(%s);" % (ident_type(c), IDENT_OC))
                     elif isinstance(s, State):
                         if len(s.children) > 0:
                             # Or-state
-                            w.writeln("%s::enter_actions(output);" % ident_type(s))
+                            w.writeln("%s::enter_actions(%s);" % (ident_type(s), IDENT_OC))
                             write_enter(enter_path[1:]) # continue recursively with the next child on the enter path
                         else:
                             # The following should never occur
@@ -336,7 +338,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 if t.trigger is not EMPTY_TRIGGER:
                     if len(t.trigger.enabling) > 1:
                         raise Exception("Multi-event triggers currently unsupported")
-                    w.writeln("if let Some(Event::%s) = event {" % t.trigger.enabling[0].name)
+                    w.writeln("if let Some(Event::%s) = _event {" % t.trigger.enabling[0].name)
                     w.indent()
 
                 # 1. Execute transition's actions
@@ -425,15 +427,15 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("    fired")
     w.writeln("  }")
 
-    w.writeln("  fn big_step(&mut self, event: Option<Event>, output: &mut OutputCallback) {")
+    w.writeln("  fn big_step(&mut self, event: Option<Event>, %s: &mut OutputCallback) {" % IDENT_OC)
     w.writeln("    println!(\"big step\");")
     if sc.semantics.big_step_maximality == Maximality.TAKE_ONE:
         w.writeln("    // Big-Step Maximality: Take One")
-        w.writeln("    self.fair_step(event, output);")
+        w.writeln("    self.fair_step(event, %s);" % IDENT_OC)
     elif sc.semantics.big_step_maximality == Maximality.TAKE_MANY:
         w.writeln("    // Big-Step Maximality: Take Many")
         w.writeln("    loop {")
-        w.writeln("      let fired = self.fair_step(event, output);")
+        w.writeln("      let fired = self.fair_step(event, %s);" % IDENT_OC)
         w.writeln("      if !fired {")
         w.writeln("        break;")
         w.writeln("      }")

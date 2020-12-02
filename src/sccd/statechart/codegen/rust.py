@@ -426,9 +426,12 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("  }")
 
     w.writeln("  fn big_step(&mut self, event: Option<Event>, output: &mut OutputCallback) {")
+    w.writeln("    println!(\"big step\");")
     if sc.semantics.big_step_maximality == Maximality.TAKE_ONE:
+        w.writeln("    // Big-Step Maximality: Take One")
         w.writeln("    self.fair_step(event, output);")
     elif sc.semantics.big_step_maximality == Maximality.TAKE_MANY:
+        w.writeln("    // Big-Step Maximality: Take Many")
         w.writeln("    loop {")
         w.writeln("      let fired = self.fair_step(event, output);")
         w.writeln("      if !fired {")

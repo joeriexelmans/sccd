@@ -145,7 +145,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         if isinstance(state, HistoryState):
             return None # we got no time for pseudo-states!
 
-        w.writeln("impl<OutputCallback: FnMut(&'static str, &'static str)> State<OutputCallback> for %s {" % ident_type(state))
+        w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> State<OutputCallback> for %s {" % ident_type(state))
 
         w.writeln("  fn enter_actions(output: &mut OutputCallback) {")
         w.writeln("    println!(\"enter %s\");" % state.opt.full_name);
@@ -223,7 +223,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("}")
     w.writeln()
 
-    w.writeln("impl<OutputCallback: FnMut(&'static str, &'static str)> SC<Event, OutputCallback> for Statechart {")
+    w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> SC<Event, OutputCallback> for Statechart {")
     w.writeln("  fn init(&self, output: &mut OutputCallback) {")
     w.writeln("    %s::enter_default(output);" % ident_type(tree.root))
     w.writeln("  }")

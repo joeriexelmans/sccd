@@ -29,17 +29,17 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
         w.writeln("};")
         w.writeln("let mut sc: Statechart = Default::default();")
         w.writeln("sc.init(&mut output);")
-        w.writeln("let mut controller = Controller::<Event, _>::new(output);")
+        w.writeln("let mut controller = Controller::new(sc, output);")
         for i in v.input:
             if len(i.events) > 1:
                 raise Exception("Multiple simultaneous input events not supported")
             elif len(i.events) == 0:
                 raise Exception("Test declares empty bag of input events - not supported")
 
-            w.writeln("controller.add_input(Entry::<Event, _>{")
+            w.writeln("controller.add_input(Entry{")
             w.writeln("  timestamp: %d," % i.timestamp.opt)
             w.writeln("  event: Event::%s," % i.events[0].name)
-            w.writeln("  target: Target::Narrowcast(&mut sc),")
+            # w.writeln("  target: Target::Narrowcast(&mut sc),")
             w.writeln("});")
 
         w.writeln("controller.run_until(Until::Eternity);")

@@ -3,7 +3,6 @@ use std::collections::binary_heap::PeekMut;
 use std::cmp::Ordering;
 
 type Timestamp = usize; // unsigned integer, platform's word size
-// type OutputCallback = fn(&str, &str);
 
 pub trait State<OutputCallback> {
   fn enter_actions(output: &mut OutputCallback);
@@ -18,67 +17,54 @@ pub trait SC<EventType, OutputCallback> {
   fn fair_step(&mut self, event: Option<EventType>, output: &mut OutputCallback);
 }
 
-pub enum Target<'a, EventType, OutputCallback> {
-  Narrowcast(&'a mut dyn SC<EventType, OutputCallback>),
-  Broadcast,
-}
-
-pub struct Entry<'a, EventType, OutputCallback> {
+pub struct Entry<EventType> {
   timestamp: Timestamp,
   event: EventType,
-  target: Target<'a, EventType, OutputCallback>,
 }
 
-impl<'a, EventType, OutputCallback> Ord for Entry<'a, EventType, OutputCallback> {
+// In order to implement Ord, also gotta implement PartialOrd, PartialEq and Eq:
+
+impl<EventType> Ord for Entry<EventType> {
   fn cmp(&self, other: &Self) -> Ordering {
     self.timestamp.cmp(&other.timestamp).reverse()
   }
 }
-
-impl<'a, EventType, OutputCallback> PartialOrd for Entry<'a, EventType, OutputCallback> {
+impl<EventType> PartialOrd for Entry<EventType> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
-
-impl<'a, EventType, OutputCallback> PartialEq for Entry<'a, EventType, OutputCallback> {
+impl<EventType> PartialEq for Entry<EventType> {
     fn eq(&self, other: &Self) -> bool {
         self.timestamp == other.timestamp
     }
 }
+impl<EventType> Eq for Entry<EventType> {}
 
-impl<'a, EventType, OutputCallback> Eq for Entry<'a, EventType, OutputCallback> {}
 
-
-pub struct Controller<'a, EventType, OutputCallback> {
-  queue: BinaryHeap<Entry<'a, EventType, OutputCallback>>,
-  simtime: Timestamp,
+pub struct Controller<EventType, OutputCallback, StatechartType: SC<EventType, OutputCallback>> {
+  statechart: StatechartType,
   output: OutputCallback,
+  queue: BinaryHeap<Entry<EventType>>,
+  simtime: Timestamp,
 }
-
-// impl<'a, EventType> Default for Controller<'a, EventType> {
-//   fn default() -> Self {
-//     Self {
-//       queue: BinaryHeap::new(),
-//       simtime: 0,
-//     }
-//   }
-// }
 
 pub enum Until {
   Timestamp(Timestamp),
   Eternity,
 }
 
-impl<'a, EventType: Copy, OutputCallback: FnMut(&'static str, &'static str)> Controller<'a, EventType, OutputCallback> {
-  fn new(output: OutputCallback) -> Self {
+impl<'a, EventType: Copy, OutputCallback: FnMut(&'a str, &'a str), StatechartType: SC<EventType, OutputCallback>>
+Controller<EventType, OutputCallback, StatechartType> {
+  fn new(statechart: StatechartType, output: OutputCallback) -> Self {
     Self {
+      statechart,
+      output,
       queue: BinaryHeap::new(),
       simtime: 0,
-      output,
     }
   }
-  fn add_input(&mut self, entry: Entry<'a, EventType, OutputCallback>) {
+  fn add_input(&mut self, entry: Entry<EventType>) {
     self.queue.push(entry);
   }
   fn run_until(&mut self, until: Until) {
@@ -97,16 +83,9 @@ impl<'a, EventType: Copy, OutputCallback: FnMut(&'static str, &'static str)> Con
 
           let e = entry.event; // copy
 
-          match &mut entry.target {
-            Target::Narrowcast(sc) => {
-              sc.fair_step(Some(e), &mut self.output);
-            },
-            Target::Broadcast => {
-              println!("broadcast not implemented!")
-            },
-          };
+          self.statechart.fair_step(Some(e), &mut self.output);
 
-          PeekMut::<'_, Entry<'a, EventType, OutputCallback>>::pop(entry);
+          PeekMut::<'_, Entry<EventType>>::pop(entry);
         },
         None => { break 'running; },
       }

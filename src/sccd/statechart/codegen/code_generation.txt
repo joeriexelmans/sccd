@@ -3,9 +3,40 @@
 Code generation
 ===============
 
+Currently passing:
+
+    features/history/test_composite_shallow.xml
+    features/history/test_default.xml
+    features/history/test_shallow.xml
+    features/parallel/test_parallel.xml
+    day_atlee/test_03_trafficlight_many.xml
+    day_atlee/test_03_trafficlight_single.xml
+    semantics/priority/test_explicit_flat.xml
+    semantics/priority/test_explicit_ortho.xml
+    semantics/priority/test_source_child.xml
+    semantics/priority/test_source_parent.xml
+    semantics/big_step_maximality/test_flat_takemany.xml
+    semantics/big_step_maximality/test_flat_takeone.xml
+    semantics/big_step_maximality/test_ortho_takemany.xml
+    semantics/big_step_maximality/test_ortho_takeone.xml
+    xml_syntax/stateref/test_flat_absolute.xml
+    xml_syntax/stateref/test_flat_relative.xml
+    xml_syntax/stateref/test_nested_absolute.xml
+    xml_syntax/stateref/test_nested_relative.xml
+
+Currently unimplemented:
+
+    - action language (guards, actions)
+      - event parameters
+      - memory protocol semantics
+    - multi-event triggers
+      - internal events (raising and 'sensing')
+        - IEL semantics
+    - 'syntactic' maximality
+
 
 Roadmap
-=======
+-------
 
   (DONE) Milestone 1: Initial compilation to Rust
   
@@ -43,46 +74,19 @@ Roadmap
         semantics/big_step_maximality/test_ortho_takemany.xml
 
 
-  Milestone 3: Support history
+  (DONE) Milestone 3: Support history
+
+  Milestone 4: Timers (should be easy)
+
+  Milestone 5: Internal Events
+
+  Milestone 6: Action language
+
 
 Insights
-========
+--------
 
 - Rust compiler warnings are actually useful for the modeler:
   - e.g. An unexecutable transition is detected as an unreachable statement
   - e.g. An unused event is detected as an unused variable or never-constructed enum variant.
 
-Implementation
-==============
-
-Data types
-----------
-
-- state machine's state
-  - [M1] current state(s)
-      nested structure of
-        - tagged unions (OR-states)
-        - structs (AND-states)
-  - history values
-  - timer IDs
-
-Operations
-----------
-
-  - hierarchical operations
-    - [M1] entering a state's default state
-    - entering a state's (deep/shallow) history
-    
-  - "flat" operations
-    - [M1] firing a transition
-      - [M1] exit states
-          + save history values
-          + canceling timers
-          + exit actions
-      - transition's actions
-      - [M1] enter states
-          + enter actions
-          + reading history values
-          + starting timers
-
-  - [M1] select and execute transition given an event

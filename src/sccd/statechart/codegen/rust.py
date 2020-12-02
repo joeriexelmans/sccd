@@ -55,7 +55,7 @@ def compile_actions(actions: List[Action], w: IndentingWriter):
             # TODO: evaluate event parameters
             w.writeln("%s(\"%s\", \"%s\");" % (IDENT_OC, a.outport, a.name))
         else:
-            w.writeln("panic!(\"Unimplemented action %s (%s)\");" % (type(a), a.render()))
+            raise Exception("Unimplemented action " + str(type(a)))
 
 def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
@@ -538,11 +538,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 sc.semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP)
     write_stepping_function("big_step", "Big-Step", sc.semantics.big_step_maximality, substep="combo_step",
         input_whole = sc.semantics.input_event_lifeline == InputEventLifeline.WHOLE)
-
-    # w.writeln("  fn combo_step(&mut self, event: Option<Event>, %s: &mut OutputCallback) {" % IDENT_OC)
-    # w.writeln("    ")
-    # w.writeln("  }")
-
 
     w.writeln("}")
     w.writeln()

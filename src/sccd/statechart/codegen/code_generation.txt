@@ -34,11 +34,11 @@ Roadmap
 
   Milestone 2: Minimal support for semantic variability:
 
-    - Priority: Child-first
+    - (DONE) Priority: Child-first
     - Big-Step Maximality: Take Many
 
     - goal: following tests should pass:
-        semantics/priority/test_source_child.xml
+        (DONE) semantics/priority/test_source_child.xml
         semantics/big_step_maximality/test_flat_takemany.xml
         semantics/big_step_maximality/test_ortho_takemany.xml
 

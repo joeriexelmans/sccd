@@ -231,8 +231,9 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("  fn init(&self, output: &mut OutputCallback) {")
     w.writeln("    %s::enter_default(output);" % ident_type(tree.root))
     w.writeln("  }")
-    w.writeln("  fn fair_step(&mut self, event: Option<Event>, output: &mut OutputCallback) {")
+    w.writeln("  fn fair_step(&mut self, event: Option<Event>, output: &mut OutputCallback) -> bool {")
     w.writeln("    println!(\"fair step\");")
+    w.writeln("    let mut fired = false;")
     w.writeln("    let %s = &mut self.current_state;" % ident_var(tree.root))
 
     w.indent()
@@ -369,6 +370,8 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 w.writeln("// Update arena configuration")
                 w.writeln("*%s = new_%s;" % (ident_var(t.opt.arena), ident_var(t.opt.arena)))
 
+                w.writeln("fired = true;")
+
                 # This arena is done:
                 w.writeln("break '%s;" % (ident_arena_label(t.opt.arena)))
 
@@ -390,7 +393,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     for child in state.children:
                         w.indent()
                         w.writeln("%s::%s(%s) => {" % (ident_type(state), ident_enum_variant(child), ident_var(child)))
-                        # w.writeln("%s::%s(_) => {" % (ident_type(state), ident_enum_variant(child)))
                         w.indent()
                         write_transitions(child)
                         w.dedent()
@@ -413,13 +415,14 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
             parent()
             child()
         else:
-            raise Exception("Unsupported option %s" % sc.semantics.hierarchical_priority)
+            raise Exception("Unsupported semantics %s" % sc.semantics.hierarchical_priority)
 
     write_transitions(tree.root)
 
     w.dedent()
     w.dedent()
 
+    w.writeln("    fired")
     w.writeln("  }")
     w.writeln("}")
     w.writeln()

@@ -19,15 +19,28 @@ Roadmap
         - parent-first 
 
     - (DONE) goal: subset of SCCD tests passes:
-        semantics/big_step_maximality/test_flag_takeone.xml
+        semantics/big_step_maximality/test_flat_takeone.xml
         semantics/big_step_maximality/test_ortho_takeone.xml
         semantics/priority/test_source_parent.xml
+        semantics/priority/test_explicit_flat.xml
+        semantics/priority/test_explicit_ortho.xml
 
     - no history
     - no action language
       - guards evals and action stmts are just logged to console
       - guards always true, actions no effect
     - no event parameters
+
+
+  Milestone 2: Minimal support for semantic variability:
+
+    - Priority: Child-first
+    - Big-Step Maximality: Take Many
+
+    - goal: following tests should pass:
+        semantics/priority/test_source_child.xml
+        semantics/big_step_maximality/test_flat_takemany.xml
+        semantics/big_step_maximality/test_ortho_takemany.xml
 
 Implementation
 ==============

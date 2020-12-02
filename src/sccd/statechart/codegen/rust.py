@@ -317,7 +317,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     elif isinstance(s, State):
                         if len(s.children) > 0:
                             # Or-state
-                            w.writeln("%s::enter_actions(output);" & ident_type(s))
+                            w.writeln("%s::enter_actions(output);" % ident_type(s))
                             write_enter(enter_path[1:]) # continue recursively with the next child on the enter path
                         else:
                             # The following should never occur

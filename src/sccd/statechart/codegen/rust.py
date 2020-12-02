@@ -424,6 +424,21 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
     w.writeln("    fired")
     w.writeln("  }")
+
+    w.writeln("  fn big_step(&mut self, event: Option<Event>, output: &mut OutputCallback) {")
+    if sc.semantics.big_step_maximality == Maximality.TAKE_ONE:
+        w.writeln("    self.fair_step(event, output);")
+    elif sc.semantics.big_step_maximality == Maximality.TAKE_MANY:
+        w.writeln("    loop {")
+        w.writeln("      let fired = self.fair_step(event, output);")
+        w.writeln("      if !fired {")
+        w.writeln("        break;")
+        w.writeln("      }")
+        w.writeln("    }")
+    else:
+        raise Exception("Unsupported semantics %s" % sc.semantics.big_step_maximality)
+    w.writeln("  }")
+
     w.writeln("}")
     w.writeln()
 

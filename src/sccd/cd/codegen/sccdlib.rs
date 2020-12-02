@@ -19,6 +19,8 @@ pub trait SC<EventType, OutputCallback> {
   // meaning that every orthogonal component gets to fire at most 1 transition.
   // Returns whether at least one transition was fired.
   fn fair_step(&mut self, event: Option<EventType>, output: &mut OutputCallback) -> bool;
+
+  fn big_step(&mut self, event: Option<EventType>, output: &mut OutputCallback);
 }
 
 pub struct Entry<EventType> {
@@ -87,7 +89,7 @@ Controller<EventType, OutputCallback, StatechartType> {
 
           let e = entry.event; // copy
 
-          self.statechart.fair_step(Some(e), &mut self.output);
+          self.statechart.big_step(Some(e), &mut self.output);
 
           PeekMut::<'_, Entry<EventType>>::pop(entry);
         },

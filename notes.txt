@@ -38,5 +38,7 @@ Random notes:
       - Since a basic state represents exactly 1 state, an empty And-state is the right way to model it.
     This change will have a positive impact on the complexity of the Rust code generator.
 
+  - Better not to model history states as states in the state tree of the abstract syntax. A history state should not occur in the list of children of its "parent". Instead, it is a special property of its parent state, indicating that history is enabled for this state.
+
   - Possible "innovative" performance optimization: immediately after making a transition, based on the new set of current states, already calculate a superset of transition candidates for the next transition.
     Rationale: This will speed up the next transition, as fewer transitions have to be evaluated when generating the set of candidates. The total amount of "calculation time" remains the same, we have merely made some calculations sooner, i.e. after firing the previous transition instead of as part of firing the current one. It is more likely that a "the computer" has resources available after firing a transition, as it may take some time before the next event arrives (user input, a timeout, ...).

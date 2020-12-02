@@ -43,6 +43,9 @@ def ident_arena_label(state: State) -> str:
     else:
         return "arena" + snake_case(state)
 
+def ident_history_field(state: HistoryState) -> str:
+    return "history" + snake_case(state.parent) # A history state records history value for its parent
+
 # Name of the output callback parameter, everywhere
 IDENT_OC = "_output" # underscore to keep Rust from warning us for unused variable
 
@@ -52,7 +55,7 @@ def compile_actions(actions: List[Action], w: IndentingWriter):
             # TODO: evaluate event parameters
             w.writeln("%s(\"%s\", \"%s\");" % (IDENT_OC, a.outport, a.name))
         else:
-            w.writeln("println!(\"UNIMPLEMENTED: %s\");" % a.render())
+            w.writeln("panic!(\"Unimplemented action %s (%s)\");" % (type(a), a.render()))
 
 def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
@@ -77,18 +80,21 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         if isinstance(state, HistoryState):
             return None # we got no time for pseudo-states!
 
+        w.writeln("#[allow(non_camel_case_types)]")
+        w.writeln("#[derive(Copy, Clone)]")
+
         def as_struct():
-            w.writeln("#[allow(non_camel_case_types)]")
             w.writeln("struct %s {" % ident_type(state))
             for child in children:
-                w.writeln("  %s: %s," % (ident_field(child), ident_type(child)))
+                if child is not None:
+                    w.writeln("  %s: %s," % (ident_field(child), ident_type(child)))
             w.writeln("}")
 
         def as_enum():
-            w.writeln("#[allow(non_camel_case_types)]")
             w.writeln("enum %s {" % ident_type(state))
             for child in children:
-                w.writeln("  %s(%s)," % (ident_enum_variant(child), ident_type(child)))
+                if child is not None:
+                    w.writeln("  %s(%s)," % (ident_enum_variant(child), ident_type(child)))
             w.writeln("}")
 
         if isinstance(state, ParallelState):
@@ -116,8 +122,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         return state
 
 
-    # Write "enter/exit state" functions
-
     # Write "default" constructor
 
     def write_default(state: State, children: List[State]):
@@ -133,7 +137,8 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         if isinstance(state, ParallelState):
             w.writeln("    Self {")
             for child in children:
-                w.writeln("      %s: Default::default()," % (ident_field(child)))
+                if child is not None:
+                    w.writeln("      %s: Default::default()," % (ident_field(child)))
             w.writeln("    }")
         elif isinstance(state, State):
             if state.default_state is not None:
@@ -147,6 +152,8 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("}")
         w.writeln()
         return state
+
+    # Write "enter/exit state" functions
 
     def write_enter_exit(state: State, children: List[State]):
         if isinstance(state, HistoryState):
@@ -172,21 +179,44 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("    %s::enter_actions(%s);" % (ident_type(state), IDENT_OC))
         if isinstance(state, ParallelState):
             for child in children:
-                w.writeln("    %s::enter_default(%s);" % (ident_type(child), IDENT_OC))
+                if child is not None:
+                    w.writeln("    %s::enter_default(%s);" % (ident_type(child), IDENT_OC))
         else:
             if state.default_state is not None:
                 w.writeln("    %s::enter_default(%s);" % (ident_type(state.default_state), IDENT_OC))
         w.writeln("  }")
 
         w.writeln("  fn exit_current(&self, %s: &mut OutputCallback) {" % IDENT_OC)
+        # Children's exit actions
         if isinstance(state, ParallelState):
             for child in children:
-                w.writeln("    self.%s.exit_current(%s);" % (ident_field(child), IDENT_OC))
+                if child is not None:
+                    w.writeln("    self.%s.exit_current(%s);" % (ident_field(child), IDENT_OC))
         else:
             if len(children) > 0:
                 w.writeln("    match self {")
                 for child in children:
-                    w.writeln("      Self::%s(s) => { s.exit_current(%s); }," % (ident_enum_variant(child), IDENT_OC))
+                    if child is not None:
+                        w.writeln("      Self::%s(s) => { s.exit_current(%s); }," % (ident_enum_variant(child), IDENT_OC))
+                w.writeln("    }")
+        # Our own exit actions
+        w.writeln("    %s::exit_actions(%s);" % (ident_type(state), IDENT_OC))
+        w.writeln("  }")
+
+        w.writeln("  fn enter_current(&self, %s: &mut OutputCallback) {" % IDENT_OC)
+        # Children's enter actions
+        w.writeln("    %s::enter_actions(%s);" % (ident_type(state), IDENT_OC))
+        # Our own enter actions
+        if isinstance(state, ParallelState):
+            for child in children:
+                if child is not None:
+                    w.writeln("    self.%s.enter_current(%s);" % (ident_field(child), IDENT_OC))
+        else:
+            if len(children) > 0:
+                w.writeln("    match self {")
+                for child in children:
+                    if child is not None:
+                        w.writeln("      Self::%s(s) => { s.enter_current(%s); }," % (ident_enum_variant(child), IDENT_OC))
                 w.writeln("    }")
         w.writeln("  }")
 
@@ -214,18 +244,22 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     # Write statechart type
     w.writeln("pub struct Statechart {")
     w.writeln("  current_state: %s," % ident_type(tree.root))
-    w.writeln("  // TODO: history values")
+    if len(tree.history_states) > 0:
+        # w.writeln("  // History values")
+        for h in tree.history_states:
+            w.writeln("  %s: %s," % (ident_history_field(h), ident_type(h.parent)))
     w.writeln("  // TODO: timers")
     w.writeln("}")
     w.writeln()
 
     w.writeln("impl Default for Statechart {")
     w.writeln("  fn default() -> Self {")
-    w.writeln("    return Self{")
+    w.writeln("    Self {")
     w.writeln("      current_state: Default::default(),")
-    # w.writeln("      history: Default::default(),")
+    for h in tree.history_states:
+        w.writeln("      %s: Default::default()," % (ident_history_field(h)))
     # w.writeln("      timers: Default::default(),")
-    w.writeln("    };")
+    w.writeln("    }")
     w.writeln("  }")
     w.writeln("}")
     w.writeln()
@@ -237,6 +271,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("  fn fair_step(&mut self, _event: Option<Event>, %s: &mut OutputCallback) -> bool {" % IDENT_OC)
     w.writeln("    #![allow(non_snake_case)]")
     w.writeln("    #![allow(unused_labels)]")
+    w.writeln("    #![allow(unused_variables)]")
     w.writeln("    println!(\"fair step\");")
     w.writeln("    let mut fired = false;")
     w.writeln("    let %s = &mut self.current_state;" % ident_var(tree.root))
@@ -261,79 +296,121 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         #    +--> S1 also on exit path
         #
         # (2) The descendants of S, if S is the transition target
+        #
+        # The same applies to entering states.
+
+        # Writes statements that perform exit actions
+        # in the correct order (children (last to first), then parent) for given 'exit path'.
         def write_exit(exit_path: List[State]):
+            # w.writeln("println!(\"exit path = %s\");" % str(exit_path).replace('"', "'"))
             if len(exit_path) > 0:
-                s = exit_path[0]
-                if isinstance(s, HistoryState):
-                    raise Exception("Can't deal with history yet!")
-                elif isinstance(s, ParallelState):
-                    for c in reversed(s.children):
-                        if exit_path[1] is c:
-                            write_exit(exit_path[1:]) # continue recursively
-                        else:
-                            w.writeln("%s.exit_current(%s);" % (ident_var(c), IDENT_OC))
-                elif isinstance(s, State):
-                    if s.default_state is not None:
-                        # Or-state
-                        write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
-                w.writeln("%s::exit_actions(%s);" % (ident_type(s), IDENT_OC))
+                s = exit_path[0] # state to exit
 
-        def write_new_configuration(enter_path: List[State]):
-            if len(enter_path) > 0:
-                s = enter_path[0]
-                if len(enter_path) == 1:
-                    # Construct target state.
-                    # Whatever the type of parent (And/Or/Basic), just construct the default value:
-                    w.writeln("let new_%s: %s = Default::default();" % (ident_var(s), ident_type(s)))
+                if len(exit_path) == 1:
+                    # Exit s:
+                    w.writeln("%s.exit_current(%s);" % (ident_var(s), IDENT_OC))
                 else:
+                    # Exit children:
                     if isinstance(s, ParallelState):
-                        for c in s.children:
-                            if enter_path[1] is c:
-                                write_new_configuration(enter_path[1:]) # recurse
+                        for c in reversed(s.children):
+                            if exit_path[1] is c:
+                                write_exit(exit_path[1:]) # continue recursively
                             else:
-                                # Other children's default states are constructed
-                                w.writeln("let new_%s: %s = Default::default();" % (ident_var(c), ident_type(c)))
-                        # Construct struct
-                        w.writeln("let new_%s = %s{%s:%s, ..Default::default()};" % (ident_var(s), ident_type(s), ident_field(enter_path[1]), ident_var(enter_path[1])))
-
+                                w.writeln("%s.exit_current(%s);" % (ident_var(c), IDENT_OC))
                     elif isinstance(s, State):
-                        if len(s.children) > 0:
+                        if s.default_state is not None:
                             # Or-state
-                            write_new_configuration(enter_path[1:]) # recurse
-                            w.writeln("let new_%s = %s::%s(new_%s);" % (ident_var(s), ident_type(s), ident_enum_variant(enter_path[1]), ident_var(enter_path[1])))
-                        else:
-                            # The following should never occur
-                            # The parser should have rejected the model before we even get here
-                            raise Exception("Basic state in the middle of enter path")
+                            write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
 
-        # Comment of 'write_exit' applies here as well
+                    # Exit s:
+                    w.writeln("%s::exit_actions(%s);" % (ident_type(s), IDENT_OC))
+
+                # Store history
+                if s.opt.deep_history:
+                    _, _, h = s.opt.deep_history
+                    w.writeln("self.%s = *%s; // Store deep history" % (ident_history_field(h), ident_var(s)))
+                if s.opt.shallow_history:
+                    _, h = s.opt.shallow_history
+                    if isinstance(s, ParallelState):
+                        raise Exception("Shallow history makes no sense for And-state!")
+                    w.writeln("self.%s = match %s { // Store shallow history" % (ident_history_field(h), ident_var(s)))
+                    for c in s.children:
+                        if not isinstance(c, HistoryState):
+                            w.writeln("  %s::%s(_) => %s::%s(%s::default())," % (ident_type(s), ident_enum_variant(c), ident_type(s), ident_enum_variant(c), ident_type(c)))
+                    w.writeln("};")
+                    # w.writeln("println!(\"recorded history\");")
+
+        # Writes statements that perform enter actions
+        # in the correct order (parent, children (first to last)) for given 'enter path'.
         def write_enter(enter_path: List[State]):
             if len(enter_path) > 0:
-                s = enter_path[0]
+                s = enter_path[0] # state to enter
                 if len(enter_path) == 1:
                     # Target state.
-                    w.writeln("%s::enter_default(%s);" % (ident_type(s), IDENT_OC))
+                    if isinstance(s, HistoryState):
+                        w.writeln("self.%s.enter_current(%s); // Enter actions for history state" %(ident_history_field(s), IDENT_OC))
+                    else:
+                        w.writeln("%s::enter_default(%s);" % (ident_type(s), IDENT_OC))
                 else:
+                    # Enter s:
+                    w.writeln("%s::enter_actions(%s);" % (ident_type(s), IDENT_OC))
+                    # Enter children:
                     if isinstance(s, ParallelState):
                         for c in s.children:
                             if enter_path[1] is c:
-                                w.writeln("%s::enter_actions(%s);" % (ident_type(c), IDENT_OC))
+                                # if not isinstance(c, HistoryState):
+                                #     w.writeln("%s::enter_actions(%s);" % (ident_type(c), IDENT_OC))
                                 write_enter(enter_path[1:]) # continue recursively
                             else:
                                 w.writeln("%s::enter_default(%s);" % (ident_type(c), IDENT_OC))
                     elif isinstance(s, State):
                         if len(s.children) > 0:
-                            # Or-state
-                            w.writeln("%s::enter_actions(%s);" % (ident_type(s), IDENT_OC))
                             write_enter(enter_path[1:]) # continue recursively with the next child on the enter path
                         else:
-                            # The following should never occur
-                            # The parser should have rejected the model before we even get here
+                            # If the following occurs, there's a bug in this source file
                             raise Exception("Basic state in the middle of enter path")
 
+        # The 'state' of a state is just a value in our compiled code.
+        # When executing a transition, the value of the transition's arena changes.
+        # This function writes statements that build a new value that can be assigned to the arena.
+        def write_new_configuration(enter_path: List[State]):
+            if len(enter_path) > 0:
+                s = enter_path[0]
+                if len(enter_path) == 1:
+                    # Construct target state.
+                    # And/Or/Basic state: Just construct the default value:
+                    w.writeln("let new_%s: %s = Default::default();" % (ident_var(s), ident_type(s)))
+                else:
+                    next_child = enter_path[1]
+                    if isinstance(next_child, HistoryState):
+                        # No recursion
+                        w.writeln("let new_%s = self.%s; // Restore history value" % (ident_var(s), ident_history_field(next_child)))
+                    else:
+                        if isinstance(s, ParallelState):
+                            for c in s.children:
+                                if next_child is c:
+                                    write_new_configuration(enter_path[1:]) # recurse
+                                else:
+                                    # Other children's default states are constructed
+                                    w.writeln("let new_%s: %s = Default::default();" % (ident_var(c), ident_type(c)))
+                            # Construct struct
+                            # if isinstance(next_child, HistoryState):
+                            #     w.writeln("let new_%s = %s{%s:%s, ..Default::default()};" % (ident_var(s), ident_type(s), ident_field(next_child), ident_var(next_child)))
+                            # else:
+                            w.writeln("let new_%s = %s{%s:%s, ..Default::default()};" % (ident_var(s), ident_type(s), ident_field(next_child), ident_var(next_child)))
+                        elif isinstance(s, State):
+                            if len(s.children) > 0:
+                                # Or-state
+                                write_new_configuration(enter_path[1:]) # recurse
+                                # Construct enum value
+                                w.writeln("let new_%s = %s::%s(new_%s);" % (ident_var(s), ident_type(s), ident_enum_variant(next_child), ident_var(next_child)))
+                            else:
+                                # If the following occurs, there's a bug in this source file
+                                raise Exception("Basic state in the middle of enter path")
+
         def parent():
-            for t in state.transitions:
-                w.writeln("// Outgoing transition")
+            for i, t in enumerate(state.transitions):
+                w.writeln("// Outgoing transition %d" % i)
 
                 if t.trigger is not EMPTY_TRIGGER:
                     if len(t.trigger.enabling) > 1:
@@ -382,17 +459,21 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     w.writeln("}")
 
         def child():
+            # Here is were we recurse and write the transition code for the children of our 'state'.
             if isinstance(state, ParallelState):
                 for child in state.children:
-                    w.writeln("// Orthogonal region")
-                    w.writeln("let %s = &mut %s.%s;" % (ident_var(child), ident_var(state), ident_field(child)))
-                    write_transitions(child)
+                    if not isinstance(child, HistoryState):
+                        w.writeln("// Orthogonal region")
+                        w.writeln("let %s = &mut %s.%s;" % (ident_var(child), ident_var(state), ident_field(child)))
+                        write_transitions(child)
             elif isinstance(state, State):
                 if state.default_state is not None:
                     w.writeln("'%s: loop {" % ident_arena_label(state))
                     w.indent()
                     w.writeln("match %s {" % ident_var(state))
                     for child in state.children:
+                        if isinstance(child, HistoryState):
+                            continue
                         w.indent()
                         w.writeln("%s::%s(%s) => {" % (ident_type(state), ident_enum_variant(child), ident_var(child)))
                         w.indent()
@@ -434,11 +515,15 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("    self.fair_step(event, %s);" % IDENT_OC)
     elif sc.semantics.big_step_maximality == Maximality.TAKE_MANY:
         w.writeln("    // Big-Step Maximality: Take Many")
+        w.writeln("    let mut e = event;")
         w.writeln("    loop {")
-        w.writeln("      let fired = self.fair_step(event, %s);" % IDENT_OC)
+        w.writeln("      let fired = self.fair_step(e, %s);" % IDENT_OC)
         w.writeln("      if !fired {")
         w.writeln("        break;")
         w.writeln("      }")
+        if sc.semantics.input_event_lifeline != InputEventLifeline.WHOLE:
+            w.writeln("      // Input Event Lifeline: %s" % sc.semantics.input_event_lifeline)
+            w.writeln("      e = None;")
         w.writeln("    }")
     else:
         raise Exception("Unsupported semantics %s" % sc.semantics.big_step_maximality)
@@ -446,13 +531,3 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
     w.writeln("}")
     w.writeln()
-
-
-    # # See if it works
-    # w.writeln("fn main() {")
-    # w.writeln("  let mut sc: Statechart = Default::default();")
-    # w.writeln("  Root::enter_default();")
-    # w.writeln("  sc.fair_step(None);")
-    # w.writeln("  sc.fair_step(None);")
-    # w.writeln("}")
-    # w.writeln()

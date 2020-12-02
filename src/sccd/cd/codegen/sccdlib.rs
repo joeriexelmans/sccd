@@ -5,10 +5,16 @@ use std::cmp::Ordering;
 type Timestamp = usize; // unsigned integer, platform's word size
 
 pub trait State<OutputCallback> {
+  // Execute enter actions of only this state
   fn enter_actions(output: &mut OutputCallback);
+  // Execute exit actions of only this state
   fn exit_actions(output: &mut OutputCallback);
+  // Execute enter actions of this state and its 'default' child(ren), recursively
   fn enter_default(output: &mut OutputCallback);
 
+  // Execute enter actions as if the configuration recorded in this state is being entered
+  fn enter_current(&self, output: &mut OutputCallback);
+  // Execute exit actions as if the configuration recorded in this state is being exited
   fn exit_current(&self, output: &mut OutputCallback);
 }
 

@@ -72,10 +72,10 @@ class StatechartExecution:
                         print_debug(termcolor.colored('  EXIT %s' % s.opt.full_name, 'green'))
                         if s.opt.deep_history is not None:
                             # s has a deep-history child:
-                            history_id, history_mask = s.opt.deep_history
+                            history_id, history_mask, _ = s.opt.deep_history
                             self.history_values[history_id] = exit_ids & history_mask
                         if s.opt.shallow_history is not None:
-                            history_id = s.opt.shallow_history
+                            history_id, _ = s.opt.shallow_history
                             self.history_values[history_id] = just_exited.opt.effective_targets
                         self._cancel_timers(s.opt.after_triggers)
                         _perform_actions(ctx, s.exit)

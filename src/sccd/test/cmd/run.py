@@ -53,7 +53,7 @@ if __name__ == '__main__':
         epilog="Set environment variable SCCDDEBUG=1 to display debug information about the inner workings of the runtime.")
     argparser.add_argument('path', metavar='PATH', type=str, nargs='*', help="Tests to run. Can be a XML file or a directory. If a directory, it will be recursively scanned for XML files.")
     argparser.add_argument('--build-dir', metavar='BUILD_DIR', type=str, default='build', help="Directory for built tests. Defaults to 'build'")
-    argparser.add_argument('--rust', action='store_true', help="Instead of testing the interpreter, generate Rust code from test and run it.")
+    argparser.add_argument('--rust', action='store_true', help="Instead of testing the interpreter, generate Rust code from test and run it. Depends on the 'rustc' command in your environment's PATH. Does not depend on Cargo.")
     args = argparser.parse_args()
 
     src_files = get_files(args.path,

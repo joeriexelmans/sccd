@@ -13,7 +13,6 @@ from sccd.util.debug import *
 def run_variants(variants: List[TestVariant], unittest):
     if DEBUG:
         stdout = None
-        # stderr = subprocess.STDOUT
         stderr = None
     else:
         stdout = subprocess.DEVNULL
@@ -25,7 +24,7 @@ def run_variants(variants: List[TestVariant], unittest):
     with subprocess.Popen(["rustc", "-o", output_file, "-"],
         stdin=subprocess.PIPE,
         stdout=stdout,
-        stderr=stderr) as pipe:
+        stderr=subprocess.PIPE) as pipe:
 
         class PipeWriter:
             def __init__(self, pipe):
@@ -39,19 +38,21 @@ def run_variants(variants: List[TestVariant], unittest):
 
         pipe.stdin.close()
 
-        print_debug("Done generating Rust code")
+        print_debug("Generated Rust code.")
 
-        pipe.wait()
+        status = pipe.wait()
 
-    print_debug("Done generating binary")
+        if status != 0:
+            # This does not indicate a test failure, but an error in our code generator
+            raise Exception("Rust compiler status %d. Sterr:" % (status, pipe.stderr.read().decode('UTF-8')))
+
+    print_debug("Generated binary. Running...")
 
     with subprocess.Popen([output_file],
-        stdout=subprocess.PIPE,
+        stdout=stdout,
         stderr=subprocess.PIPE) as binary:
 
         status = binary.wait()
 
         if status != 0:
-            unittest.fail("Status code %d:\n%s%s" % (status, binary.stdout.read().decode('UTF-8'), binary.stderr.read().decode('UTF-8')))
-
-    print_debug("Done running binary")
+            unittest.fail("Test status %d. Stderr:\n%s" % (status, binary.stderr.read().decode('UTF-8')))

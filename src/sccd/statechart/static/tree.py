@@ -213,11 +213,11 @@ class StateStatic(Freezable):
 
         self.effective_targets: Bitmap = Bitmap()
 
-        # If a direct child of this state is a deep history state, then "deep history" needs to be recorded when exiting this state. This value contains a tuple, with the (history-id, history_mask) of that child state.
-        self.deep_history: Optional[Tuple[int, Bitmap]] = None
+        # If a direct child of this state is a deep history state, then "deep history" needs to be recorded when exiting this state. This value contains a tuple, with the (history-id, history_mask, history state) of that child state.
+        self.deep_history: Optional[Tuple[int, Bitmap, DeepHistoryState]] = None
 
         # If a direct child of this state is a shallow history state, then "shallow history" needs to be recorded when exiting this state. This value is the history-id of that child state
-        self.shallow_history: Optional[int] = None
+        self.shallow_history: Optional[Tuple[int, ShallowHistoryState]] = None
 
         # Triggers of outgoing transitions that are AfterTrigger.
         self.after_triggers: List[AfterTrigger] = []
@@ -242,7 +242,7 @@ class TransitionStatic(Freezable):
 
 
 class StateTree(Freezable):
-    __slots__ = ["root", "transition_list", "state_list", "state_dict", "timer_count", "initial_history_values", "initial_states"]
+    __slots__ = ["root", "transition_list", "state_list", "state_dict", "timer_count", "history_states", "initial_history_values", "initial_states"]
 
     def __init__(self, root: State):
         super().__init__()
@@ -252,7 +252,8 @@ class StateTree(Freezable):
         self.state_list = []
         self.transition_list = []
         self.timer_count = 0 # number of after-transitions in the statechart
-        self.initial_history_values = []
+        self.history_states: List[HistoryState] = []
+        self.initial_history_values: List[Bitmap] = []
 
         with timer.Context("optimize tree"):
 
@@ -311,12 +312,13 @@ class StateTree(Freezable):
             def deal_with_history(state: State, children_history):
                 for h in children_history:
                     if isinstance(h, DeepHistoryState):
-                        state.opt.deep_history = (history_ids[h], h.parent.opt.descendants)
+                        state.opt.deep_history = (history_ids[h], h.parent.opt.descendants, h)
                     elif isinstance(h, ShallowHistoryState):
-                        state.opt.shallow_history = history_ids[h]
+                        state.opt.shallow_history = (history_ids[h], h)
 
                 if isinstance(state, HistoryState):
                     history_ids[state] = len(self.initial_history_values) # generate history ID
+                    self.history_states.append(state)
                     self.initial_history_values.append(state.parent.opt.effective_targets)
                     return state
 

@@ -53,6 +53,10 @@ def compile_actions(actions: List[Action], w: IndentingWriter):
 
 def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
+    # TODO: Do not create a StatechartInstance just to check if priorities are valid:
+    from sccd.statechart.dynamic.statechart_instance import StatechartInstance
+    StatechartInstance(sc, None, None, None, None) # may raise error if priorities are invalid
+
     tree = sc.tree
 
     # Note: The reason for the
@@ -397,10 +401,19 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     w.dedent()
                     w.writeln("}")
 
-        # TODO: This is where parent/child-first semantic variability should be implemented
-        #       For now, it's always "parent first"
-        parent()
-        child()
+
+        if sc.semantics.hierarchical_priority == HierarchicalPriority.SOURCE_PARENT:
+            parent()
+            child()
+        elif sc.semantics.hierarchical_priority == HierarchicalPriority.SOURCE_CHILD:
+            child()
+            parent()
+        elif sc.semantics.hierarchical_priority == HierarchicalPriority.NONE:
+            # We're free to pick any semantics here, but let's not go too wild
+            parent()
+            child()
+        else:
+            raise Exception("Unsupported option %s" % sc.semantics.hierarchical_priority)
 
     write_transitions(tree.root)
 

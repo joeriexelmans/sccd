@@ -36,15 +36,19 @@ python -m sccd.test.cmd.run test/test_files
 
 It will recursively visit the directory tree of `test_files` and look for XML files starting with with `test_` (tests that should succeed) or `fail_` (for tests that should fail), and execute them. The tree also contains XML files starting with `statechart_`: these are individual statechart models that are not directly executable, but are used by test files. The tree also contains SVG files: these contain automatically rendered images of statechart models.
 
-### Running the tests with Rust
+### Code generation with Rust
 
-The test framework can also generate Rust code for each test, and then invokes the Rust compiler (must be in your PATH as `rustc`) to compile to native code for your machine. The compiled program is then run (the main-function of the generated code executes the test). Add the `--rust` flag to try it:
+The test framework can also generate Rust code for each test, and then invokes the Rust compiler (must be in your PATH as `rustc`) to compile to native code for your machine, which is put in a temporary directory. The native code is then run (the main-function of the generated code executes the test).
+
+Other than the `rustc` command, there are (currently) no dependencies.
+
+Add the `--rust` flag to the test command to try it:
 
 ```
 python -m sccd.test.cmd.run --rust test/test_files
 ```
 
-Rust code generation is a work in progress. Tests that contain unsupported features will be skipped.
+Rust code generation is a work-in-progress. Tests that contain unsupported features will be skipped.
 
 ## Runtime environment variables
 

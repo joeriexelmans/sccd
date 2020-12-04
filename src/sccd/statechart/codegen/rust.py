@@ -5,6 +5,9 @@ from sccd.statechart.static.statechart import *
 from sccd.statechart.static.globals import *
 from sccd.util.indenting_writer import *
 
+class UnsupportedFeature(Exception):
+    pass
+
 # Conversion functions from abstract syntax elements to identifiers in Rust
 
 def snake_case(state: State) -> str:
@@ -61,7 +64,7 @@ def compile_actions(actions: List[Action], w: IndentingWriter):
             # TODO: evaluate event parameters
             w.writeln("%s(\"%s\", \"%s\");" % (IDENT_OC, a.outport, a.name))
         else:
-            raise Exception("Unimplemented action " + str(type(a)))
+            raise UnsupportedFeature(str(type(a)))
 
 def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
@@ -80,27 +83,23 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     # (these naming collisions would be detected by the Rust compiler, so the error would not go unnoticed,
     # still, it's better to NOT break our model :)
 
+
     # Write 'current state' types
 
     def write_state_type(state: State, children: List[State]):
-        if isinstance(state, HistoryState):
-            return None # we got no time for pseudo-states!
-
         w.writeln("#[allow(non_camel_case_types)]")
         w.writeln("#[derive(Copy, Clone)]")
 
         def as_struct():
             w.writeln("struct %s {" % ident_type(state))
             for child in children:
-                if child is not None:
-                    w.writeln("  %s: %s," % (ident_field(child), ident_type(child)))
+                w.writeln("  %s: %s," % (ident_field(child), ident_type(child)))
             w.writeln("}")
 
         def as_enum():
             w.writeln("enum %s {" % ident_type(state))
             for child in children:
-                if child is not None:
-                    w.writeln("  %s(%s)," % (ident_enum_variant(child), ident_type(child)))
+                w.writeln("  %s(%s)," % (ident_enum_variant(child), ident_type(child)))
             w.writeln("}")
 
         if isinstance(state.type, AndState):
@@ -117,9 +116,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     # Write "default" constructor
 
     def write_default(state: State, children: List[State]):
-        if isinstance(state, HistoryState):
-            return None # we got no time for pseudo-states!
-
         # We use Rust's Default-trait to record default states,
         # this way, constructing a state instance without parameters will initialize it as the default state.
 
@@ -129,16 +125,10 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         if isinstance(state.type, AndState):
             w.writeln("    Self {")
             for child in children:
-                if child is not None:
-                    w.writeln("      %s: Default::default()," % (ident_field(child)))
+                w.writeln("      %s: Default::default()," % (ident_field(child)))
             w.writeln("    }")
         elif isinstance(state.type, OrState):
-            if state.type.default_state is not None:
-                # Or-state
-                w.writeln("    Self::%s(Default::default())" % (ident_enum_variant(state.type.default_state)))
-            else:
-                # Basic state
-                w.writeln("    Self{}")
+            w.writeln("    Self::%s(Default::default())" % (ident_enum_variant(state.type.default_state)))
 
         w.writeln("  }")
         w.writeln("}")
@@ -148,9 +138,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     # Write "enter/exit state" functions
 
     def write_enter_exit(state: State, children: List[State]):
-        if isinstance(state, HistoryState):
-            return None # we got no time for pseudo-states!
-
         w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> State<OutputCallback> for %s {" % ident_type(state))
 
         w.writeln("  fn enter_actions(%s: &mut OutputCallback) {" % IDENT_OC)
@@ -171,26 +158,21 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("    %s::enter_actions(%s);" % (ident_type(state), IDENT_OC))
         if isinstance(state.type, AndState):
             for child in children:
-                if child is not None:
-                    w.writeln("    %s::enter_default(%s);" % (ident_type(child), IDENT_OC))
-        else:
-            if state.type.default_state is not None:
-                w.writeln("    %s::enter_default(%s);" % (ident_type(state.type.default_state), IDENT_OC))
+                w.writeln("    %s::enter_default(%s);" % (ident_type(child), IDENT_OC))
+        elif isinstance(state.type, OrState):
+            w.writeln("    %s::enter_default(%s);" % (ident_type(state.type.default_state), IDENT_OC))
         w.writeln("  }")
 
         w.writeln("  fn exit_current(&self, %s: &mut OutputCallback) {" % IDENT_OC)
         # Children's exit actions
         if isinstance(state.type, AndState):
             for child in children:
-                if child is not None:
-                    w.writeln("    self.%s.exit_current(%s);" % (ident_field(child), IDENT_OC))
-        else:
-            if len(children) > 0:
-                w.writeln("    match self {")
-                for child in children:
-                    if child is not None:
-                        w.writeln("      Self::%s(s) => { s.exit_current(%s); }," % (ident_enum_variant(child), IDENT_OC))
-                w.writeln("    }")
+                w.writeln("    self.%s.exit_current(%s);" % (ident_field(child), IDENT_OC))
+        elif isinstance(state.type, OrState):
+            w.writeln("    match self {")
+            for child in children:
+                w.writeln("      Self::%s(s) => { s.exit_current(%s); }," % (ident_enum_variant(child), IDENT_OC))
+            w.writeln("    }")
         # Our own exit actions
         w.writeln("    %s::exit_actions(%s);" % (ident_type(state), IDENT_OC))
         w.writeln("  }")
@@ -201,22 +183,19 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         # Our own enter actions
         if isinstance(state.type, AndState):
             for child in children:
-                if child is not None:
-                    w.writeln("    self.%s.enter_current(%s);" % (ident_field(child), IDENT_OC))
-        else:
-            if len(children) > 0:
-                w.writeln("    match self {")
-                for child in children:
-                    if child is not None:
-                        w.writeln("      Self::%s(s) => { s.enter_current(%s); }," % (ident_enum_variant(child), IDENT_OC))
-                w.writeln("    }")
+                w.writeln("    self.%s.enter_current(%s);" % (ident_field(child), IDENT_OC))
+        elif isinstance(state.type, OrState):
+            w.writeln("    match self {")
+            for child in children:
+                w.writeln("      Self::%s(s) => { s.enter_current(%s); }," % (ident_enum_variant(child), IDENT_OC))
+            w.writeln("    }")
         w.writeln("  }")
 
         w.writeln("}")
         w.writeln()
         return state
 
-    visit_tree(tree.root, lambda s: s.children,
+    visit_tree(tree.root, lambda s: s.real_children,
         child_first=[
             write_state_type,
             write_default,
@@ -289,8 +268,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
 
     def write_transitions(state: State):
-        if isinstance(state, HistoryState):
-            return None # we got no time for pseudo-states!
 
         # Many of the states to exit can be computed statically (i.e. they are always the same)
         # The one we cannot compute statically are:
@@ -327,9 +304,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                             else:
                                 w.writeln("%s.exit_current(%s);" % (ident_var(c), IDENT_OC))
                     elif isinstance(s.type, OrState):
-                        if s.type.default_state is not None:
-                            # Or-state
-                            write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
+                        write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
 
                     # Exit s:
                     w.writeln("%s::exit_actions(%s);" % (ident_type(s), IDENT_OC))
@@ -342,10 +317,10 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     _, h = s.shallow_history
                     if isinstance(s.type, AndState):
                         raise Exception("Shallow history makes no sense for And-state!")
+                    # Or-state:
                     w.writeln("sc.%s = match %s { // Store shallow history" % (ident_history_field(h), ident_var(s)))
-                    for c in s.children:
-                        if not isinstance(c, HistoryState):
-                            w.writeln("  %s::%s(_) => %s::%s(%s::default())," % (ident_type(s), ident_enum_variant(c), ident_type(s), ident_enum_variant(c), ident_type(c)))
+                    for c in s.real_children:
+                        w.writeln("  %s::%s(_) => %s::%s(%s::default())," % (ident_type(s), ident_enum_variant(c), ident_type(s), ident_enum_variant(c), ident_type(c)))
                     w.writeln("};")
                     # w.writeln("println!(\"recorded history\");")
 
@@ -367,8 +342,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     if isinstance(s.type, AndState):
                         for c in s.children:
                             if enter_path[1] is c:
-                                # if not isinstance(c, HistoryState):
-                                #     w.writeln("%s::enter_actions(%s);" % (ident_type(c), IDENT_OC))
                                 write_enter(enter_path[1:]) # continue recursively
                             else:
                                 w.writeln("%s::enter_default(%s);" % (ident_type(c), IDENT_OC))
@@ -420,12 +393,12 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
                 if t.trigger is not EMPTY_TRIGGER:
                     if len(t.trigger.enabling) > 1:
-                        raise Exception("Multi-event triggers currently unsupported")
+                        raise UnsupportedFeature("Multi-event trigger")
                     w.writeln("if let Some(Event::%s) = _event {" % t.trigger.enabling[0].name)
                     w.indent()
 
                 if t.guard is not None:
-                    raise Exception("Guard conditions currently unsupported")
+                    raise UnsupportedFeature("Guard conditions currently unsupported")
 
                 # 1. Execute transition's actions
 
@@ -473,11 +446,10 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         def child():
             # Here is were we recurse and write the transition code for the children of our 'state'.
             if isinstance(state.type, AndState):
-                for child in state.children:
-                    if not isinstance(child, HistoryState):
-                        w.writeln("// Orthogonal region")
-                        w.writeln("let %s = &mut %s.%s;" % (ident_var(child), ident_var(state), ident_field(child)))
-                        write_transitions(child)
+                for child in state.real_children:
+                    w.writeln("// Orthogonal region")
+                    w.writeln("let %s = &mut %s.%s;" % (ident_var(child), ident_var(state), ident_field(child)))
+                    write_transitions(child)
             elif isinstance(state.type, OrState):
                 if state.type.default_state is not None:
                     if syntactic_maximality and state in arenas:
@@ -487,9 +459,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     w.writeln("'%s: loop {" % ident_arena_label(state))
                     w.indent()
                     w.writeln("match %s {" % ident_var(state))
-                    for child in state.children:
-                        if isinstance(child, HistoryState):
-                            continue
+                    for child in state.real_children:
                         w.indent()
                         w.writeln("%s::%s(%s) => {" % (ident_type(state), ident_enum_variant(child), ident_var(child)))
                         w.indent()
@@ -517,7 +487,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
             parent()
             child()
         else:
-            raise Exception("Unsupported semantics %s" % sc.semantics.hierarchical_priority)
+            raise UnsupportedFeature("Priority semantics %s" % sc.semantics.hierarchical_priority)
 
     write_transitions(tree.root)
 

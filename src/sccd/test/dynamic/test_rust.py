@@ -2,8 +2,10 @@ import threading
 import subprocess
 import tempfile
 import os
+from unittest import SkipTest
 from typing import *
 from sccd.test.static.syntax import TestVariant
+from sccd.statechart.codegen.rust import UnsupportedFeature
 from sccd.test.codegen.rust import compile_test
 from sccd.util.indenting_writer import IndentingWriter
 from sccd.util.debug import *
@@ -34,7 +36,10 @@ def run_variants(variants: List[TestVariant], unittest):
 
         w = IndentingWriter(out=PipeWriter(pipe))
 
-        compile_test(variants, w)
+        try:
+            compile_test(variants, w)
+        except UnsupportedFeature as e:
+            raise SkipTest("unsupported feature: " + str(e))
 
         pipe.stdin.close()
 

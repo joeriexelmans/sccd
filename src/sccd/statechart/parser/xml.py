@@ -251,6 +251,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             else:
               event_name = "+%d" % after_id
             transition.trigger = AfterTrigger(globals.events.assign_id(event_name), event_name, after_id, after_expr)
+            statechart.internal_events |= transition.trigger.enabling_bitmap
             after_id += 1
 
           def parse_attr_cond(cond):

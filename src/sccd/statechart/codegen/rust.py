@@ -55,14 +55,21 @@ def ident_arena_const(state: State) -> str:
 def ident_history_field(state: HistoryState) -> str:
     return "history" + snake_case(state.parent) # A history state records history value for its parent
 
+def ident_event(event_name: str) -> str:
+    if event_name[0] == '+':
+        # after event
+        return "After" + event_name.replace('+', '')
+    else:
+        return "Event_" + event_name
+
 # Name of the output callback parameter, everywhere
-IDENT_OC = "_output" # underscore to keep Rust from warning us for unused variable
+IDENT_HANDLE = "_handle" # underscore to keep Rust from warning us for unused variable
 
 def compile_actions(actions: List[Action], w: IndentingWriter):
     for a in actions:
         if isinstance(a, RaiseOutputEvent):
             # TODO: evaluate event parameters
-            w.writeln("%s(\"%s\", \"%s\");" % (IDENT_OC, a.outport, a.name))
+            w.writeln("(%s.output)(\"%s\", \"%s\");" % (IDENT_HANDLE, a.outport, a.name))
         else:
             raise UnsupportedFeature(str(type(a)))
 
@@ -83,6 +90,8 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     # (these naming collisions would be detected by the Rust compiler, so the error would not go unnoticed,
     # still, it's better to NOT break our model :)
 
+    w.writeln("type Timers = [TimerId; %d];" % tree.timer_count)
+    w.writeln()
 
     # Write 'current state' types
 
@@ -138,56 +147,61 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     # Write "enter/exit state" functions
 
     def write_enter_exit(state: State, children: List[State]):
-        w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> State<OutputCallback> for %s {" % ident_type(state))
+        w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> State<Timers, Handle<Event, OutputCallback>> for %s {" % ident_type(state))
+        # w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> State<Handle<Event, OutputCallback>> for %s {" % ident_type(state))
 
-        w.writeln("  fn enter_actions(%s: &mut OutputCallback) {" % IDENT_OC)
+        w.writeln("  fn enter_actions(timers: &mut Timers, %s: &mut Handle<Event, OutputCallback>) {" % IDENT_HANDLE)
         w.writeln("    println!(\"enter %s\");" % state.full_name);
         w.indent(); w.indent()
         compile_actions(state.enter, w)
         w.dedent(); w.dedent()
+        for a in state.after_triggers:
+            w.writeln("    timers[%d] = %s.set_timeout(%d, Event::%s);" % (a.after_id, IDENT_HANDLE, a.delay.opt, ident_event(a.enabling[0].name)))
         w.writeln("  }")
 
-        w.writeln("  fn exit_actions(%s: &mut OutputCallback) {" % IDENT_OC)
+        w.writeln("  fn exit_actions(timers: &mut Timers, %s: &mut Handle<Event, OutputCallback>) {" % IDENT_HANDLE)
         w.writeln("    println!(\"exit %s\");" % state.full_name);
+        for a in state.after_triggers:
+            w.writeln("    %s.unset_timeout(timers[%d]);" % (IDENT_HANDLE, a.after_id))
         w.indent(); w.indent()
         compile_actions(state.exit, w)
         w.dedent(); w.dedent()
         w.writeln("  }")
 
-        w.writeln("  fn enter_default(%s: &mut OutputCallback) {" % IDENT_OC)
-        w.writeln("    %s::enter_actions(%s);" % (ident_type(state), IDENT_OC))
+        w.writeln("  fn enter_default(timers: &mut Timers, %s: &mut Handle<Event, OutputCallback>) {" % IDENT_HANDLE)
+        w.writeln("    %s::enter_actions(timers, %s);" % (ident_type(state), IDENT_HANDLE))
         if isinstance(state.type, AndState):
             for child in children:
-                w.writeln("    %s::enter_default(%s);" % (ident_type(child), IDENT_OC))
+                w.writeln("    %s::enter_default(timers, %s);" % (ident_type(child), IDENT_HANDLE))
         elif isinstance(state.type, OrState):
-            w.writeln("    %s::enter_default(%s);" % (ident_type(state.type.default_state), IDENT_OC))
+            w.writeln("    %s::enter_default(timers, %s);" % (ident_type(state.type.default_state), IDENT_HANDLE))
         w.writeln("  }")
 
-        w.writeln("  fn exit_current(&self, %s: &mut OutputCallback) {" % IDENT_OC)
+        w.writeln("  fn exit_current(&self, timers: &mut Timers, %s: &mut Handle<Event, OutputCallback>) {" % IDENT_HANDLE)
         # Children's exit actions
         if isinstance(state.type, AndState):
             for child in children:
-                w.writeln("    self.%s.exit_current(%s);" % (ident_field(child), IDENT_OC))
+                w.writeln("    self.%s.exit_current(timers, %s);" % (ident_field(child), IDENT_HANDLE))
         elif isinstance(state.type, OrState):
             w.writeln("    match self {")
             for child in children:
-                w.writeln("      Self::%s(s) => { s.exit_current(%s); }," % (ident_enum_variant(child), IDENT_OC))
+                w.writeln("      Self::%s(s) => { s.exit_current(timers, %s); }," % (ident_enum_variant(child), IDENT_HANDLE))
             w.writeln("    }")
         # Our own exit actions
-        w.writeln("    %s::exit_actions(%s);" % (ident_type(state), IDENT_OC))
+        w.writeln("    %s::exit_actions(timers, %s);" % (ident_type(state), IDENT_HANDLE))
         w.writeln("  }")
 
-        w.writeln("  fn enter_current(&self, %s: &mut OutputCallback) {" % IDENT_OC)
+        w.writeln("  fn enter_current(&self, timers: &mut Timers, %s: &mut Handle<Event, OutputCallback>) {" % IDENT_HANDLE)
         # Children's enter actions
-        w.writeln("    %s::enter_actions(%s);" % (ident_type(state), IDENT_OC))
+        w.writeln("    %s::enter_actions(timers, %s);" % (ident_type(state), IDENT_HANDLE))
         # Our own enter actions
         if isinstance(state.type, AndState):
             for child in children:
-                w.writeln("    self.%s.enter_current(%s);" % (ident_field(child), IDENT_OC))
+                w.writeln("    self.%s.enter_current(timers, %s);" % (ident_field(child), IDENT_HANDLE))
         elif isinstance(state.type, OrState):
             w.writeln("    match self {")
             for child in children:
-                w.writeln("      Self::%s(s) => { s.enter_current(%s); }," % (ident_enum_variant(child), IDENT_OC))
+                w.writeln("      Self::%s(s) => { s.enter_current(timers, %s); }," % (ident_enum_variant(child), IDENT_HANDLE))
             w.writeln("    }")
         w.writeln("  }")
 
@@ -208,7 +222,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("#[derive(Copy, Clone)]")
     w.writeln("enum Event {")
     for event_name in (globals.events.names[i] for i in bm_items(sc.internal_events)):
-        w.writeln("  %s," % event_name)
+        w.writeln("  %s," % ident_event(event_name))
     w.writeln("}")
     w.writeln()
 
@@ -235,7 +249,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("  current_state: %s," % ident_type(tree.root))
     for h in tree.history_states:
         w.writeln("  %s: %s," % (ident_history_field(h), ident_type(h.parent)))
-    w.writeln("  // TODO: timers")
+    w.writeln("  timers: Timers,")
     w.writeln("}")
     w.writeln()
 
@@ -245,7 +259,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("      current_state: Default::default(),")
     for h in tree.history_states:
         w.writeln("      %s: Default::default()," % (ident_history_field(h)))
-    # w.writeln("      timers: Default::default(),")
+    w.writeln("      timers: Default::default(),")
     w.writeln("    }")
     w.writeln("  }")
     w.writeln("}")
@@ -253,11 +267,10 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
 
     # Function fair_step: a single "Take One" Maximality 'round' (= nonoverlapping arenas allowed to fire 1 transition)
-    w.writeln("fn fair_step<'a, OutputCallback: FnMut(&'a str, &'a str)>(sc: &mut Statechart, _event: Option<Event>, %s: &mut OutputCallback, dirty: Arenas) -> Arenas {" % IDENT_OC)
+    w.writeln("fn fair_step<'a, OutputCallback: FnMut(&'a str, &'a str)>(sc: &mut Statechart, _event: Option<Event>, %s: &mut Handle<Event, OutputCallback>, dirty: Arenas) -> Arenas {" % IDENT_HANDLE)
     w.writeln("  #![allow(non_snake_case)]")
     w.writeln("  #![allow(unused_labels)]")
     w.writeln("  #![allow(unused_variables)]")
-    w.writeln("  println!(\"fair step, dirty={}\", dirty);")
     w.writeln("  let mut fired: Arenas = 0;")
     w.writeln("  let %s = &mut sc.current_state;" % ident_var(tree.root))
     w.indent()
@@ -288,13 +301,12 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         # Writes statements that perform exit actions
         # in the correct order (children (last to first), then parent) for given 'exit path'.
         def write_exit(exit_path: List[State]):
-            # w.writeln("println!(\"exit path = %s\");" % str(exit_path).replace('"', "'"))
             if len(exit_path) > 0:
                 s = exit_path[0] # state to exit
 
                 if len(exit_path) == 1:
                     # Exit s:
-                    w.writeln("%s.exit_current(%s);" % (ident_var(s), IDENT_OC))
+                    w.writeln("%s.exit_current(&mut sc.timers, %s);" % (ident_var(s), IDENT_HANDLE))
                 else:
                     # Exit children:
                     if isinstance(s.type, AndState):
@@ -302,12 +314,12 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                             if exit_path[1] is c:
                                 write_exit(exit_path[1:]) # continue recursively
                             else:
-                                w.writeln("%s.exit_current(%s);" % (ident_var(c), IDENT_OC))
+                                w.writeln("%s.exit_current(&mut sc.timers, %s);" % (ident_var(c), IDENT_HANDLE))
                     elif isinstance(s.type, OrState):
                         write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
 
                     # Exit s:
-                    w.writeln("%s::exit_actions(%s);" % (ident_type(s), IDENT_OC))
+                    w.writeln("%s::exit_actions(&mut sc.timers, %s);" % (ident_type(s), IDENT_HANDLE))
 
                 # Store history
                 if s.deep_history:
@@ -322,7 +334,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     for c in s.real_children:
                         w.writeln("  %s::%s(_) => %s::%s(%s::default())," % (ident_type(s), ident_enum_variant(c), ident_type(s), ident_enum_variant(c), ident_type(c)))
                     w.writeln("};")
-                    # w.writeln("println!(\"recorded history\");")
 
         # Writes statements that perform enter actions
         # in the correct order (parent, children (first to last)) for given 'enter path'.
@@ -332,19 +343,19 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 if len(enter_path) == 1:
                     # Target state.
                     if isinstance(s, HistoryState):
-                        w.writeln("sc.%s.enter_current(%s); // Enter actions for history state" %(ident_history_field(s), IDENT_OC))
+                        w.writeln("sc.%s.enter_current(&mut sc.timers, %s); // Enter actions for history state" %(ident_history_field(s), IDENT_HANDLE))
                     else:
-                        w.writeln("%s::enter_default(%s);" % (ident_type(s), IDENT_OC))
+                        w.writeln("%s::enter_default(&mut sc.timers, %s);" % (ident_type(s), IDENT_HANDLE))
                 else:
                     # Enter s:
-                    w.writeln("%s::enter_actions(%s);" % (ident_type(s), IDENT_OC))
+                    w.writeln("%s::enter_actions(&mut sc.timers, %s);" % (ident_type(s), IDENT_HANDLE))
                     # Enter children:
                     if isinstance(s.type, AndState):
                         for c in s.children:
                             if enter_path[1] is c:
                                 write_enter(enter_path[1:]) # continue recursively
                             else:
-                                w.writeln("%s::enter_default(%s);" % (ident_type(c), IDENT_OC))
+                                w.writeln("%s::enter_default(&mut sc.timers, %s);" % (ident_type(c), IDENT_HANDLE))
                     elif isinstance(s.type, OrState):
                         if len(s.children) > 0:
                             write_enter(enter_path[1:]) # continue recursively with the next child on the enter path
@@ -394,7 +405,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 if t.trigger is not EMPTY_TRIGGER:
                     if len(t.trigger.enabling) > 1:
                         raise UnsupportedFeature("Multi-event trigger")
-                    w.writeln("if let Some(Event::%s) = _event {" % t.trigger.enabling[0].name)
+                    w.writeln("if let Some(Event::%s) = _event {" % ident_event(t.trigger.enabling[0].name))
                     w.indent()
 
                 if t.guard is not None:
@@ -493,45 +504,33 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
     w.dedent()
 
-    w.writeln("  println!(\"end fair step, fired={}\", fired);")
     w.writeln("  fired")
     w.writeln("}")
 
     def write_stepping_function(name: str, title: str, maximality: Maximality, substep: str, input_whole: bool):
-        w.write("fn %s<'a, OutputCallback: FnMut(&'a str, &'a str)>(sc: &mut Statechart, event: Option<Event>, %s: &mut OutputCallback, dirty: Arenas)" % (name, IDENT_OC))
-        # if return_arenas:
+        w.write("fn %s<'a, OutputCallback: FnMut(&'a str, &'a str)>(sc: &mut Statechart, event: Option<Event>, %s: &mut Handle<Event, OutputCallback>, dirty: Arenas)" % (name, IDENT_HANDLE))
         w.writeln(" -> Arenas {")
-        # else:
-            # w.writeln(" {")
-        w.writeln("  println!(\"%s, dirty={}\", dirty);" % name)
         if maximality == Maximality.TAKE_ONE:
             w.writeln("  // %s Maximality: Take One" % title)
-            # if return_arenas:
-            w.writeln("  %s(sc, event, %s, dirty)" % (substep, IDENT_OC))
-            # else:
-            #     w.writeln("  %s(sc, event, %s);" % (substep, IDENT_OC))
+            w.writeln("  %s(sc, event, %s, dirty)" % (substep, IDENT_HANDLE))
         else:
-            # if return_arenas:
             w.writeln("  let mut fired: Arenas = dirty;")
             w.writeln("  let mut e = event;")
             w.writeln("  loop {")
             if maximality == Maximality.TAKE_MANY:
                 w.writeln("    // %s Maximality: Take Many" % title)
-                w.writeln("    let just_fired = %s(sc, e, %s, 0);" % (substep, IDENT_OC))
+                w.writeln("    let just_fired = %s(sc, e, %s, 0);" % (substep, IDENT_HANDLE))
             elif maximality == Maximality.SYNTACTIC:
                 w.writeln("    // %s Maximality: Syntactic" % title)
-                w.writeln("    let just_fired = %s(sc, e, %s, fired);" % (substep, IDENT_OC))
+                w.writeln("    let just_fired = %s(sc, e, %s, fired);" % (substep, IDENT_HANDLE))
             w.writeln("    if just_fired == 0 {")
             w.writeln("      break;")
             w.writeln("    }")
-            # if return_arenas:
             w.writeln("    fired |= just_fired & !ARENA_FIRED;")
             if not input_whole:
                 w.writeln("    // Input Event Lifeline: %s" % sc.semantics.input_event_lifeline)
                 w.writeln("    e = None;")
             w.writeln("  }")
-            # if return_arenas:
-            w.writeln("  println!(\"end %s, fired={}\", fired);" % name)
             w.writeln("  fired")
         w.writeln("}")
 
@@ -549,11 +548,11 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln()
 
     # Implement 'SC' trait
-    w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> SC<Event, OutputCallback> for Statechart {")
-    w.writeln("  fn init(%s: &mut OutputCallback) {" % IDENT_OC)
-    w.writeln("    %s::enter_default(%s)" % (ident_type(tree.root), IDENT_OC))
+    w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> SC<Event, Handle<Event, OutputCallback>> for Statechart {")
+    w.writeln("  fn init(&mut self, %s: &mut Handle<Event, OutputCallback>) {" % IDENT_HANDLE)
+    w.writeln("    %s::enter_default(&mut self.timers, %s)" % (ident_type(tree.root), IDENT_HANDLE))
     w.writeln("  }")
-    w.writeln("  fn big_step(&mut self, event: Option<Event>, output: &mut OutputCallback) {")
+    w.writeln("  fn big_step(&mut self, event: Option<Event>, output: &mut Handle<Event, OutputCallback>) {")
     w.writeln("    big_step(self, event, output, 0);")
     w.writeln("  }")
     w.writeln("}")

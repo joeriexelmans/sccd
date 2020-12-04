@@ -1,5 +1,5 @@
 from sccd.test.static.syntax import *
-from sccd.statechart.codegen.rust import compile_statechart
+from sccd.statechart.codegen.rust import *
 from sccd.util.indenting_writer import *
 
 import os
@@ -27,20 +27,16 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
         w.writeln("let mut raised = Vec::<&str>::new();")
         w.writeln("let mut output = |port, event| {")
         w.writeln("  println!(\"^{}:{}\", port, event);")
-        w.writeln("  raised.push(event); return;")
+        w.writeln("  raised.push(event);")
         w.writeln("};")
-        w.writeln("Statechart::init(&mut output);")
         w.writeln("let mut controller = Controller::<_,_,Statechart>::new(output);")
+        w.writeln("controller.statechart.init(&mut controller.handle);")
         for i in v.input:
             if len(i.events) > 1:
                 raise Exception("Multiple simultaneous input events not supported")
             elif len(i.events) == 0:
                 raise Exception("Test declares empty bag of input events - not supported")
-
-            w.writeln("controller.add_input(Entry{")
-            w.writeln("  timestamp: %d," % i.timestamp.opt)
-            w.writeln("  event: Event::%s," % i.events[0].name)
-            w.writeln("});")
+            w.writeln("controller.handle.set_timeout(%d, Event::%s);" % (i.timestamp.opt, ident_event(i.events[0].name)))
 
         w.writeln("controller.run_until(Until::Eternity);")
         ctr = 0

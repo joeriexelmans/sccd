@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 
 type Timestamp = usize;
 
-type TimerId = usize;
+type TimerId = u16;
 
 pub trait State<TimersType, Handle> {
   // Execute enter actions of only this state

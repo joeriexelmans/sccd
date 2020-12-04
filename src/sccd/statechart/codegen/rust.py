@@ -37,8 +37,8 @@ def ident_source_target(state: State) -> str:
     # drop the first '_' (this is safe, the root state itself can never be source or target)
     return snake_case(state)[1:]
 
-def ident_transition(t: Transition) -> str:
-    return "transition%d_FROM_%s_TO_%s" % (t.id, ident_source_target(t.source), ident_source_target(t.target))
+# def ident_transition(t: Transition) -> str:
+#     return "transition%d_FROM_%s_TO_%s" % (t.id, ident_source_target(t.source), ident_source_target(t.target))
 
 def ident_arena_label(state: State) -> str:
     if state.full_name == "/":
@@ -563,12 +563,13 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("fn debug_print_sizes() {")
         w.writeln("  println!(\"------------------------\");")
         w.writeln("  println!(\"info: Statechart: {} bytes\", size_of::<Statechart>());")
-        w.writeln("  println!(\"info: Event: {} bytes\", size_of::<Event>());")
-        w.writeln("  println!(\"info: Arenas: {} bytes\", size_of::<Arenas>());")
+        w.writeln("  println!(\"info: Timers: {} bytes\", size_of::<Timers>());")
         def write_state_size(state):
-            w.writeln("  println!(\"info: %s: {} bytes\", size_of::<%s>());" % (state.full_name, ident_type(state)))
+            w.writeln("  println!(\"info: State %s: {} bytes\", size_of::<%s>());" % (state.full_name, ident_type(state)))
             for child in state.real_children:
                 write_state_size(child)
         write_state_size(tree.root)
+        w.writeln("  println!(\"info: Event: {} bytes\", size_of::<Event>());")
+        w.writeln("  println!(\"info: Arenas: {} bytes\", size_of::<Arenas>());")
         w.writeln("  println!(\"------------------------\");")
         w.writeln("}")

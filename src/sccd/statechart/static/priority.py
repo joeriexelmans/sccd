@@ -1,4 +1,4 @@
-from sccd.statechart.static.tree import StateTree, Transition, State, ParallelState
+from sccd.statechart.static.tree import StateTree, Transition, State, AndState, OrState
 from sccd.statechart.static.concurrency import check_nondeterminism, SmallStepConsistency
 from sccd.statechart.static.semantic_configuration import *
 from sccd.util.graph import strongly_connected_components
@@ -23,14 +23,14 @@ def explicit_ortho(tree: StateTree) -> EdgeList:
         transitions = []
         def visit_state(s: State, _=None):
             transitions.extend(s.transitions)
-        visit_tree(s, lambda s: s.children, parent_first=[visit_state])
+        visit_tree(s, lambda s: s.real_children, parent_first=[visit_state])
         return transitions
     # create edges between transitions in one region to another
     def visit_parallel_state(s: State, _=None):
-        if isinstance(s, ParallelState):
+        if isinstance(s.type, AndState):
             prev = []
-            # s.children are the orthogonal regions in document order
-            for region in s.children:
+            # s.real_children are the orthogonal regions in document order
+            for region in s.real_children:
                 curr = get_transitions(region)
                 if len(curr) > 0: # skip empty regions
                     # instead of creating edges between all transitions in component 'prev' and all transitions in component 'curr' (|prev| x |curr| edges), we add a pseudo-vertex in the graph between them, so we only have to create |prev| + |curr| edges, expressing the same information.
@@ -39,7 +39,7 @@ def explicit_ortho(tree: StateTree) -> EdgeList:
                         edges.extend((t, connector) for t in prev)
                         edges.extend((connector, t) for t in curr)
                     prev = curr
-    visit_tree(tree.root, lambda s: s.children,
+    visit_tree(tree.root, lambda s: s.real_children,
         parent_first=[visit_parallel_state])
     return edges
 
@@ -53,7 +53,7 @@ def explicit_same_state(tree: StateTree) -> EdgeList:
             if prev is not None:
                 edges.append((prev, t))
             prev = t
-    visit_tree(tree.root, lambda s: s.children,
+    visit_tree(tree.root, lambda s: s.real_children,
         parent_first=[visit_state])
     return edges
 
@@ -65,7 +65,7 @@ def source_parent(tree: StateTree) -> EdgeList:
             edges.extend(itertools.product(parent_transitions, s.transitions))
             return s.transitions
         return parent_transitions
-    visit_tree(tree.root, lambda s: s.children, parent_first=[visit_state])
+    visit_tree(tree.root, lambda s: s.real_children, parent_first=[visit_state])
     return edges
 
 # hierarchical Source-Child ordering
@@ -78,7 +78,7 @@ def source_child(tree: StateTree) -> EdgeList:
             return s.transitions
         else:
             return children_transitions
-    visit_tree(tree.root, lambda s: s.children, child_first=[visit_state])
+    visit_tree(tree.root, lambda s: s.real_children, child_first=[visit_state])
     return edges
 
 # hierarchical Arena-Parent ordering
@@ -86,7 +86,7 @@ def arena_parent(tree: StateTree) -> EdgeList:
     edges: EdgeList = []
     partitions = collections.defaultdict(list) # mapping of transition's arena depth to list of transitions
     for t in tree.transition_list:
-        partitions[t.opt.arena.opt.depth].append(t)
+        partitions[t.arena.depth].append(t)
     ordered_partitions = sorted(partitions.items(), key=lambda tup: tup[0])
     prev = []
     for depth, curr in ordered_partitions:
@@ -99,7 +99,7 @@ def arena_child(tree: StateTree) -> EdgeList:
     edges: EdgeList = []
     partitions = collections.defaultdict(list) # mapping of transition's arena depth to list of transitions
     for t in tree.transition_list:
-        partitions[t.opt.arena.opt.depth].append(t)
+        partitions[t.arena.depth].append(t)
     ordered_partitions = sorted(partitions.items(), key=lambda tup: -tup[0])
     prev = []
     for depth, curr in ordered_partitions:

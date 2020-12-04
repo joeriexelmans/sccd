@@ -38,9 +38,9 @@ class StatechartExecution:
             self.statechart.datamodel.exec(self.rhs_memory)
 
         for state in self.statechart.tree.bitmap_to_states(self.configuration):
-            print_debug(termcolor.colored('  ENTER %s'%state.opt.full_name, 'green'))
+            print_debug(termcolor.colored('  ENTER %s'%state.full_name, 'green'))
             _perform_actions(ctx, state.enter)
-            self._start_timers(state.opt.after_triggers)
+            self._start_timers(state.after_triggers)
 
         self.rhs_memory.flush_transition()
         self.rhs_memory.flush_round()
@@ -52,14 +52,14 @@ class StatechartExecution:
             with timer.Context("transition"):
                 # Sequence of exit states is the intersection between set of current states and the arena's descendants.
                 with timer.Context("exit set"):
-                    exit_ids = self.configuration & t.opt.exit_mask
+                    exit_ids = self.configuration & t.exit_mask
                     exit_set = self.statechart.tree.bitmap_to_states_reverse(exit_ids)
 
                 with timer.Context("enter set"):
                     # Sequence of enter states is more complex but has for a large part already been computed statically.
-                    enter_ids = t.opt.enter_states_static
-                    if t.opt.target_history_id is not None:
-                        enter_ids |= self.history_values[t.opt.target_history_id]
+                    enter_ids = t.enter_states_static
+                    if t.target_history_id is not None:
+                        enter_ids |= self.history_values[t.target_history_id]
                     enter_set = self.statechart.tree.bitmap_to_states(enter_ids)
 
                 ctx = EvalContext(execution=self, events=events, memory=self.rhs_memory)
@@ -69,17 +69,17 @@ class StatechartExecution:
                 with timer.Context("exit states"):
                     just_exited = None
                     for s in exit_set:
-                        print_debug(termcolor.colored('  EXIT %s' % s.opt.full_name, 'green'))
-                        if s.opt.deep_history is not None:
+                        print_debug(termcolor.colored('  EXIT %s' % s.full_name, 'green'))
+                        if s.deep_history is not None:
                             # s has a deep-history child:
-                            history_id, history_mask, _ = s.opt.deep_history
+                            history_id, history_mask, _ = s.deep_history
                             self.history_values[history_id] = exit_ids & history_mask
-                        if s.opt.shallow_history is not None:
-                            history_id, _ = s.opt.shallow_history
-                            self.history_values[history_id] = just_exited.opt.effective_targets
-                        self._cancel_timers(s.opt.after_triggers)
+                        if s.shallow_history is not None:
+                            history_id, _ = s.shallow_history
+                            self.history_values[history_id] = just_exited.effective_targets
+                        self._cancel_timers(s.after_triggers)
                         _perform_actions(ctx, s.exit)
-                        self.configuration &= ~s.opt.state_id_bitmap
+                        self.configuration &= ~s.state_id_bitmap
                         just_exited = s
 
                 # execute transition action(s)
@@ -92,10 +92,10 @@ class StatechartExecution:
 
                 with timer.Context("enter states"):
                     for s in enter_set:
-                        print_debug(termcolor.colored('  ENTER %s' % s.opt.full_name, 'green'))
-                        self.configuration |= s.opt.state_id_bitmap
+                        print_debug(termcolor.colored('  ENTER %s' % s.full_name, 'green'))
+                        self.configuration |= s.state_id_bitmap
                         _perform_actions(ctx, s.enter)
-                        self._start_timers(s.opt.after_triggers)
+                        self._start_timers(s.after_triggers)
 
                 self.rhs_memory.flush_transition()
 
@@ -136,7 +136,7 @@ class StatechartExecution:
     # Return whether the current configuration includes ALL the states given.
     def in_state(self, state_strings: List[str]) -> bool:
         try:
-            state_ids_bitmap = bm_union(self.statechart.tree.state_dict[s].opt.state_id_bitmap for s in state_strings)
+            state_ids_bitmap = bm_union(self.statechart.tree.state_dict[s].state_id_bitmap for s in state_strings)
         except KeyError as e:
             raise ModelRuntimeError("INSTATE argument %s: invalid state" % str(e)) from e
         in_state = bm_has_all(self.configuration, state_ids_bitmap)

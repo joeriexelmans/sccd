@@ -68,7 +68,7 @@ if __name__ == '__main__':
         w = IndentingWriter(f)
 
         def name_to_label(state):
-          label = state.opt.full_name.split('/')[-1]
+          label = state.full_name.split('/')[-1]
           if state.stable:
             label += " ✓"
           return label if len(label) else "root"
@@ -96,11 +96,11 @@ if __name__ == '__main__':
 
         def write_state(s, hide=False):
           if not hide:
-            w.writeln(name_to_name(s.opt.full_name))
+            w.writeln(name_to_name(s.full_name))
             w.write(' [label="')
             w.write(name_to_label(s))
             w.write('"')
-            if isinstance(s, ParallelState):
+            if isinstance(s.type, AndState):
               w.write(' type=parallel')
             elif isinstance(s, ShallowHistoryState):
               w.write(' type=history')
@@ -121,8 +121,8 @@ if __name__ == '__main__':
               w.write(' {')
               w.indent()
             if s.default_state:
-              w.writeln(name_to_name(s.opt.full_name)+'_initial [type=initial],')
-              transitions.append(PseudoTransition(source=PseudoState(s.opt.full_name+'/initial'), target=s.default_state))
+              w.writeln(name_to_name(s.full_name)+'_initial [type=initial],')
+              transitions.append(PseudoTransition(source=PseudoState(s.full_name+'/initial'), target=s.default_state))
             s.children.reverse() # this appears to put orthogonal components in the right order :)
             for i, c in enumerate(s.children):
               write_state(c)
@@ -144,7 +144,7 @@ if __name__ == '__main__':
           if t.actions:
             label += ' '.join(a.render() for a in t.actions)
 
-          w.writeln(name_to_name(t.source.opt.full_name) + ' -> ' + name_to_name(t.target.opt.full_name))
+          w.writeln(name_to_name(t.source.full_name) + ' -> ' + name_to_name(t.target.full_name))
           if label:
             w.write(': '+label)
           w.write(';')

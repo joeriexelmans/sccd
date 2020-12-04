@@ -8,16 +8,16 @@ from sccd.util.indenting_writer import *
 # Conversion functions from abstract syntax elements to identifiers in Rust
 
 def snake_case(state: State) -> str:
-    return state.opt.full_name.replace('/', '_');
+    return state.full_name.replace('/', '_');
 
 def ident_var(state: State) -> str:
-    if state.opt.full_name == "/":
+    if state.full_name == "/":
         return "root" # no technical reason, it's just clearer than "s_"
     else:
         return "s" + snake_case(state)
 
 def ident_type(state: State) -> str:
-    if state.opt.full_name == "/":
+    if state.full_name == "/":
         return "Root" # no technical reason, it's just clearer than "State_"
     else:
         return "State" + snake_case(state)
@@ -35,16 +35,16 @@ def ident_source_target(state: State) -> str:
     return snake_case(state)[1:]
 
 def ident_transition(t: Transition) -> str:
-    return "transition%d_FROM_%s_TO_%s" % (t.opt.id, ident_source_target(t.source), ident_source_target(t.target))
+    return "transition%d_FROM_%s_TO_%s" % (t.id, ident_source_target(t.source), ident_source_target(t.target))
 
 def ident_arena_label(state: State) -> str:
-    if state.opt.full_name == "/":
+    if state.full_name == "/":
         return "arena_root"
     else:
         return "arena" + snake_case(state)
 
 def ident_arena_const(state: State) -> str:
-    if state.opt.full_name == "/":
+    if state.full_name == "/":
         return "ARENA_ROOT"
     else:
         return "ARENA" + snake_case(state)
@@ -103,26 +103,12 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     w.writeln("  %s(%s)," % (ident_enum_variant(child), ident_type(child)))
             w.writeln("}")
 
-        if isinstance(state, ParallelState):
+        if isinstance(state.type, AndState):
             w.writeln("// And-state")
             as_struct()
-        elif isinstance(state, State):
-            if len(state.children) > 0:
-                w.writeln("// Or-state")
-                as_enum() # Or-state
-            else:
-                # Basic state: write as empty struct
-                #
-                # An empty struct in Rust is a type with one possible value.
-                # An empty struct is a Zero-Sized Type.
-                #
-                # An empty enum is also a valid type in Rust, but no instances
-                # of it can be created. Also called an "uninhabited type".
-                w.writeln("// Basic state")
-                as_struct()
-
-            # The above if-else construction hints at the fact that we would have
-            # better used empty And-states to model basic states, instead of empty Or-states...
+        elif isinstance(state.type, OrState):
+            w.writeln("// Or-state")
+            as_enum()
 
         w.writeln()
         return state
@@ -140,16 +126,16 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("impl Default for %s {" % ident_type(state))
         w.writeln("  fn default() -> Self {")
 
-        if isinstance(state, ParallelState):
+        if isinstance(state.type, AndState):
             w.writeln("    Self {")
             for child in children:
                 if child is not None:
                     w.writeln("      %s: Default::default()," % (ident_field(child)))
             w.writeln("    }")
-        elif isinstance(state, State):
-            if state.default_state is not None:
+        elif isinstance(state.type, OrState):
+            if state.type.default_state is not None:
                 # Or-state
-                w.writeln("    Self::%s(Default::default())" % (ident_enum_variant(state.default_state)))
+                w.writeln("    Self::%s(Default::default())" % (ident_enum_variant(state.type.default_state)))
             else:
                 # Basic state
                 w.writeln("    Self{}")
@@ -168,14 +154,14 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> State<OutputCallback> for %s {" % ident_type(state))
 
         w.writeln("  fn enter_actions(%s: &mut OutputCallback) {" % IDENT_OC)
-        w.writeln("    println!(\"enter %s\");" % state.opt.full_name);
+        w.writeln("    println!(\"enter %s\");" % state.full_name);
         w.indent(); w.indent()
         compile_actions(state.enter, w)
         w.dedent(); w.dedent()
         w.writeln("  }")
 
         w.writeln("  fn exit_actions(%s: &mut OutputCallback) {" % IDENT_OC)
-        w.writeln("    println!(\"exit %s\");" % state.opt.full_name);
+        w.writeln("    println!(\"exit %s\");" % state.full_name);
         w.indent(); w.indent()
         compile_actions(state.exit, w)
         w.dedent(); w.dedent()
@@ -183,18 +169,18 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
         w.writeln("  fn enter_default(%s: &mut OutputCallback) {" % IDENT_OC)
         w.writeln("    %s::enter_actions(%s);" % (ident_type(state), IDENT_OC))
-        if isinstance(state, ParallelState):
+        if isinstance(state.type, AndState):
             for child in children:
                 if child is not None:
                     w.writeln("    %s::enter_default(%s);" % (ident_type(child), IDENT_OC))
         else:
-            if state.default_state is not None:
-                w.writeln("    %s::enter_default(%s);" % (ident_type(state.default_state), IDENT_OC))
+            if state.type.default_state is not None:
+                w.writeln("    %s::enter_default(%s);" % (ident_type(state.type.default_state), IDENT_OC))
         w.writeln("  }")
 
         w.writeln("  fn exit_current(&self, %s: &mut OutputCallback) {" % IDENT_OC)
         # Children's exit actions
-        if isinstance(state, ParallelState):
+        if isinstance(state.type, AndState):
             for child in children:
                 if child is not None:
                     w.writeln("    self.%s.exit_current(%s);" % (ident_field(child), IDENT_OC))
@@ -213,7 +199,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         # Children's enter actions
         w.writeln("    %s::enter_actions(%s);" % (ident_type(state), IDENT_OC))
         # Our own enter actions
-        if isinstance(state, ParallelState):
+        if isinstance(state.type, AndState):
             for child in children:
                 if child is not None:
                     w.writeln("    self.%s.enter_current(%s);" % (ident_field(child), IDENT_OC))
@@ -250,7 +236,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     # Write arena type
     arenas = set()
     for t in tree.transition_list:
-        arenas.add(t.opt.arena)
+        arenas.add(t.arena)
     w.writeln("// Arenas (bitmap type)")
     for size, typ in [(8, 'u8'), (16, 'u16'), (32, 'u32'), (64, 'u64'), (128, 'u128')]:
         if len(arenas) + 1 <= size:
@@ -334,14 +320,14 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     w.writeln("%s.exit_current(%s);" % (ident_var(s), IDENT_OC))
                 else:
                     # Exit children:
-                    if isinstance(s, ParallelState):
+                    if isinstance(s.type, AndState):
                         for c in reversed(s.children):
                             if exit_path[1] is c:
                                 write_exit(exit_path[1:]) # continue recursively
                             else:
                                 w.writeln("%s.exit_current(%s);" % (ident_var(c), IDENT_OC))
-                    elif isinstance(s, State):
-                        if s.default_state is not None:
+                    elif isinstance(s.type, OrState):
+                        if s.type.default_state is not None:
                             # Or-state
                             write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
 
@@ -349,12 +335,12 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     w.writeln("%s::exit_actions(%s);" % (ident_type(s), IDENT_OC))
 
                 # Store history
-                if s.opt.deep_history:
-                    _, _, h = s.opt.deep_history
+                if s.deep_history:
+                    _, _, h = s.deep_history
                     w.writeln("sc.%s = *%s; // Store deep history" % (ident_history_field(h), ident_var(s)))
-                if s.opt.shallow_history:
-                    _, h = s.opt.shallow_history
-                    if isinstance(s, ParallelState):
+                if s.shallow_history:
+                    _, h = s.shallow_history
+                    if isinstance(s.type, AndState):
                         raise Exception("Shallow history makes no sense for And-state!")
                     w.writeln("sc.%s = match %s { // Store shallow history" % (ident_history_field(h), ident_var(s)))
                     for c in s.children:
@@ -378,7 +364,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     # Enter s:
                     w.writeln("%s::enter_actions(%s);" % (ident_type(s), IDENT_OC))
                     # Enter children:
-                    if isinstance(s, ParallelState):
+                    if isinstance(s.type, AndState):
                         for c in s.children:
                             if enter_path[1] is c:
                                 # if not isinstance(c, HistoryState):
@@ -386,7 +372,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                                 write_enter(enter_path[1:]) # continue recursively
                             else:
                                 w.writeln("%s::enter_default(%s);" % (ident_type(c), IDENT_OC))
-                    elif isinstance(s, State):
+                    elif isinstance(s.type, OrState):
                         if len(s.children) > 0:
                             write_enter(enter_path[1:]) # continue recursively with the next child on the enter path
                         else:
@@ -409,7 +395,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                         # No recursion
                         w.writeln("let new_%s = sc.%s; // Restore history value" % (ident_var(s), ident_history_field(next_child)))
                     else:
-                        if isinstance(s, ParallelState):
+                        if isinstance(s.type, AndState):
                             for c in s.children:
                                 if next_child is c:
                                     write_new_configuration(enter_path[1:]) # recurse
@@ -418,7 +404,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                                     w.writeln("let new_%s: %s = Default::default();" % (ident_var(c), ident_type(c)))
                             # Construct struct
                             w.writeln("let new_%s = %s{%s:new_%s, ..Default::default()};" % (ident_var(s), ident_type(s), ident_field(next_child), ident_var(next_child)))
-                        elif isinstance(s, State):
+                        elif isinstance(s.type, OrState):
                             if len(s.children) > 0:
                                 # Or-state
                                 write_new_configuration(enter_path[1:]) # recurse
@@ -444,11 +430,11 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 # 1. Execute transition's actions
 
                 # Path from arena to source, including source but not including arena
-                exit_path_bm = t.opt.arena.opt.descendants & (t.source.opt.state_id_bitmap | t.source.opt.ancestors) # bitmap
+                exit_path_bm = t.arena.descendants & (t.source.state_id_bitmap | t.source.ancestors) # bitmap
                 exit_path = list(tree.bitmap_to_states(exit_path_bm)) # list of states
 
                 # Path from arena to target, including target but not including arena
-                enter_path_bm = t.opt.arena.opt.descendants & (t.target.opt.state_id_bitmap | t.target.opt.ancestors) # bitmap
+                enter_path_bm = t.arena.descendants & (t.target.state_id_bitmap | t.target.ancestors) # bitmap
                 enter_path = list(tree.bitmap_to_states(enter_path_bm)) # list of states
 
                 w.writeln("println!(\"fire %s\");" % str(t))
@@ -467,18 +453,18 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
                 # A state configuration is just a value
                 w.writeln("// Build new state configuration")
-                write_new_configuration([t.opt.arena] + enter_path)
+                write_new_configuration([t.arena] + enter_path)
 
                 w.writeln("// Update arena configuration")
-                w.writeln("*%s = new_%s;" % (ident_var(t.opt.arena), ident_var(t.opt.arena)))
+                w.writeln("*%s = new_%s;" % (ident_var(t.arena), ident_var(t.arena)))
 
                 if not syntactic_maximality or t.target.stable:
-                    w.writeln("fired |= %s; // Stable target" % ident_arena_const(t.opt.arena))
+                    w.writeln("fired |= %s; // Stable target" % ident_arena_const(t.arena))
                 else:
                     w.writeln("fired |= ARENA_FIRED; // Unstable target")
 
                 # This arena is done:
-                w.writeln("break '%s;" % (ident_arena_label(t.opt.arena)))
+                w.writeln("break '%s;" % (ident_arena_label(t.arena)))
 
                 if t.trigger is not EMPTY_TRIGGER:
                     w.dedent()
@@ -486,14 +472,14 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
         def child():
             # Here is were we recurse and write the transition code for the children of our 'state'.
-            if isinstance(state, ParallelState):
+            if isinstance(state.type, AndState):
                 for child in state.children:
                     if not isinstance(child, HistoryState):
                         w.writeln("// Orthogonal region")
                         w.writeln("let %s = &mut %s.%s;" % (ident_var(child), ident_var(state), ident_field(child)))
                         write_transitions(child)
-            elif isinstance(state, State):
-                if state.default_state is not None:
+            elif isinstance(state.type, OrState):
+                if state.type.default_state is not None:
                     if syntactic_maximality and state in arenas:
                         w.writeln("if dirty & %s == 0 {" % ident_arena_const(state))
                         w.indent()
@@ -611,7 +597,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("  println!(\"info: Event: {} bytes\", size_of::<Event>());")
         w.writeln("  println!(\"info: Arenas: {} bytes\", size_of::<Arenas>());")
         def write_state_size(state):
-            w.writeln("  println!(\"info: %s: {} bytes\", size_of::<%s>());" % (state.opt.full_name, ident_type(state)))
+            w.writeln("  println!(\"info: %s: {} bytes\", size_of::<%s>());" % (state.full_name, ident_type(state)))
             for child in state.children:
                 if not isinstance(child, HistoryState):
                     write_state_size(child)

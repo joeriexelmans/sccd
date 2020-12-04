@@ -54,8 +54,8 @@ class CurrentConfigStrategy(GeneratorStrategy):
 
     def generate(self, execution, events_bitmap, forbidden_arenas):
         return [ t for t in self.priority_ordered_transitions
-                      if (t.source.opt.state_id_bitmap & execution.configuration)
-                       and (not forbidden_arenas & t.opt.arena_bitmap) ]
+                      if (t.source.state_id_bitmap & execution.configuration)
+                       and (not forbidden_arenas & t.arena_bitmap) ]
 
     def filter_f(self, execution, enabled_events, events_bitmap):
         return lambda t: (not t.trigger or t.trigger.check(events_bitmap)) and execution.check_guard(t, enabled_events)
@@ -81,10 +81,10 @@ class EnabledEventsStrategy(GeneratorStrategy):
     def generate(self, execution, events_bitmap, forbidden_arenas):
         return [ t for t in self.priority_ordered_transitions
                       if (not t.trigger or t.trigger.check(events_bitmap))
-                      and (not forbidden_arenas & t.opt.arena_bitmap) ]
+                      and (not forbidden_arenas & t.arena_bitmap) ]
 
     def filter_f(self, execution, enabled_events, events_bitmap):
-        return lambda t: (execution.configuration & t.source.opt.state_id_bitmap) and execution.check_guard(t, enabled_events)
+        return lambda t: (execution.configuration & t.source.state_id_bitmap) and execution.check_guard(t, enabled_events)
 
 class CurrentConfigAndEnabledEventsStrategy(GeneratorStrategy):
     __slots__ = ["statechart"]
@@ -101,8 +101,8 @@ class CurrentConfigAndEnabledEventsStrategy(GeneratorStrategy):
     def generate(self, execution, events_bitmap, forbidden_arenas):
         return [ t for t in self.priority_ordered_transitions
                       if (not t.trigger or t.trigger.check(events_bitmap))
-                      and (t.source.opt.state_id_bitmap & execution.configuration)
-                      and (not forbidden_arenas & t.opt.arena_bitmap) ]
+                      and (t.source.state_id_bitmap & execution.configuration)
+                      and (not forbidden_arenas & t.arena_bitmap) ]
 
     def filter_f(self, execution, enabled_events, events_bitmap):
         return lambda t: execution.check_guard(t, enabled_events)
@@ -170,6 +170,6 @@ class ConcurrentCandidateGenerator:
                 else:
                     break
                 if self.synchronous:
-                    events_bitmap |= t.opt.raised_events
-                forbidden_arenas |= t.opt.arena_bitmap
+                    events_bitmap |= t.raised_events
+                forbidden_arenas |= t.arena_bitmap
             return transitions

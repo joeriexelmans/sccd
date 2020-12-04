@@ -126,14 +126,16 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
         return {"raise": parse_raise, "code": parse_code}
 
-      def deal_with_initial(el, state, children_dict):
+      def get_default_state(el, state, children_dict):
         have_initial = False
 
         def parse_attr_initial(initial):
+          nonlocal default_state
           nonlocal have_initial
+          default_state = None
           have_initial = True
           try:
-            state.default_state = children_dict[initial]
+            default_state = children_dict[initial]
           except KeyError as e:
             raise XmlError("Not a child.") from e
 
@@ -141,9 +143,11 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
         if not have_initial:
           if len(state.children) == 1:
-            state.default_state = state.children[0]
-          elif len(state.children) > 1:
+            default_state = state.children[0]
+          else:
             raise XmlError("More than 1 child state: must set 'initial' attribute.")
+
+        return default_state
 
       def state_child_rules(parent, sibling_dict: Dict[str, State]):
 
@@ -168,19 +172,24 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           state = common_nonpseudo(el, State)
           children_dict = {}
           def finish_state():
-            deal_with_initial(el, state, children_dict)
+            if len(state.children) > 0:
+              state.type = OrState(state=state,
+                default_state=get_default_state(el, state, children_dict))
+            else:
+              state.type = AndState(state=state)
           return (state_child_rules(parent=state, sibling_dict=children_dict), finish_state)
 
         def parse_parallel(el):
-          state = common_nonpseudo(el, ParallelState)
+          state = common_nonpseudo(el, State)
+          state.type = AndState(state=state)
           return state_child_rules(parent=state, sibling_dict={})
 
         def parse_history(el):
           history_type = el.get("type", "shallow")
           if history_type == "deep":
-            common(el, DeepHistoryState)
+            state = common(el, DeepHistoryState)
           elif history_type == "shallow":
-            common(el, ShallowHistoryState)
+            state = common(el, ShallowHistoryState)
           else:
             raise XmlError("attribute 'type' must be \"shallow\" or \"deep\".")
 
@@ -200,7 +209,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
           scope = Scope("event_params", parent=statechart.scope)
           target_string = require_attribute(el, "target")
-          transition = Transition(source=parent, target=None, scope=scope, target_string=target_string)
+          transition = Transition(source=parent, target_string=target_string, scope=scope)
 
           have_event_attr = False
           def parse_attr_event(event):
@@ -265,7 +274,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
         return {"state": parse_state, "parallel": parse_parallel, "history": parse_history, "onentry": parse_onentry, "onexit": parse_onexit, "transition": parse_transition}
 
       def finish_root():
-        deal_with_initial(el, root, children_dict)
+        root.type = OrState(state=root, default_state=get_default_state(el, root, children_dict))
 
         for transition, t_el in transitions:
           try:

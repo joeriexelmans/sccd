@@ -137,10 +137,10 @@ class SmallStep(Round):
         stable_arenas = Bitmap()
 
         for t in transitions:
-            arena = t.opt.arena_bitmap
+            arena = t.arena_bitmap
             self.execution.fire_transition(enabled_events, t)
             dirty_arenas |= arena
-            if t.opt.target_stable:
+            if t.target_stable:
                 stable_arenas |= arena
             enabled_events = self.enabled_events()
             enabled_events.sort(key=lambda e: e.id)

@@ -43,6 +43,12 @@ def ident_arena_label(state: State) -> str:
     else:
         return "arena" + snake_case(state)
 
+def ident_arena_const(state: State) -> str:
+    if state.opt.full_name == "/":
+        return "ARENA_ROOT"
+    else:
+        return "ARENA" + snake_case(state)
+
 def ident_history_field(state: HistoryState) -> str:
     return "history" + snake_case(state.parent) # A history state records history value for its parent
 
@@ -241,6 +247,24 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("}")
     w.writeln()
 
+    # Write arena type
+    arenas = set()
+    for t in tree.transition_list:
+        arenas.add(t.opt.arena)
+    w.writeln("// Arenas (bitmap type)")
+    for size, typ in [(8, 'u8'), (16, 'u16'), (32, 'u32'), (64, 'u64'), (128, 'u128')]:
+        if len(arenas) + 1 <= size:
+            w.writeln("type Arenas = %s;" % typ)
+            break
+    else:
+        raise Exception("Too many arenas! Cannot fit into an unsigned int.")
+    for i, a in enumerate(arenas):
+        w.writeln("const %s: Arenas = %d;" % (ident_arena_const(a), 2**i))
+    # Just an extra bit to indicate that a transition has fired during fair_step
+    # This is to decide when to stop stepping in case of Take Many or Take Syntactic
+    w.writeln("const ARENA_FIRED: Arenas = %d;" % 2**(i+1))
+    w.writeln()
+
     # Write statechart type
     w.writeln("pub struct Statechart {")
     w.writeln("  current_state: %s," % ident_type(tree.root))
@@ -262,20 +286,21 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     w.writeln("}")
     w.writeln()
 
-    w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> SC<Event, OutputCallback> for Statechart {")
-    w.writeln("  fn init(%s: &mut OutputCallback) {" % IDENT_OC)
-    w.writeln("    %s::enter_default(%s);" % (ident_type(tree.root), IDENT_OC))
-    w.writeln("  }")
-    w.writeln("  fn fair_step(&mut self, _event: Option<Event>, %s: &mut OutputCallback) -> bool {" % IDENT_OC)
-    w.writeln("    #![allow(non_snake_case)]")
-    w.writeln("    #![allow(unused_labels)]")
-    w.writeln("    #![allow(unused_variables)]")
-    w.writeln("    println!(\"fair step\");")
-    w.writeln("    let mut fired = false;")
-    w.writeln("    let %s = &mut self.current_state;" % ident_var(tree.root))
 
+    # Function fair_step: a single "Take One" Maximality 'round' (= nonoverlapping arenas allowed to fire 1 transition)
+    w.writeln("fn fair_step<'a, OutputCallback: FnMut(&'a str, &'a str)>(sc: &mut Statechart, _event: Option<Event>, %s: &mut OutputCallback, dirty: Arenas) -> Arenas {" % IDENT_OC)
+    w.writeln("  #![allow(non_snake_case)]")
+    w.writeln("  #![allow(unused_labels)]")
+    w.writeln("  #![allow(unused_variables)]")
+    w.writeln("  println!(\"fair step, dirty={}\", dirty);")
+    w.writeln("  let mut fired: Arenas = 0;")
+    w.writeln("  let %s = &mut sc.current_state;" % ident_var(tree.root))
     w.indent()
-    w.indent()
+
+    syntactic_maximality = (
+        sc.semantics.big_step_maximality == Maximality.SYNTACTIC
+        or sc.semantics.combo_step_maximality == Maximality.SYNTACTIC)
+
 
     def write_transitions(state: State):
         if isinstance(state, HistoryState):
@@ -326,12 +351,12 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 # Store history
                 if s.opt.deep_history:
                     _, _, h = s.opt.deep_history
-                    w.writeln("self.%s = *%s; // Store deep history" % (ident_history_field(h), ident_var(s)))
+                    w.writeln("sc.%s = *%s; // Store deep history" % (ident_history_field(h), ident_var(s)))
                 if s.opt.shallow_history:
                     _, h = s.opt.shallow_history
                     if isinstance(s, ParallelState):
                         raise Exception("Shallow history makes no sense for And-state!")
-                    w.writeln("self.%s = match %s { // Store shallow history" % (ident_history_field(h), ident_var(s)))
+                    w.writeln("sc.%s = match %s { // Store shallow history" % (ident_history_field(h), ident_var(s)))
                     for c in s.children:
                         if not isinstance(c, HistoryState):
                             w.writeln("  %s::%s(_) => %s::%s(%s::default())," % (ident_type(s), ident_enum_variant(c), ident_type(s), ident_enum_variant(c), ident_type(c)))
@@ -346,7 +371,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 if len(enter_path) == 1:
                     # Target state.
                     if isinstance(s, HistoryState):
-                        w.writeln("self.%s.enter_current(%s); // Enter actions for history state" %(ident_history_field(s), IDENT_OC))
+                        w.writeln("sc.%s.enter_current(%s); // Enter actions for history state" %(ident_history_field(s), IDENT_OC))
                     else:
                         w.writeln("%s::enter_default(%s);" % (ident_type(s), IDENT_OC))
                 else:
@@ -382,7 +407,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     next_child = enter_path[1]
                     if isinstance(next_child, HistoryState):
                         # No recursion
-                        w.writeln("let new_%s = self.%s; // Restore history value" % (ident_var(s), ident_history_field(next_child)))
+                        w.writeln("let new_%s = sc.%s; // Restore history value" % (ident_var(s), ident_history_field(next_child)))
                     else:
                         if isinstance(s, ParallelState):
                             for c in s.children:
@@ -392,9 +417,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                                     # Other children's default states are constructed
                                     w.writeln("let new_%s: %s = Default::default();" % (ident_var(c), ident_type(c)))
                             # Construct struct
-                            # if isinstance(next_child, HistoryState):
-                            #     w.writeln("let new_%s = %s{%s:%s, ..Default::default()};" % (ident_var(s), ident_type(s), ident_field(next_child), ident_var(next_child)))
-                            # else:
                             w.writeln("let new_%s = %s{%s:new_%s, ..Default::default()};" % (ident_var(s), ident_type(s), ident_field(next_child), ident_var(next_child)))
                         elif isinstance(s, State):
                             if len(s.children) > 0:
@@ -450,7 +472,10 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 w.writeln("// Update arena configuration")
                 w.writeln("*%s = new_%s;" % (ident_var(t.opt.arena), ident_var(t.opt.arena)))
 
-                w.writeln("fired = true;")
+                if not syntactic_maximality or t.target.stable:
+                    w.writeln("fired |= %s; // Stable target" % ident_arena_const(t.opt.arena))
+                else:
+                    w.writeln("fired |= ARENA_FIRED; // Unstable target")
 
                 # This arena is done:
                 w.writeln("break '%s;" % (ident_arena_label(t.opt.arena)))
@@ -469,6 +494,10 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                         write_transitions(child)
             elif isinstance(state, State):
                 if state.default_state is not None:
+                    if syntactic_maximality and state in arenas:
+                        w.writeln("if dirty & %s == 0 {" % ident_arena_const(state))
+                        w.indent()
+
                     w.writeln("'%s: loop {" % ident_arena_label(state))
                     w.indent()
                     w.writeln("match %s {" % ident_var(state))
@@ -487,6 +516,9 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     w.dedent()
                     w.writeln("}")
 
+                    if syntactic_maximality and state in arenas:
+                        w.dedent()
+                        w.writeln("}")
 
         if sc.semantics.hierarchical_priority == HierarchicalPriority.SOURCE_PARENT:
             parent()
@@ -504,40 +536,85 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     write_transitions(tree.root)
 
     w.dedent()
-    w.dedent()
 
-    w.writeln("    fired")
-    w.writeln("  }")
+    w.writeln("  println!(\"end fair step, fired={}\", fired);")
+    w.writeln("  fired")
+    w.writeln("}")
 
     def write_stepping_function(name: str, title: str, maximality: Maximality, substep: str, input_whole: bool):
-        w.writeln("  fn %s(&mut self, event: Option<Event>, %s: &mut OutputCallback) -> bool {" % (name, IDENT_OC))
-        w.writeln("    println!(\"%s\");" % name)
+        w.write("fn %s<'a, OutputCallback: FnMut(&'a str, &'a str)>(sc: &mut Statechart, event: Option<Event>, %s: &mut OutputCallback, dirty: Arenas)" % (name, IDENT_OC))
+        # if return_arenas:
+        w.writeln(" -> Arenas {")
+        # else:
+            # w.writeln(" {")
+        w.writeln("  println!(\"%s, dirty={}\", dirty);" % name)
         if maximality == Maximality.TAKE_ONE:
-            w.writeln("    // %s Maximality: Take One" % title)
-            w.writeln("    self.fair_step(event, %s)" % IDENT_OC)
-        elif maximality == Maximality.TAKE_MANY:
-            w.writeln("    let mut fired = false;")
-            w.writeln("    // %s Maximality: Take Many" % title)
-            w.writeln("    let mut e = event;")
-            w.writeln("    loop {")
-            w.writeln("      let just_fired = self.%s(e, %s);" % (substep, IDENT_OC))
-            w.writeln("      if !just_fired {")
-            w.writeln("        break;")
-            w.writeln("      }")
-            w.writeln("      fired |= just_fired;")
-            if not input_whole:
-                w.writeln("      // Input Event Lifeline: %s" % sc.semantics.input_event_lifeline)
-                w.writeln("      e = None;")
-            w.writeln("    }")
-            w.writeln("    fired")
+            w.writeln("  // %s Maximality: Take One" % title)
+            # if return_arenas:
+            w.writeln("  %s(sc, event, %s, dirty)" % (substep, IDENT_OC))
+            # else:
+            #     w.writeln("  %s(sc, event, %s);" % (substep, IDENT_OC))
         else:
-            raise Exception("Unsupported semantics %s" % sc.semantics.big_step_maximality)
-        w.writeln("  }")
+            # if return_arenas:
+            w.writeln("  let mut fired: Arenas = dirty;")
+            w.writeln("  let mut e = event;")
+            w.writeln("  loop {")
+            if maximality == Maximality.TAKE_MANY:
+                w.writeln("    // %s Maximality: Take Many" % title)
+                w.writeln("    let just_fired = %s(sc, e, %s, 0);" % (substep, IDENT_OC))
+            elif maximality == Maximality.SYNTACTIC:
+                w.writeln("    // %s Maximality: Syntactic" % title)
+                w.writeln("    let just_fired = %s(sc, e, %s, fired);" % (substep, IDENT_OC))
+            w.writeln("    if just_fired == 0 {")
+            w.writeln("      break;")
+            w.writeln("    }")
+            # if return_arenas:
+            w.writeln("    fired |= just_fired & !ARENA_FIRED;")
+            if not input_whole:
+                w.writeln("    // Input Event Lifeline: %s" % sc.semantics.input_event_lifeline)
+                w.writeln("    e = None;")
+            w.writeln("  }")
+            # if return_arenas:
+            w.writeln("  println!(\"end %s, fired={}\", fired);" % name)
+            w.writeln("  fired")
+        w.writeln("}")
 
-    write_stepping_function("combo_step", "Combo-Step", sc.semantics.combo_step_maximality, substep="fair_step", input_whole = sc.semantics.input_event_lifeline == InputEventLifeline.WHOLE or
+    write_stepping_function("combo_step", "Combo-Step",
+        maximality=sc.semantics.combo_step_maximality,
+        substep="fair_step",
+        input_whole = sc.semantics.input_event_lifeline == InputEventLifeline.WHOLE or
                 sc.semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP)
-    write_stepping_function("big_step", "Big-Step", sc.semantics.big_step_maximality, substep="combo_step",
+
+    write_stepping_function("big_step", "Big-Step",
+        maximality=sc.semantics.big_step_maximality,
+        substep="combo_step",
         input_whole = sc.semantics.input_event_lifeline == InputEventLifeline.WHOLE)
 
+    w.writeln()
+
+    # Implement 'SC' trait
+    w.writeln("impl<'a, OutputCallback: FnMut(&'a str, &'a str)> SC<Event, OutputCallback> for Statechart {")
+    w.writeln("  fn init(%s: &mut OutputCallback) {" % IDENT_OC)
+    w.writeln("    %s::enter_default(%s)" % (ident_type(tree.root), IDENT_OC))
+    w.writeln("  }")
+    w.writeln("  fn big_step(&mut self, event: Option<Event>, output: &mut OutputCallback) {")
+    w.writeln("    big_step(self, event, output, 0);")
+    w.writeln("  }")
     w.writeln("}")
     w.writeln()
+
+    if DEBUG:
+        w.writeln("use std::mem::size_of;")
+        w.writeln("fn debug_print_sizes() {")
+        w.writeln("  println!(\"------------------------\");")
+        w.writeln("  println!(\"info: Statechart: {} bytes\", size_of::<Statechart>());")
+        w.writeln("  println!(\"info: Event: {} bytes\", size_of::<Event>());")
+        w.writeln("  println!(\"info: Arenas: {} bytes\", size_of::<Arenas>());")
+        def write_state_size(state):
+            w.writeln("  println!(\"info: %s: {} bytes\", size_of::<%s>());" % (state.opt.full_name, ident_type(state)))
+            for child in state.children:
+                if not isinstance(child, HistoryState):
+                    write_state_size(child)
+        write_state_size(tree.root)
+        w.writeln("  println!(\"------------------------\");")
+        w.writeln("}")

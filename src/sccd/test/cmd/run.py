@@ -4,9 +4,6 @@ import functools
 
 from sccd.util.os_tools import *
 from sccd.util.debug import *
-from sccd.statechart.parser.xml import *
-from sccd.test.parser.xml import *
-from sccd.util import timer
 
 # A TestCase loading and executing a statechart test file.
 class Test(unittest.TestCase):
@@ -19,6 +16,10 @@ class Test(unittest.TestCase):
     return self.src
 
   def runTest(self):
+    from sccd.statechart.parser.xml import statechart_parser_rules, parse_f
+    from sccd.test.parser.xml import test_parser_rules
+    from sccd.util import timer
+
     # assume external statechart files in same directory as test
     
     path = os.path.dirname(self.src)

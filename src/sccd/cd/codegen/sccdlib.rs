@@ -20,13 +20,7 @@ pub trait State<OutputCallback> {
 
 pub trait SC<EventType, OutputCallback> {
   fn init(output: &mut OutputCallback);
-
-  // Execute a 'fair step'. This is a step with Maximality == Take One,
-  // meaning that every orthogonal component gets to fire at most 1 transition.
-  // Returns whether at least one transition was fired.
-  fn fair_step(&mut self, event: Option<EventType>, output: &mut OutputCallback) -> bool;
-  fn combo_step(&mut self, event: Option<EventType>, output: &mut OutputCallback) -> bool;
-  fn big_step(&mut self, event: Option<EventType>, output: &mut OutputCallback) -> bool;
+  fn big_step(&mut self, event: Option<EventType>, output: &mut OutputCallback);
 }
 
 pub struct Entry<EventType> {

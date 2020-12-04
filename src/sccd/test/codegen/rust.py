@@ -19,6 +19,8 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
 
     w.writeln("fn main() {")
     w.indent()
+    if DEBUG:
+        w.writeln("debug_print_sizes();")
 
     for n, v in enumerate(variants):
         w.writeln("// Test variant %d" % n)
@@ -44,7 +46,7 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
         ctr = 0
         for o in v.output:
             for e in o:
-                w.writeln("assert!(raised[%d] == \"%s\");" % (ctr, e.name))
+                w.writeln("  assert!(raised[%d] == \"%s\", format!(\"\nExpected: %s\nGot: {:#?}\", raised));" % (ctr, e.name, v.output))
                 ctr += 1
         w.writeln("println!(\"Test variant %d passed\");" % n)
 

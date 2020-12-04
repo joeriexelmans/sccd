@@ -15,8 +15,10 @@ Currently passing:
     semantics/priority/test_explicit_ortho.xml
     semantics/priority/test_source_child.xml
     semantics/priority/test_source_parent.xml
+    semantics/big_step_maximality/test_flat_syntactic.xml
     semantics/big_step_maximality/test_flat_takemany.xml
     semantics/big_step_maximality/test_flat_takeone.xml
+    semantics/big_step_maximality/test_ortho_syntactic.xml
     semantics/big_step_maximality/test_ortho_takemany.xml
     semantics/big_step_maximality/test_ortho_takeone.xml
     xml_syntax/stateref/test_flat_absolute.xml
@@ -32,7 +34,6 @@ Currently unimplemented:
     - multi-event triggers
       - internal events (raising and 'sensing')
         - IEL semantics
-    - 'syntactic' maximality
 
 
 Roadmap

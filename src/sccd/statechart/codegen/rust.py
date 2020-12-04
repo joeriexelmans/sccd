@@ -568,9 +568,8 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("  println!(\"info: Arenas: {} bytes\", size_of::<Arenas>());")
         def write_state_size(state):
             w.writeln("  println!(\"info: %s: {} bytes\", size_of::<%s>());" % (state.full_name, ident_type(state)))
-            for child in state.children:
-                if not isinstance(child, HistoryState):
-                    write_state_size(child)
+            for child in state.real_children:
+                write_state_size(child)
         write_state_size(tree.root)
         w.writeln("  println!(\"------------------------\");")
         w.writeln("}")

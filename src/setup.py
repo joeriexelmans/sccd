@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
 setup(name="sccd",
-      version="1.0.0",
+      version="2.0.0",
       description="SCCD Compiler and Runtime",
-      author="Simon Van Mierlo",
-      author_email="Simon.VanMierlo@uantwerpen.be",
-      url="http://msdl.cs.mcgill.ca/people/simonvm",
-      packages=find_packages(exclude=['sccd.test']),
+      author="Joeri Exelmans",
+      author_email="Joeri.Exelmans@uantwerpen.be",
+      url="http://msdl.cs.mcgill.ca/people/joeri",
+      packages=find_packages(),
       include_package_data=True
 )

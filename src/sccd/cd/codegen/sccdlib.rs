@@ -1,28 +1,28 @@
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;
 
-type Timestamp = usize;
+type Timestamp = u32;
 
 type TimerId = u16;
 
-pub trait State<TimersType, Handle> {
+pub trait State<TimersType, ControllerType> {
   // Execute enter actions of only this state
-  fn enter_actions(timers: &mut TimersType, handle: &mut Handle);
+  fn enter_actions(timers: &mut TimersType, c: &mut ControllerType);
   // Execute exit actions of only this state
-  fn exit_actions(timers: &mut TimersType, handle: &mut Handle);
+  fn exit_actions(timers: &mut TimersType, c: &mut ControllerType);
 
   // Execute enter actions of this state and its 'default' child(ren), recursively
-  fn enter_default(timers: &mut TimersType, handle: &mut Handle);
+  fn enter_default(timers: &mut TimersType, c: &mut ControllerType);
 
   // Execute enter actions as if the configuration recorded in this state is being entered
-  fn enter_current(&self, timers: &mut TimersType, handle: &mut Handle);
+  fn enter_current(&self, timers: &mut TimersType, c: &mut ControllerType);
   // Execute exit actions as if the configuration recorded in this state is being exited
-  fn exit_current(&self, timers: &mut TimersType, handle: &mut Handle);
+  fn exit_current(&self, timers: &mut TimersType, c: &mut ControllerType);
 }
 
-pub trait SC<EventType, Handle> {
-  fn init(&mut self, handle: &mut Handle);
-  fn big_step(&mut self, event: Option<EventType>, handle: &mut Handle);
+pub trait SC<EventType, ControllerType> {
+  fn init(&mut self, c: &mut ControllerType);
+  fn big_step(&mut self, event: Option<EventType>, c: &mut ControllerType);
 }
 
 pub struct Entry<EventType> {
@@ -31,11 +31,6 @@ pub struct Entry<EventType> {
   id: TimerId,
 }
 
-// impl<EventType> Entry<EventType> {
-//   fn new(timestamp: Timestamp, event: EventType) -> Entry<EventType> {
-//     Self{ timestamp, event, removed: false }
-//   }
-// }
 
 // In order to implement Ord, also gotta implement PartialOrd, PartialEq and Eq:
 
@@ -56,7 +51,13 @@ impl<EventType> PartialEq for Entry<EventType> {
 }
 impl<EventType> Eq for Entry<EventType> {}
 
-pub struct Handle<EventType, OutputCallback> {
+#[derive(Debug)]
+pub struct OutEvent {
+  port: &'static str,
+  event: &'static str,
+}
+
+pub struct Controller<EventType, OutputCallback> {
   simtime: Timestamp,
   next_id: TimerId,
   queue: BinaryHeap<Entry<EventType>>,
@@ -64,7 +65,22 @@ pub struct Handle<EventType, OutputCallback> {
   output: OutputCallback,
 }
 
-impl<EventType, OutputCallback> Handle<EventType, OutputCallback> {
+pub enum Until {
+  Timestamp(Timestamp),
+  Eternity,
+}
+
+impl<EventType: Copy, OutputCallback: FnMut(OutEvent)>
+Controller<EventType, OutputCallback> {
+  fn new(output: OutputCallback) -> Self {
+    Self {
+      simtime: 0,
+      next_id: 0,
+      queue: BinaryHeap::new(),
+      removed: BinaryHeap::new(),
+      output,
+    }
+  }
   fn set_timeout(&mut self, delay: Timestamp, event: EventType) -> TimerId {
     let id = self.next_id;
     let entry = Entry::<EventType>{ timestamp: self.simtime + delay, event, id };
@@ -75,44 +91,14 @@ impl<EventType, OutputCallback> Handle<EventType, OutputCallback> {
   fn unset_timeout(&mut self, id: TimerId) {
     self.removed.push(id);
   }
-}
-
-pub struct Controller<EventType, OutputCallback, StatechartType: SC<EventType, Handle<EventType, OutputCallback>>> {
-  handle: Handle<EventType, OutputCallback>,
-  statechart: StatechartType,
-}
-
-pub enum Until {
-  Timestamp(Timestamp),
-  Eternity,
-}
-
-impl<'a, EventType: Copy, OutputCallback: FnMut(&'a str, &'a str), StatechartType: SC<EventType, Handle<EventType, OutputCallback>> + Default>
-Controller<EventType, OutputCallback, StatechartType> {
-  fn new(output: OutputCallback) -> Self {
-    Self {
-      statechart: Default::default(),
-      handle: Handle {
-        simtime: 0,
-        next_id: 0,
-        queue: BinaryHeap::new(),
-        removed: BinaryHeap::new(),
-        output,
-      },
-    }
-  }
-  fn add_input(&mut self, event: EventType) {
-    self.handle.set_timeout(0, event);
-    // self.handle.queue.push(entry);
-  }
-  fn run_until(&mut self, until: Until) {
+  fn run_until<StatechartType: SC<EventType, Controller<EventType, OutputCallback>>>(&mut self, sc: &mut StatechartType, until: Until) {
     'running: loop {
-      if let Some(entry) = self.handle.queue.peek() {
+      if let Some(entry) = self.queue.peek() {
         // Check if event was removed
-        if let Some(removed) = self.handle.removed.peek() {
+        if let Some(removed) = self.removed.peek() {
           if entry.id == *removed {
-            self.handle.queue.pop();
-            self.handle.removed.pop();
+            self.queue.pop();
+            self.removed.pop();
             continue;
           }
         }
@@ -124,10 +110,10 @@ Controller<EventType, OutputCallback, StatechartType> {
           }
         }
         // OK, handle event
-        self.handle.simtime = entry.timestamp;
-        println!("time is now {}", self.handle.simtime);
-        self.statechart.big_step(Some(entry.event), &mut self.handle);
-        self.handle.queue.pop();
+        self.simtime = entry.timestamp;
+        println!("time is now {}", self.simtime);
+        sc.big_step(Some(entry.event), self);
+        self.queue.pop();
       }
       else {
         break 'running;

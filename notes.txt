@@ -31,6 +31,19 @@ Long-term vision:
 
 Random notes:
 
+  - Statechart interface:
+      - want YAKINDU style: strict separation between:
+        - input events
+        - internal events
+        - output events
+      - each declared with their parameter types
+
+      - in/out/internal events grouped per port
+      - operations? also belong to port, or keep separate?
+
+  - CD-part of SCCD:
+      - look at ROOM! (Real-time Object Oriented Modeling, Bran Selic)
+
   - (DONE) Currently, a basic state is represented in the abstract syntax as an Or-state with no children. Instead, it should be represented as an And-state with no children.
     Rationale:
       - The (flattened) set of states representable by an Or-state is the *sum* of the sets of states of its children. If an Or-state has no children, mathematically its set of states has 0 elements, as 0 is the neutral element for addition.

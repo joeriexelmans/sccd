@@ -8,6 +8,18 @@ rustlib = os.path.dirname(sccd.cd.codegen.__file__) + "/sccdlib.rs"
 
 def compile_test(variants: List[TestVariant], w: IndentingWriter):
 
+    # Note: The reason for these is that we cannot convert the casing of our state's names:
+    # SCCD allows any combination of upper and lower case symbols, and
+    # converting to, say, camelcase, as Rust likes it for type names,
+    # could cause naming collisions.
+    # Rust may output a ton of warnings for this. We disable these types of warnings,
+    # so that other, more interesting types of warnings don't go unnoticed.
+    w.writeln("#![allow(non_camel_case_types)]")
+    w.writeln("#![allow(non_snake_case)]")
+    w.writeln("#![allow(unused_labels)]")
+    w.writeln("#![allow(unused_variables)]")
+    w.writeln("#![allow(dead_code)]")
+
     with open(rustlib, 'r') as file:
         data = file.read()
         w.writeln(data)
@@ -29,7 +41,7 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
         w.writeln("  println!(\"^{}:{}\", out.port, out.event);")
         w.writeln("  raised.push(out);")
         w.writeln("};")
-        w.writeln("let mut controller = Controller::<Event,_>::new(&mut output);")
+        w.writeln("let mut controller = Controller::<InEvent,_>::new(&mut output);")
         w.writeln("let mut sc: Statechart = Default::default();")
         w.writeln("sc.init(&mut controller);")
         for i in v.input:
@@ -37,7 +49,7 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
                 raise Exception("Multiple simultaneous input events not supported")
             elif len(i.events) == 0:
                 raise Exception("Test declares empty bag of input events - not supported")
-            w.writeln("controller.set_timeout(%d, Event::%s);" % (i.timestamp.opt, ident_event(i.events[0].name)))
+            w.writeln("controller.set_timeout(%d, InEvent::%s);" % (i.timestamp.opt, ident_event(i.events[0].name)))
 
         w.writeln("controller.run_until(&mut sc, Until::Eternity);")
         ctr = 0

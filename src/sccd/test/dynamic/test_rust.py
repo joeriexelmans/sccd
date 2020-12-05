@@ -45,11 +45,16 @@ def run_variants(variants: List[TestVariant], unittest):
 
         print_debug("Generated Rust code.")
 
+        ruststderr = pipe.stderr.read().decode('UTF-8')
+
         status = pipe.wait()
+
+        if DEBUG:
+            print(ruststderr)
 
         if status != 0:
             # This does not indicate a test failure, but an error in our code generator
-            raise Exception("Rust compiler status %d. Sterr:\n%s" % (status, pipe.stderr.read().decode('UTF-8')))
+            raise Exception("Rust compiler status %d. Sterr:\n%s" % (status, ruststderr))
 
     print_debug("Generated binary. Running...")
 

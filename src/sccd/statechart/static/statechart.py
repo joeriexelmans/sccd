@@ -3,7 +3,7 @@ from sccd.action_lang.static.scope import *
 from sccd.statechart.static.semantic_configuration import *
 
 @dataclass
-class Statechart(Freezable):
+class Statechart(Freezable, Visitable):
   __slots__ = ["semantics", "scope", "datamodel", "internal_events", "internally_raised_events", "inport_events", "event_outport", "tree"]
 
   def __init__(self, semantics: SemanticConfiguration, scope: Scope, datamodel: Optional[Block], internal_events: Bitmap, internally_raised_events: Bitmap, inport_events: Dict[str, Set[int]], event_outport: Dict[str, str], tree: StateTree):

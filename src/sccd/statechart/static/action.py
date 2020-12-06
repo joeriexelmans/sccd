@@ -29,7 +29,7 @@ class EvalContext:
     memory: 'MemoryInterface'
 
 @dataclass
-class Action(ABC):
+class Action(ABC, Visitable):
     @abstractmethod
     def exec(self, ctx: EvalContext):
         pass

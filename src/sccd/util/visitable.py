@@ -9,7 +9,7 @@ class Visitable:
     def accept(self, visitor: Visitor):
         typename = type(self).__qualname__.replace(".", "_")
         lookup = "visit_" + typename
-        try:
+        if hasattr(visitor, lookup):
             return getattr(visitor, lookup)(self)
-        except AttributeError:
-            return visitor.default(what)
+        else:
+            return visitor.default(typename)

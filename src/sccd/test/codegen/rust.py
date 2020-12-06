@@ -20,13 +20,16 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
     w.writeln("#![allow(unused_variables)]")
     w.writeln("#![allow(dead_code)]")
 
+
     with open(rustlib, 'r') as file:
         data = file.read()
         w.writeln(data)
 
     if len(variants) > 0:
         cd = variants[0].cd
-        compile_statechart(cd.get_default_class(), cd.globals, w)
+        gen = StatechartRustGenerator(w, cd.globals)
+        cd.get_default_class().accept(gen)
+        # compile_statechart(cd.get_default_class(), cd.globals, w)
 
 
     w.writeln("fn main() {")

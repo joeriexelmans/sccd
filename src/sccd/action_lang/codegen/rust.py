@@ -3,9 +3,10 @@ from sccd.action_lang.static.statement import *
 class UnsupportedFeature(Exception):
     pass
 
-class RustGenerator(Visitor):
+class ActionLangRustGenerator(Visitor):
     def __init__(self, w):
         self.w = w
+        self.scopes = []
 
     def default(self, what):
         raise UnsupportedFeature(what)
@@ -22,6 +23,7 @@ class RustGenerator(Visitor):
         self.w.wno(" = ")
         stmt.rhs.accept(self)
         self.w.wnoln(";")
+        self.w.writeln("eprintln!(\"%s\");" % termcolor.colored(stmt.render(),'blue'))
 
     def visit_IfStatement(self, stmt):
         self.w.wno("if ")
@@ -50,9 +52,9 @@ class RustGenerator(Visitor):
         self.w.wno(str(expr.i))
 
     def visit_StringLiteral(self, expr):
-        self.w.wno(expr.string)
+        self.w.wno('"'+expr.string+'"')
 
-    def visit_ArrayLiteral(self, expr):
+    def visit_Array(self, expr):
         self.w.wno("[")
         for el in expr.elements:
             el.accept(self)
@@ -63,11 +65,7 @@ class RustGenerator(Visitor):
         self.w.wno(" (")
 
         if expr.operator == "**":
-            self.w.wno(" pow(")
-            expr.lhs.accept(self)
-            self.w.wno(", ")
-            expr.rhs.accept(self)
-            self.w.wno(")")
+            raise UnsupportedFeature("exponent operator")
         else:
             expr.lhs.accept(self)
             self.w.wno(" %s " % expr.operator
@@ -88,10 +86,32 @@ class RustGenerator(Visitor):
         expr.subexpr.accept(self)
         # self.w.wno(") ")
 
+    def visit_FunctionDeclaration(self, expr):
+        self.w.wno("|")
+        for p in expr.params_decl:
+            p.accept(self)
+            self.w.wno(", ")
+        self.w.wnoln("| = {")
+        self.w.indent()
+        expr.body.accept(self)
+        self.w.dedent()
+        self.w.write("}")
+        self.scopes.append(expr.scope)
+
+    def visit_FunctionCall(self, expr):
+        self.w.wno("(")
+        expr.function.accept(self)
+        self.w.wno(")(")
+        for p in expr.params:
+            p.accept(self)
+            self.w.wno(", ")
+        self.w.wno(")")
+
     def visit_Identifier(self, lval):
-        self.w.wno(lval.name)
+        self.w.wno("sc.data."+lval.name)
 
     def visit_Scope(self, scope):
+        self.w.writeln("#[derive(Default)]")
         self.w.writeln("struct Scope_%s {" % scope.name)
         for v in scope.variables:
             self.w.write("  %s: " % v.name)
@@ -99,6 +119,7 @@ class RustGenerator(Visitor):
             self.w.wnoln(",")
         self.w.writeln("}")
         self.w.writeln()
+
 
     def visit__SCCDSimpleType(self, type):
         self.w.wno(type.name

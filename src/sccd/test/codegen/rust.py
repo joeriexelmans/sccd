@@ -4,7 +4,7 @@ from sccd.util.indenting_writer import *
 
 import os
 import sccd.cd.codegen
-rustlib = os.path.dirname(sccd.cd.codegen.__file__) + "/sccdlib.rs"
+rustlib = os.path.dirname(sccd.statechart.codegen.__file__) + "/libstatechart.rs"
 
 def compile_test(variants: List[TestVariant], w: IndentingWriter):
 

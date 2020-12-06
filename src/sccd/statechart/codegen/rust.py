@@ -6,6 +6,10 @@ from sccd.statechart.static.globals import *
 from sccd.statechart.static import priority
 from sccd.util.indenting_writer import *
 
+# Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
+# TODO: make this a model parameter
+LIMIT = 1000
+
 class UnsupportedFeature(Exception):
     pass
 
@@ -254,27 +258,31 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         or sc.semantics.combo_step_maximality == Maximality.SYNTACTIC)
 
     # Write arena type
-    arenas = set()
+    arenas = {}
     for t in tree.transition_list:
-        arenas.add(t.arena)
-    w.writeln("// Arenas (bitmap type)")
-    if syntactic_maximality:
-        for size, typ in [(8, 'u8'), (16, 'u16'), (32, 'u32'), (64, 'u64'), (128, 'u128')]:
-            if len(arenas) + 1 <= size:
-                w.writeln("type Arenas = %s;" % typ)
-                break
-        else:
-            raise UnsupportedFeature("Too many arenas! Cannot fit into an unsigned int.")
-        w.writeln("const ARENA_NONE: Arenas = 0;")
-        w.writeln("const ARENA_UNSTABLE: Arenas = 1; // indicates any transition fired with an unstable target")
-        for i, a in enumerate(arenas):
-            w.writeln("const %s: Arenas = %d;" % (ident_arena_const(a), 2**(i+1)))
+        arenas.setdefault(t.arena, 2**len(arenas))
+    for arena, bm in arenas.items():
+        for d in tree.bitmap_to_states(arena.descendants):
+            bm |= arenas.get(d, 0)
+        arenas[arena] = bm
+    w.writeln("// Transition arenas (bitmap type)")
+    # if syntactic_maximality:
+    for size, typ in [(8, 'u8'), (16, 'u16'), (32, 'u32'), (64, 'u64'), (128, 'u128')]:
+        if len(arenas) + 1 <= size:
+            w.writeln("type Arenas = %s;" % typ)
+            break
     else:
-        w.writeln("type Arenas = bool;")
-        w.writeln("const ARENA_NONE: Arenas = false;")
-        for a in arenas:
-            w.writeln("const %s: Arenas = true;" % ident_arena_const(a))
-        w.writeln("const ARENA_UNSTABLE: Arenas = false; // inapplicable to chosen semantics - all transition targets considered stable")
+        raise UnsupportedFeature("Too many arenas! Cannot fit into an unsigned int.")
+    w.writeln("const ARENA_NONE: Arenas = 0;")
+    for arena, bm in arenas.items():
+        w.writeln("const %s: Arenas = %s;" % (ident_arena_const(arena), bin(bm)))
+    w.writeln("const ARENA_UNSTABLE: Arenas = %s; // indicates any transition fired with an unstable target" % bin(2**len(arenas.items())))
+    # else:
+    #     w.writeln("type Arenas = bool;")
+    #     w.writeln("const ARENA_NONE: Arenas = false;")
+    #     for arena, bm in arenas.items():
+    #         w.writeln("const %s: Arenas = true;" % ident_arena_const(arena))
+    #     w.writeln("const ARENA_UNSTABLE: Arenas = false; // inapplicable to chosen semantics - all transition targets considered stable")
     w.writeln()
 
     # Write statechart type
@@ -302,9 +310,11 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     # Function fair_step: a single "Take One" Maximality 'round' (= nonoverlapping arenas allowed to fire 1 transition)
     w.writeln("fn fair_step<OutputCallback: FnMut(OutEvent)>(sc: &mut Statechart, input: Option<InEvent>, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>, dirty: Arenas) -> Arenas {")
     w.writeln("  let mut fired: Arenas = ARENA_NONE;")
+    # w.writeln("  let mut fired: Arenas = dirty;")
     w.writeln("  let %s = &mut sc.current_state;" % ident_var(tree.root))
     w.indent()
 
+    transitions_written = []
     def write_transitions(state: State):
 
         # Many of the states to exit can be computed statically (i.e. they are always the same)
@@ -427,6 +437,19 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
             for i, t in enumerate(state.transitions):
                 w.writeln("// Outgoing transition %d" % i)
 
+                # If a transition with an overlapping arena that is an ancestor of ours, we wouldn't arrive here because of the "break 'arena_label" statements.
+                # However, an overlapping arena that is a descendant of ours will not have been detected.
+                # Therefore, we must add an addition check in some cases:
+                arenas_to_check = set()
+                for earlier in transitions_written:
+                    if is_ancestor(parent=t.arena, child=earlier.arena):
+                        arenas_to_check.add(t.arena)
+
+                if len(arenas_to_check) > 0:
+                    w.writeln("// A transition may have fired earlier that overlaps with our arena:")
+                    w.writeln("if fired & (%s) == ARENA_NONE {" % " | ".join(ident_arena_const(a) for a in arenas_to_check))
+                    w.indent()
+
                 if t.trigger is not EMPTY_TRIGGER:
                     condition = []
                     for e in t.trigger.enabling:
@@ -490,17 +513,27 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     w.dedent()
                     w.writeln("}")
 
+                if len(arenas_to_check) > 0:
+                    w.dedent()
+                    w.writeln("}")
+
+                transitions_written.append(t)
+
         def child():
             # Here is were we recurse and write the transition code for the children of our 'state'.
             if isinstance(state.type, AndState):
                 for child in state.real_children:
-                    w.writeln("// Orthogonal region")
                     w.writeln("let %s = &mut %s.%s;" % (ident_var(child), ident_var(state), ident_field(child)))
+                for child in state.real_children:
+                    w.writeln("// Orthogonal region")
                     write_transitions(child)
             elif isinstance(state.type, OrState):
                 if state.type.default_state is not None:
-                    if syntactic_maximality and state in arenas:
-                        w.writeln("if dirty & %s == 0 {" % ident_arena_const(state))
+                    # if syntactic_maximality and state in arenas:
+                    #     w.writeln("if dirty & %s == ARENA_NONE {" % ident_arena_const(state))
+                    #     w.indent()
+                    if state in arenas:
+                        w.writeln("if (fired | dirty) & %s == ARENA_NONE {" % ident_arena_const(state))
                         w.indent()
 
                     w.writeln("'%s: loop {" % ident_arena_label(state))
@@ -519,9 +552,12 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     w.dedent()
                     w.writeln("}")
 
-                    if syntactic_maximality and state in arenas:
+                    if state in arenas:
                         w.dedent()
                         w.writeln("}")
+                    # if syntactic_maximality and state in arenas:
+                    #     w.dedent()
+                    #     w.writeln("}")
 
         if sc.semantics.hierarchical_priority == HierarchicalPriority.SOURCE_PARENT:
             parent()
@@ -547,6 +583,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     def write_stepping_function(name: str, title: str, maximality: Maximality, substep: str, cycle_input: bool, cycle_internal: bool):
         w.write("fn %s<OutputCallback: FnMut(OutEvent)>(sc: &mut Statechart, input: Option<InEvent>, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>, dirty: Arenas)" % (name))
         w.writeln(" -> Arenas {")
+        w.writeln("  let mut ctr: u16 = 0;")
         if maximality == Maximality.TAKE_ONE:
             w.writeln("  // %s Maximality: Take One" % title)
             w.writeln("  %s(sc, input, internal, ctrl, dirty)" % (substep))
@@ -563,6 +600,9 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
             w.writeln("    if just_fired == ARENA_NONE { // did any transition fire? (incl. unstable)")
             w.writeln("      break;")
             w.writeln("    }")
+            w.writeln("    ctr += 1;")
+            # w.writeln("    if ctr >= %d { panic!(\"too many steps (limit reached)\") };" % LIMIT)
+            w.writeln("    assert_ne!(ctr, %d, \"too many steps (limit reached)\");" % LIMIT)
             w.writeln("    fired |= just_fired & !ARENA_UNSTABLE; // only record stable arenas")
             if cycle_input:
                 w.writeln("    // Input Event Lifeline: %s" % sc.semantics.input_event_lifeline)

@@ -31,10 +31,8 @@ Currently unimplemented:
     - action language (guards, actions)
       - event parameters
       - memory protocol semantics
-    - multi-event triggers
-      - internal events (raising and 'sensing')
-        - IEL semantics
-
+    - 'queuing' internal event semantics
+    - concurrency semantics
 
 Roadmap
 -------

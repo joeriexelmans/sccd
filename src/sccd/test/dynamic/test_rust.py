@@ -62,7 +62,9 @@ def run_variants(variants: List[TestVariant], unittest):
         stdout=stdout,
         stderr=subprocess.PIPE) as binary:
 
+        binarystderr = binary.stderr.read().decode('UTF-8')
+
         status = binary.wait()
 
         if status != 0:
-            unittest.fail("Test status %d. Stderr:\n%s" % (status, binary.stderr.read().decode('UTF-8')))
+            unittest.fail("Test status %d. Stderr:\n%s" % (status, binarystderr))

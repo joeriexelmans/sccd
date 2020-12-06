@@ -46,9 +46,9 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
         w.writeln("sc.init(&mut controller);")
         for i in v.input:
             if len(i.events) > 1:
-                raise Exception("Multiple simultaneous input events not supported")
+                raise UnsupportedFeature("Multiple simultaneous input events not supported")
             elif len(i.events) == 0:
-                raise Exception("Test declares empty bag of input events - not supported")
+                raise UnsupportedFeature("Test declares empty bag of input events")
             w.writeln("controller.set_timeout(%d, InEvent::%s);" % (i.timestamp.opt, ident_event_type(i.events[0].name)))
 
         w.writeln("controller.run_until(&mut sc, Until::Eternity);")

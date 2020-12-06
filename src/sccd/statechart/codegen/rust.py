@@ -1,4 +1,6 @@
 from typing import *
+import io
+from sccd.action_lang.codegen.rust import *
 from sccd.statechart.static.tree import *
 from sccd.util.visit_tree import *
 from sccd.statechart.static.statechart import *
@@ -9,9 +11,6 @@ from sccd.util.indenting_writer import *
 # Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
 # TODO: make this a model parameter
 LIMIT = 1000
-
-class UnsupportedFeature(Exception):
-    pass
 
 # Conversion functions from abstract syntax elements to identifiers in Rust
 
@@ -34,7 +33,7 @@ def ident_enum_variant(state: State) -> str:
     # We know the direct children of a state must have unique names relative to each other,
     # and enum variants are scoped locally, so we can use the short name here.
     # Furthermore, the XML parser asserts that state ids are valid identifiers in Rust.
-    return state.short_name
+    return "S" + state.short_name
 
 def ident_field(state: State) -> str:
     return "s" + snake_case(state)
@@ -75,8 +74,10 @@ def compile_actions(actions: List[Action], w: IndentingWriter):
             w.writeln("(ctrl.output)(OutEvent{port:\"%s\", event:\"%s\"});" % (a.outport, a.name))
         elif isinstance(a, RaiseInternalEvent):
             w.writeln("internal.raise().%s = Some(%s{});" % (ident_event_field(a.name), (ident_event_type(a.name))))
+        elif isinstance(a, Code):
+            a.block.accept(RustGenerator(w))
         else:
-            raise UnsupportedFeature(str(type(a)))
+            raise UnsupportedFeature(str(type(a).__qualname__))
 
 def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
@@ -128,8 +129,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
         if internal_same_round:
             w.writeln("type InternalLifeline = SameRoundLifeline<Internal>;")
-            # w.writeln("struct InternalLifeline {")
-            # w.writeln("}")
         else:
             w.writeln("type InternalLifeline = NextRoundLifeline<Internal>;")
     elif internal_type == "queue":
@@ -286,6 +285,13 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     #     w.writeln("const ARENA_UNSTABLE: Arenas = false; // inapplicable to chosen semantics - all transition targets considered stable")
     w.writeln()
 
+    # Write datamodel type
+    RustGenerator(w).visit_Scope(sc.scope)
+    # w.writeln("struct DataModel {")
+
+    # w.writeln("  ")
+    # w.writeln(")")
+
     # Write statechart type
     w.writeln("pub struct Statechart {")
     w.writeln("  current_state: %s," % ident_type(tree.root))
@@ -294,6 +300,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
     for h in tree.history_states:
         w.writeln("  %s: %s," % (ident_history_field(h), ident_type(h.parent)))
     w.writeln("  timers: Timers,")
+    w.writeln("  data: Scope_instance,")
     w.writeln("}")
 
     w.writeln("impl Default for Statechart {")
@@ -465,7 +472,10 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     w.indent()
 
                 if t.guard is not None:
-                    raise UnsupportedFeature("Guard conditions currently unsupported")
+                    w.write("if ")
+                    t.guard.accept(RustGenerator(w))
+                    w.wnoln(" {")
+                    w.indent()
 
                 # 1. Execute transition's actions
 
@@ -510,6 +520,10 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 # This arena is done:
                 w.writeln("break '%s;" % (ident_arena_label(t.arena)))
 
+                if t.guard is not None:
+                    w.dedent()
+                    w.writeln("}")
+
                 if t.trigger is not EMPTY_TRIGGER:
                     w.dedent()
                     w.writeln("}")
@@ -530,9 +544,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     write_transitions(child)
             elif isinstance(state.type, OrState):
                 if state.type.default_state is not None:
-                    # if syntactic_maximality and state in arenas:
-                    #     w.writeln("if dirty & %s == ARENA_NONE {" % ident_arena_const(state))
-                    #     w.indent()
                     if state in arenas:
                         w.writeln("if (fired | dirty) & %s == ARENA_NONE {" % ident_arena_const(state))
                         w.indent()
@@ -556,9 +567,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                     if state in arenas:
                         w.dedent()
                         w.writeln("}")
-                    # if syntactic_maximality and state in arenas:
-                    #     w.dedent()
-                    #     w.writeln("}")
 
         if sc.semantics.hierarchical_priority == HierarchicalPriority.SOURCE_PARENT:
             parent()
@@ -582,8 +590,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
     # Write combo step and big step function
     def write_stepping_function(name: str, title: str, maximality: Maximality, substep: str, cycle_input: bool, cycle_internal: bool):
-        w.write("fn %s<OutputCallback: FnMut(OutEvent)>(sc: &mut Statechart, input: Option<InEvent>, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>, dirty: Arenas)" % (name))
-        w.writeln(" -> Arenas {")
+        w.writeln("fn %s<OutputCallback: FnMut(OutEvent)>(sc: &mut Statechart, input: Option<InEvent>, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>, dirty: Arenas) -> Arenas {" % (name))
         w.writeln("  let mut ctr: u16 = 0;")
         if maximality == Maximality.TAKE_ONE:
             w.writeln("  // %s Maximality: Take One" % title)
@@ -657,3 +664,4 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         w.writeln("  eprintln!(\"info: Arenas: {} bytes\", size_of::<Arenas>());")
         w.writeln("  eprintln!(\"------------------------\");")
         w.writeln("}")
+        w.writeln()

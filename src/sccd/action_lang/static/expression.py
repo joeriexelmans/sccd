@@ -2,6 +2,7 @@ from abc import *
 from typing import *
 from dataclasses import *
 from sccd.util.duration import *
+from sccd.util.visitable import *
 from sccd.action_lang.static.scope import *
 
 class MemoryInterface(ABC):
@@ -35,7 +36,7 @@ class MemoryInterface(ABC):
 class StaticTypeError(ModelStaticError):
     pass
 
-class Expression(ABC):
+class Expression(ABC, Visitable):
     # Run static analysis on the expression.
     # Must be called exactly once on each expression, before any call to eval is made.
     # Determines the static type of the expression. May throw if there is a type error.

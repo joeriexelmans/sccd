@@ -42,10 +42,11 @@
           <transition cond="2 * 3 == 6" target="../s4"/>
         </state>
         <state id="s4">
-          <transition cond="21 // 3 == 7" target="../s5"/>
+          <transition cond="21 // 3 == 7" target="../s6"/>
         </state>
         <state id="s5">
-          <transition cond="256 == 2 ** 2 ** 3" target="../s6"/>
+          <!-- support for exponent operator dropped -->
+          <!-- <transition cond="256 == 2 ** 2 ** 3" target="../s6"/> -->
         </state>
         <state id="s6">
           <transition cond="5 % 2 == 1" target="../s7"/>

@@ -18,5 +18,12 @@ class IndentingWriter:
         else:
             self.out.write(' '*self.state + s + '\n')
 
+    # "write no indent"
+    def wno(self, s):
+        self.out.write(s)
+
+    def wnoln(self, s):
+        self.out.write(s + '\n')
+
     def write(self, s):
         self.out.write(' '*self.state + s)

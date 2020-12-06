@@ -4,6 +4,7 @@ from dataclasses import *
 from inspect import signature
 from sccd.action_lang.static.types import *
 from sccd.common.exceptions import *
+from sccd.util.visitable import *
 import itertools
 import termcolor
 
@@ -25,14 +26,15 @@ class _Variable(ABC):
 
   @property
   def name(self):
-    return termcolor.colored(self._name, 'yellow')
+    return self._name
+    # return termcolor.colored(self._name, 'yellow')
 
   def __str__(self):
     return "+%d: %s%s: %s" % (self.offset, "(const) "if self.const else "", self.name, str(self.type))
 
 
 # Stateless stuff we know about a scope (= set of named values)
-class Scope:
+class Scope(Visitable):
   __slots__ = ["name", "parent", "parent_offset", "names", "variables"]
 
   def __init__(self, name: str, parent: 'Scope'):

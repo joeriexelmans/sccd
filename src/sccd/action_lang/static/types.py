@@ -2,8 +2,9 @@ from abc import *
 from dataclasses import *
 from typing import *
 import termcolor
+from sccd.util.visitable import *
 
-class SCCDType(ABC):
+class SCCDType(ABC, Visitable):
     @abstractmethod
     def _str(self):
         pass

@@ -74,7 +74,7 @@ NeverReturns = ReturnBehavior(ReturnBehavior.When.NEVER)
 AlwaysReturns = lambda t: ReturnBehavior(ReturnBehavior.When.ALWAYS, t)
 
 # A statement is NOT an expression.
-class Statement(ABC):
+class Statement(ABC, Visitable):
     # Run static analysis on the statement.
     # Looks up identifiers in the given scope, and adds new identifiers to the scope.
     @abstractmethod
@@ -112,8 +112,6 @@ class Assignment(Statement):
     def render(self) -> str:
         return self.lhs.render() + ' = ' + self.rhs.render() #+ '⁏'
 
-
-
 @dataclass
 class Block(Statement):
     stmts: List[Statement]
@@ -122,7 +120,7 @@ class Block(Statement):
         so_far = NeverReturns
         for i, stmt in enumerate(self.stmts):
             now_what = stmt.init_stmt(scope)
-            so_far = ReturnBehavior.sequence(so_far, now_what)            
+            so_far = ReturnBehavior.sequence(so_far, now_what)
         return so_far
 
     def exec(self, memory: MemoryInterface) -> Return:

@@ -479,6 +479,10 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
                 else:
                     w.writeln("fired |= ARENA_UNSTABLE; // Unstable target")
 
+                if sc.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_SMALL_STEP:
+                    w.writeln("// Internal Event Lifeline: Next Small Step")
+                    w.writeln("internal.cycle();")
+
                 # This arena is done:
                 w.writeln("break '%s;" % (ident_arena_label(t.arena)))
 
@@ -563,6 +567,9 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
             if cycle_input:
                 w.writeln("    // Input Event Lifeline: %s" % sc.semantics.input_event_lifeline)
                 w.writeln("    e = None;")
+            if cycle_internal:
+                w.writeln("    // Internal Event Lifeline: %s" % sc.semantics.internal_event_lifeline)
+                w.writeln("    internal.cycle();")
             w.writeln("  }")
             w.writeln("  fired")
         w.writeln("}")
@@ -572,7 +579,6 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
         substep = "fair_step",
         cycle_input = False,
         cycle_internal = False)
-        # cycle_internal = sc.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_SMALL_STEP)
 
     write_stepping_function("big_step", "Big-Step",
         maximality = sc.semantics.big_step_maximality,

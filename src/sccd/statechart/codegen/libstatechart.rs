@@ -68,32 +68,11 @@ pub trait SC<EventType, ControllerType> {
 type Timestamp = u32;
 type TimerId = u16;
 
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Copy, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct EntryId {
   timestamp: Timestamp,
   n: TimerId,
 }
-impl Ord for EntryId {
-  fn cmp(&self, other: &Self) -> Ordering {
-    match self.timestamp.cmp(&other.timestamp) {
-      Less => Less,
-      Equal => self.n.cmp(&other.n),
-      Greater => Greater,
-    }
-  }
-}
-impl PartialOrd for EntryId {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl PartialEq for EntryId {
-    fn eq(&self, other: &Self) -> bool {
-        self.timestamp == other.timestamp && self.n == other.n
-    }
-}
-impl Eq for EntryId {}
-
 
 pub struct QueueEntry<EventType> {
   id: EntryId,

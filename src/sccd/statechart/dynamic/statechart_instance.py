@@ -39,15 +39,7 @@ class StatechartInstance(Instance):
         # Priority semantics
 
         with timer.Context("priority"):
-
-            graph = priority.get_graph(statechart.tree, semantics)
-
-            consistency = {
-                Concurrency.SINGLE: concurrency.NoConcurrency(),
-                Concurrency.MANY: concurrency.ArenaOrthogonal(),
-            }[semantics.concurrency]
-
-            priority_ordered_transitions = priority.generate_total_ordering(statechart.tree, graph, consistency)
+            priority_ordered_transitions = priority.priority_and_concurrency(statechart)
 
         # strategy = CurrentConfigStrategy(priority_ordered_transitions)
         strategy = EnabledEventsStrategy(priority_ordered_transitions, statechart)

@@ -1,5 +1,5 @@
 from sccd.statechart.static.tree import StateTree, Transition, State, AndState, OrState
-from sccd.statechart.static.concurrency import check_nondeterminism, SmallStepConsistency
+from sccd.statechart.static import concurrency
 from sccd.statechart.static.semantic_configuration import *
 from sccd.util.graph import strongly_connected_components
 from typing import *
@@ -137,7 +137,7 @@ def get_graph(tree: StateTree, semantics: SemanticConfiguration) -> EdgeList:
 
 # Checks whether the 'priorities' given yield a valid ordering of transitions in the statechart.
 # Returns list of all transitions in statechart, ordered by priority (high -> low).
-def generate_total_ordering(tree: StateTree, graph: EdgeList, consistency: SmallStepConsistency) -> List[Transition]:
+def generate_total_ordering(tree: StateTree, graph: EdgeList, consistency: concurrency.SmallStepConsistency) -> List[Transition]:
     # "edges" is a list of pairs (t1, t2) of transitions, where t1 has higher priority than t2.
     edges = graph
     scc = strongly_connected_components(edges)
@@ -163,7 +163,7 @@ def generate_total_ordering(tree: StateTree, graph: EdgeList, consistency: Small
         # pseudo-vertices filtered from it:
         highest_priority_transitions = set(t for t in highest_priority if not isinstance(t, PseudoVertex))
         # 2. Check if the transitions in this set are allowed to have equal priority.
-        check_nondeterminism(tree, highest_priority_transitions, consistency) # may raise Exception
+        concurrency.check_nondeterminism(tree, highest_priority_transitions, consistency) # may raise Exception
         # 3. All good. Add the transitions in the highest-priority set in any order to the total ordering
         total_ordering.extend(highest_priority_transitions)
         # 4. Remove the transitions of the highest-priority set from the graph, and repeat.
@@ -171,7 +171,20 @@ def generate_total_ordering(tree: StateTree, graph: EdgeList, consistency: Small
         remaining_transitions -= highest_priority_transitions
 
     # Finally, there may be transitions that occur in the priority graph only as vertices, e.g. in flat statecharts:
-    check_nondeterminism(tree, remaining_transitions, consistency)
+    concurrency.check_nondeterminism(tree, remaining_transitions, consistency)
     total_ordering.extend(remaining_transitions)
 
     return total_ordering
+
+def priority_and_concurrency(statechart):
+    graph = get_graph(statechart.tree, statechart.semantics)
+
+    consistency = {
+        Concurrency.SINGLE: concurrency.NoConcurrency(),
+        Concurrency.MANY: concurrency.ArenaOrthogonal(),
+    }[statechart.semantics.concurrency]
+
+    priority_ordered_transitions = generate_total_ordering(statechart.tree, graph, consistency)
+
+    return priority_ordered_transitions
+

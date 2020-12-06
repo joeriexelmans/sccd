@@ -1,29 +1,72 @@
 use std::collections::BinaryHeap;
 use std::cmp::Ordering;
+use std::cmp::Reverse;
 
-type Timestamp = u32;
 
-type TimerId = u16;
-
-pub trait State<TimersType, ControllerType> {
-  // Execute enter actions of only this state
-  fn enter_actions(timers: &mut TimersType, c: &mut ControllerType);
-  // Execute exit actions of only this state
-  fn exit_actions(timers: &mut TimersType, c: &mut ControllerType);
-
-  // Execute enter actions of this state and its 'default' child(ren), recursively
-  fn enter_default(timers: &mut TimersType, c: &mut ControllerType);
-
-  // Execute enter actions as if the configuration recorded in this state is being entered
-  fn enter_current(&self, timers: &mut TimersType, c: &mut ControllerType);
-  // Execute exit actions as if the configuration recorded in this state is being exited
-  fn exit_current(&self, timers: &mut TimersType, c: &mut ControllerType);
+#[derive(Default)]
+struct SameRoundLifeline<InternalType> {
+  current: InternalType,
 }
+
+impl<InternalType: Default> SameRoundLifeline<InternalType> {
+  fn current(&self) -> &InternalType {
+    &self.current
+  }
+  fn raise(&mut self) -> &mut InternalType {
+    &mut self.current
+  }
+  fn cycle(&mut self) {
+    self.current = Default::default()
+  }
+}
+
+#[derive(Default)]
+struct NextRoundLifeline<InternalType> {
+  one: InternalType,
+  two: InternalType,
+
+  one_is_current: bool,
+}
+
+impl<InternalType: Default> NextRoundLifeline<InternalType> {
+  fn current(&self) -> &InternalType {
+    if self.one_is_current { &self.one } else { &self.two }
+  }
+  fn raise(&mut self) -> &mut InternalType {
+    if self.one_is_current { &mut self.two } else { &mut self.one }
+  }
+  fn cycle(&mut self) {
+    if self.one_is_current {
+      self.one = Default::default();
+    } else {
+      self.two = Default::default();
+    }
+    self.one_is_current = ! self.one_is_current
+  }
+}
+
+// pub trait State<TimersType, ControllerType> {
+//   // Execute enter actions of only this state
+//   fn enter_actions(timers: &mut TimersType, c: &mut ControllerType);
+//   // Execute exit actions of only this state
+//   fn exit_actions(timers: &mut TimersType, c: &mut ControllerType);
+
+//   // Execute enter actions of this state and its 'default' child(ren), recursively
+//   fn enter_default(timers: &mut TimersType, c: &mut ControllerType);
+
+//   // Execute enter actions as if the configuration recorded in this state is being entered
+//   fn enter_current(&self, timers: &mut TimersType, c: &mut ControllerType);
+//   // Execute exit actions as if the configuration recorded in this state is being exited
+//   fn exit_current(&self, timers: &mut TimersType, c: &mut ControllerType);
+// }
 
 pub trait SC<EventType, ControllerType> {
   fn init(&mut self, c: &mut ControllerType);
   fn big_step(&mut self, event: Option<EventType>, c: &mut ControllerType);
 }
+
+type Timestamp = u32;
+type TimerId = u16;
 
 pub struct Entry<EventType> {
   timestamp: Timestamp,
@@ -51,7 +94,7 @@ impl<EventType> PartialEq for Entry<EventType> {
 }
 impl<EventType> Eq for Entry<EventType> {}
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct OutEvent {
   port: &'static str,
   event: &'static str,
@@ -61,7 +104,7 @@ pub struct Controller<EventType, OutputCallback> {
   simtime: Timestamp,
   next_id: TimerId,
   queue: BinaryHeap<Entry<EventType>>,
-  removed: BinaryHeap<TimerId>,
+  removed: BinaryHeap<Reverse<TimerId>>,
   output: OutputCallback,
 }
 
@@ -76,8 +119,8 @@ Controller<EventType, OutputCallback> {
     Self {
       simtime: 0,
       next_id: 0,
-      queue: BinaryHeap::new(),
-      removed: BinaryHeap::new(),
+      queue: BinaryHeap::with_capacity(8),
+      removed: BinaryHeap::with_capacity(4),
       output,
     }
   }
@@ -89,13 +132,13 @@ Controller<EventType, OutputCallback> {
     return id
   }
   fn unset_timeout(&mut self, id: TimerId) {
-    self.removed.push(id);
+    self.removed.push(Reverse(id));
   }
   fn run_until<StatechartType: SC<EventType, Controller<EventType, OutputCallback>>>(&mut self, sc: &mut StatechartType, until: Until) {
     'running: loop {
       if let Some(entry) = self.queue.peek() {
         // Check if event was removed
-        if let Some(removed) = self.removed.peek() {
+        if let Some(Reverse(removed)) = self.removed.peek() {
           if entry.id == *removed {
             self.queue.pop();
             self.removed.pop();

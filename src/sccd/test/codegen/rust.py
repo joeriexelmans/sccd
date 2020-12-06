@@ -38,7 +38,7 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
         w.writeln("// Test variant %d" % n)
         w.writeln("let mut raised = Vec::<OutEvent>::new();")
         w.writeln("let mut output = |out: OutEvent| {")
-        w.writeln("  println!(\"^{}:{}\", out.port, out.event);")
+        w.writeln("  eprintln!(\"^{}:{}\", out.port, out.event);")
         w.writeln("  raised.push(out);")
         w.writeln("};")
         w.writeln("let mut controller = Controller::<InEvent,_>::new(&mut output);")
@@ -49,15 +49,11 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
                 raise Exception("Multiple simultaneous input events not supported")
             elif len(i.events) == 0:
                 raise Exception("Test declares empty bag of input events - not supported")
-            w.writeln("controller.set_timeout(%d, InEvent::%s);" % (i.timestamp.opt, ident_event(i.events[0].name)))
+            w.writeln("controller.set_timeout(%d, InEvent::%s);" % (i.timestamp.opt, ident_event_type(i.events[0].name)))
 
         w.writeln("controller.run_until(&mut sc, Until::Eternity);")
-        ctr = 0
-        for o in v.output:
-            for e in o:
-                w.writeln("  assert!(raised[%d].event == \"%s\", format!(\"\nExpected: %s\nGot: {:#?}\", raised));" % (ctr, e.name, v.output))
-                ctr += 1
-        w.writeln("println!(\"Test variant %d passed\");" % n)
+        w.writeln("assert_eq!(raised, [%s]);" % ", ".join('OutEvent{port:"%s", event:"%s"}' % (e.port, e.name) for o in v.output for e in o))
+        w.writeln("eprintln!(\"Test variant %d passed\");" % n)
 
     w.dedent()
     w.writeln("}")

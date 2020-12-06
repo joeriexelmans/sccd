@@ -3,28 +3,40 @@
 Code generation
 ===============
 
-Currently passing:
+Tests currently passing (flag --rust):
 
-    features/history/test_composite_shallow.xml
-    features/history/test_default.xml
-    features/history/test_shallow.xml
-    features/parallel/test_parallel.xml
-    day_atlee/test_03_trafficlight_many.xml
-    day_atlee/test_03_trafficlight_single.xml
-    semantics/priority/test_explicit_flat.xml
-    semantics/priority/test_explicit_ortho.xml
-    semantics/priority/test_source_child.xml
-    semantics/priority/test_source_parent.xml
-    semantics/big_step_maximality/test_flat_syntactic.xml
-    semantics/big_step_maximality/test_flat_takemany.xml
-    semantics/big_step_maximality/test_flat_takeone.xml
-    semantics/big_step_maximality/test_ortho_syntactic.xml
-    semantics/big_step_maximality/test_ortho_takemany.xml
-    semantics/big_step_maximality/test_ortho_takeone.xml
-    xml_syntax/stateref/test_flat_absolute.xml
-    xml_syntax/stateref/test_flat_relative.xml
-    xml_syntax/stateref/test_nested_absolute.xml
-    xml_syntax/stateref/test_nested_relative.xml
+  features/history/test_composite_shallow.xml
+  features/history/test_default.xml
+  features/history/test_shallow.xml
+  features/after/test_after.xml
+  features/parallel/test_parallel.xml
+  day_atlee/test_02_counter_takeone.xml
+  day_atlee/test_03_trafficlight_single.xml
+  day_atlee/test_04_counter_single.xml
+  day_atlee/test_06_counter_lifeline.xml
+  day_atlee/test_21_counter_combo.xml
+  semantics/priority/test_explicit_flat.xml
+  semantics/priority/test_explicit_ortho.xml
+  semantics/priority/test_source_child.xml
+  semantics/priority/test_source_parent.xml
+  semantics/event_lifeline/test_flat_nextss_takemany.xml
+  semantics/event_lifeline/test_flat_nextss_takeone.xml
+  semantics/event_lifeline/test_flat_remainder.xml
+  semantics/event_lifeline/test_ortho_nextcs_takemany.xml
+  semantics/event_lifeline/test_ortho_nextcs_takeone.xml
+  semantics/event_lifeline/test_ortho_nextss.xml
+  semantics/big_step_maximality/test_cross_region1.xml
+  semantics/big_step_maximality/test_cross_region2.xml
+  semantics/big_step_maximality/test_flat_syntactic.xml
+  semantics/big_step_maximality/test_flat_takemany.xml
+  semantics/big_step_maximality/test_flat_takeone.xml
+  semantics/big_step_maximality/test_ortho_syntactic.xml
+  semantics/big_step_maximality/test_ortho_takemany.xml
+  semantics/big_step_maximality/test_ortho_takeone.xml
+  xml_syntax/stateref/test_flat_absolute.xml
+  xml_syntax/stateref/test_flat_relative.xml
+  xml_syntax/stateref/test_nested_absolute.xml
+  xml_syntax/stateref/test_nested_relative.xml
 
 Currently unimplemented:
 

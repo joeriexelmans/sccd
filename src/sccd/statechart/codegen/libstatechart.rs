@@ -68,31 +68,53 @@ pub trait SC<EventType, ControllerType> {
 type Timestamp = u32;
 type TimerId = u16;
 
-pub struct Entry<EventType> {
+#[derive(Default, Copy, Clone)]
+pub struct EntryId {
   timestamp: Timestamp,
-  event: EventType,
-  id: TimerId,
+  n: TimerId,
 }
-
-
-// In order to implement Ord, also gotta implement PartialOrd, PartialEq and Eq:
-
-impl<EventType> Ord for Entry<EventType> {
+impl Ord for EntryId {
   fn cmp(&self, other: &Self) -> Ordering {
-    self.timestamp.cmp(&other.timestamp).reverse()
+    match self.timestamp.cmp(&other.timestamp) {
+      Less => Less,
+      Equal => self.n.cmp(&other.n),
+      Greater => Greater,
+    }
   }
 }
-impl<EventType> PartialOrd for Entry<EventType> {
+impl PartialOrd for EntryId {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
-impl<EventType> PartialEq for Entry<EventType> {
+impl PartialEq for EntryId {
     fn eq(&self, other: &Self) -> bool {
-        self.timestamp == other.timestamp
+        self.timestamp == other.timestamp && self.n == other.n
     }
 }
-impl<EventType> Eq for Entry<EventType> {}
+impl Eq for EntryId {}
+
+
+pub struct QueueEntry<EventType> {
+  id: EntryId,
+  event: EventType,
+}
+impl<EventType> Ord for QueueEntry<EventType> {
+  fn cmp(&self, other: &Self) -> Ordering {
+    self.id.cmp(&other.id)
+  }
+}
+impl<EventType> PartialOrd for QueueEntry<EventType> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl<EventType> PartialEq for QueueEntry<EventType> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+impl<EventType> Eq for QueueEntry<EventType> {}
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct OutEvent {
@@ -103,8 +125,8 @@ pub struct OutEvent {
 pub struct Controller<EventType, OutputCallback> {
   simtime: Timestamp,
   next_id: TimerId,
-  queue: BinaryHeap<Entry<EventType>>,
-  removed: BinaryHeap<Reverse<TimerId>>,
+  queue: BinaryHeap<Reverse<QueueEntry<EventType>>>,
+  removed: BinaryHeap<Reverse<EntryId>>,
   output: OutputCallback,
 }
 
@@ -124,19 +146,19 @@ Controller<EventType, OutputCallback> {
       output,
     }
   }
-  fn set_timeout(&mut self, delay: Timestamp, event: EventType) -> TimerId {
-    let id = self.next_id;
-    let entry = Entry::<EventType>{ timestamp: self.simtime + delay, event, id };
-    self.queue.push(entry);
-    self.next_id = self.next_id.wrapping_add(1); // increment with overflow
+  fn set_timeout(&mut self, delay: Timestamp, event: EventType) -> EntryId {
+    let id = EntryId{ timestamp: self.simtime + delay, n: self.next_id };
+    let entry = QueueEntry::<EventType>{ id, event };
+    self.queue.push(Reverse(entry));
+    self.next_id += 1; // TODO: will overflow eventually :(
     return id
   }
-  fn unset_timeout(&mut self, id: TimerId) {
+  fn unset_timeout(&mut self, id: EntryId) {
     self.removed.push(Reverse(id));
   }
   fn run_until<StatechartType: SC<EventType, Controller<EventType, OutputCallback>>>(&mut self, sc: &mut StatechartType, until: Until) {
     'running: loop {
-      if let Some(entry) = self.queue.peek() {
+      if let Some(Reverse(entry)) = self.queue.peek() {
         // Check if event was removed
         if let Some(Reverse(removed)) = self.removed.peek() {
           if entry.id == *removed {
@@ -147,13 +169,13 @@ Controller<EventType, OutputCallback> {
         }
         // Check if event too far in the future
         if let Until::Timestamp(t) = until {
-          if entry.timestamp > t {
-            println!("break, timestamp {}, t {}", entry.timestamp, t);
+          if entry.id.timestamp > t {
+            println!("break, timestamp {}, t {}", entry.id.timestamp, t);
             break 'running;
           }
         }
         // OK, handle event
-        self.simtime = entry.timestamp;
+        self.simtime = entry.id.timestamp;
         println!("time is now {}", self.simtime);
         sc.big_step(Some(entry.event), self);
         self.queue.pop();

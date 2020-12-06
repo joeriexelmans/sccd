@@ -1,4 +1,5 @@
 from typing import *
+import re
 from lark.exceptions import *
 from sccd.statechart.static.statechart import *
 from sccd.statechart.static.tree import *
@@ -153,8 +154,10 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
         def common(el, constructor):
           short_name = require_attribute(el, "id")
-          if short_name == "":
-            raise XmlError("attribute 'id' must be non-empty string")
+          # if short_name == "":
+          match = re.match("[A-Za-z_][A-Za-z_0-9]*", short_name)
+          if match is None or match[0] != short_name:
+            raise XmlError("invalid id")
           state = constructor(short_name, parent)
 
           already_there = sibling_dict.setdefault(short_name, state)
@@ -294,7 +297,10 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
               elif item.type == "CURRENT_NODE":
                 continue
               elif item.type == "IDENTIFIER":
-                state = [x for x in state.children if x.short_name == item.value][0]
+                try:
+                  state = [x for x in state.children if x.short_name == item.value][0]
+                except IndexError:
+                  raise XmlError("%s has no child \"%s\"." % ("Root state" if state.parent is None else '"%s"'%state.short_name, item.value))
             if state is root:
               raise XmlError("Root cannot be target of a transition.")
             return state

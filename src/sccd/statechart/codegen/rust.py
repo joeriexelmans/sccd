@@ -32,7 +32,8 @@ def ident_type(state: State) -> str:
 
 def ident_enum_variant(state: State) -> str:
     # We know the direct children of a state must have unique names relative to each other,
-    # and enum variants are scoped locally, so we can use the short name here:
+    # and enum variants are scoped locally, so we can use the short name here.
+    # Furthermore, the XML parser asserts that state ids are valid identifiers in Rust.
     return state.short_name
 
 def ident_field(state: State) -> str:
@@ -86,7 +87,7 @@ def compile_statechart(sc: Statechart, globals: Globals, w: IndentingWriter):
 
     tree = sc.tree
 
-    w.writeln("type Timers = [TimerId; %d];" % tree.timer_count)
+    w.writeln("type Timers = [EntryId; %d];" % tree.timer_count)
     w.writeln()
 
     # Write event types

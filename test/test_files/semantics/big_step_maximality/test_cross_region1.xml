@@ -1,0 +1,58 @@
+<?xml version="1.0" ?>
+<test>
+  <statechart>
+    <semantics big_step_maximality="take_one"/>
+
+    <inport name="in">
+      <event name="go"/>
+    </inport>
+
+    <outport name="out">
+      <event name="success"/>
+      <event name="fail"/>
+    </outport>
+
+    <root>
+      <parallel id="p">
+        <state id="region1" initial="s1">
+          <state id="s1">
+            <!-- cross-region transition -->
+            <!-- only this transition should be taken, its arena is <root> -->
+            <transition target="/p/region2/s4">
+              <raise port="out" event="success"/>
+            </transition>
+          </state>
+          <state id="s2">
+          </state>
+        </state>
+        <state id="region2" initial="s3">
+          <state id="s3">
+          </state>
+          <state id="s4">
+          </state>
+        </state>
+        <state id="region3" initial="s5">
+          <state id="s5">
+            <!-- same-region transition -->
+            <!-- this transition's arena is <region3>, descendant of <root> -->
+            <transition target="/p/region3/s6">
+              <raise port="out" event="fail"/>
+            </transition>
+          </state>
+          <state id="s6">
+          </state>
+        </state>
+      </parallel>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="go" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="success"/>
+    </big_step>
+  </output>
+</test>

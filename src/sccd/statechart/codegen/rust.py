@@ -302,7 +302,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         for h in tree.history_states:
             self.w.writeln("  %s: %s," % (ident_history_field(h), ident_type(h.parent)))
         self.w.writeln("  timers: Timers,")
-        self.w.writeln("  data: Scope_instance,")
+        self.w.writeln("  data: %s," % self.ident_scope(sc.scope))
         self.w.writeln("}")
 
         self.w.writeln("impl Default for Statechart {")
@@ -312,7 +312,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         for h in tree.history_states:
             self.w.writeln("      %s: Default::default()," % (ident_history_field(h)))
         self.w.writeln("      timers: Default::default(),")
-        self.w.writeln("      data: Default::default(),")
+        self.w.writeln("      data: %s()," % self.ident_new_scope(sc.scope))
         self.w.writeln("    }")
         self.w.writeln("  }")
         self.w.writeln("}")
@@ -646,7 +646,6 @@ class StatechartRustGenerator(ActionLangRustGenerator):
             self.w.writeln("let scope = &mut self.data;")
             sc.datamodel.accept(self)
             self.w.dedent(); self.w.dedent();
-        self.scopes.append(sc.scope)
         self.w.writeln("    %s::enter_default(&mut self.timers, &mut Default::default(), ctrl)" % (ident_type(tree.root)))
         self.w.writeln("  }")
         self.w.writeln("  fn big_step(&mut self, input: Option<InEvent>, c: &mut Controller<InEvent, OutputCallback>) {")
@@ -656,8 +655,9 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("}")
         self.w.writeln()
 
-        for scope in self.scopes:
-            scope.accept(self)
+
+        # Write 'instance' scope (and all other scopes, recursively)
+        self.write_scopes()
         self.w.writeln()
 
         if DEBUG:

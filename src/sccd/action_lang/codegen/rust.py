@@ -3,16 +3,45 @@ from sccd.action_lang.static.statement import *
 class UnsupportedFeature(Exception):
     pass
 
-def ident_scope(scope):
-    return "Scope_" + scope.name
 
 class ActionLangRustGenerator(Visitor):
     def __init__(self, w):
         self.w = w
-        self.scopes = []
+        self.scopes = {}
+        self.scopes_written = set()
 
     def default(self, what):
         raise UnsupportedFeature(what)
+
+    def debug_print_stack(self):
+        # Print Python stack in Rust file as a comment
+        import traceback
+        for line in ''.join(traceback.format_stack()).split('\n'):
+            self.w.writeln("// "+line)
+
+
+    def ident_scope(self, scope):
+        return self.scopes.setdefault(scope, "Scope%d_%s" % (len(self.scopes), scope.name))
+
+    def ident_new_scope(self, scope):
+        return "new_" + self.ident_scope(scope)
+
+    def write_scopes(self):
+        def scopes_to_write():
+            to_write = []
+            for s in self.scopes:
+                if s not in self.scopes_written:
+                    to_write.append(s)
+            return to_write
+
+        while True:
+            to_write = scopes_to_write()
+            if len(to_write) == 0:
+                return
+            else:
+                for scope in to_write:
+                    scope.accept(self)
+
 
     def visit_Block(self, stmt):
         # self.w.writeln("{")
@@ -30,7 +59,7 @@ class ActionLangRustGenerator(Visitor):
             self.w.writeln("eprintln!(\"%s\");" % termcolor.colored(stmt.render(),'blue'))
 
     def visit_IfStatement(self, stmt):
-        self.w.wno("if ")
+        self.w.write("if ")
         stmt.cond.accept(self)
         self.w.wnoln(" {")
         self.w.indent()
@@ -46,6 +75,11 @@ class ActionLangRustGenerator(Visitor):
 
     def visit_ReturnStatement(self, stmt):
         self.w.write("return ")
+        stmt.expr.accept(self)
+        self.w.wnoln(";")
+
+    def visit_ExpressionStatement(self, stmt):
+        self.w.write('')
         stmt.expr.accept(self)
         self.w.wnoln(";")
 
@@ -96,19 +130,16 @@ class ActionLangRustGenerator(Visitor):
 
     def visit_FunctionDeclaration(self, expr):
         self.w.wno("|")
-        for p in expr.params_decl:
+        for i, p in enumerate(expr.params_decl):
             p.accept(self)
-            self.w.wno(", ")
+            if i != len(expr.params_decl)-1:
+                self.w.wno(", ")
         self.w.wnoln("| {")
         self.w.indent()
-        self.w.writeln("let scope = %s::default();" % ident_scope(expr.scope))
+        self.w.writeln("let scope = %s();" % self.ident_new_scope(expr.scope))
         expr.body.accept(self)
         self.w.dedent()
         self.w.write("}")
-
-        # should write scope type later
-        if expr.scope not in self.scopes:
-            self.scopes.append(expr.scope)
 
     def visit_FunctionCall(self, expr):
         self.w.wno("(")
@@ -129,7 +160,6 @@ class ActionLangRustGenerator(Visitor):
             if isinstance(v.type, SCCDFunction):
                 mapping[i] = "F%d" % len(mapping)
 
-
         def write_template_params_with_trait():
             for i,v in enumerate(scope.variables):
                 if i in mapping:
@@ -142,8 +172,15 @@ class ActionLangRustGenerator(Visitor):
                 if i in mapping:
                     self.w.wno("%s, " % mapping[i])
 
+        def write_opaque_params():
+            for i,v in enumerate(scope.variables):
+                if i in mapping:
+                    self.w.wno("impl ")
+                    v.type.accept(self)
+                    self.w.wno(", ")
+
         # Write type
-        self.w.write("struct %s<" % ident_scope(scope))
+        self.w.write("struct %s<" % self.ident_scope(scope))
         write_template_params_with_trait()
         self.w.wnoln("> {")
         for i,v in enumerate(scope.variables):
@@ -155,20 +192,15 @@ class ActionLangRustGenerator(Visitor):
             self.w.wnoln(",")
         self.w.writeln("}")
 
-        # Impl trait Default:
-        # self.w.writeln("impl Default for %s {" % ident_scope(scope))
-        self.w.write("impl<")
-        write_template_params_with_trait()
-        self.w.wno("> Default for %s<" % ident_scope(scope))
-        write_template_params()
+        # Write type-parameterless constructor:
+        self.w.write("fn %s() -> %s<" % (self.ident_new_scope(scope), self.ident_scope(scope)))
+        write_opaque_params()
         self.w.wnoln("> {")
-        self.w.indent()
-        self.w.writeln("fn default() -> Self {")
         self.w.indent()
         for v in scope.variables:
             if v.initial_value is not None:
                 self.w.writeln("eprintln!(\"%s\");" % termcolor.colored("(init) %s = %s;" % (v.name, v.initial_value.render()),'blue'))
-        self.w.writeln("Self {")
+        self.w.writeln("%s {" % self.ident_scope(scope))
         self.w.indent()
         for v in scope.variables:
             if v.initial_value is not None:
@@ -181,9 +213,9 @@ class ActionLangRustGenerator(Visitor):
         self.w.writeln("}")
         self.w.dedent()
         self.w.writeln("}")
-        self.w.dedent()
-        self.w.writeln("}")
         self.w.writeln()
+
+        self.scopes_written.add(scope)
 
     def visit_SCCDFunction(self, type):
         self.w.wno("FnMut(")

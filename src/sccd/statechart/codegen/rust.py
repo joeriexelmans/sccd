@@ -82,6 +82,115 @@ class StatechartRustGenerator(ActionLangRustGenerator):
     def visit_Code(self, a):
             a.block.accept(self)
 
+    def visit_State(self, state):
+        # visit children first
+        for c in state.real_children:
+            c.accept(self)
+
+        # Write 'current state' types
+        if isinstance(state.type, AndState):
+            self.w.writeln("// And-state")
+            # TODO: Only annotate Copy for states that will be recorded by deep history.
+            self.w.writeln("#[derive(Default, Copy, Clone)]")
+            self.w.writeln("struct %s {" % ident_type(state))
+            for child in state.real_children:
+                self.w.writeln("  %s: %s," % (ident_field(child), ident_type(child)))
+            self.w.writeln("}")
+        elif isinstance(state.type, OrState):
+            self.w.writeln("// Or-state")
+            self.w.writeln("#[derive(Copy, Clone)]")
+            self.w.writeln("enum %s {" % ident_type(state))
+            for child in state.real_children:
+                self.w.writeln("  %s(%s)," % (ident_enum_variant(child), ident_type(child)))
+            self.w.writeln("}")
+
+        # Write "default" constructor
+        # We use Rust's Default-trait to record default states,
+        # this way, constructing a state instance without parameters will initialize it as the default state.
+        if isinstance(state.type, OrState):
+            self.w.writeln("impl Default for %s {" % ident_type(state))
+            self.w.writeln("  fn default() -> Self {")
+            self.w.writeln("    Self::%s(Default::default())" % (ident_enum_variant(state.type.default_state)))
+            self.w.writeln("  }")
+            self.w.writeln("}")
+
+        # Implement trait 'State': enter/exit
+        # self.w.writeln("impl<'a, OutputCallback: FnMut(OutEvent)> State<Timers, Controller<InEvent, OutputCallback>> for %s {" % ident_type(state))
+        # self.w.writeln("impl<'a, OutputCallback: FnMut(OutEvent)> %s {" % ident_type(state))
+        self.w.writeln("impl %s {" % ident_type(state))
+
+        # Enter actions: Executes enter actions of only this state
+        # self.w.writeln("  fn enter_actions(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
+        self.w.writeln("  fn enter_actions<OutputCallback: FnMut(OutEvent)>(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
+        self.w.writeln("    eprintln!(\"enter %s\");" % state.full_name);
+        self.w.indent(); self.w.indent()
+        for a in state.enter:
+            a.accept(self)
+        # compile_actions(state.enter, w)
+        self.w.dedent(); self.w.dedent()
+        for a in state.after_triggers:
+            self.w.writeln("    timers[%d] = ctrl.set_timeout(%d, InEvent::%s);" % (a.after_id, a.delay.opt, ident_event_type(a.enabling[0].name)))
+        self.w.writeln("  }")
+
+        # Enter actions: Executes exit actions of only this state
+        # self.w.writeln("  fn exit_actions(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
+        self.w.writeln("  fn exit_actions<OutputCallback: FnMut(OutEvent)>(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
+        self.w.writeln("    eprintln!(\"exit %s\");" % state.full_name);
+        for a in state.after_triggers:
+            self.w.writeln("    ctrl.unset_timeout(timers[%d]);" % (a.after_id))
+        self.w.indent(); self.w.indent()
+        for a in state.exit:
+            a.accept(self)
+        # compile_actions(state.exit, w)
+        self.w.dedent(); self.w.dedent()
+        self.w.writeln("  }")
+
+        # Enter default: Executes enter actions of entering this state and its default substates, recursively
+        # self.w.writeln("  fn enter_default(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
+        self.w.writeln("  fn enter_default<OutputCallback: FnMut(OutEvent)>(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
+        self.w.writeln("    %s::enter_actions(timers, internal, ctrl);" % (ident_type(state)))
+        if isinstance(state.type, AndState):
+            for child in state.real_children:
+                self.w.writeln("    %s::enter_default(timers, internal, ctrl);" % (ident_type(child)))
+        elif isinstance(state.type, OrState):
+            self.w.writeln("    %s::enter_default(timers, internal, ctrl);" % (ident_type(state.type.default_state)))
+        self.w.writeln("  }")
+
+        # Exit current: Executes exit actions of this state and current children, recursively
+        # self.w.writeln("  fn exit_current(&self, timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
+        self.w.writeln("  fn exit_current<OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
+        # first, children (recursion):
+        if isinstance(state.type, AndState):
+            for child in state.real_children:
+                self.w.writeln("    self.%s.exit_current(timers, internal, ctrl);" % (ident_field(child)))
+        elif isinstance(state.type, OrState):
+            self.w.writeln("    match self {")
+            for child in state.real_children:
+                self.w.writeln("      Self::%s(s) => { s.exit_current(timers, internal, ctrl); }," % (ident_enum_variant(child)))
+            self.w.writeln("    }")
+        # then, parent:
+        self.w.writeln("    %s::exit_actions(timers, internal, ctrl);" % (ident_type(state)))
+        self.w.writeln("  }")
+
+        # Exit current: Executes enter actions of this state and current children, recursively
+        # self.w.writeln("  fn enter_current(&self, timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
+        self.w.writeln("  fn enter_current<OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
+        # first, parent:
+        self.w.writeln("    %s::enter_actions(timers, internal, ctrl);" % (ident_type(state)))
+        # then, children (recursion):
+        if isinstance(state.type, AndState):
+            for child in state.real_children:
+                self.w.writeln("    self.%s.enter_current(timers, internal, ctrl);" % (ident_field(child)))
+        elif isinstance(state.type, OrState):
+            self.w.writeln("    match self {")
+            for child in state.real_children:
+                self.w.writeln("      Self::%s(s) => { s.enter_current(timers, internal, ctrl); }," % (ident_enum_variant(child)))
+            self.w.writeln("    }")
+        self.w.writeln("  }")
+
+        self.w.writeln("}")
+        self.w.writeln()
+
     def visit_Statechart(self, sc):
         if sc.semantics.concurrency == Concurrency.MANY:
             raise UnsupportedFeature("concurrency")
@@ -142,122 +251,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
             # self.w.writeln("}")
         self.w.writeln()
 
-        # Write 'current state' types
-        def write_state_type(state: State, children: List[State]):
-            if isinstance(state.type, AndState):
-                self.w.writeln("// And-state")
-                # TODO: Only annotate Copy for states that will be recorded by deep history.
-                self.w.writeln("#[derive(Default, Copy, Clone)]")
-                self.w.writeln("struct %s {" % ident_type(state))
-                for child in children:
-                    self.w.writeln("  %s: %s," % (ident_field(child), ident_type(child)))
-                self.w.writeln("}")
-            elif isinstance(state.type, OrState):
-                self.w.writeln("// Or-state")
-                self.w.writeln("#[derive(Copy, Clone)]")
-                self.w.writeln("enum %s {" % ident_type(state))
-                for child in children:
-                    self.w.writeln("  %s(%s)," % (ident_enum_variant(child), ident_type(child)))
-                self.w.writeln("}")
-            return state
-
-        # Write "default" constructor
-        def write_default(state: State, children: List[State]):
-            # We use Rust's Default-trait to record default states,
-            # this way, constructing a state instance without parameters will initialize it as the default state.
-            if isinstance(state.type, OrState):
-                self.w.writeln("impl Default for %s {" % ident_type(state))
-                self.w.writeln("  fn default() -> Self {")
-                self.w.writeln("    Self::%s(Default::default())" % (ident_enum_variant(state.type.default_state)))
-                self.w.writeln("  }")
-                self.w.writeln("}")
-            return state
-
-        # Implement trait 'State': enter/exit
-        def write_enter_exit(state: State, children: List[State]):
-            # self.w.writeln("impl<'a, OutputCallback: FnMut(OutEvent)> State<Timers, Controller<InEvent, OutputCallback>> for %s {" % ident_type(state))
-            # self.w.writeln("impl<'a, OutputCallback: FnMut(OutEvent)> %s {" % ident_type(state))
-            self.w.writeln("impl %s {" % ident_type(state))
-
-            # Enter actions: Executes enter actions of only this state
-            # self.w.writeln("  fn enter_actions(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-            self.w.writeln("  fn enter_actions<OutputCallback: FnMut(OutEvent)>(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-            self.w.writeln("    eprintln!(\"enter %s\");" % state.full_name);
-            self.w.indent(); self.w.indent()
-            for a in state.enter:
-                a.accept(self)
-            # compile_actions(state.enter, w)
-            self.w.dedent(); self.w.dedent()
-            for a in state.after_triggers:
-                self.w.writeln("    timers[%d] = ctrl.set_timeout(%d, InEvent::%s);" % (a.after_id, a.delay.opt, ident_event_type(a.enabling[0].name)))
-            self.w.writeln("  }")
-
-            # Enter actions: Executes exit actions of only this state
-            # self.w.writeln("  fn exit_actions(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-            self.w.writeln("  fn exit_actions<OutputCallback: FnMut(OutEvent)>(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-            self.w.writeln("    eprintln!(\"exit %s\");" % state.full_name);
-            for a in state.after_triggers:
-                self.w.writeln("    ctrl.unset_timeout(timers[%d]);" % (a.after_id))
-            self.w.indent(); self.w.indent()
-            for a in state.exit:
-                a.accept(self)
-            # compile_actions(state.exit, w)
-            self.w.dedent(); self.w.dedent()
-            self.w.writeln("  }")
-
-            # Enter default: Executes enter actions of entering this state and its default substates, recursively
-            # self.w.writeln("  fn enter_default(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-            self.w.writeln("  fn enter_default<OutputCallback: FnMut(OutEvent)>(timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-            self.w.writeln("    %s::enter_actions(timers, internal, ctrl);" % (ident_type(state)))
-            if isinstance(state.type, AndState):
-                for child in children:
-                    self.w.writeln("    %s::enter_default(timers, internal, ctrl);" % (ident_type(child)))
-            elif isinstance(state.type, OrState):
-                self.w.writeln("    %s::enter_default(timers, internal, ctrl);" % (ident_type(state.type.default_state)))
-            self.w.writeln("  }")
-
-            # Exit current: Executes exit actions of this state and current children, recursively
-            # self.w.writeln("  fn exit_current(&self, timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-            self.w.writeln("  fn exit_current<OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-            # first, children (recursion):
-            if isinstance(state.type, AndState):
-                for child in children:
-                    self.w.writeln("    self.%s.exit_current(timers, internal, ctrl);" % (ident_field(child)))
-            elif isinstance(state.type, OrState):
-                self.w.writeln("    match self {")
-                for child in children:
-                    self.w.writeln("      Self::%s(s) => { s.exit_current(timers, internal, ctrl); }," % (ident_enum_variant(child)))
-                self.w.writeln("    }")
-            # then, parent:
-            self.w.writeln("    %s::exit_actions(timers, internal, ctrl);" % (ident_type(state)))
-            self.w.writeln("  }")
-
-            # Exit current: Executes enter actions of this state and current children, recursively
-            # self.w.writeln("  fn enter_current(&self, timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-            self.w.writeln("  fn enter_current<OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-            # first, parent:
-            self.w.writeln("    %s::enter_actions(timers, internal, ctrl);" % (ident_type(state)))
-            # then, children (recursion):
-            if isinstance(state.type, AndState):
-                for child in children:
-                    self.w.writeln("    self.%s.enter_current(timers, internal, ctrl);" % (ident_field(child)))
-            elif isinstance(state.type, OrState):
-                self.w.writeln("    match self {")
-                for child in children:
-                    self.w.writeln("      Self::%s(s) => { s.enter_current(timers, internal, ctrl); }," % (ident_enum_variant(child)))
-                self.w.writeln("    }")
-            self.w.writeln("  }")
-
-            self.w.writeln("}")
-            self.w.writeln()
-            return state
-
-        visit_tree(tree.root, lambda s: s.real_children,
-            child_first=[
-                write_state_type,
-                write_default,
-                write_enter_exit,
-            ])
+        # Write state types
+        tree.root.accept(self)
 
         syntactic_maximality = (
             sc.semantics.big_step_maximality == Maximality.SYNTACTIC
@@ -326,6 +321,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         # Function fair_step: a single "Take One" Maximality 'round' (= nonoverlapping arenas allowed to fire 1 transition)
         self.w.writeln("fn fair_step<OutputCallback: FnMut(OutEvent)>(sc: &mut Statechart, input: Option<InEvent>, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>, dirty: Arenas) -> Arenas {")
         self.w.writeln("  let mut fired: Arenas = ARENA_NONE;")
+        self.w.writeln("  let scope = &mut sc.data;")
         self.w.writeln("  let %s = &mut sc.current_state;" % ident_var(tree.root))
         self.w.indent()
 
@@ -647,10 +643,10 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("  fn init(&mut self, ctrl: &mut Controller<InEvent, OutputCallback>) {")
         if sc.datamodel is not None:
             self.w.indent(); self.w.indent();
-            self.w.writeln("let sc: &mut Self = self;")
+            self.w.writeln("let scope = &mut self.data;")
             sc.datamodel.accept(self)
-            self.scopes.append(sc.scope)
             self.w.dedent(); self.w.dedent();
+        self.scopes.append(sc.scope)
         self.w.writeln("    %s::enter_default(&mut self.timers, &mut Default::default(), ctrl)" % (ident_type(tree.root)))
         self.w.writeln("  }")
         self.w.writeln("  fn big_step(&mut self, input: Option<InEvent>, c: &mut Controller<InEvent, OutputCallback>) {")

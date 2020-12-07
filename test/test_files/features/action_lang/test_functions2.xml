@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<test>
+  <!-- a simpler functions test - no imports -->
+  <statechart>
+    <datamodel>
+      add42 = func(i: int) {
+        return i + 42;
+      };
+    </datamodel>
+
+    <inport name="in">
+      <event name="start"/>
+    </inport>
+
+    <outport name="out">
+      <event name="ok"/>
+    </outport>
+
+    <root initial="ready">
+      <state id="ready">
+        <transition event="start" cond="add42(10) == 52" target="../final">
+          <raise event="ok"/>
+        </transition>
+      </state>
+
+      <state id="final"/>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="start" time="0 d"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="ok"/>
+    </big_step>
+  </output>
+</test>

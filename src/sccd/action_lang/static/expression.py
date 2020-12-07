@@ -59,9 +59,10 @@ class Expression(ABC, Visitable):
 # Either 'init_expr' or 'init_lvalue' is called to initialize the LValue.
 # Then either 'eval' or 'eval_lvalue' can be called any number of times.
 class LValue(Expression):
-    # Initialize the LValue as an LValue. 
+    # Initialize the LValue as an LValue.
+    # Returns whether LValue was initialized, or just re-assigned another value.
     @abstractmethod
-    def init_lvalue(self, scope: Scope, rhs_type: SCCDType):
+    def init_lvalue(self, scope: Scope, rhs_t: SCCDType, rhs: Expression) -> bool:
         pass
 
     # Should return offset relative to current context stack frame.
@@ -80,8 +81,9 @@ class Identifier(LValue):
         self.offset, type = scope.get_rvalue(self.name)
         return type
 
-    def init_lvalue(self, scope: Scope, type):
-        self.offset = scope.put_lvalue(self.name, type)
+    def init_lvalue(self, scope: Scope, rhs_t: SCCDType, rhs: Expression) -> bool:
+        self.offset, is_init = scope.put_lvalue(self.name, rhs_t, rhs)
+        return is_init
 
     def assign(self, memory: MemoryInterface, value: Any):
         memory.store(self.offset, value)
@@ -123,7 +125,7 @@ class FunctionCall(Expression):
 
 # Used in EventDecl and FunctionDeclaration
 @dataclass
-class ParamDecl:
+class ParamDecl(Visitable):
     name: str
     formal_type: SCCDType
     offset: Optional[int] = None
@@ -178,11 +180,11 @@ class ArrayIndexed(LValue):
             raise StaticTypeError("Array indexation: Expression '%s' is not an integer" % self.index_type.render())
         return array_type.element_type
 
-    def init_lvalue(self, scope: Scope, type):
+    def init_lvalue(self, scope: Scope, rhs_t: SCCDType, rhs: Expression) -> bool:
         if not isinstance(self.array, LValue):
             raise StaticTypeError("Array indexation as LValue: Expression '%s' must be an LValue" % self.array.render())
 
-        self.array.init_lvalue(scope, SCCDArray(element_type=type))
+        return self.array.init_lvalue(scope, SCCDArray(element_type=type), rhs)
 
     def assign(self, memory: MemoryInterface, value):
         self.array.eval(memory)[self.index.eval(memory)] = value

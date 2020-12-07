@@ -17,12 +17,13 @@ class ScopeError(ModelStaticError):
 # Stateless stuff we know about a variable existing within a scope.
 @dataclass(frozen=True)
 class _Variable(ABC):
-  __slots__ = ["_name", "offset", "type", "const"]
+  __slots__ = ["_name", "offset", "type", "const", "initial_value"]
   
   _name: str # only used to print error messages
   offset: int # Offset within variable's scope. Always >= 0.
   type: SCCDType
   const: bool
+  initial_value: 'Expression'
 
   @property
   def name(self):
@@ -85,9 +86,10 @@ class Scope(Visitable):
         return None
 
   # Create name in this scope
-  def _internal_add(self, name, type, const) -> int:
+  # Precondition: _internal_lookup of name returns 'None'
+  def _internal_add(self, name, type, const, initial_value: 'Expression') -> int:
     offset = len(self.variables)
-    var = _Variable(name, offset, type, const)
+    var = _Variable(name, offset, type, const, initial_value)
     self.names[name] = var
     self.variables.append(var)
     return offset
@@ -95,19 +97,25 @@ class Scope(Visitable):
   # This is what we do when we encounter an assignment expression:
   # Add name to current scope if it doesn't exist yet in current or any parent scope.
   # Or assign to existing variable, if the name already exists, if the types match.
-  # Returns offset relative to the beginning of this scope (may be a postive or negative number).
-  def put_lvalue(self, name: str, type: SCCDType) -> int:
+  # Returns tuple:
+  #  - offset relative to the beginning of this scope (may be a postive or negative number).
+  #  - whether a new variable was declared (and initialized)
+  def put_lvalue(self, name: str, type: SCCDType, value: 'Expression') -> (int, bool):
     found = self._internal_lookup(name)
     if found:
       scope, scope_offset, var = found
       if var.type == type:
+        # Cannot assign to const
         if var.const:
           raise ScopeError(self, "Cannot assign to %s: %s of scope '%s': Variable is constant." % (var.name, str(var.type), scope.name))
-        return scope_offset + var.offset
+        # Assign to existing variable
+        return (scope_offset + var.offset, False)
       else:
+        # Types don't match
         raise ScopeError(self, "Cannot assign %s to %s: %s of scope '%s'" %(str(type), var.name, str(var.type), scope.name))
-
-    return self._internal_add(name, type, const=False)
+    else:
+      # Declare new variable
+      return (self._internal_add(name, type, const=False, initial_value=value), True)
 
   # Lookup name in this scope and its ancestors. Raises exception if not found.
   # Returns offset relative to the beginning of this scope, just like put_lvalue, and also the type of the variable.
@@ -128,4 +136,4 @@ class Scope(Visitable):
       scope, scope_offset, var = found
       raise ScopeError(self, "Cannot declare '%s' in scope '%s': Name already exists in scope '%s'" % (var.name, self.name, scope.name))
 
-    return self._internal_add(name, type, const)
+    return self._internal_add(name, type, const, initial_value=None)

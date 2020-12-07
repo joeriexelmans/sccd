@@ -96,9 +96,12 @@ class Assignment(Statement):
     lhs: LValue
     rhs: Expression
 
+    # Did the assignment create a new variable in its scope?
+    is_initialization: Optional[bool] = None
+
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
         rhs_t = self.rhs.init_expr(scope)
-        self.lhs.init_lvalue(scope, rhs_t)
+        self.is_initialization = self.lhs.init_lvalue(scope, rhs_t, self.rhs)
         return NeverReturns
 
     def exec(self, memory: MemoryInterface) -> Return:

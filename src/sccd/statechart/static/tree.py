@@ -35,7 +35,7 @@ class AbstractState:
     __repr__ = __str__
 
 @dataclass(eq=False)
-class State(AbstractState):
+class State(AbstractState, Visitable):
     type: 'StateType' = None
 
     real_children: List['State'] = field(default_factory=list) # children, but not including pseudo-states such as history

@@ -1,0 +1,93 @@
+How to compile action language functions to Rust ?
+==================================================
+
+General rules
+-------------
+
+ - a function always receives mut refs (borrows) to the parent scope(s) that it accesses
+ - a function incrementally constructs a new scope obj with its local variables
+    -> this cannot include the mut ref to the parent scope(s),
+       because if after returning, the scope obj may be stored into the scope obj of the parent
+ - a function can return its own scope obj ('move')
+
+ => closures
+
+      1) when a function A returns a function B declared in A's scope, A returns a closure obj. example:
+            func(i: int) {
+               return func {
+                 return i++;
+               }
+            }
+        calling the above function would result in a tuple (scope{i}, funcptr)
+
+      2) when returning a closure:
+            func {
+              x = func(i: int) {
+                return func {
+                  return i++;
+                }
+              }; // x is just a funcptr
+              y = x(); // y is a closure obj (scope{i}, funcptr)
+              return y;
+            }
+        the closure is just a value :)
+
+      3) a closure returning a closure:
+            func {
+              return func(i: int) {  // <- funcptr
+                return func {
+                  return i++;
+                }
+              }
+            }
+        calling the above function would result in a tuple (scope{}, fncptr)
+
+                                                                 ^
+                scope empty, but still treat this as a closure (no special cases!)
+
+ => accessing variables from parent scopes
+
+      1) trivial case
+            func {
+              x = 0;
+              f = func {  // parent = &mut scope
+                x += 1;   // parent.x++;
+              }
+              f();
+            }
+
+      2) more nesting
+            a = func {
+              x = 0;
+              f = func {   // parent1 = &mut a_partial
+                g = func { // parent1 = &mut f_partial, parent2 = &mut a_partial
+                  x += 1;  // parent2.x++;
+                }          // g = fn(parent1: &mut f_partial, parent2: &mut a_partial) { ... }
+                g();       // fn(&mut scope, &mut parent1)
+              }
+            }
+
+      3) bringing it all together
+            a = func {
+              x = 0;
+              f = func {   // parent1 = &mut a_partial{x}
+                g = func { // parent1 = &mut f_partial, parent2 = &mut a_partial{x}
+                  x += 1;  // parent2.x++;
+                }
+                return g;
+              }
+              g = f(); // g is a closure obj: (scope_f, fn(&mut f_partial, &mut a_partial))
+              g(); fn(&mut scope_f, &mut scope)
+            }
+
+      - a function has a mut ref for each of its partial ancestor scopes
+          -> statically known!
+      - a closure obj is always called with its first tuple element as its parent1-parameter
+          -> can be statically known!
+      - to call a function with multiple ancestors, those ancestors are simply the ancestors of the current scope
+          -> statically known!
+
+  => Implementation
+      1) extend action lang static analyzer to differentiate between closure objects and function pointers
+      2) profit! :)
+

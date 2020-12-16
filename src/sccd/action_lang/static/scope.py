@@ -7,7 +7,7 @@ from sccd.common.exceptions import *
 from sccd.util.visitable import *
 import itertools
 import termcolor
-
+from collections import defaultdict
 
 class ScopeError(ModelStaticError):
   def __init__(self, scope, msg):
@@ -33,17 +33,28 @@ class _Variable(ABC):
   def __str__(self):
     return "+%d: %s%s: %s" % (self.offset, "(const) "if self.const else "", self.name, str(self.type))
 
+# _scope_ctr = 0
 
 # Stateless stuff we know about a scope (= set of named values)
 class Scope(Visitable):
   __slots__ = ["name", "parent", "parent_offset", "names", "variables"]
 
   def __init__(self, name: str, parent: 'Scope'):
+    # global _scope_ctr
+    # self.id = _scope_ctr # just a unique ID within the AST (for code generation)
+    # _scope_ctr += 1
+
+
     self.name = name
+
     self.parent = parent
-    if parent:
+    self.children = defaultdict(list) # mapping from offset to child scope
+
+    if parent is not None:
       # Position of the start of this scope, seen from the parent scope
-      self.parent_offset = self.parent.size()
+      self.parent_offset = parent.size()
+      # Append to parent
+      parent.children[self.parent_offset].append(self)
     else:
       self.parent_offset = None # value should never be used
 
@@ -52,6 +63,8 @@ class Scope(Visitable):
 
     # All non-constant values, ordered by memory position
     self.variables: List[_Variable] = []
+
+    self.deepest_lookup = 0
 
 
   def size(self) -> int:
@@ -81,9 +94,19 @@ class Scope(Visitable):
       return (self, offset, self.names[name])
     except KeyError:
       if self.parent is not None:
-        return self.parent._internal_lookup(name, offset - self.parent_offset)
+        got_it = self.parent._internal_lookup(name, offset - self.parent_offset)
+        if got_it:
+          scope, off, v = got_it
+          self.deepest_lookup = max(self.deepest_lookup, self.nested_levels(off))
+        return got_it
       else:
         return None
+
+  def nested_levels(self, offset):
+    if offset >= 0:
+      return 0
+    else:
+      return 1 + self.parent.nested_levels(offset + self.parent_offset)
 
   # Create name in this scope
   # Precondition: _internal_lookup of name returns 'None'

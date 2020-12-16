@@ -45,6 +45,11 @@ class Expression(ABC, Visitable):
     def init_expr(self, scope: Scope) -> SCCDType:
         pass
 
+    # Returns static type of expression.
+    @abstractmethod
+    def get_type(self) -> SCCDType:
+        pass
+
     # Evaluate the expression.
     # Evaluation may have side effects.
     @abstractmethod
@@ -75,15 +80,30 @@ class LValue(Expression):
 @dataclass
 class Identifier(LValue):
     name: str
+
     offset: Optional[int] = None
+    type: Optional[SCCDType] = None
+    is_init: Optional[bool] = None
+    is_lvalue: Optional[bool] = None
+
+    # is_function_call_result: Optional[SCCDFunctionCallResult] = None
 
     def init_expr(self, scope: Scope) -> SCCDType:
-        self.offset, type = scope.get_rvalue(self.name)
-        return type
+        self.offset, self.type = scope.get_rvalue(self.name)
+        self.is_init = False
+        self.is_lvalue = False
+        return self.type
+
+    def get_type(self) -> SCCDType:
+        return self.type
 
     def init_lvalue(self, scope: Scope, rhs_t: SCCDType, rhs: Expression) -> bool:
-        self.offset, is_init = scope.put_lvalue(self.name, rhs_t, rhs)
-        return is_init
+        # if isinstance(rhs_t, SCCDFunctionCallResult):
+            # self.is_function_call_result = rhs_t
+            # rhs_t = rhs_t.return_type
+        self.offset, self.is_init = scope.put_lvalue(self.name, rhs_t, rhs)
+        self.is_lvalue = True
+        return self.is_init
 
     def assign(self, memory: MemoryInterface, value: Any):
         memory.store(self.offset, value)
@@ -94,18 +114,30 @@ class Identifier(LValue):
     def render(self):
         return self.name
 
+
 @dataclass
 class FunctionCall(Expression):
-    function: Expression
+    function: Expression # an identifier, or another function call
     params: List[Expression]
+
+    return_type: Optional[SCCDType] = None
+    function_being_called: Optional['FunctionDeclaration'] = None
 
     def init_expr(self, scope: Scope) -> SCCDType:
         function_type = self.function.init_expr(scope)
+
+        # A FunctionCall can be a call on a regular function, or a closure object
+        if isinstance(function_type, SCCDClosureObject):
+            # For static analysis, we treat calls on closure objects just like calls on regular functions.
+            function_type = function_type.function_type
+
         if not isinstance(function_type, SCCDFunction):
             raise StaticTypeError("Function call: Expression '%s' is not a function" % self.function.render())
 
+        self.function_being_called = function_type.function
+
         formal_types = function_type.param_types
-        return_type = function_type.return_type
+        self.return_type = function_type.return_type
 
         actual_types = [p.init_expr(scope) for p in self.params]
         if len(formal_types) != len(actual_types):
@@ -113,7 +145,12 @@ class FunctionCall(Expression):
         for i, (formal, actual) in enumerate(zip(formal_types, actual_types)):
             if formal != actual:
                 raise StaticTypeError("Function call, argument %d: %s is not expected type %s, instead is %s" % (i, self.params[i].render(), str(formal), str(actual)))
-        return return_type
+
+        # The type of a function call is the return type of the function called
+        return self.return_type
+
+    def get_type(self) -> SCCDType:
+        return self.return_type
 
     def eval(self, memory: MemoryInterface):
         f = self.function.eval(memory)
@@ -136,11 +173,13 @@ class ParamDecl(Visitable):
     def render(self):
         return self.name + ":" + str(self.formal_type)
 
-@dataclass
+@dataclass(eq=False) # eq=False: make it hashable (plus, we don't need auto eq)
 class FunctionDeclaration(Expression):
     params_decl: List[ParamDecl]
     body: 'Statement'
     scope: Optional[Scope] = None
+    return_type: Optional[SCCDType] = None
+    type: Optional[SCCDFunction] = None
 
     def init_expr(self, scope: Scope) -> SCCDType:
         self.scope = Scope("function", scope)
@@ -148,8 +187,16 @@ class FunctionDeclaration(Expression):
         for p in self.params_decl:
             p.init_param(self.scope)
         ret = self.body.init_stmt(self.scope)
-        return_type = ret.get_return_type()
-        return SCCDFunction([p.formal_type for p in self.params_decl], return_type)
+        self.return_type = ret.get_return_type()
+
+        if isinstance(self.return_type, SCCDFunction) and self.return_type.function.scope.parent is self.scope:
+            # Called function returns a closure object
+            self.return_type = SCCDClosureObject(self.scope, function_type=self.return_type)
+        self.type = SCCDFunction([p.formal_type for p in self.params_decl], self.return_type, function=self)
+        return self.type
+
+    def get_type(self) -> SCCDType:
+        return self.type
 
     def eval(self, memory: MemoryInterface):
         context: 'StackFrame' = memory.current_frame()
@@ -165,7 +212,7 @@ class FunctionDeclaration(Expression):
 
     def render(self) -> str:
         return "func(%s) [...]" % ", ".join(p.render() for p in self.params_decl) # todo
-        
+
 @dataclass
 class ArrayIndexed(LValue):
     array: Expression
@@ -179,6 +226,9 @@ class ArrayIndexed(LValue):
         if index_type is not SCCDInt:
             raise StaticTypeError("Array indexation: Expression '%s' is not an integer" % self.index_type.render())
         return array_type.element_type
+
+    def get_type(self) -> SCCDType:
+        return self.array.get_type().element_type
 
     def init_lvalue(self, scope: Scope, rhs_t: SCCDType, rhs: Expression) -> bool:
         if not isinstance(self.array, LValue):
@@ -206,6 +256,9 @@ class StringLiteral(Expression):
     def init_expr(self, scope: Scope) -> SCCDType:
         return SCCDString
 
+    def get_type(self) -> SCCDType:
+        return SCCDString
+
     def eval(self, memory: MemoryInterface):
         return self.string
 
@@ -218,6 +271,9 @@ class IntLiteral(Expression):
     i: int 
 
     def init_expr(self, scope: Scope) -> SCCDType:
+        return SCCDInt
+
+    def get_type(self) -> SCCDType:
         return SCCDInt
 
     def eval(self, memory: MemoryInterface):
@@ -233,6 +289,9 @@ class FloatLiteral(Expression):
     def init_expr(self, scope: Scope) -> SCCDType:
         return SCCDFloat
 
+    def get_type(self) -> SCCDType:
+        return SCCDFloat
+
     def eval(self, memory: MemoryInterface):
         return self.f
 
@@ -246,6 +305,9 @@ class BoolLiteral(Expression):
     def init_expr(self, scope: Scope) -> SCCDType:
         return SCCDBool
 
+    def get_type(self) -> SCCDType:
+        return SCCDBool
+
     def eval(self, memory: MemoryInterface):
         return self.b
 
@@ -257,6 +319,9 @@ class DurationLiteral(Expression):
     d: Duration
 
     def init_expr(self, scope: Scope) -> SCCDType:
+        return SCCDDuration
+
+    def get_type(self) -> SCCDType:
         return SCCDDuration
 
     def eval(self, memory: MemoryInterface):
@@ -280,20 +345,26 @@ class Array(Expression):
 
         return SCCDArray(self.element_type)
 
+    def get_type(self) -> SCCDType:
+        return SCCDArray(self.element_type)
+
     def eval(self, memory: MemoryInterface):
         return [e.eval(memory) for e in self.elements]
 
     def render(self):
         return '['+','.join([e.render() for e in self.elements])+']'
 
-# Does not add anything semantically, but ensures that when rendering an expression,
-# the parenthesis are not lost
+# A group of parentheses in the concrete syntax.
+# Does not add anything semantically, but allows us to go back from abstract to concrete textual syntax without weird rules
 @dataclass
 class Group(Expression):
     subexpr: Expression
 
     def init_expr(self, scope: Scope) -> SCCDType:
         return self.subexpr.init_expr(scope)
+
+    def get_type(self) -> SCCDType:
+        return self.subexpr.get_type()
 
     def eval(self, memory: MemoryInterface):
         return self.subexpr.eval(memory)
@@ -306,6 +377,8 @@ class BinaryExpression(Expression):
     lhs: Expression
     operator: str # token name from the grammar.
     rhs: Expression
+
+    type: Optional[SCCDType] = None
 
     def init_expr(self, scope: Scope) -> SCCDType:
         lhs_t = self.lhs.init_expr(scope)
@@ -339,7 +412,7 @@ class BinaryExpression(Expression):
         def exp():
             return lhs_t.exp(rhs_t)
 
-        t = {
+        self.type = {
             "and": logical,
             "or":  logical,
             "==":  eq,
@@ -357,10 +430,13 @@ class BinaryExpression(Expression):
             "**":  exp,
         }[self.operator]()
 
-        if t is None:
+        if self.type is None:
             raise StaticTypeError("Illegal types for '%s'-operation: %s and %s" % (self.operator, lhs_t, rhs_t))
 
-        return t
+        return self.type
+
+    def get_type(self) -> SCCDType:
+        return self.type
 
     def eval(self, memory: MemoryInterface):
         return {
@@ -389,6 +465,8 @@ class UnaryExpression(Expression):
     operator: str # token value from the grammar.
     expr: Expression
 
+    type: Optional[SCCDType] = None
+
     def init_expr(self, scope: Scope) -> SCCDType:
         expr_type = self.expr.init_expr(scope)
 
@@ -400,15 +478,18 @@ class UnaryExpression(Expression):
             if expr_type.is_neg():
                 return expr_type
 
-        t = {
+        self.type = {
             "not": logical,
             "-":   neg,
         }[self.operator]()
 
-        if t is None:
+        if self.type is None:
             raise StaticTypeError("Illegal type for unary '%s'-expression: %s" % (self.operator, expr_type))
 
-        return t
+        return self.type
+
+    def get_type(self) -> SCCDType:
+        return self.type
 
     def eval(self, memory: MemoryInterface):
         return {

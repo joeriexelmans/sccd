@@ -3,6 +3,7 @@ from dataclasses import *
 from typing import *
 import termcolor
 from sccd.util.visitable import *
+from functools import reduce
 
 class SCCDType(ABC, Visitable):
     @abstractmethod
@@ -101,6 +102,7 @@ class _SCCDSimpleType(SCCDType):
 class SCCDFunction(SCCDType):
     param_types: List[SCCDType]
     return_type: Optional[SCCDType] = None
+    function: Optional['FunctionDeclaration'] = None
 
     def _str(self):
         if self.param_types:
@@ -110,6 +112,9 @@ class SCCDFunction(SCCDType):
         if self.return_type:
             s += " -> " + self.return_type._str()
         return s
+
+    def __eq__(self, other):
+        return isinstance(other, SCCDFunction) and self.param_types == other.param_types and self.return_type == other.return_type
 
 @dataclass(frozen=True, repr=False)
 class SCCDArray(SCCDType):
@@ -122,6 +127,46 @@ class SCCDArray(SCCDType):
         if isinstance(other, SCCDArray) and self.element_type.is_eq(other.element_type):
             return True
         return False
+
+@dataclass(frozen=True, repr=False)
+class SCCDTuple(SCCDType):
+    element_types: List[SCCDType]
+
+    def _str(self):
+        return "(" + ", ".join(t._str for t in self.element_types) + ")"
+
+    def is_eq(self, other):
+        return instance(other, SCCDTuple) and len(self.element_types) == len(other.element_types) and reduce(lambda x,y: x and y, (t1.is_eq(t2) for (t1, t2) in zip(self.element_types, other.element_types)))
+
+@dataclass(frozen=True, repr=False)
+class SCCDClosureObject(SCCDType):
+    scope: 'Scope'
+    function_type: SCCDFunction
+
+    def _str(self):
+        return "Closure(scope=%s, func=%s)" % (self.scope.name, self.function_type._str())
+
+
+# @dataclass(frozen=True, repr=False)
+# class SCCDFunctionCallResult(SCCDType):
+#     function_type: SCCDFunction
+#     return_type: SCCDType
+
+#     def _str(self):
+#         return "CallResult(%s)" % self.return_type._str()
+
+#     def is_eq(self, other):
+#         return return_type.is_eq(other)
+
+# @dataclass(frozen=True, repr=False)
+# class SCCDScope(SCCDType):
+#     scope: 'Scope'
+
+#     def _str(self):
+#         return "Scope(%s)" % scope.name
+
+#     def is_eq(self, other):
+#         return self.scope is other.scope
 
 SCCDBool = _SCCDSimpleType("bool", eq=True, bool_cast=True)
 SCCDInt = _SCCDSimpleType("int", neg=True, summable=True, eq=True, ord=True, bool_cast=True)

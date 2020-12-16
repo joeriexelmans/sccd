@@ -19,7 +19,7 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
     w.writeln("#![allow(unused_labels)]")
     w.writeln("#![allow(unused_variables)]")
     w.writeln("#![allow(dead_code)]")
-
+    w.writeln("#![allow(unused_parens)]")
 
     with open(rustlib, 'r') as file:
         data = file.read()

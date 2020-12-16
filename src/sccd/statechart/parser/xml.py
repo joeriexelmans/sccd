@@ -27,7 +27,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
     if ext_file is None:
       statechart = Statechart(
         semantics=SemanticConfiguration(),
-        scope=Scope("instance", parent=BuiltIn),
+        scope=Scope("statechart", parent=BuiltIn),
         datamodel=None,
         internal_events=Bitmap(),
         internally_raised_events=Bitmap(),
@@ -210,7 +210,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           if parent is root:
             raise XmlError("Root cannot be source of a transition.")
 
-          scope = Scope("event_params", parent=statechart.scope)
+          scope = Scope("transition", parent=statechart.scope)
           target_string = require_attribute(el, "target")
           transition = Transition(source=parent, target_string=target_string, scope=scope)
 

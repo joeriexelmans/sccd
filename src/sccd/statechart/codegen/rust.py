@@ -345,7 +345,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
                     if len(exit_path) == 1:
                         # Exit s:
-                        self.w.writeln("%s.exit_current(&mut sc.timers, &mut sc.data, internal, ctrl);" % (ident_var(s)))
+                        self.w.writeln("%s.exit_current(&mut sc.timers, scope, internal, ctrl);" % (ident_var(s)))
                     else:
                         # Exit children:
                         if isinstance(s.type, AndState):
@@ -353,12 +353,12 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                                 if exit_path[1] is c:
                                     write_exit(exit_path[1:]) # continue recursively
                                 else:
-                                    self.w.writeln("%s.exit_current(&mut sc.timers, &mut sc.data, internal, ctrl);" % (ident_var(c)))
+                                    self.w.writeln("%s.exit_current(&mut sc.timers, scope, internal, ctrl);" % (ident_var(c)))
                         elif isinstance(s.type, OrState):
                             write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
 
                         # Exit s:
-                        self.w.writeln("%s::exit_actions(&mut sc.timers, &mut sc.data, internal, ctrl);" % (ident_type(s)))
+                        self.w.writeln("%s::exit_actions(&mut sc.timers, scope, internal, ctrl);" % (ident_type(s)))
 
                     # Store history
                     if s.deep_history:
@@ -382,19 +382,19 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                     if len(enter_path) == 1:
                         # Target state.
                         if isinstance(s, HistoryState):
-                            self.w.writeln("sc.%s.enter_current(&mut sc.timers, &mut sc.data, internal, ctrl); // Enter actions for history state" %(ident_history_field(s)))
+                            self.w.writeln("sc.%s.enter_current(&mut sc.timers, scope, internal, ctrl); // Enter actions for history state" %(ident_history_field(s)))
                         else:
-                            self.w.writeln("%s::enter_default(&mut sc.timers, &mut sc.data, internal, ctrl);" % (ident_type(s)))
+                            self.w.writeln("%s::enter_default(&mut sc.timers, scope, internal, ctrl);" % (ident_type(s)))
                     else:
                         # Enter s:
-                        self.w.writeln("%s::enter_actions(&mut sc.timers, &mut sc.data, internal, ctrl);" % (ident_type(s)))
+                        self.w.writeln("%s::enter_actions(&mut sc.timers, scope, internal, ctrl);" % (ident_type(s)))
                         # Enter children:
                         if isinstance(s.type, AndState):
                             for c in s.children:
                                 if enter_path[1] is c:
                                     write_enter(enter_path[1:]) # continue recursively
                                 else:
-                                    self.w.writeln("%s::enter_default(&mut sc.timers, &mut sc.data, internal, ctrl);" % (ident_type(c)))
+                                    self.w.writeln("%s::enter_default(&mut sc.timers, scope, internal, ctrl);" % (ident_type(c)))
                         elif isinstance(s.type, OrState):
                             if len(s.children) > 0:
                                 write_enter(enter_path[1:]) # continue recursively with the next child on the enter path
@@ -467,7 +467,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                         self.w.writeln("if %s {" % " && ".join(condition))
                         self.w.indent()
 
-                    self.w.writeln("let parent1 = scope;")
+                    self.w.writeln("let parent1 = &scope;")
 
                     if t.guard is not None:
                         self.w.write("if ")

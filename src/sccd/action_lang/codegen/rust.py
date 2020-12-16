@@ -321,7 +321,7 @@ class ActionLangRustGenerator(Visitor):
     def visit_SCCDClosureObject(self, type):
         # self.w.wno("<closure type> ")
 
-        self.w.wno("(%s, " % self.scope.type(type.scope, type.scope.parent_offset))
+        self.w.wno("(%s, " % self.scope.type(type.scope, type.scope.size()))
         type.function_type.accept(self)
         self.w.wno(")")
 

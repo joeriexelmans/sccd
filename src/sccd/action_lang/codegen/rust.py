@@ -81,8 +81,8 @@ class ActionLangRustGenerator(Visitor):
         self.function_types = {} # maps Function to Rust type
 
     def default(self, what):
-        self.w.wno("<%s>" % what)
-        # raise UnsupportedFeature(what)
+        # self.w.wno("<%s>" % what)
+        raise UnsupportedFeature(what)
 
     def debug_print_stack(self):
         # Print Python stack in Rust file as a comment
@@ -306,6 +306,8 @@ class ActionLangRustGenerator(Visitor):
                 # a child scope exists at the current offset (typically because we encountered a function declaration) - so we must commit our scope
                 self.scope.commit(lval.offset, self.w)
 
+
+            # self.w.wno("/* is_lvalue */")
             self.w.write('') # indent
 
         if lval.is_init:

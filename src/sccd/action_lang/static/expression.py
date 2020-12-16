@@ -83,8 +83,8 @@ class Identifier(LValue):
 
     offset: Optional[int] = None
     type: Optional[SCCDType] = None
-    is_init: Optional[bool] = None
     is_lvalue: Optional[bool] = None
+    is_init: Optional[bool] = None
 
     # is_function_call_result: Optional[SCCDFunctionCallResult] = None
 
@@ -101,8 +101,8 @@ class Identifier(LValue):
         # if isinstance(rhs_t, SCCDFunctionCallResult):
             # self.is_function_call_result = rhs_t
             # rhs_t = rhs_t.return_type
-        self.offset, self.is_init = scope.put_lvalue(self.name, rhs_t, rhs)
         self.is_lvalue = True
+        self.offset, self.is_init = scope.put_lvalue(self.name, rhs_t, rhs)
         return self.is_init
 
     def assign(self, memory: MemoryInterface, value: Any):

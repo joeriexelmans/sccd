@@ -109,21 +109,24 @@ Insights
 
 
 
-Binary sizes
-------------
+Performance over time
+---------------------
 
 for test semantics/big_step_maximality/test_ortho_takemany.xml
 
-action lang working (commit 354576dd47587fd8e6277539a26a4743b2167565)
 
-no opt:                            513760
-opt-level=3:                       421056
-opt-level=3 inline-threshold=1000: 421056
-opt-level=z:                       429200
+commit 354576dd47587fd8e6277539a26a4743b2167565 - Dec 17, 2020 - action lang working
+
+binary size, no opt:                            513760 bytes
+binary size, opt-level=3:                       421056 bytes
+binary size, opt-level=3 inline-threshold=1000: 421056 bytes
+binary size, opt-level=z:                       429200 bytes
+instruction count (perf stat) (opt-level=3):    575.539 instructions:u
 
 
-implemented big-step maximality (commit aa6a734f7d900479de9be99a8cdf68af0d561481)
+commit aa6a734f7d900479de9be99a8cdf68af0d561481 - Dec 2, 2020 - implemented big-step maximality
 
-no opt:                            478976
-opt-level=3 inline-threshold=1000: 410880
-opt-level=z:                       413576
+binary size, no opt:                            478976 bytes
+binary size, opt-level=3 inline-threshold=1000: 410880 bytes
+binary size, opt-level=z:                       413576 bytes
+instruction count (perf stat) (opt-level=3):    580.701 instructions:u

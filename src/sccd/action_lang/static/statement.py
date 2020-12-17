@@ -102,10 +102,12 @@ class Assignment(Statement):
     def init_stmt(self, scope: Scope) -> ReturnBehavior:
         rhs_t = self.rhs.init_expr(scope)
         self.is_initialization = self.lhs.init_lvalue(scope, rhs_t, self.rhs)
+
         # Very common case of assignment of a function to an identifier:
         # Make the function's scope name a little bit more expressive
         if isinstance(self.rhs, FunctionDeclaration) and isinstance(self.lhs, Identifier):
-            self.rhs.scope.name += "_" + self.lhs.name
+            self.rhs.scope.name = "fn_"+self.lhs.name
+
         return NeverReturns
 
     def exec(self, memory: MemoryInterface) -> Return:

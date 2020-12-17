@@ -205,7 +205,7 @@ macro_rules! call_closure {
     (||{
       let scope = &mut $closure.0;
       let function = &mut $closure.1;
-      return function(scope, $($param),* );
+      return function($($param),* scope);
     })()
   };
 }

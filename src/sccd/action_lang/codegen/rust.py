@@ -91,26 +91,31 @@ class ActionLangRustGenerator(Visitor):
             self.w.writeln("// "+line)
 
     def write_parent_params(self, scope, with_identifiers=True):
+        args = []
         ctr = 1
         while scope is not self.scope.root() and ctr <= scope.deepest_lookup:
+            arg = ""
             if with_identifiers:
-                self.w.wno("parent%d: " % ctr)
-            self.w.wno("&mut %s, " % self.scope.type(scope.parent, scope.parent_offset))
+                arg += "parent%d: " % ctr
+            arg += "&mut %s" % self.scope.type(scope.parent, scope.parent_offset)
+            args.append(arg)
             ctr += 1
             scope = scope.parent
 
-    def write_parent_call_params(self, scope, skip=1):
+        self.w.wno(", ".join(reversed(args)))
+
+    def write_parent_call_params(self, scope, skip: int = 0):
+        args = []
         ctr = 0
         while scope is not self.scope.root() and ctr < scope.deepest_lookup:
             if ctr == skip:
-                self.w.wno("&mut scope, ")
-                # self.w.wno("scope, ")
+                args.append("&mut scope")
             elif ctr > skip:
-                # self.w.wno("&mut parent%d, " % (ctr-skip))
-                self.w.wno("parent%d, " % (ctr-skip))
+                args.append("parent%d" % (ctr-skip))
             ctr += 1
             scope = scope.parent
 
+        self.w.wno(", ".join(reversed(args)))
 
     # This is not a visit method because Scopes may be encountered whenever there's a function call, but they are written as structs and constructor functions, which can only be written at the module level.
     # When compiling Rust code, the Visitable.accept method must be called on the root of the AST, to write code wherever desired (e.g. in a main-function) followed by 'write_scope' at the module level.
@@ -121,7 +126,7 @@ class ActionLangRustGenerator(Visitor):
         # Write functions
         for function, identifier in self.functions_to_write:
             scope = function.scope
-            # self.w.write("fn %s(parent_scope: &mut %s, " % (identifier, self.scope.type(scope.parent, scope.parent_offset)))
+
             self.w.write("fn %s(" % (identifier))
 
             for p in function.params_decl:
@@ -130,9 +135,10 @@ class ActionLangRustGenerator(Visitor):
 
             self.write_parent_params(scope)
 
-            # self.w.wno(") -> (%s," % self.scope.type(scope, scope.size()))
             self.w.wno(") -> ")
+
             self.write_return_type(function)
+
             self.w.wnoln(" {")
             self.w.indent()
             self.w.writeln("let scope = Empty{};")
@@ -191,22 +197,18 @@ class ActionLangRustGenerator(Visitor):
             self.w.writeln("}")
 
     def visit_ReturnStatement(self, stmt):
-        self.w.write("return ")
-
         return_type = stmt.expr.get_type()
         returns_closure_obj = (
             isinstance(return_type, SCCDFunction) and
             return_type.function.scope.parent is stmt.scope
         )
 
-        # self.w.write("return (scope, ")
+        self.w.write("return ")
         if returns_closure_obj:
             self.w.wno("(scope, ")
         stmt.expr.accept(self)
-        # self.w.wnoln(");")
         if returns_closure_obj:
             self.w.wno(")")
-
         self.w.wnoln(";")
 
     def visit_ExpressionStatement(self, stmt):
@@ -267,14 +269,12 @@ class ActionLangRustGenerator(Visitor):
     def visit_FunctionCall(self, expr):
         if isinstance(expr.function.get_type(), SCCDClosureObject):
             self.w.wno("call_closure!(")
-            expr.function.accept(self) # an Identifier or a FunctionDeclaration (=anonymous function)
+            expr.function.accept(self)
             self.w.wno(", ")
-
         else:
             self.w.wno("(")
-            expr.function.accept(self) # an Identifier or a FunctionDeclaration (=anonymous function)
+            expr.function.accept(self)
             self.w.wno(")(")
-
 
         # Call parameters
         for p in expr.params:
@@ -284,25 +284,18 @@ class ActionLangRustGenerator(Visitor):
         if isinstance(expr.function.get_type(), SCCDClosureObject):
             self.write_parent_call_params(expr.function_being_called.scope, skip=1)
         else:
-            self.write_parent_call_params(expr.function_being_called.scope, skip=0)
+            self.write_parent_call_params(expr.function_being_called.scope)
 
         self.w.wno(")")
-        # if not isinstance(expr.get_type(), SCCDClosureObject):
-        #     # In our generated code, a function always returns a pair of
-        #     #   0) the called function's scope
-        #     #   1) the returned value <- pick this
-        #     self.w.wno(".1")
 
 
     def visit_Identifier(self, lval):
 
         if lval.is_lvalue:
             # self.debug_print_stack()
-            # self.w.writeln("// offset: %d, branches: %s" % (lval.offset, self.scope.current().scope.children.keys()))
             if lval.offset in self.scope.current().scope.children:
                 # a child scope exists at the current offset (typically because we encountered a function declaration) - so we must commit our scope
                 self.scope.commit(lval.offset, self.w)
-
 
             # self.w.wno("/* is_lvalue */")
             self.w.write('') # indent

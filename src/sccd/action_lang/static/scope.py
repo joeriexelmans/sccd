@@ -106,7 +106,10 @@ class Scope(Visitable):
     if offset >= 0:
       return 0
     else:
-      return 1 + self.parent.nested_levels(offset + self.parent_offset)
+      if self.parent is not None:
+        return 1 + self.parent.nested_levels(offset + self.parent_offset)
+      else:
+        return 0
 
   # Create name in this scope
   # Precondition: _internal_lookup of name returns 'None'

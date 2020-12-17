@@ -155,7 +155,7 @@ Controller<EventType, OutputCallback> {
         }
         // OK, handle event
         self.simtime = entry.id.timestamp;
-        println!("time is now {}", self.simtime);
+        // eprintln!("time is now {}", self.simtime);
         sc.big_step(Some(entry.event), self);
         self.queue.pop();
       }
@@ -174,6 +174,7 @@ use std::ops::DerefMut;
 // traits are implemented to return a reference to the base struct
 macro_rules! inherit_struct {
     ($name: ident ($base: ty) { $($element: ident: $ty: ty),* $(,)? } ) => {
+        #[derive(Copy, Clone)]
         struct $name {
             _base: $base,
             $($element: $ty),*
@@ -193,6 +194,7 @@ macro_rules! inherit_struct {
 }
 
 // "Base struct" for all scopes
+#[derive(Copy, Clone)]
 struct Empty{}
 
 // A closure object is a pair of a functions first argument and that function.

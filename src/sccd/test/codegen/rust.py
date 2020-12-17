@@ -20,6 +20,7 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
     w.writeln("#![allow(unused_variables)]")
     w.writeln("#![allow(dead_code)]")
     w.writeln("#![allow(unused_parens)]")
+    w.writeln("#![allow(unused_macros)]")
 
     with open(rustlib, 'r') as file:
         data = file.read()
@@ -41,7 +42,8 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
         w.writeln("// Test variant %d" % n)
         w.writeln("let mut raised = Vec::<OutEvent>::new();")
         w.writeln("let mut output = |out: OutEvent| {")
-        w.writeln("  eprintln!(\"^{}:{}\", out.port, out.event);")
+        if DEBUG:
+            w.writeln("  eprintln!(\"^{}:{}\", out.port, out.event);")
         w.writeln("  raised.push(out);")
         w.writeln("};")
         w.writeln("let mut controller = Controller::<InEvent,_>::new(&mut output);")

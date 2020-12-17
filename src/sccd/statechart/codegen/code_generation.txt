@@ -130,3 +130,9 @@ binary size, no opt:                            478976 bytes
 binary size, opt-level=3 inline-threshold=1000: 410880 bytes
 binary size, opt-level=z:                       413576 bytes
 instruction count (perf stat) (opt-level=3):    580.701 instructions:u
+
+
+Performance insights
+
+  - instruction count improved a little over time (but could be due to non-relevant changes such as debug output)
+  - binary size slightly worse when optimizing for size (opt-level=z). this means that inlining is actually reducing the binaries' size, as we would expect (lots of dead code can be eliminated)

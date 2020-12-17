@@ -119,7 +119,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         # Enter actions: Executes enter actions of only this state
         self.w.writeln("  fn enter_actions<OutputCallback: FnMut(OutEvent)>(timers: &mut Timers, data: &mut DataModel, internal: &mut InternalLifeline, ctrl: &mut Controller<InEvent, OutputCallback>) {")
-        self.w.writeln("    eprintln!(\"enter %s\");" % state.full_name);
+        if DEBUG:
+            self.w.writeln("    eprintln!(\"enter %s\");" % state.full_name);
         self.w.writeln("    let scope = data;")
         self.w.indent(); self.w.indent()
         for a in state.enter:
@@ -137,7 +138,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.indent(); self.w.indent()
         for a in state.exit:
             a.accept(self)
-        self.w.writeln("    eprintln!(\"exit %s\");" % state.full_name);
+        if DEBUG:
+            self.w.writeln("    eprintln!(\"exit %s\");" % state.full_name);
         self.w.dedent(); self.w.dedent()
         self.w.writeln("  }")
 
@@ -469,6 +471,9 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
                     self.w.writeln("let parent1 = &mut scope;")
 
+                    if t.scope.size() > 0:
+                        raise UnsupportedFeature("Event parameters")
+
                     if t.guard is not None:
                         self.w.write("if ")
                         t.guard.accept(self)
@@ -485,7 +490,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                     enter_path_bm = t.arena.descendants & (t.target.state_id_bitmap | t.target.ancestors) # bitmap
                     enter_path = list(tree.bitmap_to_states(enter_path_bm)) # list of states
 
-                    self.w.writeln("eprintln!(\"fire %s\");" % str(t))
+                    if DEBUG:
+                        self.w.writeln("eprintln!(\"fire %s\");" % str(t))
 
                     self.w.writeln("// Exit actions")
                     write_exit(exit_path)
@@ -653,9 +659,10 @@ class StatechartRustGenerator(ActionLangRustGenerator):
             self.w.writeln("fn debug_print_sizes() {")
             self.w.writeln("  eprintln!(\"------------------------\");")
             self.w.writeln("  eprintln!(\"info: Statechart: {} bytes\", size_of::<Statechart>());")
-            self.w.writeln("  eprintln!(\"info: Timers: {} bytes\", size_of::<Timers>());")
+            self.w.writeln("  eprintln!(\"info:   DataModel: {} bytes\", size_of::<DataModel>());")
+            self.w.writeln("  eprintln!(\"info:   Timers: {} bytes\", size_of::<Timers>());")
             def write_state_size(state):
-                self.w.writeln("  eprintln!(\"info: State %s: {} bytes\", size_of::<%s>());" % (state.full_name, ident_type(state)))
+                self.w.writeln("  eprintln!(\"info:   State %s: {} bytes\", size_of::<%s>());" % (state.full_name, ident_type(state)))
                 for child in state.real_children:
                     write_state_size(child)
             write_state_size(tree.root)

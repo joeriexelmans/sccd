@@ -4,7 +4,7 @@ import os
 
 # Output can be piped to Rust compiler as follows:
 #
-# For statecharts (build library):
+# For statecharts, class diagrams (build library):
 #  python -m sccd.statechart.cmd.gen_rust <path/to/statechart.xml> | rustc --crate-type=lib -
 #
 # For tests (build executable):
@@ -29,21 +29,31 @@ if __name__ == "__main__":
 
     rules = {
         "statechart": sc_parser_rules(globals),
+        "single_instance_cd": cd_parser_rules(sc_parser_rules),
         "test": test_parser_rules(sc_parser_rules),
     }
 
-    statechart_or_test = parse_f(src, rules)
+    parsed = parse_f(src, rules)
+
+    sys.stderr.write("Parsing finished.\n")
 
     w = IndentingWriter()
 
-    if isinstance(statechart_or_test, Statechart):
-        sys.stderr.write("Loaded statechart.\n")
+    if isinstance(parsed, Statechart):
         
-        from sccd.statechart.codegen.rust import compile_statechart
-        compile_statechart(statechart_or_test, globals, w)
+        from sccd.statechart.codegen.rust import StatechartRustGenerator
 
-    elif isinstance(statechart_or_test, list) and reduce(lambda x,y: x and y, (isinstance(test, TestVariant) for test in statechart_or_test)):
+        gen = StatechartRustGenerator(w, globals)
+        gen.accept(parsed)
+
+    elif isinstance(parsed, AbstractCD):
+        from sccd.cd.codegen.rust import ClassDiagramRustGenerator
+
+        gen = ClassDiagramRustGenerator(w, globals)
+        gen.accept(parsed)
+
+    elif isinstance(parsed, list) and reduce(lambda x,y: x and y, (isinstance(test, TestVariant) for test in parsed)):
         sys.stderr.write("Loaded test.\n")
 
         from sccd.test.codegen.rust import compile_test
-        compile_test(statechart_or_test, w)
+        compile_test(parsed, w)

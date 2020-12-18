@@ -5,7 +5,7 @@ from sccd.statechart.static.statechart import *
 from sccd.statechart.static.globals import *
 
 @dataclass
-class AbstractCD(ABC):
+class AbstractCD(ABC, Visitable):
   globals: Globals
 
   @abstractmethod

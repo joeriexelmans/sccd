@@ -4,7 +4,7 @@ use std::cmp::Reverse;
 
 
 #[derive(Default)]
-struct SameRoundLifeline<InternalType> {
+pub struct SameRoundLifeline<InternalType> {
   current: InternalType,
 }
 
@@ -21,7 +21,7 @@ impl<InternalType: Default> SameRoundLifeline<InternalType> {
 }
 
 #[derive(Default)]
-struct NextRoundLifeline<InternalType> {
+pub struct NextRoundLifeline<InternalType> {
   one: InternalType,
   two: InternalType,
 
@@ -45,28 +45,18 @@ impl<InternalType: Default> NextRoundLifeline<InternalType> {
   }
 }
 
-// pub trait State<TimersType, ControllerType> {
-//   // Execute enter actions of only this state
-//   fn enter_actions(timers: &mut TimersType, c: &mut ControllerType);
-//   // Execute exit actions of only this state
-//   fn exit_actions(timers: &mut TimersType, c: &mut ControllerType);
-
-//   // Execute enter actions of this state and its 'default' child(ren), recursively
-//   fn enter_default(timers: &mut TimersType, c: &mut ControllerType);
-
-//   // Execute enter actions as if the configuration recorded in this state is being entered
-//   fn enter_current(&self, timers: &mut TimersType, c: &mut ControllerType);
-//   // Execute exit actions as if the configuration recorded in this state is being exited
-//   fn exit_current(&self, timers: &mut TimersType, c: &mut ControllerType);
-// }
-
-pub trait SC<EventType, ControllerType> {
-  fn init(&mut self, c: &mut ControllerType);
-  fn big_step(&mut self, event: Option<EventType>, c: &mut ControllerType);
+pub trait Scheduler<EventType> {
+  fn set_timeout(&mut self, delay: Timestamp, event: EventType) -> EntryId;
+  fn unset_timeout(&mut self, id: EntryId);
 }
 
-type Timestamp = u32;
-type TimerId = u16;
+pub trait SC<EventType, Sched: Scheduler<EventType>, OutputCallback> {
+  fn init(&mut self, sched: &mut Sched, output: &mut OutputCallback);
+  fn big_step(&mut self, event: Option<EventType>, sched: &mut Sched, output: &mut OutputCallback);
+}
+
+pub type Timestamp = u32;
+pub type TimerId = u16;
 
 #[derive(Default, Copy, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub struct EntryId {
@@ -101,30 +91,14 @@ pub struct OutEvent {
   event: &'static str,
 }
 
-pub struct Controller<EventType, OutputCallback> {
+pub struct Controller<EventType> {
   simtime: Timestamp,
   next_id: TimerId,
   queue: BinaryHeap<Reverse<QueueEntry<EventType>>>,
   removed: BinaryHeap<Reverse<EntryId>>,
-  output: OutputCallback,
 }
 
-pub enum Until {
-  Timestamp(Timestamp),
-  Eternity,
-}
-
-impl<EventType: Copy, OutputCallback: FnMut(OutEvent)>
-Controller<EventType, OutputCallback> {
-  fn new(output: OutputCallback) -> Self {
-    Self {
-      simtime: 0,
-      next_id: 0,
-      queue: BinaryHeap::with_capacity(8),
-      removed: BinaryHeap::with_capacity(4),
-      output,
-    }
-  }
+impl<EventType> Scheduler<EventType> for Controller<EventType> {
   fn set_timeout(&mut self, delay: Timestamp, event: EventType) -> EntryId {
     let id = EntryId{ timestamp: self.simtime + delay, n: self.next_id };
     let entry = QueueEntry::<EventType>{ id, event };
@@ -135,7 +109,24 @@ Controller<EventType, OutputCallback> {
   fn unset_timeout(&mut self, id: EntryId) {
     self.removed.push(Reverse(id));
   }
-  fn run_until<StatechartType: SC<EventType, Controller<EventType, OutputCallback>>>(&mut self, sc: &mut StatechartType, until: Until) {
+}
+
+pub enum Until {
+  Timestamp(Timestamp),
+  Eternity,
+}
+
+impl<EventType: Copy>
+Controller<EventType> {
+  fn new() -> Self {
+    Self {
+      simtime: 0,
+      next_id: 0,
+      queue: BinaryHeap::with_capacity(8),
+      removed: BinaryHeap::with_capacity(4),
+    }
+  }
+  fn run_until<StatechartType: SC<EventType, Controller<EventType>, OutputCallback>, OutputCallback: FnMut(OutEvent)>(&mut self, sc: &mut StatechartType, until: Until, output: &mut OutputCallback) {
     'running: loop {
       if let Some(Reverse(entry)) = self.queue.peek() {
         // Check if event was removed
@@ -156,7 +147,7 @@ Controller<EventType, OutputCallback> {
         // OK, handle event
         self.simtime = entry.id.timestamp;
         // eprintln!("time is now {}", self.simtime);
-        sc.big_step(Some(entry.event), self);
+        sc.big_step(Some(entry.event), self, output);
         self.queue.pop();
       }
       else {
@@ -172,6 +163,7 @@ use std::ops::DerefMut;
 // This macro lets a struct "inherit" the data members of another struct
 // The inherited struct is added as a struct member and the Deref and DerefMut
 // traits are implemented to return a reference to the base struct
+#[macro_export]
 macro_rules! inherit_struct {
     ($name: ident ($base: ty) { $($element: ident: $ty: ty),* $(,)? } ) => {
         #[derive(Copy, Clone)]
@@ -195,11 +187,12 @@ macro_rules! inherit_struct {
 
 // "Base struct" for all scopes
 #[derive(Copy, Clone)]
-struct Empty{}
+pub struct Empty{}
 
 // A closure object is a pair of a functions first argument and that function.
 // The call may be part of an larger expression, and therefore we cannot just write 'let' statements to assign the pair's elements to identifiers which we need for the call.
 // This macro does exactly that, in an anonymous Rust closure, which is immediately called.
+#[macro_export]
 macro_rules! call_closure {
   ($closure: expr, $($param: expr),*  $(,)?) => {
     (||{

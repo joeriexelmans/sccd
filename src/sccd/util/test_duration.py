@@ -1,5 +1,5 @@
 import unittest
-from duration import *
+from sccd.util.duration import *
 
 class TestDuration(unittest.TestCase):
 

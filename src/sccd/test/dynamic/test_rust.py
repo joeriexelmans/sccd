@@ -66,5 +66,8 @@ def run_variants(variants: List[TestVariant], unittest):
 
         status = binary.wait()
 
+        if DEBUG:
+            print(binarystderr)
+
         if status != 0:
             unittest.fail("Test status %d. Stderr:\n%s" % (status, binarystderr))

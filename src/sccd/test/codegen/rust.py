@@ -4,7 +4,11 @@ from sccd.util.indenting_writer import *
 
 import os
 import sccd.statechart.codegen
-rustlib = os.path.dirname(sccd.statechart.codegen.__file__) + "/libstatechart.rs"
+rustlib = os.path.dirname(sccd.statechart.codegen.__file__) + "/common.rs"
+
+# class TestRustGenerator(StatechartRustGenerator):
+#     def visit_TestVariant(self, variant):
+
 
 def compile_test(variants: List[TestVariant], w: IndentingWriter):
 
@@ -21,6 +25,9 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
     w.writeln("#![allow(dead_code)]")
     w.writeln("#![allow(unused_parens)]")
     w.writeln("#![allow(unused_macros)]")
+    w.writeln("#![allow(non_upper_case_globals)]")
+    w.writeln("#![allow(unused_mut)]")
+    w.writeln("#![allow(unused_imports)]")
 
     with open(rustlib, 'r') as file:
         data = file.read()
@@ -46,9 +53,9 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
             w.writeln("  eprintln!(\"^{}:{}\", out.port, out.event);")
         w.writeln("  raised.push(out);")
         w.writeln("};")
-        w.writeln("let mut controller = Controller::<InEvent,_>::new(&mut output);")
+        w.writeln("let mut controller = Controller::<InEvent>::new();")
         w.writeln("let mut sc: Statechart = Default::default();")
-        w.writeln("sc.init(&mut controller);")
+        w.writeln("sc.init(&mut controller, &mut output);")
         for i in v.input:
             if len(i.events) > 1:
                 raise UnsupportedFeature("Multiple simultaneous input events not supported")
@@ -56,7 +63,7 @@ def compile_test(variants: List[TestVariant], w: IndentingWriter):
                 raise UnsupportedFeature("Test declares empty bag of input events")
             w.writeln("controller.set_timeout(%d, InEvent::%s);" % (i.timestamp.opt, ident_event_type(i.events[0].name)))
 
-        w.writeln("controller.run_until(&mut sc, Until::Eternity);")
+        w.writeln("controller.run_until(&mut sc, Until::Eternity, &mut output);")
         w.writeln("assert_eq!(raised, [%s]);" % ", ".join('OutEvent{port:"%s", event:"%s"}' % (e.port, e.name) for o in v.output for e in o))
         w.writeln("eprintln!(\"Test variant %d passed\");" % n)
 

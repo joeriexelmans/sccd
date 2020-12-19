@@ -1,5 +1,5 @@
 // Helpers used by from-action-lang-generated Rust code
-
+ 
 #[allow(unused_imports)]
 use std::ops::Deref;
 

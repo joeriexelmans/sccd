@@ -4,23 +4,23 @@ use std::collections::BinaryHeap;
 use std::cmp::Ordering;
 use std::cmp::Reverse;
 
-use statechart::Timestamp;
-use statechart::Scheduler;
-use statechart::SC;
-use statechart::OutEvent;
+use crate::statechart::Timestamp;
+use crate::statechart::Scheduler;
+use crate::statechart::SC;
+use crate::statechart::OutEvent;
 
-pub type TimerId = u16;
+pub type TimerIndex = u16;
 
 #[derive(Default, Copy, Clone, Ord, PartialOrd, PartialEq, Eq)]
-pub struct EntryId {
+pub struct TimerId {
   timestamp: Timestamp,
 
   // This field maintains FIFO order for equally timestamped entries.
-  n: TimerId,
+  n: TimerIndex,
 }
 
 pub struct QueueEntry<InEvent> {
-  id: EntryId,
+  id: TimerId,
   event: InEvent,
 }
 impl<InEvent> Ord for QueueEntry<InEvent> {
@@ -40,27 +40,28 @@ impl<InEvent> PartialEq for QueueEntry<InEvent> {
 }
 impl<InEvent> Eq for QueueEntry<InEvent> {}
 
-// Right now, "removed" queue entries are put into a second BinaryHeap.
-// This is not very efficient. Queue entries should be allocated on the heap,
-// (preferrably using a pool allocator), and directly marked as "removed".
-// Optionally, if the number of removed items exceeds a threshold, a sweep could remove "removed" entries.
 
 pub struct Controller<InEvent> {
   simtime: Timestamp,
-  next_id: TimerId,
+  next_id: TimerIndex,
   queue: BinaryHeap<Reverse<QueueEntry<InEvent>>>,
-  removed: BinaryHeap<Reverse<EntryId>>,
+
+  // Right now, removed queue entries are put into a second BinaryHeap.
+  // This is not very efficient. Queue entries should be allocated on the heap,
+  // (preferrably using a pool allocator), and directly marked as "removed".
+  // Optionally, if the number of removed items exceeds a threshold, a sweep could remove "removed" entries.
+  removed: BinaryHeap<Reverse<TimerId>>,
 }
 
-impl<InEvent> Scheduler<InEvent, EntryId> for Controller<InEvent> {
-  fn set_timeout(&mut self, delay: Timestamp, event: InEvent) -> EntryId {
-    let id = EntryId{ timestamp: self.simtime + delay, n: self.next_id };
+impl<InEvent> Scheduler<InEvent, TimerId> for Controller<InEvent> {
+  fn set_timeout(&mut self, delay: Timestamp, event: InEvent) -> TimerId {
+    let id = TimerId{ timestamp: self.simtime + delay, n: self.next_id };
     let entry = QueueEntry::<InEvent>{ id, event };
     self.queue.push(Reverse(entry));
     self.next_id += 1; // TODO: will overflow eventually :(
     return id
   }
-  fn unset_timeout(&mut self, id: EntryId) {
+  fn unset_timeout(&mut self, id: TimerId) {
     self.removed.push(Reverse(id));
   }
 }
@@ -79,7 +80,7 @@ impl<InEvent: Copy> Controller<InEvent> {
       removed: BinaryHeap::with_capacity(4),
     }
   }
-  pub fn run_until<StatechartType: SC<InEvent, EntryId, Controller<InEvent>, OutputCallback>, OutputCallback: FnMut(OutEvent)>(&mut self, sc: &mut StatechartType, until: Until, output: &mut OutputCallback) {
+  pub fn run_until<StatechartType: SC<InEvent, TimerId, Controller<InEvent>, OutputCallback>, OutputCallback: FnMut(OutEvent)>(&mut self, sc: &mut StatechartType, until: Until, output: &mut OutputCallback) {
     'running: loop {
       if let Some(Reverse(entry)) = self.queue.peek() {
         // Check if event was removed

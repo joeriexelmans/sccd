@@ -1,7 +1,11 @@
-[workspace]
+[package]
+name = "sccd"
+version = "0.1.0"
+authors = ["Joeri Exelmans <joeri.exelmans@gmail.com>"]
+edition = "2018"
 
-members = [
-  "action_lang",
-  "statechart",
-  "controller",
-]
+[dependencies]
+
+[lib]
+name = "sccd"
+path = "lib.rs"

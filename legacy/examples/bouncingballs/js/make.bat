@@ -1,1 +1,0 @@
-..\..\..\python_sccd_compiler\sccdc.py -p eventloop -l javascript -o target_js\sccd.js sccd.xml

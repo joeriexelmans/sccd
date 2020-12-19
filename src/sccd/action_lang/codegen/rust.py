@@ -45,7 +45,7 @@ class ScopeHelper():
     
     def type(self, scope, end):
         if end == 0:
-            return "Empty"
+            return "action_lang::Empty"
         else:
             return self.basename(scope) + "_l" + str(end)
 
@@ -56,7 +56,7 @@ class ScopeHelper():
 
         if start != end  and  end > 0:
             if start == 0:
-                supertype_name = "Empty"
+                supertype_name = "action_lang::Empty"
             else:
                 supertype_name = self.scope_structs[self.current().scope][start].type_name
 
@@ -141,7 +141,7 @@ class ActionLangRustGenerator(Visitor):
 
             self.w.wnoln(" {")
             self.w.indent()
-            self.w.writeln("let scope = Empty{};")
+            self.w.writeln("let scope = action_lang::Empty{};")
 
             self.scope.push(function.scope)
             # Parameters are part of function's scope

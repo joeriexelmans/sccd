@@ -6,13 +6,17 @@ from unittest import SkipTest
 from typing import *
 from sccd.test.static.syntax import TestVariant
 from sccd.statechart.codegen.rust import UnsupportedFeature
-from sccd.test.codegen.rust import compile_test
+from sccd.test.codegen.write_crate import write_crate
 from sccd.util.indenting_writer import IndentingWriter
 from sccd.util.debug import *
 
+import os
+import sccd
+RUST_DIR = os.path.dirname(sccd.__file__) + "/../../rust"
+
 # Generate Rust code from the test case. This Rust code is piped to a Rust compiler (rustc) process, which reads from stdin. The Rust compiler outputs a binary in a temp dir. We then run the created binary as a subprocess.
 # If the result code of either the Rust compiler or the created binary is not 0 ("success"), the 'unittest' fails.
-def run_variants(variants: List[TestVariant], unittest):
+def run_rust_test(path: str, unittest):
     if DEBUG:
         stdout = None
         stderr = None
@@ -20,54 +24,29 @@ def run_variants(variants: List[TestVariant], unittest):
         stdout = subprocess.DEVNULL
         stderr = subprocess.STDOUT
 
-    output_file = os.path.join(tempfile.gettempdir(), "sccd_rust_out")
-    print_debug("Writing binary to " + output_file)
+    from hashlib import sha1
 
-    with subprocess.Popen(["rustc", "-o", output_file, "-"],
-        stdin=subprocess.PIPE,
+    output = tempfile.gettempdir() + "/sccd_test_crate"
+
+    print_debug("Writing crate to " + output)
+
+    try:
+        write_crate(path, output)
+    except UnsupportedFeature as e:
+        raise SkipTest("unsupported feature: " + str(e))
+
+    print_debug("Done. Running crate...")
+
+    with subprocess.Popen(["cargo", "run"],
+        cwd=output,
         stdout=stdout,
-        stderr=subprocess.PIPE) as pipe:
+        stderr=subprocess.PIPE) as cargo:
 
-        class PipeWriter:
-            def __init__(self, pipe):
-                self.pipe = pipe
-            def write(self, s):
-                self.pipe.stdin.write(s.encode(encoding='UTF-8'))
-
-        w = IndentingWriter(out=PipeWriter(pipe))
-
-        try:
-            compile_test(variants, w)
-        except UnsupportedFeature as e:
-            raise SkipTest("unsupported feature: " + str(e))
-
-        pipe.stdin.close()
-
-        print_debug("Generated Rust code.")
-
-        ruststderr = pipe.stderr.read().decode('UTF-8')
-
-        status = pipe.wait()
+        cargostderr = cargo.stderr.read().decode('UTF-8')
+        status = cargo.wait()
 
         if DEBUG:
-            print(ruststderr)
+            print(cargostderr)
 
         if status != 0:
-            # This does not indicate a test failure, but an error in our code generator
-            raise Exception("Rust compiler status %d. Sterr:\n%s" % (status, ruststderr))
-
-    print_debug("Generated binary. Running...")
-
-    with subprocess.Popen([output_file],
-        stdout=stdout,
-        stderr=subprocess.PIPE) as binary:
-
-        binarystderr = binary.stderr.read().decode('UTF-8')
-
-        status = binary.wait()
-
-        if DEBUG:
-            print(binarystderr)
-
-        if status != 0:
-            unittest.fail("Test status %d. Stderr:\n%s" % (status, binarystderr))
+            unittest.fail("Test status %d. Stderr:\n%s" % (status, cargostderr))

@@ -1,71 +1,58 @@
 from sccd.test.static.syntax import *
-from sccd.statechart.codegen.rust import *
 from sccd.util.indenting_writer import *
+from sccd.cd.codegen.rust import ClassDiagramRustGenerator
+from sccd.statechart.codegen.rust import ident_event_type
 
-import os
-import sccd.statechart.codegen
-rustlib = os.path.dirname(sccd.statechart.codegen.__file__) + "/common.rs"
+class TestRustGenerator(ClassDiagramRustGenerator):
+    def __init__(self, w):
+        super().__init__(w)
 
-# class TestRustGenerator(StatechartRustGenerator):
-#     def visit_TestVariant(self, variant):
+    def visit_TestVariant(self, variant):
+        variant.cd.accept(self)
 
+        self.w.writeln("pub fn run() {")
+        self.w.indent()
 
-def compile_test(variants: List[TestVariant], w: IndentingWriter):
+        self.w.writeln("use sccd::controller;")
+        self.w.writeln("use sccd::statechart;")
+        self.w.writeln("use sccd::statechart::SC;")
+        self.w.writeln("use sccd::statechart::Scheduler;")
+        self.w.writeln();
 
-    # Note: The reason for these is that we cannot convert the casing of our state's names:
-    # SCCD allows any combination of upper and lower case symbols, and
-    # converting to, say, camelcase, as Rust likes it for type names,
-    # could cause naming collisions.
-    # Rust may output a ton of warnings for this. We disable these types of warnings,
-    # so that other, more interesting types of warnings don't go unnoticed.
-    w.writeln("#![allow(non_camel_case_types)]")
-    w.writeln("#![allow(non_snake_case)]")
-    w.writeln("#![allow(unused_labels)]")
-    w.writeln("#![allow(unused_variables)]")
-    w.writeln("#![allow(dead_code)]")
-    w.writeln("#![allow(unused_parens)]")
-    w.writeln("#![allow(unused_macros)]")
-    w.writeln("#![allow(non_upper_case_globals)]")
-    w.writeln("#![allow(unused_mut)]")
-    w.writeln("#![allow(unused_imports)]")
-
-    with open(rustlib, 'r') as file:
-        data = file.read()
-        w.writeln(data)
-
-    if len(variants) > 0:
-        cd = variants[0].cd
-        gen = StatechartRustGenerator(w, cd.globals)
-        cd.get_default_class().accept(gen)
-        # compile_statechart(cd.get_default_class(), cd.globals, w)
-
-
-    w.writeln("fn main() {")
-    w.indent()
-    if DEBUG:
-        w.writeln("debug_print_sizes();")
-
-    for n, v in enumerate(variants):
-        w.writeln("// Test variant %d" % n)
-        w.writeln("let mut raised = Vec::<OutEvent>::new();")
-        w.writeln("let mut output = |out: OutEvent| {")
+        self.w.writeln("let mut raised = Vec::<statechart::OutEvent>::new();")
+        self.w.writeln("let mut output = |out: statechart::OutEvent| {")
         if DEBUG:
-            w.writeln("  eprintln!(\"^{}:{}\", out.port, out.event);")
-        w.writeln("  raised.push(out);")
-        w.writeln("};")
-        w.writeln("let mut controller = Controller::<InEvent>::new();")
-        w.writeln("let mut sc: Statechart = Default::default();")
-        w.writeln("sc.init(&mut controller, &mut output);")
-        for i in v.input:
+            self.w.writeln("  eprintln!(\"^{}:{}\", out.port, out.event);")
+        self.w.writeln("  raised.push(out);")
+        self.w.writeln("};")
+        self.w.writeln("let mut controller = controller::Controller::<InEvent>::new();")
+        self.w.writeln("let mut sc: Statechart::<controller::TimerId> = Default::default();")
+        self.w.writeln("sc.init(&mut controller, &mut output);")
+        for i in variant.input:
             if len(i.events) > 1:
                 raise UnsupportedFeature("Multiple simultaneous input events not supported")
             elif len(i.events) == 0:
                 raise UnsupportedFeature("Test declares empty bag of input events")
-            w.writeln("controller.set_timeout(%d, InEvent::%s);" % (i.timestamp.opt, ident_event_type(i.events[0].name)))
+            self.w.writeln("controller.set_timeout(%d, InEvent::%s);" % (i.timestamp.opt, ident_event_type(i.events[0].name)))
 
-        w.writeln("controller.run_until(&mut sc, Until::Eternity, &mut output);")
-        w.writeln("assert_eq!(raised, [%s]);" % ", ".join('OutEvent{port:"%s", event:"%s"}' % (e.port, e.name) for o in v.output for e in o))
-        w.writeln("eprintln!(\"Test variant %d passed\");" % n)
+        self.w.writeln("controller.run_until(&mut sc, controller::Until::Eternity, &mut output);")
+        self.w.writeln("assert_eq!(raised, [%s]);" % ", ".join('statechart::OutEvent{port:"%s", event:"%s"}' % (e.port, e.name) for o in variant.output for e in o))
 
-    w.dedent()
-    w.writeln("}")
+        self.w.dedent()
+        self.w.writeln("}")
+
+    def visit_Test(self, test):
+        for i, v in enumerate(test.variants):
+            self.w.writeln("mod variant%d {" % i)
+            self.w.indent()
+            v.accept(self)
+            self.w.dedent()
+            self.w.writeln("}")
+            self.w.writeln()
+
+        self.w.writeln("fn main() {")
+        for i, v in enumerate(test.variants):
+            self.w.writeln("  variant%d::run();" % i)
+            self.w.writeln("  eprintln!(\"Test variant %d passed\");" % i)
+        self.w.writeln("}")
+        self.w.writeln()

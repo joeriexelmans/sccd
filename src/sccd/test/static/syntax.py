@@ -10,8 +10,12 @@ class TestInputBag:
   timestamp: Expression
 
 @dataclass
-class TestVariant:
+class TestVariant(Visitable):
   name: str
   cd: AbstractCD
   input: List[TestInputBag]
   output: List[List[OutputEvent]]
+
+@dataclass
+class Test(Visitable):
+  variants: List[TestVariant]

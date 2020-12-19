@@ -92,12 +92,12 @@ def test_parser_rules(statechart_parser_rules):
         text += str(variant)
         return text
 
-      return [TestVariant(
+      return Test(variants=[TestVariant(
         name=variant_description(i, variant.semantics),
         cd=SingleInstanceCD(globals=globals, statechart=variant),
         input=input,
         output=output)
-      for i, variant in enumerate(variants)]
+      for i, variant in enumerate(variants)])
 
     sc_rules = statechart_parser_rules(globals)
     return ([("statechart", sc_rules), ("input?", parse_input), ("output?", parse_output)], finish_test)

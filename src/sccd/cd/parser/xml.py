@@ -21,7 +21,7 @@ def cd_parser_rules(statechart_parser_rules, default_delta = duration(100, Micro
 
     return ([("delta?", parse_delta), ("statechart", sc_rules)], finish_single_instance_cd)
 
-  return [("single_instance_cd?", parse_single_instance_cd)]
+  return parse_single_instance_cd
 
 # This is usually how you would want to load a class diagram:
 def load_cd(src):

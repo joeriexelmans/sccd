@@ -90,6 +90,6 @@ pub trait SC<InEvent, TimerId, Sched: Scheduler<InEvent, TimerId>, OutputCallbac
 // TODO: Does not belong in "common", this should become a statechart-specific enum-type.
 #[derive(Debug, Eq, PartialEq)]
 pub struct OutEvent {
-  port: &'static str,
-  event: &'static str,
+  pub port: &'static str,
+  pub event: &'static str,
 }

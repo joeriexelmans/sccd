@@ -74,7 +74,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
     def visit_RaiseOutputEvent(self, a):
         # TODO: evaluate event parameters
-        self.w.writeln("(output)(OutEvent{port:\"%s\", event:\"%s\"});" % (a.outport, a.name))
+        self.w.writeln("(output)(statechart::OutEvent{port:\"%s\", event:\"%s\"});" % (a.outport, a.name))
 
     def visit_RaiseInternalEvent(self, a):
         self.w.writeln("internal.get_mut().%s = Some(%s{});" % (ident_event_field(a.name), (ident_event_type(a.name))))
@@ -118,7 +118,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("impl %s {" % ident_type(state))
 
         # Enter actions: Executes enter actions of only this state
-        self.w.writeln("  fn enter_actions<Sched: Scheduler<InEvent>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {")
+        self.w.writeln("  fn enter_actions<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {")
         if DEBUG:
             self.w.writeln("    eprintln!(\"enter %s\");" % state.full_name);
         self.w.writeln("    let scope = data;")
@@ -131,7 +131,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("  }")
 
         # Enter actions: Executes exit actions of only this state
-        self.w.writeln("  fn exit_actions<Sched: Scheduler<InEvent>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {")
+        self.w.writeln("  fn exit_actions<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {")
         self.w.writeln("    let scope = data;")
         for a in state.after_triggers:
             self.w.writeln("    sched.unset_timeout(timers[%d]);" % (a.after_id))
@@ -144,7 +144,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("  }")
 
         # Enter default: Executes enter actions of entering this state and its default substates, recursively
-        self.w.writeln("  fn enter_default<Sched: Scheduler<InEvent>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {")
+        self.w.writeln("  fn enter_default<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {")
         self.w.writeln("    %s::enter_actions(timers, data, internal, sched, output);" % (ident_type(state)))
         if isinstance(state.type, AndState):
             for child in state.real_children:
@@ -154,7 +154,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("  }")
 
         # Exit current: Executes exit actions of this state and current children, recursively
-        self.w.writeln("  fn exit_current<Sched: Scheduler<InEvent>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {")
+        self.w.writeln("  fn exit_current<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {")
         # first, children (recursion):
         if isinstance(state.type, AndState):
             for child in state.real_children:
@@ -169,7 +169,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("  }")
 
         # Exit current: Executes enter actions of this state and current children, recursively
-        self.w.writeln("  fn enter_current<Sched: Scheduler<InEvent>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {")
+        self.w.writeln("  fn enter_current<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {")
         # first, parent:
         self.w.writeln("    %s::enter_actions(timers, data, internal, sched, output);" % (ident_type(state)))
         # then, children (recursion):
@@ -189,6 +189,16 @@ class StatechartRustGenerator(ActionLangRustGenerator):
     def visit_Statechart(self, sc):
         self.scope.push(sc.scope)
 
+        self.w.writeln("use std::ops::Deref;")
+        self.w.writeln("use std::ops::DerefMut;")
+        self.w.writeln();
+        self.w.writeln("use sccd::action_lang;")
+        self.w.writeln("use sccd::inherit_struct;")
+        self.w.writeln("use sccd::call_closure;")
+        self.w.writeln("use sccd::statechart;")
+        self.w.writeln("use sccd::statechart::EventLifeline;")
+        self.w.writeln();
+
         if sc.semantics.concurrency == Concurrency.MANY:
             raise UnsupportedFeature("concurrency")
 
@@ -196,7 +206,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         tree = sc.tree
 
-        self.w.writeln("type Timers = [EntryId; %d];" % tree.timer_count)
+        self.w.writeln("type Timers<TimerId> = [TimerId; %d];" % tree.timer_count)
         self.w.writeln()
 
         # Write event types
@@ -236,9 +246,9 @@ class StatechartRustGenerator(ActionLangRustGenerator):
             self.w.writeln("}")
 
             if internal_same_round:
-                self.w.writeln("type InternalLifeline = SameRoundLifeline<Internal>;")
+                self.w.writeln("type InternalLifeline = statechart::SameRoundLifeline<Internal>;")
             else:
-                self.w.writeln("type InternalLifeline = NextRoundLifeline<Internal>;")
+                self.w.writeln("type InternalLifeline = statechart::NextRoundLifeline<Internal>;")
         elif internal_type == "queue":
             pass
             # self.w.writeln("#[derive(Copy, Clone)]")
@@ -281,11 +291,11 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln()
 
         # Write statechart type
-        self.w.writeln("impl Default for Statechart {")
+        self.w.writeln("impl<TimerId: Default> Default for Statechart<TimerId> {")
         self.w.writeln("  fn default() -> Self {")
         self.w.writeln("    // Initialize data model")
         self.w.indent(); self.w.indent();
-        self.w.writeln("    let scope = Empty{};")
+        self.w.writeln("    let scope = action_lang::Empty{};")
         if sc.datamodel is not None:
             sc.datamodel.accept(self)
         datamodel_type = self.scope.commit(sc.scope.size(), self.w)
@@ -300,13 +310,13 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("  }")
         self.w.writeln("}")
         self.w.writeln("type DataModel = %s;" % datamodel_type)
-        self.w.writeln("pub struct Statechart {")
+        self.w.writeln("pub struct Statechart<TimerId> {")
         self.w.writeln("  current_state: %s," % ident_type(tree.root))
         # We always store a history value as 'deep' (also for shallow history).
         # TODO: We may save a tiny bit of space in some rare cases by storing shallow history as only the exited child of the Or-state.
         for h in tree.history_states:
             self.w.writeln("  %s: %s," % (ident_history_field(h), ident_type(h.parent)))
-        self.w.writeln("  timers: Timers,")
+        self.w.writeln("  timers: Timers<TimerId>,")
         self.w.writeln("  data: DataModel,")
         self.w.writeln("}")
         self.w.writeln()
@@ -314,7 +324,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.write_decls()
 
         # Function fair_step: a single "Take One" Maximality 'round' (= nonoverlapping arenas allowed to fire 1 transition)
-        self.w.writeln("fn fair_step<Sched: Scheduler<InEvent>, OutputCallback: FnMut(OutEvent)>(sc: &mut Statechart, input: Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {")
+        self.w.writeln("fn fair_step<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(sc: &mut Statechart<TimerId>, input: Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {")
         self.w.writeln("  let mut fired: Arenas = ARENA_NONE;")
         self.w.writeln("  let mut scope = &mut sc.data;")
         self.w.writeln("  let %s = &mut sc.current_state;" % ident_var(tree.root))
@@ -596,7 +606,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         # Write combo step and big step function
         def write_stepping_function(name: str, title: str, maximality: Maximality, substep: str, cycle_input: bool, cycle_internal: bool):
-            self.w.writeln("fn %s<Sched: Scheduler<InEvent>, OutputCallback: FnMut(OutEvent)>(sc: &mut Statechart, input: Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {" % (name))
+            self.w.writeln("fn %s<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(sc: &mut Statechart<TimerId>, input: Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {" % (name))
             self.w.writeln("  // %s Maximality: %s" % (title, maximality))
             if maximality == Maximality.TAKE_ONE:
                 self.w.writeln("  %s(sc, input, internal, sched, output, dirty)" % (substep))
@@ -640,7 +650,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln()
 
         # Implement 'SC' trait
-        self.w.writeln("impl<Sched: Scheduler<InEvent>, OutputCallback: FnMut(OutEvent)> SC<InEvent, Sched, OutputCallback> for Statechart {")
+        self.w.writeln("impl<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)> statechart::SC<InEvent, TimerId, Sched, OutputCallback> for Statechart<TimerId> {")
         self.w.writeln("  fn init(&mut self, sched: &mut Sched, output: &mut OutputCallback) {")
         self.w.writeln("    %s::enter_default(&mut self.timers, &mut self.data, &mut Default::default(), sched, output)" % (ident_type(tree.root)))
         self.w.writeln("  }")
@@ -667,7 +677,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                     write_state_size(child)
             write_state_size(tree.root)
             self.w.writeln("  eprintln!(\"info: InEvent: {} bytes\", size_of::<InEvent>());")
-            self.w.writeln("  eprintln!(\"info: OutEvent: {} bytes\", size_of::<OutEvent>());")
+            self.w.writeln("  eprintln!(\"info: statechart::OutEvent: {} bytes\", size_of::<statechart::OutEvent>());")
             self.w.writeln("  eprintln!(\"info: Arenas: {} bytes\", size_of::<Arenas>());")
             self.w.writeln("  eprintln!(\"------------------------\");")
             self.w.writeln("}")

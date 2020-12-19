@@ -16,7 +16,7 @@ Tip: Users of the Nix package manager can get a usable development environment t
 
 ### Optional
 
-* [Rust compiler](https://www.rust-lang.org/) to test compilation to Rust.
+* [Rust compiler](https://www.rust-lang.org/) and [Cargo](https://doc.rust-lang.org/cargo/index.html) to test compilation to Rust.
 * [state-machine-cat](https://github.com/sverweij/state-machine-cat) to render statecharts as SVG images. Runs on NodeJS, installable from NPM.
 * [Graphviz dot](https://graphviz.org/) to render the priorities between a statechart's transitions as a graph.
 
@@ -38,9 +38,7 @@ It will recursively visit the directory tree of `test_files` and look for XML fi
 
 ### Code generation with Rust
 
-The test framework can also generate Rust code for each test, and then invokes the Rust compiler (must be in your PATH as `rustc`) to compile to native code for your machine, which is put in a temporary directory. The native code is then run (the main-function of the generated code executes the test).
-
-Other than the `rustc` command, there are (currently) no dependencies.
+The test framework can also generate a Rust crate for each test, and then invokes Cargo (must be in your PATH as `cargo`) to compile to native code for your machine. The created crates and compilation artifacts are put in a temporary directory. The native code is then run (the main-function of the generated code executes the test).
 
 Add the `--rust` flag to the test command to try it:
 
@@ -48,7 +46,7 @@ Add the `--rust` flag to the test command to try it:
 python -m sccd.test.cmd.run --rust test/test_files
 ```
 
-Rust code generation is a work-in-progress. Tests that contain unsupported features will be skipped.
+Rust code generation is a work-in-progress. Some tests may fail, or be skipped.
 
 ## Runtime environment variables
 

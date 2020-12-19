@@ -22,20 +22,19 @@ class Test(unittest.TestCase):
 
     # assume external statechart files in same directory as test
     
-    path = os.path.dirname(self.src)
-    sc_rules = functools.partial(statechart_parser_rules, path=path)
-    test_rules = test_parser_rules(sc_rules)
+
     try:
-      with timer.Context("parse test"):
-        test_variants = parse_f(self.src, {"test" :test_rules})
-
-
       if self.enable_rust:
-        from sccd.test.dynamic.test_rust import run_variants
-        run_variants(test_variants, self)
+        from sccd.test.dynamic.test_rust import run_rust_test
+        run_rust_test(self.src, self)
       else:
+        path = os.path.dirname(self.src)
+        sc_rules = functools.partial(statechart_parser_rules, path=path)
+        test_rules = test_parser_rules(sc_rules)
+        with timer.Context("parse test"):
+          test = parse_f(self.src, {"test" :test_rules})
         from sccd.test.dynamic.test_interpreter import run_variant
-        for v in test_variants:
+        for v in test.variants:
           run_variant(v, self)
 
     except Exception as e:
@@ -53,7 +52,6 @@ if __name__ == '__main__':
         description="Run SCCD tests.",
         epilog="Set environment variable SCCDDEBUG=1 to display debug information about the inner workings of the runtime.")
     argparser.add_argument('path', metavar='PATH', type=str, nargs='*', help="Tests to run. Can be a XML file or a directory. If a directory, it will be recursively scanned for XML files.")
-    argparser.add_argument('--build-dir', metavar='BUILD_DIR', type=str, default='build', help="Directory for built tests. Defaults to 'build'")
     argparser.add_argument('--rust', action='store_true', help="Instead of testing the interpreter, generate Rust code from test and run it. Depends on the 'rustc' command in your environment's PATH. Does not depend on Cargo.")
     args = argparser.parse_args()
 

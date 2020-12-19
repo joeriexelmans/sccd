@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+  "action_lang",
+  "statechart",
+  "controller",
+]

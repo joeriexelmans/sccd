@@ -1,0 +1,11 @@
+[package]
+name = "action_lang"
+version = "0.1.0"
+authors = ["Joeri Exelmans <joeri.exelmans@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+
+[lib]
+name = "action_lang"
+path = "action_lang.rs"

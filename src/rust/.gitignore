@@ -1,0 +1,5 @@
+target
+
+# Since this package contains only libraries, we don't have to check in the lock file
+# according to: https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html
+Cargo.lock

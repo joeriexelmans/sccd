@@ -77,7 +77,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("(output)(OutEvent{port:\"%s\", event:\"%s\"});" % (a.outport, a.name))
 
     def visit_RaiseInternalEvent(self, a):
-        self.w.writeln("internal.raise().%s = Some(%s{});" % (ident_event_field(a.name), (ident_event_type(a.name))))
+        self.w.writeln("internal.get_mut().%s = Some(%s{});" % (ident_event_field(a.name), (ident_event_type(a.name))))
 
     def visit_Code(self, a):
             a.block.accept(self)
@@ -462,7 +462,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                             if bit(e.id) & input_events:
                                 condition.append("let Some(InEvent::%s) = &input" % ident_event_type(e.name))
                             elif bit(e.id) & internal_events:
-                                condition.append("let Some(%s) = &internal.current().%s" % (ident_event_type(e.name), ident_event_field(e.name)))
+                                condition.append("let Some(%s) = &internal.get().%s" % (ident_event_type(e.name), ident_event_field(e.name)))
                             else:
                                 # Bug in SCCD :(
                                 raise Exception("Illegal event ID")

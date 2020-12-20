@@ -147,27 +147,6 @@ class SCCDClosureObject(SCCDType):
         return "Closure(scope=%s, func=%s)" % (self.scope.name, self.function_type._str())
 
 
-# @dataclass(frozen=True, repr=False)
-# class SCCDFunctionCallResult(SCCDType):
-#     function_type: SCCDFunction
-#     return_type: SCCDType
-
-#     def _str(self):
-#         return "CallResult(%s)" % self.return_type._str()
-
-#     def is_eq(self, other):
-#         return return_type.is_eq(other)
-
-# @dataclass(frozen=True, repr=False)
-# class SCCDScope(SCCDType):
-#     scope: 'Scope'
-
-#     def _str(self):
-#         return "Scope(%s)" % scope.name
-
-#     def is_eq(self, other):
-#         return self.scope is other.scope
-
 SCCDBool = _SCCDSimpleType("bool", eq=True, bool_cast=True)
 SCCDInt = _SCCDSimpleType("int", neg=True, summable=True, eq=True, ord=True, bool_cast=True)
 SCCDFloat = _SCCDSimpleType("float", neg=True, summable=True, eq=True, ord=True)

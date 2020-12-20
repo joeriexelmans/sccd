@@ -88,15 +88,36 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
       transitions = [] # All of the statechart's transitions accumulate here, cause we still need to find their targets, which we can't do before the entire state tree has been built. We find their targets when encoutering the </root> closing tag.
       after_id = 0 # After triggers need unique IDs within the scope of the statechart model
 
-      def actions_rules(scope):
+      # A transition's guard expression and action statements can read the transition's event parameters, and also possibly the current state configuration. We therefore now wrap these into a function with a bunch of parameters for those values that we want to bring into scope.
+      def wrap_transition_params(expr_or_stmt, trigger: Trigger):
+        if isinstance(expr_or_stmt, Statement):
+          # Transition's action code
+          body = expr_or_stmt
+        elif isinstance(expr_or_stmt, Expression):
+          # Transition's guard
+          body = ReturnStatement(expr=expr_or_stmt)
+        else:
+          raise Exception("Unexpected error in parser")
+        # The joy of writing expressions in abstract syntax:
+        wrapped = FunctionDeclaration(
+          params_decl=
+            # The param '@conf' (which, on purpose, is an illegal identifier in textual concrete syntax, to prevent naming collisions) will contain the statechart's configuration as a bitmap (SCCDInt). This parameter is currently only used in the expansion of the INSTATE-macro.
+            [ParamDecl(name="@conf", formal_type=SCCDInt)]
+            # Plus all the parameters of the enabling events of the transition's trigger:
+            + [param for event in trigger.enabling for param in event.params_decl],
+          body=body)
+        return wrapped
+
+      def actions_rules(scope, wrap_trigger: Trigger = EMPTY_TRIGGER):
 
         def parse_raise(el):
           params = []
           def parse_param(el):
             expr_text = require_attribute(el, "expr")
             expr = parse_expression(globals, expr_text)
-            expr.init_expr(scope)
-            params.append(expr)
+            function = wrap_transition_params(expr, trigger=wrap_trigger)
+            function.init_expr(scope)
+            params.append(function)
 
           def finish_raise():
             event_name = require_attribute(el, "event")
@@ -120,9 +141,9 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
         def parse_code(el):
           def finish_code():
             block = parse_block(globals, el.text)
-            # local_scope = Scope("local", scope)
-            block.init_stmt(scope)
-            return Code(block)
+            function = wrap_transition_params(block, trigger=wrap_trigger)
+            function.init_expr(scope)
+            return Code(function)
           return ([], finish_code)
 
         return {"raise": parse_raise, "code": parse_code}
@@ -154,7 +175,6 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
         def common(el, constructor):
           short_name = require_attribute(el, "id")
-          # if short_name == "":
           match = re.match("[A-Za-z_][A-Za-z_0-9]*", short_name)
           if match is None or match[0] != short_name:
             raise XmlError("invalid id")
@@ -199,20 +219,19 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
         def parse_onentry(el):
           def finish_onentry(*actions):
             parent.enter = actions
-          return (actions_rules(statechart.scope), finish_onentry)
+          return (actions_rules(scope=statechart.scope), finish_onentry)
 
         def parse_onexit(el):
           def finish_onexit(*actions):
             parent.exit = actions
-          return (actions_rules(statechart.scope), finish_onexit)
+          return (actions_rules(scope=statechart.scope), finish_onexit)
 
         def parse_transition(el):
           if parent is root:
             raise XmlError("Root cannot be source of a transition.")
 
-          scope = Scope("transition", parent=statechart.scope)
           target_string = require_attribute(el, "target")
-          transition = Transition(source=parent, target_string=target_string, scope=scope)
+          transition = Transition(source=parent, target_string=target_string)
 
           have_event_attr = False
           def parse_attr_event(event):
@@ -224,13 +243,6 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             # Optimization: sort events by ID
             # Allows us to save time later.
             positive_events.sort(key=lambda e: e.id)
-
-            def add_params_to_scope(e: EventDecl):
-              for i,p in enumerate(e.params_decl):
-                p.init_param(scope)
-
-            for e in itertools.chain(positive_events, negative_events):
-              add_params_to_scope(e)
 
             if not negative_events:
               transition.trigger = Trigger(positive_events)
@@ -244,25 +256,25 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             if have_event_attr:
               raise XmlError("Cannot specify 'after' and 'event' at the same time.")
             after_expr = parse_expression(globals, after)
-            after_type = after_expr.init_expr(scope)
+            after_type = after_expr.init_expr(statechart.scope)
             check_duration_type(after_type)
-            # after-events should only be generated by the runtime
-            # by putting a '+' in the event name (which isn't an allowed character in the parser),
-            # we can be certain that the user will never generate a valid after-event.
-            # if DEBUG:
-            #   event_name = "+%d_%s_%s" % (after_id, parent.short_name, target_string) # transition gets unique event name
-            # else:
+            # After-events should only be generated by the runtime.
+            # By putting a '+' in the event name (which isn't an allowed character in the parser), we ensure that the user will never accidentally (careless) or purposefully (evil) generate a valid after-event.
             event_name = "+%d" % after_id
             transition.trigger = AfterTrigger(globals.events.assign_id(event_name), event_name, after_id, after_expr)
             statechart.internal_events |= transition.trigger.enabling_bitmap
             after_id += 1
 
           def parse_attr_cond(cond):
-            expr = parse_expression(globals, cond)
-            guard_type = expr.init_expr(scope)
-            if guard_type is not SCCDBool:
+            # Transition's guard expression
+            guard_expr = parse_expression(globals, cond)
+            guard_function = wrap_transition_params(guard_expr, transition.trigger)
+            guard_type = guard_function.init_expr(statechart.scope)
+
+            if guard_type.return_type is not SCCDBool:
               raise XmlError("Guard should be an expression evaluating to 'bool'.")
-            transition.guard = expr
+
+            transition.guard = guard_function
 
           if_attribute(el, "event", parse_attr_event)
           if_attribute(el, "after", parse_attr_after)
@@ -273,7 +285,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             transitions.append((transition, el))
             parent.transitions.append(transition)
 
-          return (actions_rules(scope), finish_transition)
+          return (actions_rules(scope=statechart.scope, wrap_trigger=transition.trigger), finish_transition)
 
         return {"state": parse_state, "parallel": parse_parallel, "history": parse_history, "onentry": parse_onentry, "onexit": parse_onexit, "transition": parse_transition}
 

@@ -33,9 +33,10 @@ class StatechartExecution:
     def initialize(self):
         self.configuration = self.statechart.tree.initial_states
 
-        ctx = EvalContext(execution=self, events=[], memory=self.rhs_memory)
         if self.statechart.datamodel is not None:
             self.statechart.datamodel.exec(self.rhs_memory)
+
+        ctx = EvalContext(memory=self.rhs_memory, execution=self, params=[])
 
         for state in self.statechart.tree.bitmap_to_states(self.configuration):
             print_debug(termcolor.colored('  ENTER %s'%state.full_name, 'green'))
@@ -62,7 +63,7 @@ class StatechartExecution:
                         enter_ids |= self.history_values[t.target_history_id]
                     enter_set = self.statechart.tree.bitmap_to_states(enter_ids)
 
-                ctx = EvalContext(execution=self, events=events, memory=self.rhs_memory)
+                ctx = EvalContext(memory=self.rhs_memory, execution=self, params=get_event_params(events, t.trigger))
 
                 print_debug("fire " + str(t))
 
@@ -84,11 +85,7 @@ class StatechartExecution:
 
                 # execute transition action(s)
                 with timer.Context("actions"):
-                    self.rhs_memory.push_frame(t.scope) # make room for event parameters on stack
-                    if t.trigger:
-                        t.trigger.copy_params_to_stack(events, self.rhs_memory)
                     _perform_actions(ctx, t.actions)
-                    self.rhs_memory.pop_frame()
 
                 with timer.Context("enter states"):
                     for s in enter_set:
@@ -105,17 +102,13 @@ class StatechartExecution:
             e.args = ("During execution of transition %s:\n" % str(t) +str(e),)
             raise
 
+
     def check_guard(self, t: Transition, events: List[InternalEvent]) -> bool:
         try:
             if t.guard is None:
                 return True
             else:
-                self.gc_memory.push_frame(t.scope)
-                # Guard conditions can also refer to event parameters
-                if t.trigger:
-                    t.trigger.copy_params_to_stack(events, self.gc_memory)
-                result = t.guard.eval(self.gc_memory)
-                self.gc_memory.pop_frame()
+                result = t.guard.eval(self.gc_memory)(self.gc_memory, self.configuration, *get_event_params(events, t.trigger))
                 return result
         except Exception as e:
             e.args = ("While checking guard of transition %s:\n" % str(t) + str(e),)
@@ -124,7 +117,7 @@ class StatechartExecution:
     def _start_timers(self, triggers: List[AfterTrigger]):
         for after in triggers:
             delay: Duration = after.delay.eval(
-                EvalContext(execution=self, events=[], memory=self.gc_memory))
+                EvalContext(memory=self.gc_memory, execution=self, params=[]))
             self.timer_ids[after.after_id] = self.schedule_callback(delay, InternalEvent(id=after.id, name=after.name, params=[]), [self.instance])
 
     def _cancel_timers(self, triggers: List[AfterTrigger]):
@@ -150,3 +143,23 @@ class StatechartExecution:
 def _perform_actions(ctx: EvalContext, actions: List[Action]):
     for a in actions:
         a.exec(ctx)
+
+
+def get_event_params(events: List[InternalEvent], trigger) -> List[any]:
+    # Both 'events' and 'self.enabling' are sorted by event ID,
+    # this way we have to iterate over each of both lists at most once.
+    iterator = iter(trigger.enabling)
+    params = []
+    try:
+        event_decl = next(iterator)
+        for e in events:
+            if e.id < event_decl.id:
+                continue
+            else:
+                while e.id > event_decl.id:
+                    event_decl = next(iterator)
+                for p in e.params:
+                    params.append(p)
+    except StopIteration:
+        pass
+    return params

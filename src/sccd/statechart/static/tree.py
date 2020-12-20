@@ -231,11 +231,11 @@ EMPTY_TRIGGER = Trigger(enabling=[])
 class Transition:
     source: State
     target_string: Optional[str]
-    scope: Scope
+    # scope: Scope
 
     target: State = None
 
-    guard: Optional[Expression] = None
+    guard: Optional[FunctionDeclaration] = None
     actions: List[Action] = field(default_factory=list)
     trigger: Trigger = EMPTY_TRIGGER
 

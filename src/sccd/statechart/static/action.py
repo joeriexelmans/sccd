@@ -4,6 +4,7 @@ from abc import *
 from sccd.action_lang.static.expression import *
 from sccd.action_lang.static.statement import *
 from sccd.statechart.dynamic.event import *
+from sccd.util.bitmap import Bitmap
 
 @dataclass
 class SCDurationLiteral(DurationLiteral):
@@ -22,11 +23,11 @@ class SCDurationLiteral(DurationLiteral):
 
 @dataclass
 class EvalContext:
-    __slots__ = ["execution", "events", "memory"]
+    __slots__ = ["memory", "execution", "params"]
     
-    execution: 'StatechartExecution'
-    events: List['Event']
     memory: 'MemoryInterface'
+    execution: 'StatechartExecution'
+    params: List[any]
 
 @dataclass
 class Action(ABC, Visitable):
@@ -41,11 +42,11 @@ class Action(ABC, Visitable):
 @dataclass
 class RaiseEvent(Action):
     name: str
-    params: List[Expression]
+    params: List[FunctionDeclaration]
 
 
-    def _eval_params(self, memory: MemoryInterface) -> List[Any]:
-        return [p.eval(memory) for p in self.params]
+    def _eval_params(self, ctx: EvalContext) -> List[Any]:
+        return [p.eval(ctx.memory)(ctx.memory, ctx.execution.configuration, *ctx.params) for p in self.params]
 
 @dataclass
 class RaiseInternalEvent(RaiseEvent):
@@ -55,7 +56,7 @@ class RaiseInternalEvent(RaiseEvent):
         return '^'+self.name
 
     def exec(self, ctx: EvalContext):
-        params = self._eval_params(ctx.memory)
+        params = self._eval_params(ctx)
         ctx.execution.raise_internal(
             InternalEvent(id=self.event_id, name=self.name, params=params))
 
@@ -64,7 +65,7 @@ class RaiseOutputEvent(RaiseEvent):
     outport: str
 
     def exec(self, ctx: EvalContext):
-        params = self._eval_params(ctx.memory)
+        params = self._eval_params(ctx)
         ctx.execution.raise_output(
             OutputEvent(port=self.outport, name=self.name, params=params))
 
@@ -73,10 +74,10 @@ class RaiseOutputEvent(RaiseEvent):
 
 @dataclass
 class Code(Action):
-    block: Block
+    block: FunctionDeclaration
 
     def exec(self, ctx: EvalContext):
-        self.block.exec(ctx.memory)
+        self.block.eval(ctx.memory)(ctx.memory, ctx.execution.configuration, *ctx.params)
 
     def render(self) -> str:
         return '/'+self.block.render()

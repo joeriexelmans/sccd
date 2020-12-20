@@ -4,9 +4,21 @@ Notes about the future of SCCD
 Long-term vision:
 
   - code generation, work in progress:
-    - Rust as a target. Very portable:
-      - compile to WebAssembly (SCCD in browser)
-      - call from Python, Java, ...
+    - Rust as a target. Benefits:
+      - Very portable:
+        - compile to WebAssembly (SCCD in browser!)
+        - Rust compiler can produce C-libraries: call from Python, Java, ...
+      - Very good performance
+        - Zero-cost abstractions (optimize generated code for readability)
+            -> "Have your cake, and eat it too"
+      - Safety
+
+  - improve action language:
+    - highest priority:
+      - interfacing with external code only works with Python modules
+    - less important, deal with it when it becomes a problem: 
+      - statically typed (good), but no generics (bad)
+      - user cannot define his/her own types
 
   - dynamic creation/destruction of instances (the "CD" part of SCCD)
 

@@ -86,8 +86,6 @@ class Identifier(LValue):
     is_lvalue: Optional[bool] = None
     is_init: Optional[bool] = None
 
-    # is_function_call_result: Optional[SCCDFunctionCallResult] = None
-
     def init_expr(self, scope: Scope) -> SCCDType:
         self.offset, self.type = scope.get_rvalue(self.name)
         self.is_init = False
@@ -98,9 +96,6 @@ class Identifier(LValue):
         return self.type
 
     def init_lvalue(self, scope: Scope, rhs_t: SCCDType, rhs: Expression) -> bool:
-        # if isinstance(rhs_t, SCCDFunctionCallResult):
-            # self.is_function_call_result = rhs_t
-            # rhs_t = rhs_t.return_type
         self.is_lvalue = True
         self.offset, self.is_init = scope.put_lvalue(self.name, rhs_t, rhs)
         return self.is_init

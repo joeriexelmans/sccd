@@ -23,8 +23,6 @@ class TestRustGenerator(ClassDiagramRustGenerator):
 
         self.w.writeln("let mut raised = Vec::<statechart::OutEvent>::new();")
         self.w.writeln("let mut output = |out: statechart::OutEvent| {")
-        if DEBUG:
-            self.w.writeln("  eprintln!(\"^{}:{}\", out.port, out.event);")
         self.w.writeln("  raised.push(out);")
         self.w.writeln("};")
         self.w.writeln("let mut controller = controller::Controller::<InEvent>::new();")
@@ -55,7 +53,8 @@ class TestRustGenerator(ClassDiagramRustGenerator):
         self.w.writeln("fn main() {")
 
         for i, v in enumerate(test.variants):
-            self.w.writeln("  eprintln!(\"Test variant %d\");" % i)
+            self.w.writeln("  eprintln!();")
+            self.w.writeln("  eprintln!(\"Test variant %d of %d\");" % (i+1, len(test.variants)))
             self.w.writeln("  variant%d::run();" % i)
             self.w.writeln("  eprintln!(\"Passed.\");")
         self.w.writeln("}")

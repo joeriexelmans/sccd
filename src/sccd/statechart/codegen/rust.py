@@ -74,10 +74,14 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
     def visit_RaiseOutputEvent(self, a):
         # TODO: evaluate event parameters
+        if DEBUG:
+            self.w.writeln("eprintln!(\"raise out %s:%s\");" % (a.outport, a.name))
         self.w.writeln("(output)(statechart::OutEvent{port:\"%s\", event:\"%s\"});" % (a.outport, a.name))
 
     def visit_RaiseInternalEvent(self, a):
-        self.w.writeln("internal.get_mut().%s = Some(%s{});" % (ident_event_field(a.name), (ident_event_type(a.name))))
+        if DEBUG:
+            self.w.writeln("eprintln!(\"raise internal %s\");" % (a.name))
+        self.w.writeln("internal.raise().%s = Some(%s{});" % (ident_event_field(a.name), (ident_event_type(a.name))))
 
     def visit_Code(self, a):
             a.block.accept(self)
@@ -472,7 +476,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                             if bit(e.id) & input_events:
                                 condition.append("let Some(InEvent::%s) = &input" % ident_event_type(e.name))
                             elif bit(e.id) & internal_events:
-                                condition.append("let Some(%s) = &internal.get().%s" % (ident_event_type(e.name), ident_event_field(e.name)))
+                                condition.append("let Some(%s) = &internal.current().%s" % (ident_event_type(e.name), ident_event_field(e.name)))
                             else:
                                 # Bug in SCCD :(
                                 raise Exception("Illegal event ID")
@@ -668,16 +672,20 @@ class StatechartRustGenerator(ActionLangRustGenerator):
             self.w.writeln("use std::mem::size_of;")
             self.w.writeln("fn debug_print_sizes<TimerId: Copy>() {")
             self.w.writeln("  eprintln!(\"------------------------\");")
+            self.w.writeln("  eprintln!(\"Semantics: %s\");" % sc.semantics)
+            self.w.writeln("  eprintln!(\"------------------------\");")
             self.w.writeln("  eprintln!(\"info: Statechart: {} bytes\", size_of::<Statechart<TimerId>>());")
             self.w.writeln("  eprintln!(\"info:   DataModel: {} bytes\", size_of::<DataModel>());")
             self.w.writeln("  eprintln!(\"info:   Timers: {} bytes\", size_of::<Timers<TimerId>>());")
-            def write_state_size(state):
-                self.w.writeln("  eprintln!(\"info:   State %s: {} bytes\", size_of::<%s>());" % (state.full_name, ident_type(state)))
+            self.w.writeln("  eprintln!(\"info:   History: {} bytes\", %s);" % " + ".join(["0"] + list("size_of::<%s>()" % ident_type(h.parent) for h in tree.history_states)))
+
+            def write_state_size(state, indent=0):
+                self.w.writeln("  eprintln!(\"info:   %sState %s: {} bytes\", size_of::<%s>());" % ("  "*indent, state.full_name, ident_type(state)))
                 for child in state.real_children:
-                    write_state_size(child)
+                    write_state_size(child, indent+1)
             write_state_size(tree.root)
             self.w.writeln("  eprintln!(\"info: InEvent: {} bytes\", size_of::<InEvent>());")
-            self.w.writeln("  eprintln!(\"info: statechart::OutEvent: {} bytes\", size_of::<statechart::OutEvent>());")
+            self.w.writeln("  eprintln!(\"info: OutEvent: {} bytes\", size_of::<statechart::OutEvent>());")
             self.w.writeln("  eprintln!(\"info: Arenas: {} bytes\", size_of::<Arenas>());")
             self.w.writeln("  eprintln!(\"------------------------\");")
             self.w.writeln("}")

@@ -1,8 +1,8 @@
 // Helpers and traits implemented by, or used by from-statechart-generated Rust code.
 
 pub trait EventLifeline<T> {
-  fn get(&self) -> &T;
-  fn get_mut(&mut self) -> &mut T;
+  fn current(&self) -> &T;
+  fn raise(&mut self) -> &mut T;
   fn cycle(&mut self);
 }
 
@@ -12,10 +12,10 @@ pub struct SameRoundLifeline<T> {
 }
 
 impl<T: Default> EventLifeline<T> for SameRoundLifeline<T> {
-  fn get(&self) -> &T {
+  fn current(&self) -> &T {
     &self.current
   }
-  fn get_mut(&mut self) -> &mut T {
+  fn raise(&mut self) -> &mut T {
     &mut self.current
   }
   fn cycle(&mut self) {
@@ -43,16 +43,17 @@ pub struct NextRoundLifeline<T> {
 }
 
 impl<T: Default> EventLifeline<T> for NextRoundLifeline<T> {
-  fn get(&self) -> &T {
+  fn current(&self) -> &T {
     match self.current {
       Which::One => &self.one,
       Which::Two => &self.two,
     }
   }
-  fn get_mut(&mut self) -> &mut T {
+  fn raise(&mut self) -> &mut T {
     match self.current {
-      Which::One => &mut self.one,
-      Which::Two => &mut self.two,
+      // Raise in the next round
+      Which::One => &mut self.two,
+      Which::Two => &mut self.one,
     }
   }
   fn cycle(&mut self) {

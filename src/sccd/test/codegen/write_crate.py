@@ -6,11 +6,7 @@ from functools import partial
 import sccd
 RUST_DIR = os.path.dirname(sccd.__file__) + "/../../rust"
 
-# High-level function, that takes a ...
-#  - statechart-xml
-#  - class-diagram-xml
-#  - test-xml
-# ... file and generates from it a Rust crate, which is written to filesystem as a directory.
+# Quick and dirty high-level function, taking a statechart / class diagram / test model in XML format and generating from it a Rust crate, which is written to the filesystem as a directory.
 def write_crate(src, target):
     path = os.path.dirname(src)
 

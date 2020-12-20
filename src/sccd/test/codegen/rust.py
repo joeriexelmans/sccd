@@ -10,7 +10,7 @@ class TestRustGenerator(ClassDiagramRustGenerator):
     def visit_TestVariant(self, variant):
         variant.cd.accept(self)
 
-        self.w.writeln("pub fn run() {")
+        self.w.writeln("pub fn run_test() {")
         self.w.indent()
 
         self.w.writeln("use sccd::controller;")
@@ -21,21 +21,30 @@ class TestRustGenerator(ClassDiagramRustGenerator):
             self.w.writeln("debug_print_sizes::<controller::TimerId>();")
         self.w.writeln();
 
+        self.w.writeln("// Setup ...")
         self.w.writeln("let mut raised = Vec::<statechart::OutEvent>::new();")
         self.w.writeln("let mut output = |out: statechart::OutEvent| {")
         self.w.writeln("  raised.push(out);")
         self.w.writeln("};")
         self.w.writeln("let mut controller = controller::Controller::<InEvent>::new();")
         self.w.writeln("let mut sc: Statechart::<controller::TimerId> = Default::default();")
+        self.w.writeln()
+        self.w.writeln("// Initialize statechart (execute actions of entering default states)")
         self.w.writeln("sc.init(&mut controller, &mut output);")
+        self.w.writeln()
+        self.w.writeln("// Add test input")
         for i in variant.input:
             if len(i.events) > 1:
                 raise UnsupportedFeature("Multiple simultaneous input events not supported")
             elif len(i.events) == 0:
                 raise UnsupportedFeature("Test declares empty bag of input events")
             self.w.writeln("controller.set_timeout(%d, InEvent::%s);" % (i.timestamp.opt, ident_event_type(i.events[0].name)))
+        self.w.writeln()
 
+        self.w.writeln("// Run simulation, as-fast-as-possible")
         self.w.writeln("controller.run_until(&mut sc, controller::Until::Eternity, &mut output);")
+        self.w.writeln()
+        self.w.writeln("// Check if output is correct")
         self.w.writeln("assert_eq!(raised, [%s]);" % ", ".join('statechart::OutEvent{port:"%s", event:"%s"}' % (e.port, e.name) for o in variant.output for e in o))
 
         self.w.dedent()
@@ -43,7 +52,7 @@ class TestRustGenerator(ClassDiagramRustGenerator):
 
     def visit_Test(self, test):
         for i, v in enumerate(test.variants):
-            self.w.writeln("mod variant%d {" % i)
+            self.w.writeln("mod variant%d {" % (i+1))
             self.w.indent()
             v.accept(self)
             self.w.dedent()
@@ -55,7 +64,7 @@ class TestRustGenerator(ClassDiagramRustGenerator):
         for i, v in enumerate(test.variants):
             self.w.writeln("  eprintln!();")
             self.w.writeln("  eprintln!(\"Test variant %d of %d\");" % (i+1, len(test.variants)))
-            self.w.writeln("  variant%d::run();" % i)
+            self.w.writeln("  variant%d::run_test();" % (i+1))
             self.w.writeln("  eprintln!(\"Passed.\");")
         self.w.writeln("}")
         self.w.writeln()

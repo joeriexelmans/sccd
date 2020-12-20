@@ -3,11 +3,10 @@ Notes about the future of SCCD
 
 Long-term vision:
 
-  - execute SCCD models in web browsers
-    - through supporting JavaScript (or TypeScript) as:
-        - a port of the runtime
-        - a target language
-    - through supporting C as target language, and compiling to WebAssembly
+  - code generation, work in progress:
+    - Rust as a target. Very portable:
+      - compile to WebAssembly (SCCD in browser)
+      - call from Python, Java, ...
 
   - dynamic creation/destruction of instances (the "CD" part of SCCD)
 
@@ -15,11 +14,6 @@ Long-term vision:
     - most likely in diagrams.net ("drawio")
         - convert drawio (XML) models to SCCDXML
         - statechart editing plugin
-
-  - code generation
-    - generating portable C code (or: Rust) may be the most flexible option:
-      - compile to WebAssembly
-      - call from Python, Java, ...
 
   - improve statechart "interface" definition: in/out event, variables (+ observers?), functions, objects
     -> YAKINDU as inspiration

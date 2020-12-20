@@ -48,6 +48,7 @@ Tests currently passing (flag --rust):
 Currently unimplemented:
 
     - event parameters
+    - builtin functions: e.g. INSTATE (should be turned into a macro)
     - memory protocol semantics
     - 'queuing' internal event semantics
     - concurrency semantics

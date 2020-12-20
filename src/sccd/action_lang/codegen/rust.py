@@ -66,7 +66,7 @@ class ScopeHelper():
             writer.writeln("let mut scope = %s {" % type_name)
             writer.writeln("  _base: scope,")
             for v in self.current().scope.variables[start:end]:
-                writer.writeln("  %s," % v.name)
+                writer.writeln("  %s: local_%s," % (v.name, v.name))
             writer.writeln("};")
 
         self.current().committed = end
@@ -257,6 +257,7 @@ class ActionLangRustGenerator(Visitor):
         # self.w.wno(") ")
 
     def visit_ParamDecl(self, expr):
+        self.w.wno("local_")
         self.w.wno(expr.name)
         self.w.wno(": ")
         expr.formal_type.accept(self)
@@ -302,13 +303,16 @@ class ActionLangRustGenerator(Visitor):
 
         if lval.is_init:
             self.w.wno("let mut ")
+            self.w.wno("local_" + lval.name)
         else:
             if lval.offset < 0:
                 self.w.wno("parent%d." % self.scope.current().scope.nested_levels(lval.offset))
+                self.w.wno(lval.name)
             elif lval.offset < self.scope.current().committed:
                 self.w.wno("scope.")
-
-        self.w.wno(lval.name)
+                self.w.wno(lval.name)
+            else:
+                self.w.wno("local_" + lval.name)
 
     def visit_SCCDClosureObject(self, type):
         self.w.wno("(%s, " % self.scope.type(type.scope, type.scope.size()))

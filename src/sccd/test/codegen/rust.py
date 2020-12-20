@@ -17,6 +17,8 @@ class TestRustGenerator(ClassDiagramRustGenerator):
         self.w.writeln("use sccd::statechart;")
         self.w.writeln("use sccd::statechart::SC;")
         self.w.writeln("use sccd::statechart::Scheduler;")
+        if DEBUG:
+            self.w.writeln("debug_print_sizes::<controller::TimerId>();")
         self.w.writeln();
 
         self.w.writeln("let mut raised = Vec::<statechart::OutEvent>::new();")
@@ -51,8 +53,10 @@ class TestRustGenerator(ClassDiagramRustGenerator):
             self.w.writeln()
 
         self.w.writeln("fn main() {")
+
         for i, v in enumerate(test.variants):
+            self.w.writeln("  eprintln!(\"Test variant %d\");" % i)
             self.w.writeln("  variant%d::run();" % i)
-            self.w.writeln("  eprintln!(\"Test variant %d passed\");" % i)
+            self.w.writeln("  eprintln!(\"Passed.\");")
         self.w.writeln("}")
         self.w.writeln()

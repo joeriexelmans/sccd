@@ -666,11 +666,11 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         if DEBUG:
             self.w.writeln("use std::mem::size_of;")
-            self.w.writeln("fn debug_print_sizes() {")
+            self.w.writeln("fn debug_print_sizes<TimerId: Copy>() {")
             self.w.writeln("  eprintln!(\"------------------------\");")
-            self.w.writeln("  eprintln!(\"info: Statechart: {} bytes\", size_of::<Statechart>());")
+            self.w.writeln("  eprintln!(\"info: Statechart: {} bytes\", size_of::<Statechart<TimerId>>());")
             self.w.writeln("  eprintln!(\"info:   DataModel: {} bytes\", size_of::<DataModel>());")
-            self.w.writeln("  eprintln!(\"info:   Timers: {} bytes\", size_of::<Timers>());")
+            self.w.writeln("  eprintln!(\"info:   Timers: {} bytes\", size_of::<Timers<TimerId>>());")
             def write_state_size(state):
                 self.w.writeln("  eprintln!(\"info:   State %s: {} bytes\", size_of::<%s>());" % (state.full_name, ident_type(state)))
                 for child in state.real_children:

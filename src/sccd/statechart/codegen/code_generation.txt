@@ -45,13 +45,6 @@ Tests currently passing (flag --rust):
   xml_syntax/stateref/test_nested_absolute.xml
   xml_syntax/stateref/test_nested_relative.xml
 
-Currently unimplemented:
-
-    - event parameters
-    - builtin functions: e.g. INSTATE (should be turned into a macro)
-    - memory protocol semantics
-    - 'queuing' internal event semantics
-    - concurrency semantics
 
 Roadmap
 -------
@@ -100,6 +93,37 @@ Roadmap
 
   (DONE) Milestone 6: Action language
 
+  Milestone 7: INSTATE-function -> INSTATE-macro
+
+    - INVARIANT: Action lang must never depend on statechart lang!
+      - Evaluation of action lang expression can only read/write to the expression's scope (and parent scopes, if expression occurs in a function)
+        -> Action lang expression evaluation cannot take mut ref to "state configuration"
+
+    - Background: Currently implemented in interpreter as a function in "builtin"-scope:
+      - Builtin-scope instantiated when statechart is instantiated
+      - INSTATE-function is a value in "builtin" scope, a function partially bound to the statechart's execution state (which contains the "state configuration")
+      - INSTATE-function takes an array of strings of absolutate paths to states. At runtime, these strings are used as keys in a dictionary to convert them to state IDs.
+        -> Better to statically convert the absolute state paths to state IDs by introducing *macros*.
+
+    - Better implementation:
+      1) Support macros in action lang:
+        - From the type system's point of view, a macro call is just a function call (depending on the macro called, takes typed parameters and returns a typed value)
+        - Macro body is executed statically, and during type check (= right after constructing AST).
+          -> For INSTATE-macro, the macro body converts every state path to its correct state object.
+        - Action lang parser constructor gets a dict of supported macros, their types, and their "bodies"
+      2) Based on the insight that INSTATE cannot occur everywhere (e.g. cannot occur in datamodel block), in fact it can only occur during a transition's guard eval or actions, treat these as follows:
+        - Wrap guard eval or action code in an implicit function with as parameter the "state configuration".
+        - Expansion of the INSTATE-macro then reads this parameter.
+
+
+  Milestone n+1: "TODO"
+
+    - Syntactic output events
+    - Event parameters
+    - Memory Protocol semantics
+    - 'Queuing' internal event semantics
+    - Concurrency semantics
+
 
 Insights
 --------
@@ -107,7 +131,6 @@ Insights
 - Rust compiler warnings are actually useful for the modeler:
   - e.g. An unexecutable transition is detected as an unreachable statement
   - e.g. An unused event is detected as an unused variable or never-constructed enum variant.
-
 
 
 Performance over time

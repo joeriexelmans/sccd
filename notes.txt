@@ -37,6 +37,8 @@ Long-term vision:
 
 Random notes:
 
+  - Durations in action language are a single type, consisting of an integer value and a unit. Perhaps it would be better to have a separate duration type for every unit. Especially in Rust it is better to leave the units to the type system, and only work with 'the numbers' in the machine code :)
+
   - Statechart interface:
       - want YAKINDU style: strict separation between:
         - input events

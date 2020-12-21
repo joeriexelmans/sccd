@@ -52,6 +52,9 @@ class ExpressionTransformer(Transformer):
   def func_call(self, node):
     return FunctionCall(node[0], node[1].children)
 
+  def macro_call(self, node):
+    return MacroCall(node[0], node[1].children)
+
   def array_indexed(self, node):
     return ArrayIndexed(node[0], node[1])
 

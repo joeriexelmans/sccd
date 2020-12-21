@@ -33,7 +33,7 @@ def ident_enum_variant(state: State) -> str:
     # We know the direct children of a state must have unique names relative to each other,
     # and enum variants are scoped locally, so we can use the short name here.
     # Furthermore, the XML parser asserts that state ids are valid identifiers in Rust.
-    return "S" + state.short_name
+    return "S_" + state.short_name
 
 def ident_field(state: State) -> str:
     return "s" + snake_case(state)
@@ -72,6 +72,35 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         super().__init__(w)
         self.globals = globals
 
+        self.parallel_state_cache = {}
+
+        self.state_stack = []
+
+    def get_parallel_states(self, state):
+        try:
+            return self.parallel_state_cache[state]
+        except KeyError:
+            parallel_states = []
+            while state.parent is not None:
+                # print("state:" , state.full_name)
+                # print("parent:" , state.parent.full_name, type(state.parent))
+                if isinstance(state.parent.type, AndState):
+                    # print("parent is And-state")
+                    for sibling in state.parent.children:
+                        # print("sibling: ", sibling.full_name)
+                        if sibling is not state:
+                            parallel_states.append(sibling)
+                state = state.parent
+            self.parallel_state_cache[state] = parallel_states
+            return parallel_states
+
+    def get_parallel_states_tuple(self):
+        parallel_states = self.get_parallel_states(self.state_stack[-1])
+        return "(" + ", ".join("*"+ident_var(s) for s in parallel_states) + ")"
+
+    def visit_SCCDStateConfiguration(self, type):
+        self.w.wno("(%s)" % ", ".join(ident_type(s) for s in self.get_parallel_states(type.state)))
+
     def visit_RaiseOutputEvent(self, a):
         # TODO: evaluate event parameters
         if DEBUG:
@@ -84,9 +113,14 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("internal.raise().%s = Some(%s{});" % (ident_event_field(a.name), (ident_event_type(a.name))))
 
     def visit_Code(self, a):
-            a.block.accept(self)
+            self.w.write()
+            a.block.accept(self) # block is a function
+            self.w.wno("(%s, scope);" % self.get_parallel_states_tuple()) # call it!
+            self.w.wnoln()
 
     def visit_State(self, state):
+        self.state_stack.append(state)
+
         # visit children first
         for c in state.real_children:
             c.accept(self)
@@ -189,6 +223,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         self.w.writeln("}")
         self.w.writeln()
+
+        self.state_stack.pop()
 
     def visit_Statechart(self, sc):
         self.scope.push(sc.scope)
@@ -305,7 +341,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         datamodel_type = self.scope.commit(sc.scope.size(), self.w)
         self.w.dedent(); self.w.dedent();
         self.w.writeln("    Self {")
-        self.w.writeln("      current_state: Default::default(),")
+        self.w.writeln("      configuration: Default::default(),")
         for h in tree.history_states:
             self.w.writeln("      %s: Default::default()," % (ident_history_field(h)))
         self.w.writeln("      timers: Default::default(),")
@@ -315,7 +351,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("}")
         self.w.writeln("type DataModel = %s;" % datamodel_type)
         self.w.writeln("pub struct Statechart<TimerId> {")
-        self.w.writeln("  current_state: %s," % ident_type(tree.root))
+        self.w.writeln("  configuration: %s," % ident_type(tree.root))
         # We always store a history value as 'deep' (also for shallow history).
         # TODO: We may save a tiny bit of space in some rare cases by storing shallow history as only the exited child of the Or-state.
         for h in tree.history_states:
@@ -325,17 +361,16 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("}")
         self.w.writeln()
 
-        self.write_decls()
-
         # Function fair_step: a single "Take One" Maximality 'round' (= nonoverlapping arenas allowed to fire 1 transition)
         self.w.writeln("fn fair_step<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(sc: &mut Statechart<TimerId>, input: Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {")
         self.w.writeln("  let mut fired: Arenas = ARENA_NONE;")
         self.w.writeln("  let mut scope = &mut sc.data;")
-        self.w.writeln("  let %s = &mut sc.current_state;" % ident_var(tree.root))
+        self.w.writeln("  let %s = &mut sc.configuration;" % ident_var(tree.root))
         self.w.indent()
 
         transitions_written = []
         def write_transitions(state: State):
+            self.state_stack.append(state)
 
             # Many of the states to exit can be computed statically (i.e. they are always the same)
             # The one we cannot compute statically are:
@@ -361,7 +396,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
                     if len(exit_path) == 1:
                         # Exit s:
-                        self.w.writeln("%s.exit_current(&mut sc.timers, *parent1, internal, sched, output);" % (ident_var(s)))
+                        self.w.writeln("%s.exit_current(&mut sc.timers, scope, internal, sched, output);" % (ident_var(s)))
                     else:
                         # Exit children:
                         if isinstance(s.type, AndState):
@@ -369,12 +404,12 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                                 if exit_path[1] is c:
                                     write_exit(exit_path[1:]) # continue recursively
                                 else:
-                                    self.w.writeln("%s.exit_current(&mut sc.timers, *parent1, internal, sched, output);" % (ident_var(c)))
+                                    self.w.writeln("%s.exit_current(&mut sc.timers, scope, internal, sched, output);" % (ident_var(c)))
                         elif isinstance(s.type, OrState):
                             write_exit(exit_path[1:]) # continue recursively with the next child on the exit path
 
                         # Exit s:
-                        self.w.writeln("%s::exit_actions(&mut sc.timers, *parent1, internal, sched, output);" % (ident_type(s)))
+                        self.w.writeln("%s::exit_actions(&mut sc.timers, scope, internal, sched, output);" % (ident_type(s)))
 
                     # Store history
                     if s.deep_history:
@@ -398,19 +433,19 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                     if len(enter_path) == 1:
                         # Target state.
                         if isinstance(s, HistoryState):
-                            self.w.writeln("sc.%s.enter_current(&mut sc.timers, *parent1, internal, sched, output); // Enter actions for history state" %(ident_history_field(s)))
+                            self.w.writeln("sc.%s.enter_current(&mut sc.timers, scope, internal, sched, output); // Enter actions for history state" %(ident_history_field(s)))
                         else:
-                            self.w.writeln("%s::enter_default(&mut sc.timers, *parent1, internal, sched, output);" % (ident_type(s)))
+                            self.w.writeln("%s::enter_default(&mut sc.timers, scope, internal, sched, output);" % (ident_type(s)))
                     else:
                         # Enter s:
-                        self.w.writeln("%s::enter_actions(&mut sc.timers, *parent1, internal, sched, output);" % (ident_type(s)))
+                        self.w.writeln("%s::enter_actions(&mut sc.timers, scope, internal, sched, output);" % (ident_type(s)))
                         # Enter children:
                         if isinstance(s.type, AndState):
                             for c in s.children:
                                 if enter_path[1] is c:
                                     write_enter(enter_path[1:]) # continue recursively
                                 else:
-                                    self.w.writeln("%s::enter_default(&mut sc.timers, *parent1, internal, sched, output);" % (ident_type(c)))
+                                    self.w.writeln("%s::enter_default(&mut sc.timers, scope, internal, sched, output);" % (ident_type(c)))
                         elif isinstance(s.type, OrState):
                             if len(s.children) > 0:
                                 write_enter(enter_path[1:]) # continue recursively with the next child on the enter path
@@ -478,19 +513,21 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                             elif bit(e.id) & internal_events:
                                 condition.append("let Some(%s) = &internal.current().%s" % (ident_event_type(e.name), ident_event_field(e.name)))
                             else:
-                                # Bug in SCCD :(
-                                raise Exception("Illegal event ID")
+                                raise Exception("Illegal event ID - Bug in SCCD :(")
                         self.w.writeln("if %s {" % " && ".join(condition))
                         self.w.indent()
 
-                    self.w.writeln("let parent1 = &mut scope;")
-
-                    if t.scope.size() > 0:
-                        raise UnsupportedFeature("Event parameters")
-
                     if t.guard is not None:
+                        if t.guard.scope.size() > 1:
+                            raise UnsupportedFeature("Guard reads an event parameter")
                         self.w.write("if ")
-                        t.guard.accept(self)
+                        t.guard.accept(self) # guard is a function...
+                        self.w.wno("(") # call it!
+                        self.w.wno(self.get_parallel_states_tuple())
+                        self.w.wno(", ")
+                        # TODO: write event parameters here
+                        self.write_parent_call_params(t.guard.scope)
+                        self.w.wno(")")
                         self.w.wnoln(" {")
                         self.w.indent()
 
@@ -570,10 +607,10 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
                         self.w.writeln("'%s: loop {" % ident_arena_label(state))
                         self.w.indent()
-                        self.w.writeln("match %s {" % ident_var(state))
+                        self.w.writeln("match *%s {" % ident_var(state))
                         for child in state.real_children:
                             self.w.indent()
-                            self.w.writeln("%s::%s(%s) => {" % (ident_type(state), ident_enum_variant(child), ident_var(child)))
+                            self.w.writeln("%s::%s(ref mut %s) => {" % (ident_type(state), ident_enum_variant(child), ident_var(child)))
                             self.w.indent()
                             write_transitions(child)
                             self.w.dedent()
@@ -600,6 +637,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                 child()
             else:
                 raise UnsupportedFeature("Priority semantics %s" % sc.semantics.hierarchical_priority)
+
+            self.state_stack.pop()
 
         write_transitions(tree.root)
 
@@ -667,6 +706,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         # Write state types
         tree.root.accept(self)
+
+        self.write_decls()
 
         if DEBUG:
             self.w.writeln("use std::mem::size_of;")

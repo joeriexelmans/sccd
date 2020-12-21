@@ -22,8 +22,8 @@ class IndentingWriter:
     def wno(self, s):
         self.out.write(s)
 
-    def wnoln(self, s):
+    def wnoln(self, s=""):
         self.out.write(s + '\n')
 
-    def write(self, s):
+    def write(self, s=""):
         self.out.write(' '*self.state + s)

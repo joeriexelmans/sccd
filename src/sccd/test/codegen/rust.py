@@ -1,6 +1,7 @@
 from sccd.test.static.syntax import *
 from sccd.util.indenting_writer import *
 from sccd.cd.codegen.rust import ClassDiagramRustGenerator
+from sccd.action_lang.codegen.rust import UnsupportedFeature
 from sccd.statechart.codegen.rust import ident_event_type
 
 class TestRustGenerator(ClassDiagramRustGenerator):

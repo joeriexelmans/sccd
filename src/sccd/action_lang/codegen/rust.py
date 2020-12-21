@@ -78,8 +78,6 @@ class ActionLangRustGenerator(Visitor):
         self.scope = ScopeHelper()
         self.functions_to_write = [] # Function and Rust identifier
 
-        self.function_types = {} # maps Function to Rust type
-
     def default(self, what):
         # self.w.wno("<%s>" % what)
         raise UnsupportedFeature(what)
@@ -121,8 +119,6 @@ class ActionLangRustGenerator(Visitor):
     # When compiling Rust code, the Visitable.accept method must be called on the root of the AST, to write code wherever desired (e.g. in a main-function) followed by 'write_scope' at the module level.
     def write_decls(self):
 
-        function_types = {}
-
         # Write functions
         for function, identifier in self.functions_to_write:
             scope = function.scope
@@ -144,8 +140,11 @@ class ActionLangRustGenerator(Visitor):
             self.w.writeln("let scope = action_lang::Empty{};")
 
             self.scope.push(function.scope)
+            
             # Parameters are part of function's scope
             self.scope.commit(len(function.params_decl), self.w)
+
+            # Visit the body. This may cause new functions to be added to self.functions_to_write, which we are iterating over (which is allowed in Python), so those will also be dealt with in this loop.
             function.body.accept(self)
             self.scope.pop()
 
@@ -341,4 +340,5 @@ class ActionLangRustGenerator(Visitor):
     def visit__SCCDSimpleType(self, type):
         self.w.wno(type.name
             .replace("int", "i32")
-            .replace("float", "f64"))
+            .replace("float", "f64")
+        )

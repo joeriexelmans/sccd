@@ -39,11 +39,15 @@
      | "(" expr ")"             -> group
      | literal
      | func_call
+     | macro_call
      | array_indexed
      | func_decl
      | array
 
 IDENTIFIER: /[A-Za-z_][A-Za-z_0-9]*/ 
+
+MACRO_IDENTIFIER: "@" IDENTIFIER
+macro_call: MACRO_IDENTIFIER "(" param_list ")"
 
 func_call: atom "(" param_list ")"
 param_list: ( expr ("," expr)* )?  -> params

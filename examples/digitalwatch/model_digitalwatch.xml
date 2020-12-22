@@ -42,7 +42,7 @@
       <parallel id="P">
         <state id="Alarm" initial="Off">
           <state id="Off">
-            <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/TimeUpdate"])' target="../On"/>
+            <transition event="bottomLeftPressed" cond='@in("/P/Display/TimeUpdate")' target="../On"/>
           </state>
 
           <state id="On" initial="NotBlinking">
@@ -55,7 +55,7 @@
 
             <state id="NotBlinking">
               <transition event="alarmStart" target="../Blinking"/>
-              <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/TimeUpdate"])' target="../../Off"/>
+              <transition event="bottomLeftPressed" cond='@in("/P/Display/TimeUpdate")' target="../../Off"/>
             </state>
 
             <state id="Blinking" initial="On">
@@ -106,7 +106,7 @@
         <state id="ChronoWrapper">
           <state id="Chrono" initial="Stopped">
             <state id="Stopped">
-              <transition event="bottomRightPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target="../Running"/>
+              <transition event="bottomRightPressed" cond='@in("/P/Display/ChronoUpdate")' target="../Running"/>
             </state>
 
             <state id="Running">
@@ -114,10 +114,10 @@
                 <raise event="increaseChronoByOne"/>
                 <raise event="int_refresh_chrono"/>
               </transition>
-              <transition event="bottomRightPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target="../Stopped"/>
+              <transition event="bottomRightPressed" cond='@in("/P/Display/ChronoUpdate")' target="../Stopped"/>
             </state>
 
-            <transition event="bottomLeftPressed" cond='INSTATE(["/P/Display/ChronoUpdate"])' target="Stopped">
+            <transition event="bottomLeftPressed" cond='@in("/P/Display/ChronoUpdate")' target="Stopped">
                 <raise event="resetChrono"/>
                 <raise event="int_refresh_chrono"/>
             </transition>
@@ -201,7 +201,7 @@
 
         <state id="Time" initial="Increasing">
           <state id="Increasing">
-<!--             <transition after="1 s" cond='INSTATE(["/P/Alarm/On"])' target=".">
+<!--             <transition after="1 s" cond='@in("/P/Alarm/On")' target=".">
               <raise event="increaseTimeByOne"/>
               <raise event="checkTime"/>
               <raise event="int_refresh_time"/>

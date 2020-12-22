@@ -7,8 +7,6 @@
 *.userprefs
 *~
 RemoteSystemsTempFiles
-csharp_tests/test-results
-csharp_tests/bin
 src/build
 # **/*target*
 test/build/
@@ -20,3 +18,4 @@ src/MANIFEST
 __pycache__/
 .mypy_cache/
 *.smcat
+codegen/

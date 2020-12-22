@@ -426,7 +426,7 @@ class StateTree:
 
     def lca(self, s1: State, s2: State) -> State:
         # Intersection between source & target ancestors, last member in depth-first sorted state list.
-        return self.state_list[bm_highest_bit((s1.ancestors | s1.state_id_bitmap) & (s2.ancestors | s2.state_id_bitmap))]
+        return self.state_list[bm_highest_bit((s1.ancestors) & (s2.ancestors))]
 
 def states_to_bitmap(states: Iterable[State]) -> Bitmap:
     return bm_from_list(s.state_id for s in states)

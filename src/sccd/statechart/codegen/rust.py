@@ -116,7 +116,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         source = instate.ref.source
         target = instate.ref.target
 
-        self.w.wnoln("{ // macro expansion for INSTATE(\"%s\")" % target.full_name)
+        self.w.wnoln("{ // macro expansion for @in(\"%s\")" % target.full_name)
         self.w.indent()
 
         # Non-exhaustive set of current states, given that 'source' is a current state
@@ -618,7 +618,6 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                         self.w.writeln("// Transition's actions")
                         for a in t.actions:
                             a.accept(self)
-                        # compile_actions(t.actions, w)
 
                     self.w.writeln("// Enter actions")
                     write_enter(enter_path)

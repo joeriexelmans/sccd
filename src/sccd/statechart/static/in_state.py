@@ -17,7 +17,7 @@ class InStateMacroExpansion(Expression):
 
     def eval(self, memory: MemoryInterface):
         state_configuration = memory.load(self.offset)
-        return self.ref.target.state_id_bitmap & state_configuration
+        return bool(self.ref.target.state_id_bitmap & state_configuration)
 
     def render(self):
         return "@in(" + self.ref.target.full_name + ')'

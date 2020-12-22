@@ -91,10 +91,24 @@ class StatechartRustGenerator(ActionLangRustGenerator):
             self.parallel_state_cache[state] = parallel_states
             return parallel_states
 
-    def get_parallel_states_tuple(self):
-        parallel_states = self.get_parallel_states(self.state_stack[-1])
+    def get_parallel_states_tuple(self, state):
+        parallel_states = self.get_parallel_states(state)
         if len(parallel_states) > 0:
             return "(" + ", ".join("*"+ident_var(s) for s in parallel_states) + ", )"
+        else:
+            return "()"
+
+    def get_parallel_states_tuple_type(self, state):
+        parallel_states = self.get_parallel_states(state)
+        if len(parallel_states) > 0:
+            return "(%s, )" % ", ".join(ident_type(s) for s in parallel_states)
+        else:
+            return "()"
+
+    def get_parallel_states_pattern_matched(self, state):
+        parallel_states = self.get_parallel_states(state)
+        if len(parallel_states) > 0:
+            return "(%s, )" % ", ".join("%s: %s" % (ident_var(s), ident_type(s)) for s in parallel_states)
         else:
             return "()"
 
@@ -114,7 +128,9 @@ class StatechartRustGenerator(ActionLangRustGenerator):
             self.w.wno("ref ")
             self.w.wno(ident_var(parent))
             self.w.wno(", ")
-        self.w.wnoln(") = %s;" % ident_local("@conf"))
+        self.w.wno(") = ")
+        self.scope.write_rvalue("@conf", instate.offset, self.w)
+        self.w.wnoln(";")
 
         for parent in parents + [source]:
             if is_ancestor(parent=target, child=parent):
@@ -151,14 +167,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.dedent()
         self.w.write("}")
 
-        # self.w.wno("false")
-
     def visit_SCCDStateConfiguration(self, type):
-        parallel_states = self.get_parallel_states(type.state)
-        if len(parallel_states) > 0:
-            self.w.wno("(%s, )" % ", ".join(ident_type(s) for s in parallel_states))
-        else:
-            self.w.wno("()")
+        self.w.wno(self.get_parallel_states_tuple_type(type.state))
 
     def visit_RaiseOutputEvent(self, a):
         # TODO: evaluate event parameters
@@ -177,7 +187,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         self.w.write()
         a.block.accept(self) # block is a function
-        self.w.wno("(%s, scope);" % self.get_parallel_states_tuple()) # call it!
+        self.w.wno("(%s, scope);" % self.get_parallel_states_tuple(self.state_stack[-1])) # call it!
         self.w.wnoln()
 
     def visit_State(self, state):
@@ -385,12 +395,6 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         for arena, bm in arenas.items():
             self.w.writeln("const %s: Arenas = %s;" % (ident_arena_const(arena), bin(bm)))
         self.w.writeln("const ARENA_UNSTABLE: Arenas = %s; // indicates any transition fired with an unstable target" % bin(2**len(arenas.items())))
-        # else:
-        #     self.w.writeln("type Arenas = bool;")
-        #     self.w.writeln("const ARENA_NONE: Arenas = false;")
-        #     for arena, bm in arenas.items():
-        #         self.w.writeln("const %s: Arenas = true;" % ident_arena_const(arena))
-        #     self.w.writeln("const ARENA_UNSTABLE: Arenas = false; // inapplicable to chosen semantics - all transition targets considered stable")
         self.w.writeln()
 
         # Write statechart type
@@ -586,7 +590,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                         self.w.write("if ")
                         t.guard.accept(self) # guard is a function...
                         self.w.wno("(") # call it!
-                        self.w.wno(self.get_parallel_states_tuple())
+                        self.w.wno(self.get_parallel_states_tuple(t.source))
                         self.w.wno(", ")
                         # TODO: write event parameters here
                         self.write_parent_call_params(t.guard.scope)

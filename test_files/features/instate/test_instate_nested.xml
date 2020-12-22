@@ -1,0 +1,43 @@
+<test>
+  <statechart>
+    <root>
+      <parallel id="p">
+        <state id="o0" initial="a">
+          <state id="a">
+            <transition port="in" event="try" target="../b" cond='func { return @in("/p/o1/d");  }()'>
+              <raise port="out" event="yes"/>
+            </transition>
+            <transition port="in" event="try" target="." cond='not @in("/p/o1/d")'>
+              <raise port="out" event="no"/>
+            </transition>
+          </state>
+          <state id="b">
+          </state>
+        </state>
+
+        <state id="o1" initial="c">
+          <state id="c">
+            <transition port="in" event="to_d" target="../d"/>
+          </state>
+          <state id="d">
+          </state>
+        </state>
+      </parallel>
+    </root>
+  </statechart>
+
+  <input>
+    <event port="in" name="try" time="0 d"/>
+    <event port="in" name="to_d" time="1 s"/>
+    <event port="in" name="try" time="2 s"/>
+  </input>
+
+  <output>
+    <big_step>
+      <event port="out" name="no"/>
+    </big_step>
+    <big_step>
+      <event port="out" name="yes"/>
+    </big_step>  
+  </output>
+</test>

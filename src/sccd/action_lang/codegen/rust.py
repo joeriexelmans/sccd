@@ -78,6 +78,17 @@ class ScopeHelper():
         self.current().committed = end
         return type_name
 
+    def write_rvalue(self, name, offset, writer):
+        if offset < 0:
+            writer.wno("parent%d." % self.current().scope.nested_levels(offset))
+            writer.wno(ident_local(name))
+        elif offset < self.current().committed:
+            writer.wno("scope.")
+            writer.wno(ident_local(name))
+        else:
+            writer.wno(ident_local(name))
+
+
 class ActionLangRustGenerator(Visitor):
     def __init__(self, w):
         self.w = w
@@ -309,14 +320,7 @@ class ActionLangRustGenerator(Visitor):
             self.w.wno("let mut ")
             self.w.wno(ident_local(lval.name))
         else:
-            if lval.offset < 0:
-                self.w.wno("parent%d." % self.scope.current().scope.nested_levels(lval.offset))
-                self.w.wno(ident_local(lval.name))
-            elif lval.offset < self.scope.current().committed:
-                self.w.wno("scope.")
-                self.w.wno(ident_local(lval.name))
-            else:
-                self.w.wno(ident_local(lval.name))
+            self.scope.write_rvalue(lval.name, lval.offset, self.w)
 
     def visit_SCCDClosureObject(self, type):
         self.w.wno("(%s, " % self.scope.type(type.scope, type.scope.size()))

@@ -37,6 +37,14 @@ Long-term vision:
 
 Random notes:
 
+  - Explore per-state data models
+      - Right now, there's a single datamodel for the entire statechart. All of the statechart's variables are declared there.
+      - We could have datamodels per state: Variables declared in state A's enter actions would belong to A, and be readable/writable by any transition (guard, actions) sourcing from A's substates, as well as the enter- and exit actions of A's substates.
+      - The benefit would be composability: 2 statechart models could be merged without having conflicting variables
+        - The same non-conflicting merge could also be achieved by automatic renaming, though.
+      - Another benefit would be savings on memory consumption: The memory consumed by the datamodel of 2 non-orthogonal states would only be the size of the biggest datamodel, instead of the sum of the 2 datamodels.
+      - Conclusion: Could be interesting for very large, composed, statecharts
+
   - Durations in action language are a single type, consisting of an integer value and a unit. Perhaps it would be better to have a separate duration type for every unit. Especially in Rust it is better to leave the units to the type system, and only work with 'the numbers' in the machine code :)
 
   - Statechart interface:

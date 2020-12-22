@@ -1,17 +1,18 @@
-from sccd.action_lang.parser import text as action_lang_parser
+from sccd.statechart.parser.text import *
 from sccd.statechart.parser.xml import *
 from sccd.cd.static.cd import *
 
 def cd_parser_rules(statechart_parser_rules, default_delta = duration(100, Microsecond)):
   globals = Globals()
-  sc_rules = statechart_parser_rules(globals)
+  text_parser = TextParser(globals)
+  sc_rules = statechart_parser_rules(globals, text_parser=text_parser)
   delta = default_delta
 
   def parse_single_instance_cd(el):
 
     def parse_delta(el):
       nonlocal delta
-      delta_expr = action_lang_parser.parse_expression(el.text)
+      delta_expr = text_parser.parse_expr(el.text)
       delta = delta_expr.eval(None)
 
     def finish_single_instance_cd(statechart):

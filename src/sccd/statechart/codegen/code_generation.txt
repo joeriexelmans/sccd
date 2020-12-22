@@ -3,33 +3,37 @@
 Code generation
 ===============
 
-Tests currently passing (flag --rust):
+44 tests currently passing (flag --rust):
 
+  features/instate/test_instate.xml
   features/action_lang/test_closure.xml
   features/action_lang/test_cond.xml
   features/action_lang/test_expressions.xml
   features/action_lang/test_functions2.xml
   features/action_lang/test_guard_action.xml
+  features/action_lang/test_nested.xml
   features/history/test_composite_shallow.xml
+  features/history/test_deep.xml
   features/history/test_default.xml
+  features/history/test_parallel_deep.xml
   features/history/test_shallow.xml
   features/after/test_after.xml
   features/parallel/test_parallel.xml
-  day_atlee/test_01_dialer_takemany.xml
-  day_atlee/test_01_dialer_takeone.xml
   day_atlee/test_02_counter_takeone.xml
   day_atlee/test_03_trafficlight_single.xml
   day_atlee/test_04_counter_single.xml
   day_atlee/test_06_counter_lifeline.xml
+  day_atlee/test_13_invar_rhs_smallstep.xml
   day_atlee/test_21_counter_combo.xml
+  day_atlee/test_22_invar_combo_one.xml
   semantics/priority/test_explicit_flat.xml
   semantics/priority/test_explicit_ortho.xml
   semantics/priority/test_source_child.xml
   semantics/priority/test_source_parent.xml
+  semantics/memory_protocol/test_gcsmall.xml
   semantics/event_lifeline/test_flat_nextss_takemany.xml
   semantics/event_lifeline/test_flat_nextss_takeone.xml
   semantics/event_lifeline/test_flat_remainder.xml
-  semantics/event_lifeline/test_ortho_nextcs_takemany.xml
   semantics/event_lifeline/test_ortho_nextcs_takeone.xml
   semantics/event_lifeline/test_ortho_nextss.xml
   semantics/big_step_maximality/test_cross_region1.xml

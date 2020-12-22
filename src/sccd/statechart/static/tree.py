@@ -2,6 +2,7 @@ import termcolor
 from typing import *
 import itertools
 from sccd.statechart.static.action import *
+from sccd.statechart.static.state_ref import StateRef
 from sccd.util.bitmap import *
 from sccd.util import timer
 from sccd.util.visit_tree import *
@@ -228,13 +229,7 @@ class AfterTrigger(Trigger):
 EMPTY_TRIGGER = Trigger(enabling=[])
 
 @dataclass(eq=False)
-class Transition:
-    source: State
-    target_string: Optional[str]
-    # scope: Scope
-
-    target: State = None
-
+class Transition(StateRef):
     guard: Optional[FunctionDeclaration] = None
     actions: List[Action] = field(default_factory=list)
     trigger: Trigger = EMPTY_TRIGGER

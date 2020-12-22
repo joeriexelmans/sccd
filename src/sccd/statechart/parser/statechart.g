@@ -6,14 +6,11 @@
 %import common.ESCAPED_STRING
 
 
-// Parsing target of a transition as a sequence of nodes
-
-state_ref: path
-
+// A path to a state. XPath-like syntax.
 ?path: absolute_path | relative_path 
-absolute_path: _PATH_SEP _path_sequence
-relative_path: _path_sequence
-_path_sequence: (CURRENT_NODE | PARENT_NODE | IDENTIFIER) (_PATH_SEP _path_sequence)?
+absolute_path: _PATH_SEP path_sequence
+relative_path: path_sequence
+path_sequence: (CURRENT_NODE | PARENT_NODE | IDENTIFIER) (_PATH_SEP path_sequence)?
 
 _PATH_SEP: "/" 
 PARENT_NODE: ".." 

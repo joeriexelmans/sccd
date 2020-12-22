@@ -1,15 +1,20 @@
-import os
-from lark import Lark, Transformer
+import lark
 from sccd.action_lang.static.statement import *
-
-_grammar_dir = os.path.dirname(__file__)
-
-with open(os.path.join(_grammar_dir,"action_lang.g")) as file:
-  action_lang_grammar = file.read()
-
+from collections import defaultdict
 
 # Lark transformer for generating a parse tree of our own types.
-class ExpressionTransformer(Transformer):
+class Transformer(lark.Transformer):
+
+  def __init__(self):
+    self.macros = defaultdict(list)
+
+  def set_macro(self, macro_id, constructor):
+    # print("registered macro", macro_id, constructor)
+    self.macros[macro_id].append(constructor)
+
+  def unset_macro(self, macro_id):
+    # print("unregistered macro", macro_id)
+    self.macros[macro_id].pop()
 
   array = Array
 
@@ -53,7 +58,15 @@ class ExpressionTransformer(Transformer):
     return FunctionCall(node[0], node[1].children)
 
   def macro_call(self, node):
-    return MacroCall(node[0], node[1].children)
+    macro_id = node[0]
+    params = node[1].children
+    try:
+      constructor = self.macros[macro_id][-1]
+    except IndexError as e:
+      print(self.macros)
+      raise Exception("Unknown macro: %s" % macro_id) from e
+
+    return constructor(params)
 
   def array_indexed(self, node):
     return ArrayIndexed(node[0], node[1])
@@ -119,16 +132,19 @@ class ExpressionTransformer(Transformer):
   def func_decl(self, node):
     return FunctionDeclaration(params_decl=node[0], body=node[1])
 
+import os
+grammar_dir = os.path.dirname(__file__)
+with open(os.path.join(grammar_dir,"action_lang.g")) as file:
+  grammar = file.read()
 
-# Global variables so we don't have to rebuild our parser every time
-# Obviously not thread-safe
-_transformer = ExpressionTransformer()
-_parser = Lark(action_lang_grammar, parser="lalr", start=["expr", "block"], transformer=_transformer)
+_default_parser = lark.Lark(grammar, parser="lalr", start=["expr", "stmt"], transformer=Transformer(), cache=True)
 
-# Exported functions:
+class TextParser:
+  def __init__(self, parser=_default_parser):
+    self.parser = parser
 
-def parse_expression(text: str) -> Expression:
-  return _parser.parse(text, start="expr")
+  def parse_expr(self, text: str) -> Expression:
+    return self.parser.parse(text, start="expr")
 
-def parse_block(text: str) -> Statement:
-  return _parser.parse(text, start="block")
+  def parse_stmt(self, text: str) -> Statement:
+    return self.parser.parse(text, start="block")

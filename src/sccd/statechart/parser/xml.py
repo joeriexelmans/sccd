@@ -7,6 +7,8 @@ from sccd.statechart.static.tree import *
 from sccd.statechart.dynamic.builtin_scope import *
 from sccd.util.xml_parser import *
 from sccd.statechart.parser.text import *
+from sccd.statechart.static.in_state import InState
+
 class SkipFile(Exception):
   pass
 
@@ -20,7 +22,8 @@ def check_duration_type(type):
     raise XmlError(msg)
 
 # path: filesystem path for finding external statecharts
-def statechart_parser_rules(globals, path, load_external = True, parse_f = parse_f) -> Rules:
+def statechart_parser_rules(globals, path, load_external = True, parse_f = parse_f, text_parser=TextParser(globals)) -> Rules:
+
   import os
   def parse_statechart(el):
     ext_file = el.get("src")
@@ -38,7 +41,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
     else:
       if not load_external:
         raise SkipFile("Parser configured not to load statecharts from external files.")
-      statechart = parse_f(os.path.join(path, ext_file), [("statechart", statechart_parser_rules(globals, path, load_external=False, parse_f=parse_f))])
+      statechart = parse_f(os.path.join(path, ext_file), [("statechart", statechart_parser_rules(globals, path, load_external=False, parse_f=parse_f, text_parser=text_parser))])
 
     def parse_semantics(el):
       available_aspects = SemanticConfiguration.get_fields()
@@ -47,7 +50,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           aspect_type = available_aspects[aspect_name]
         except KeyError:
           raise XmlError("invalid semantic aspect: '%s'" % aspect_name)
-        result = parse_semantic_choice(text)
+        result = text_parser.parse_semantic_choice(text)
         if result.data == "wildcard":
           semantic_choice = list(aspect_type) # all options
         elif result.data == "list":
@@ -57,7 +60,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
         setattr(statechart.semantics, aspect_name, semantic_choice)
 
     def parse_datamodel(el):
-      body = parse_block(globals, el.text)
+      body = text_parser.parse_stmt(el.text)
       body.init_stmt(statechart.scope)
       statechart.datamodel = body
 
@@ -87,6 +90,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
       children_dict = {}
       transitions = [] # All of the statechart's transitions accumulate here, cause we still need to find their targets, which we can't do before the entire state tree has been built. We find their targets when encoutering the </root> closing tag.
       after_id = 0 # After triggers need unique IDs within the scope of the statechart model
+      refs_to_resolve = [] # Transition targets and INSTATE arguments. Resolved after constructing state tree.
 
       def get_default_state(el, state, children_dict):
         have_initial = False
@@ -113,6 +117,13 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
       def state_child_rules(parent, sibling_dict: Dict[str, State]):
 
+        def macro_in_state(params):
+          refs = [StateRef(source=parent, path=text_parser.parse_path(p.string)) for p in params]
+          refs_to_resolve.extend(refs)
+          return InState(state_refs=refs)
+
+        text_parser.parser.options.transformer.set_macro("@in", macro_in_state)
+
         # A transition's guard expression and action statements can read the transition's event parameters, and also possibly the current state configuration. We therefore now wrap these into a function with a bunch of parameters for those values that we want to bring into scope.
         def wrap_transition_params(expr_or_stmt, trigger: Trigger):
           if isinstance(expr_or_stmt, Statement):
@@ -127,7 +138,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           wrapped = FunctionDeclaration(
             params_decl=
               # The param '@conf' (which, on purpose, is an illegal identifier in textual concrete syntax, to prevent naming collisions) will contain the statechart's configuration as a bitmap (SCCDInt). This parameter is currently only used in the expansion of the INSTATE-macro.
-              [ParamDecl(name="_conf", formal_type=SCCDStateConfiguration(state=parent))]
+              [ParamDecl(name="@conf", formal_type=SCCDStateConfiguration(state=parent))]
               # Plus all the parameters of the enabling events of the transition's trigger:
               + [param for event in trigger.enabling for param in event.params_decl],
             body=body)
@@ -139,7 +150,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             params = []
             def parse_param(el):
               expr_text = require_attribute(el, "expr")
-              expr = parse_expression(globals, expr_text)
+              expr = text_parser.parse_expr(expr_text)
               function = wrap_transition_params(expr, trigger=wrap_trigger)
               function.init_expr(scope)
               function.scope.name = "event_param"
@@ -166,7 +177,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
           def parse_code(el):
             def finish_code():
-              block = parse_block(globals, el.text)
+              block = text_parser.parse_stmt(el.text)
               function = wrap_transition_params(block, trigger=wrap_trigger)
               function.init_expr(scope)
               function.scope.name = "code"
@@ -233,14 +244,21 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             raise XmlError("Root cannot be source of a transition.")
 
           target_string = require_attribute(el, "target")
-          transition = Transition(source=parent, target_string=target_string)
+
+          try:
+            path = text_parser.parse_path(target_string)
+          except Exception as e:
+            raise XmlErrorElement(t_el, "Parsing target '%s': %s" % (transition.target_string, str(e))) from e
+
+          transition = Transition(source=parent, path=path)
+          refs_to_resolve.append(transition)
 
           have_event_attr = False
           def parse_attr_event(event):
             nonlocal have_event_attr
             have_event_attr = True
 
-            positive_events, negative_events = parse_events_decl(globals, event)
+            positive_events, negative_events = text_parser.parse_events_decl(event)
 
             # Optimization: sort events by ID
             # Allows us to save time later.
@@ -257,7 +275,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             nonlocal after_id
             if have_event_attr:
               raise XmlError("Cannot specify 'after' and 'event' at the same time.")
-            after_expr = parse_expression(globals, after)
+            after_expr = text_parser.parse_expr(after)
             after_type = after_expr.init_expr(statechart.scope)
             check_duration_type(after_type)
             # After-events should only be generated by the runtime.
@@ -269,7 +287,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
           def parse_attr_cond(cond):
             # Transition's guard expression
-            guard_expr = parse_expression(globals, cond)
+            guard_expr = text_parser.parse_expr(cond)
             guard_function = wrap_transition_params(guard_expr, transition.trigger)
             guard_type = guard_function.init_expr(statechart.scope)
             guard_function.scope.name = "guard"
@@ -290,41 +308,22 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
           return (actions_rules(scope=statechart.scope, wrap_trigger=transition.trigger), finish_transition)
 
-        return {"state": parse_state, "parallel": parse_parallel, "history": parse_history, "onentry": parse_onentry, "onexit": parse_onexit, "transition": parse_transition}
+        def finish_state_child_rules():
+          text_parser.parser.options.transformer.unset_macro("@in")
+
+        return ({"state": parse_state, "parallel": parse_parallel, "history": parse_history, "onentry": parse_onentry, "onexit": parse_onexit, "transition": parse_transition}, finish_state_child_rules)
 
       def finish_root():
         root.type = OrState(state=root, default_state=get_default_state(el, root, children_dict))
 
-        for transition, t_el in transitions:
+        # State tree has been constructed, we can now resolve state refs:
+        for ref in refs_to_resolve:
           try:
-            parse_tree = parse_state_ref(transition.target_string)
-          except Exception as e:
-            raise XmlErrorElement(t_el, "Parsing target '%s': %s" % (transition.target_string, str(e))) from e
-
-          def find_target(sequence) -> State:
-            if sequence.data == "relative_path":
-              state = transition.source
-            elif sequence.data == "absolute_path":
-              state = root
-            for item in sequence.children:
-              if item.type == "PARENT_NODE":
-                state = state.parent
-              elif item.type == "CURRENT_NODE":
-                continue
-              elif item.type == "IDENTIFIER":
-                try:
-                  state = [x for x in state.children if x.short_name == item.value][0]
-                except IndexError:
-                  raise XmlError("%s has no child \"%s\"." % ("Root state" if state.parent is None else '"%s"'%state.short_name, item.value))
-            if state is root:
-              raise XmlError("Root cannot be target of a transition.")
-            return state
-
-          try:
-            transition.target = find_target(parse_tree.children[0])
-          except Exception as e:
+            ref.resolve(root=root)
+          except PathError as e:
             raise XmlErrorElement(t_el, "target=\"%s\": %s" % (transition.target_string, str(e))) from e
 
+        # Next, visit tree to statically calculate many properties of states and transitions:
         statechart.tree = StateTree(root)
 
       return (state_child_rules(root, sibling_dict=children_dict), finish_root)

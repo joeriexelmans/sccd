@@ -57,6 +57,9 @@ UnorderedElements = Dict[str, ParseElementF]
 Rules = Union[OrderedElements, UnorderedElements]
 RulesWDone = Union[Rules, Tuple[Rules,Callable]]
 
+# TODO: Refactor for readability :)
+# -> Introduce some actual domain-specific types instead of using lists, dicts and tuples
+
 # A very beefy parsing function on top of 'lxml' event-driven parsing, that takes parsing rules in a very powerful, schema-like format.
 # The 'rules' passed should be one of:
 #    1) A dictionary of XML tags mapped to a visit-calback, to denote that any of the tags in are allowed in any order and in any multiplicity.
@@ -102,14 +105,22 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
   rules_stack = [rules]
   results_stack = [[]]
 
+  def unpack_tuple(rules):
+    when_done = []
+    while isinstance(rules, tuple):
+      assert len(rules) == 2
+      when_done.append(rules[1])
+      rules = rules[0]
+    return (rules, when_done)
+
+  def pack_tuple(rules, when_done):
+    for cb in reversed(when_done):
+      rules = (rules, cb)
+    return rules
+
   for event, el in etree.iterparse(src_file, events=("start", "end")):
     try:
-      when_done = None
-      pair = rules_stack[-1]
-      if isinstance(pair, tuple):
-        rules, when_done = pair
-      else:
-        rules = pair
+      rules, when_done = unpack_tuple(rules_stack[-1])
       if event == "start":
         # print("start", el.tag)
 
@@ -133,14 +144,14 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
               if m & Multiplicity.AT_MOST_ONCE:
                 # We don't allow this element next time
                 rules = rules[1:]
-                rules_stack[-1] = (rules, when_done)
+                rules_stack[-1] = pack_tuple(rules, when_done)
 
               elif m & Multiplicity.AT_LEAST_ONCE:
                 # We don't require this element next time
                 m &= ~Multiplicity.AT_LEAST_ONCE
                 rules = list(rules) # copy list before editing
                 rules[0] = (m.unparse_suffix(tag), func) # edit rule
-                rules_stack[-1] = (rules, when_done)
+                rules_stack[-1] = pack_tuple(rules, when_done)
 
               parse_function = func
               break
@@ -151,7 +162,7 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
               else:
                 # Element is skipable
                 rules = rules[1:]
-                rules_stack[-1] = (rules, when_done)
+                rules_stack[-1] = pack_tuple(rules, when_done)
         else:
           print(rules)
           assert False # rule should always be a dict or list
@@ -181,15 +192,11 @@ def parse(src_file, rules: RulesWDone, ignore_unmatched = False, decorate_except
             raise XmlError("Missing required elements: %s " % ", ".join("<%s>" % t for t in missing_required))
         children_results = results_stack.pop()
         pair = rules_stack.pop()
-        if isinstance(pair, tuple):
-          _, when_done = pair
-          if when_done:
-            result = when_done(*children_results)
-            # print("end", el.tag, "with result=", result)
-            if result:
-              results_stack[-1].append(result)
-          # else:
-          #   print("end", el.tag)
+        for cb in when_done:
+          result = cb(*children_results)
+          # print("end", el.tag, "with result=", result)
+          if result:
+            results_stack[-1].append(result)
 
     except (XmlError, *decorate_exceptions) as e:
       # Assume exception occured while visiting current element 'el':

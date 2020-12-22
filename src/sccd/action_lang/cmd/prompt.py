@@ -21,12 +21,14 @@ if __name__ == "__main__":
   print("    apply(10, func(i: int) { return i+1; })")
   print()
 
+  parser = ActionLangParser()
+
   while True:
     try:
       line = input("> ")
       try:
         # Attempt to parse as a statement
-        stmt = parse_block(line) # may raise LarkError
+        stmt = parser.parse_stmt(line) # may raise LarkError
         stmt.init_stmt(scope)
 
         # Grow current stack frame if necessary
@@ -38,7 +40,7 @@ if __name__ == "__main__":
       except LarkError as e:
         try:
           # Attempt to parse as an expression
-          expr = parse_expression(line)
+          expr = parser.parse_expr(line)
           expr_type = expr.init_expr(scope)
           val = expr.eval(memory)
           print("%s: %s" % (str(val), str(expr_type)))

@@ -1,22 +1,38 @@
-import os
-from lark import Lark
+import lark
 from sccd.action_lang.parser import text as action_lang
 from sccd.statechart.static.tree import *
 from sccd.statechart.static.globals import *
-
-_grammar_dir = os.path.dirname(__file__)
-
-with open(os.path.join(_grammar_dir, "statechart.g")) as file:
-  _sc_grammar = action_lang.action_lang_grammar + file.read()
-
+from sccd.statechart.static.state_ref import *
 
 # Lark transformer for parsetree-less parsing of expressions
 # Extends action language's ExpressionTransformer
-class StatechartTransformer(action_lang.ExpressionTransformer):
-  def __init__(self):
+class Transformer(action_lang.Transformer):
+  def __init__(self, globals):
     super().__init__()
-    self.globals: Globals = None
+    self.globals = globals
 
+  def absolute_path(self, node):
+    # print("ABS", node[0])
+    return StatePath(is_absolute=True, sequence=node[0])
+
+  def relative_path(self, node):
+    # print("REL", node[0])
+    return StatePath(is_absolute=False, sequence=node[0])
+
+  def path_sequence(self, node):
+    # print("PATH_SEQ", node)
+    if node[0].type == "PARENT_NODE":
+      item = ParentNode()
+    elif node[0].type == "CURRENT_NODE":
+      item = CurrentNode()
+    elif node[0].type == "IDENTIFIER":
+      item = Identifier(value=node[0].value)
+
+    # Concatenate with rest of path
+    if len(node) == 2:
+      return [item] + node[1]
+    else:
+      return [item]
 
   # override: all durations must be added to 'globals'
   def duration_literal(self, node):
@@ -59,28 +75,25 @@ class StatechartTransformer(action_lang.ExpressionTransformer):
     event_id = self.globals.events.assign_id(event_name)
     return EventDecl(id=event_id, name=event_name, params_decl=node[1])
 
+import os
+grammar_dir = os.path.dirname(__file__)
+with open(os.path.join(grammar_dir, "statechart.g")) as file:
+  # Concatenate Action Lang and SC grammars
+  grammar = action_lang.grammar + file.read()
 
-# Global variables so we don't have to rebuild our parser every time
-# Obviously not thread-safe
-_transformer = StatechartTransformer()
-_parser = Lark(_sc_grammar, parser="lalr", start=["expr", "block", "event_decl_list", "state_ref", "semantic_choice"], transformer=_transformer)
+# Parses action language expressions and statements, and also event decls, state refs and semantic choices. 
+class TextParser(action_lang.TextParser):
+  def __init__(self, globals):
+    # Building the parser is actually the slowest step of parsing a statechart model.
+    # Doesn't have to happen every time, so should find a way to speed this up.
+    parser = lark.Lark(grammar, parser="lalr", start=["expr", "block", "event_decl_list", "path", "semantic_choice"], transformer=Transformer(globals), cache=True)
+    super().__init__(parser)
 
-# Exported functions:
+  def parse_semantic_choice(self, text: str):
+    return self.parser.parse(text, start="semantic_choice")
 
-def parse_expression(globals: Globals, text: str) -> Expression:
-  _transformer.globals = globals
-  return _parser.parse(text, start="expr")
+  def parse_events_decl(self, text: str) -> Tuple[List[EventDecl], List[EventDecl]]:
+    return self.parser.parse(text, start="event_decl_list")
 
-def parse_block(globals: Globals, text: str) -> Block:
-  _transformer.globals = globals
-  return _parser.parse(text, start="block")
-
-def parse_events_decl(globals: Globals, text: str) -> Tuple[List[EventDecl], List[EventDecl]]:
-  _transformer.globals = globals
-  return _parser.parse(text, start="event_decl_list")
-
-def parse_state_ref(text: str):
-  return _parser.parse(text, start="state_ref")
-
-def parse_semantic_choice(text: str):
-  return _parser.parse(text, start="semantic_choice")
+  def parse_path(self, text: str):
+    return self.parser.parse(text, start="path")

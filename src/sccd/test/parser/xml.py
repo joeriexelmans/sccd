@@ -5,6 +5,7 @@ _empty_scope = Scope("test", parent=None)
 
 def test_parser_rules(statechart_parser_rules):
   globals = Globals()
+  text_parser = TextParser(globals)
   input = []
   output = []
 
@@ -15,13 +16,13 @@ def test_parser_rules(statechart_parser_rules):
         params = []
         def parse_param(el):
           text = require_attribute(el, "expr")
-          expr = parse_expression(globals, text)
+          expr = text_parser.parse_expr(text)
           expr.init_expr(scope=_empty_scope)
           params.append(expr.eval(memory=None))
         return (params, parse_param)
 
       def parse_time(time: str) -> Expression:
-        expr = parse_expression(globals, time)
+        expr = text_parser.parse_expr(time)
         type = expr.init_expr(scope=_empty_scope)
         check_duration_type(type)
         return expr
@@ -70,7 +71,7 @@ def test_parser_rules(statechart_parser_rules):
 
           def parse_param(el):
             val_text = require_attribute(el, "val")
-            val_expr = parse_expression(globals, val_text)
+            val_expr = text_parser.parse_expr(val_text)
             val_expr.init_expr(scope=_empty_scope)
             val = val_expr.eval(memory=None)
             params.append(val)
@@ -99,7 +100,7 @@ def test_parser_rules(statechart_parser_rules):
         output=output)
       for i, variant in enumerate(variants)])
 
-    sc_rules = statechart_parser_rules(globals)
+    sc_rules = statechart_parser_rules(globals, text_parser=text_parser)
     return ([("statechart", sc_rules), ("input?", parse_input), ("output?", parse_output)], finish_test)
 
   return parse_test

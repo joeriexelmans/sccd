@@ -93,7 +93,10 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
     def get_parallel_states_tuple(self):
         parallel_states = self.get_parallel_states(self.state_stack[-1])
-        return "(" + ", ".join("*"+ident_var(s) for s in parallel_states) + ", )"
+        if len(parallel_states) > 0:
+            return "(" + ", ".join("*"+ident_var(s) for s in parallel_states) + ", )"
+        else:
+            return "()"
 
     def visit_InStateMacroExpansion(self, instate):
         source = instate.ref.source
@@ -151,7 +154,11 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         # self.w.wno("false")
 
     def visit_SCCDStateConfiguration(self, type):
-        self.w.wno("(%s, )" % ", ".join(ident_type(s) for s in self.get_parallel_states(type.state)))
+        parallel_states = self.get_parallel_states(type.state)
+        if len(parallel_states) > 0:
+            self.w.wno("(%s, )" % ", ".join(ident_type(s) for s in parallel_states))
+        else:
+            self.w.wno("()")
 
     def visit_RaiseOutputEvent(self, a):
         # TODO: evaluate event parameters
@@ -165,10 +172,13 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("internal.raise().%s = Some(%s{});" % (ident_event_field(a.name), (ident_event_type(a.name))))
 
     def visit_Code(self, a):
-            self.w.write()
-            a.block.accept(self) # block is a function
-            self.w.wno("(%s, scope);" % self.get_parallel_states_tuple()) # call it!
-            self.w.wnoln()
+        if a.block.scope.size() > 1:
+            raise UnsupportedFeature("Event parameters")
+
+        self.w.write()
+        a.block.accept(self) # block is a function
+        self.w.wno("(%s, scope);" % self.get_parallel_states_tuple()) # call it!
+        self.w.wnoln()
 
     def visit_State(self, state):
         self.state_stack.append(state)
@@ -572,7 +582,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
                     if t.guard is not None:
                         if t.guard.scope.size() > 1:
-                            raise UnsupportedFeature("Guard reads an event parameter")
+                            raise UnsupportedFeature("Event parameters")
                         self.w.write("if ")
                         t.guard.accept(self) # guard is a function...
                         self.w.wno("(") # call it!

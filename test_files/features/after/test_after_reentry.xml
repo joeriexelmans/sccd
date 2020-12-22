@@ -14,7 +14,7 @@
       <parallel id="p">
         <state id="o0" initial="a">
           <state id="a">
-            <transition after="100 ms" cond='INSTATE(["/p/o1/x"])' target="../b"/>
+            <transition after="100 ms" cond='@in("/p/o1/x")' target="../b"/>
             <transition after="150 ms" target="../c"/>
           </state>
           <state id="b">

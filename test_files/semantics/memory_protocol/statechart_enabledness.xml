@@ -17,7 +17,7 @@
     <parallel id="p">
       <state id="increment">
         <state id="a">
-          <transition event="e" target="." cond='not INSTATE(["/p/status/done"])'>
+          <transition event="e" target="." cond='not @in("/p/status/done")'>
             <raise event="inc"/>
             <code> i += 1; </code>
           </transition>

@@ -44,7 +44,7 @@
           </transition>
         </state>
         <state id="S6">
-          <transition cond='INSTATE(["/Invar/I1/S3"])' target="/Done"/>
+          <transition cond='@in("/Invar/I1/S3")' target="/Done"/>
         </state>
       </state>
     </parallel>

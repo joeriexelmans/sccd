@@ -59,7 +59,7 @@
             </transition>
           </state>
           <state id="S6">
-            <transition cond='INSTATE(["/Swap/A/S3"])' target="/done">
+            <transition cond='@in("/Swap/A/S3")' target="/done">
               <raise event="swapped">
                 <param expr="a"/>
                 <param expr="b"/>

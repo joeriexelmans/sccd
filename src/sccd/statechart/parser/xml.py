@@ -117,15 +117,6 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
       def state_child_rules(parent, sibling_dict: Dict[str, State]):
 
-        def macro_in_state(params):
-          if len(params) != 1:
-            raise XmlError("Macro @in: Expected 1 parameter")
-          ref= StateRef(source=parent, path=text_parser.parse_path(params[0].string))
-          refs_to_resolve.append(ref)
-          return InStateMacroExpansion(ref=ref)
-
-        text_parser.parser.options.transformer.set_macro("@in", macro_in_state)
-
         # A transition's guard expression and action statements can read the transition's event parameters, and also possibly the current state configuration. We therefore now wrap these into a function with a bunch of parameters for those values that we want to bring into scope.
         def wrap_transition_params(expr_or_stmt, trigger: Trigger):
           if isinstance(expr_or_stmt, Statement):
@@ -242,6 +233,18 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           return (actions_rules(scope=statechart.scope), finish_onexit)
 
         def parse_transition(el):
+
+          def macro_in_state(params):
+            if len(params) != 1:
+              raise XmlError("Macro @in: Expected 1 parameter")
+            ref= StateRef(source=parent, path=text_parser.parse_path(params[0].string))
+            refs_to_resolve.append(ref)
+            return InStateMacroExpansion(ref=ref)
+
+          # INSTATE-macro allowed in transition's guard and actions
+          text_parser.parser.options.transformer.set_macro("@in", macro_in_state)
+
+
           if parent is root:
             raise XmlError("Root cannot be source of a transition.")
 
@@ -307,13 +310,12 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             transition.actions = actions
             transitions.append((transition, el))
             parent.transitions.append(transition)
+            # INSTATE-macro not allowed outside of transition's guard or actions
+            text_parser.parser.options.transformer.unset_macro("@in")
 
           return (actions_rules(scope=statechart.scope, wrap_trigger=transition.trigger), finish_transition)
 
-        def finish_state_child_rules():
-          text_parser.parser.options.transformer.unset_macro("@in")
-
-        return ({"state": parse_state, "parallel": parse_parallel, "history": parse_history, "onentry": parse_onentry, "onexit": parse_onexit, "transition": parse_transition}, finish_state_child_rules)
+        return {"state": parse_state, "parallel": parse_parallel, "history": parse_history, "onentry": parse_onentry, "onexit": parse_onexit, "transition": parse_transition}
 
       def finish_root():
         root.type = OrState(state=root, default_state=get_default_state(el, root, children_dict))

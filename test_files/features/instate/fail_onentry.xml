@@ -1,0 +1,19 @@
+<test>
+  <statechart>
+    <root initial="a">
+      <state id="a">
+        <onentry>
+          <code>
+            func {
+              # Illegal: macro @in only available in guards and actions
+
+              return @in("/b");
+            }();
+          </code>
+        </onentry>
+      </state>
+      <state id="b">
+      </state>
+    </root>
+  </statechart>
+</test>

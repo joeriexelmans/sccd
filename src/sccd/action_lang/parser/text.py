@@ -9,11 +9,9 @@ class Transformer(lark.Transformer):
     self.macros = defaultdict(list)
 
   def set_macro(self, macro_id, constructor):
-    # print("registered macro", macro_id, constructor)
     self.macros[macro_id].append(constructor)
 
   def unset_macro(self, macro_id):
-    # print("unregistered macro", macro_id)
     self.macros[macro_id].pop()
 
   array = Array
@@ -63,7 +61,6 @@ class Transformer(lark.Transformer):
     try:
       constructor = self.macros[macro_id][-1]
     except IndexError as e:
-      print(self.macros)
       raise Exception("Unknown macro: %s" % macro_id) from e
 
     return constructor(params)

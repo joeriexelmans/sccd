@@ -426,10 +426,12 @@ class StateTree:
 
     def lca(self, s1: State, s2: State) -> State:
         # Intersection between source & target ancestors, last member in depth-first sorted state list.
-        return self.state_list[bm_highest_bit(s1.ancestors & s2.ancestors)]
+        return self.state_list[bm_highest_bit((s1.ancestors | s1.state_id_bitmap) & (s2.ancestors | s2.state_id_bitmap))]
 
 def states_to_bitmap(states: Iterable[State]) -> Bitmap:
     return bm_from_list(s.state_id for s in states)
 
+# Is parent ancestor of child? Also returns true when parent IS child.
+# If this function returns True, and child is a current state, then parent will be too.
 def is_ancestor(parent: State, child: State) -> bool:
-    return bm_has(child.ancestors, parent.state_id)
+    return bm_has(child.ancestors | child.state_id_bitmap, parent.state_id)

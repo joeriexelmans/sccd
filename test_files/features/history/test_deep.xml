@@ -5,7 +5,7 @@
     <semantics
       big_step_maximality="take_many"
       combo_step_maximality="take_many"
-      internal_event_lifeline="queue"/>
+      internal_event_lifeline="next_combo_step"/>
 
     <inport name="in">
       <event name="start"/>
@@ -53,19 +53,19 @@
             </transition>
           </state>
           <state id="step1">
-            <transition cond='INSTATE(["/parallel/orthogonal/wrapper/state_2/inner_4"])' target="../step2">
+            <transition cond='@in("/parallel/orthogonal/wrapper/state_2/inner_4")' target="../step2">
               <raise port="out" event="check1" />
               <raise event="to_outer" />
             </transition>
           </state>
           <state id="step2">
-            <transition cond='INSTATE(["/parallel/orthogonal/outer"])' target="../step3">
+            <transition cond='@in("/parallel/orthogonal/outer")' target="../step3">
               <raise port="out" event="check2" />
               <raise event="to_history" />
             </transition>
           </state>
           <state id="step3">
-            <transition cond='INSTATE(["/parallel/orthogonal/wrapper/state_2/inner_4"])' target="../end">
+            <transition cond='@in("/parallel/orthogonal/wrapper/state_2/inner_4")' target="../end">
               <raise port="out" event="check3" />
             </transition>
           </state>
@@ -82,11 +82,7 @@
   <output>
     <big_step>
       <event port="out" name="check1"/>
-    </big_step>
-    <big_step>
       <event port="out" name="check2"/>
-    </big_step>
-    <big_step>
       <event port="out" name="check3"/>
     </big_step>
   </output>

@@ -41,10 +41,10 @@ pub struct Empty{}
 #[macro_export]
 macro_rules! call_closure {
   ($closure: expr, $($param: expr),*  $(,)?) => {
-    (||{
+    {
       let scope = &mut $closure.0;
       let function = &mut $closure.1;
-      return function($($param),* scope);
-    })()
+      function($($param),* scope)
+    }
   };
 }

@@ -10,6 +10,12 @@ def ident_scope_type(scope):
 def ident_scope_constructor(scope):
     return "new_" + ident_scope_type(scope)
 
+def ident_local(name):
+    if name[0] == '@':
+        return "builtin_" + name[1:]
+    else:
+        return "local_" + name
+
 @dataclass(frozen=True)
 class ScopeCommit:
     type_name: str
@@ -66,7 +72,7 @@ class ScopeHelper():
             writer.writeln("let mut scope = %s {" % type_name)
             writer.writeln("  _base: scope,")
             for v in self.current().scope.variables[start:end]:
-                writer.writeln("  %s: local_%s," % (v.name, v.name))
+                writer.writeln("  %s," % ident_local(v.name))
             writer.writeln("};")
 
         self.current().committed = end
@@ -159,9 +165,9 @@ class ActionLangRustGenerator(Visitor):
                 self.w.indent()
                 self.w.writeln("%s (%s) {" % (commit.type_name, commit.supertype_name))
                 for v in scope.variables[commit.start: commit.end]:
-                    self.w.write("  %s: " % v.name)
+                    self.w.write("  %s: " % ident_local(v.name))
                     v.type.accept(self)
-                    self.w.wnoln(", ")
+                    self.w.wnoln(",")
                 self.w.writeln("}")
                 self.w.dedent()
                 self.w.writeln("}")
@@ -256,8 +262,7 @@ class ActionLangRustGenerator(Visitor):
         # self.w.wno(") ")
 
     def visit_ParamDecl(self, expr):
-        self.w.wno("local_")
-        self.w.wno(expr.name)
+        self.w.wno(ident_local(expr.name))
         self.w.wno(": ")
         expr.formal_type.accept(self)
 
@@ -302,16 +307,16 @@ class ActionLangRustGenerator(Visitor):
 
         if lval.is_init:
             self.w.wno("let mut ")
-            self.w.wno("local_" + lval.name)
+            self.w.wno(ident_local(lval.name))
         else:
             if lval.offset < 0:
                 self.w.wno("parent%d." % self.scope.current().scope.nested_levels(lval.offset))
-                self.w.wno(lval.name)
+                self.w.wno(ident_local(lval.name))
             elif lval.offset < self.scope.current().committed:
                 self.w.wno("scope.")
-                self.w.wno(lval.name)
+                self.w.wno(ident_local(lval.name))
             else:
-                self.w.wno("local_" + lval.name)
+                self.w.wno(ident_local(lval.name))
 
     def visit_SCCDClosureObject(self, type):
         self.w.wno("(%s, " % self.scope.type(type.scope, type.scope.size()))

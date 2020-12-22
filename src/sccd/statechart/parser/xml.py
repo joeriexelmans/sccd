@@ -7,7 +7,7 @@ from sccd.statechart.static.tree import *
 from sccd.statechart.dynamic.builtin_scope import *
 from sccd.util.xml_parser import *
 from sccd.statechart.parser.text import *
-from sccd.statechart.static.in_state import InState
+from sccd.statechart.static.in_state import InStateMacroExpansion
 
 class SkipFile(Exception):
   pass
@@ -118,9 +118,11 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
       def state_child_rules(parent, sibling_dict: Dict[str, State]):
 
         def macro_in_state(params):
-          refs = [StateRef(source=parent, path=text_parser.parse_path(p.string)) for p in params]
-          refs_to_resolve.extend(refs)
-          return InState(state_refs=refs)
+          if len(params) != 1:
+            raise XmlError("Macro @in: Expected 1 parameter")
+          ref= StateRef(source=parent, path=text_parser.parse_path(params[0].string))
+          refs_to_resolve.append(ref)
+          return InStateMacroExpansion(ref=ref)
 
         text_parser.parser.options.transformer.set_macro("@in", macro_in_state)
 

@@ -74,6 +74,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         self.parallel_state_cache = {}
 
+        self.tree = None
         self.state_stack = []
 
     def get_parallel_states(self, state):
@@ -82,12 +83,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         except KeyError:
             parallel_states = []
             while state.parent is not None:
-                # print("state:" , state.full_name)
-                # print("parent:" , state.parent.full_name, type(state.parent))
                 if isinstance(state.parent.type, AndState):
-                    # print("parent is And-state")
                     for sibling in state.parent.children:
-                        # print("sibling: ", sibling.full_name)
                         if sibling is not state:
                             parallel_states.append(sibling)
                 state = state.parent
@@ -96,10 +93,65 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
     def get_parallel_states_tuple(self):
         parallel_states = self.get_parallel_states(self.state_stack[-1])
-        return "(" + ", ".join("*"+ident_var(s) for s in parallel_states) + ")"
+        return "(" + ", ".join("*"+ident_var(s) for s in parallel_states) + ", )"
+
+    def visit_InStateMacroExpansion(self, instate):
+        source = instate.ref.source
+        target = instate.ref.target
+
+        self.w.wnoln("{ // macro expansion for INSTATE(\"%s\")" % target.full_name)
+        self.w.indent()
+
+        # Non-exhaustive set of current states, given that 'source' is a current state
+        parents = self.get_parallel_states(source)
+
+        # Deconstruct state configuration tuple
+        self.w.write("let (")
+        for parent in parents:
+            self.w.wno("ref ")
+            self.w.wno(ident_var(parent))
+            self.w.wno(", ")
+        self.w.wnoln(") = %s;" % ident_local("@conf"))
+
+        for parent in parents + [source]:
+            if is_ancestor(parent=target, child=parent):
+                # Special case: target is parent of a current state
+                self.w.writeln("true") # Always a current state
+                return
+
+            if not is_ancestor(parent=parent, child=target):
+                continue # Skip
+
+            # Sequence of states. First is parent. Next is the child of parent on the path to target. Last item is target.
+            path = list(self.tree.bitmap_to_states((parent.state_id_bitmap | parent.descendants) & (target.ancestors | target.state_id_bitmap)))
+
+            def write_path(path, target):
+                parent = path[0];
+                if parent is target:
+                    self.w.writeln("true")
+                else:
+                    child = path[1]
+                    if isinstance(parent.type, OrState):
+                        self.w.writeln("if let %s::%s(ref %s) = %s {" % (ident_type(parent), ident_enum_variant(child), ident_var(child), ident_var(parent)))
+                        self.w.indent()
+                        write_path(path[1:], target)
+                        self.w.dedent()
+                        self.w.writeln("} else { false }")
+                    elif isinstance(parent.type, AndState):
+                        self.w.writeln("let ref %s = %s.%s;" % (ident_var(child), ident_var(parent), ident_field(child)))
+                        write_path(path[1:], target)
+                    else:
+                        raise Exception("The impossible has happened")
+
+            write_path(path, target)
+
+        self.w.dedent()
+        self.w.write("}")
+
+        # self.w.wno("false")
 
     def visit_SCCDStateConfiguration(self, type):
-        self.w.wno("(%s)" % ", ".join(ident_type(s) for s in self.get_parallel_states(type.state)))
+        self.w.wno("(%s, )" % ", ".join(ident_type(s) for s in self.get_parallel_states(type.state)))
 
     def visit_RaiseOutputEvent(self, a):
         # TODO: evaluate event parameters
@@ -245,6 +297,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         priority_ordered_transitions = priority.priority_and_concurrency(sc) # may raise error
 
         tree = sc.tree
+        self.tree = tree
 
         self.w.writeln("type Timers<TimerId> = [TimerId; %d];" % tree.timer_count)
         self.w.writeln()
@@ -731,3 +784,5 @@ class StatechartRustGenerator(ActionLangRustGenerator):
             self.w.writeln("  eprintln!(\"------------------------\");")
             self.w.writeln("}")
             self.w.writeln()
+
+        self.tree = None

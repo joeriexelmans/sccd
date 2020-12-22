@@ -1,0 +1,17 @@
+<test>
+  <statechart>
+    <datamodel>
+      instate_b = func {
+        # Illegal: macro @in only available in guards and actions
+
+        return @in("/b");
+      };
+    </datamodel>
+    <root initial="a">
+      <state id="a">
+      </state>
+      <state id="b">
+      </state>
+    </root>
+  </statechart>
+</test>

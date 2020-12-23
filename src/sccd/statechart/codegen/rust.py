@@ -710,6 +710,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         self.w.dedent()
 
+        if DEBUG:
+            self.w.writeln("  eprintln!(\"completed fair_step\");")
         self.w.writeln("  fired")
         self.w.writeln("}")
 
@@ -733,7 +735,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                 self.w.writeln("    }")
                 self.w.writeln("    ctr += 1;")
                 self.w.writeln("    assert_ne!(ctr, %d, \"too many steps (limit reached)\");" % LIMIT)
-                self.w.writeln("    fired |= just_fired & !ARENA_UNSTABLE; // only record stable arenas")
+                self.w.writeln("    fired |= just_fired;")
                 if cycle_input:
                     self.w.writeln("    // Input Event Lifeline: %s" % sc.semantics.input_event_lifeline)
                     self.w.writeln("    e = None;")
@@ -741,6 +743,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                     self.w.writeln("    // Internal Event Lifeline: %s" % sc.semantics.internal_event_lifeline)
                     self.w.writeln("    internal.cycle();")
                 self.w.writeln("  }")
+                if DEBUG:
+                    self.w.writeln("  eprintln!(\"completed %s\");" % name)
                 self.w.writeln("  fired")
             self.w.writeln("}")
 

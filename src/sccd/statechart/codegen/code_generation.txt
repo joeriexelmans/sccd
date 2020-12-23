@@ -136,11 +136,19 @@ Insights
   - e.g. An unexecutable transition is detected as an unreachable statement
   - e.g. An unused event is detected as an unused variable or never-constructed enum variant.
 
+- Rust's product ("struct") and sum ("enum") types map perfectly onto And- and Or-states
+
 
 Performance over time
 ---------------------
 
 for test semantics/big_step_maximality/test_ortho_takemany.xml
+
+
+commit 39fc866428c595c7ed909569d998981d1d350059 - Dec 22, 2020 - various fixes, support INSTATE
+
+binary size, opt-level=3:                       422200 bytes
+instruction count (perf stat) (opt-level=3):    570.776 instructions:u
 
 
 commit ec39dd73ea42a9ccee6f1edc8863b36625e0721a - Dec 20, 2020 - put reusable stuff in library

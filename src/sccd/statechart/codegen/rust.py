@@ -179,7 +179,10 @@ class StatechartRustGenerator(ActionLangRustGenerator):
     def visit_RaiseInternalEvent(self, a):
         if DEBUG:
             self.w.writeln("eprintln!(\"raise internal %s\");" % (a.name))
-        self.w.writeln("internal.raise().%s = Some(%s{});" % (ident_event_field(a.name), (ident_event_type(a.name))))
+        if self.internal_queue:
+            self.w.writeln("sched.set_timeout(%d, InEvent::%s);" % (0, ident_event_type(a.name)))
+        else:
+            self.w.writeln("internal.raise().%s = Some(%s{});" % (ident_event_field(a.name), (ident_event_type(a.name))))
 
     def visit_Code(self, a):
         if a.block.scope.size() > 1:
@@ -322,14 +325,18 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("type Timers<TimerId> = [TimerId; %d];" % tree.timer_count)
         self.w.writeln()
 
+        self.internal_queue = sc.semantics.internal_event_lifeline == InternalEventLifeline.QUEUE
+
         # Write event types
-        input_events = sc.internal_events & ~sc.internally_raised_events
-        internal_events = sc.internally_raised_events
+        if self.internal_queue:
+            input_events = sc.internal_events
+            internal_events = Bitmap()
+        else:
+            input_events = sc.internal_events & ~sc.internally_raised_events
+            internal_events = sc.internally_raised_events
 
-        internal_queue = sc.semantics.internal_event_lifeline == InternalEventLifeline.QUEUE
-
-        if internal_queue:
-            raise UnsupportedFeature("queue-like internal event semantics")
+        input_event_names = [self.globals.events.names[i] for i in bm_items(input_events)]
+        internal_event_names = [self.globals.events.names[i] for i in bm_items(internal_events)]
 
         internal_same_round = (
             sc.semantics.internal_event_lifeline == InternalEventLifeline.REMAINDER or
@@ -338,37 +345,40 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("// Input Events")
         self.w.writeln("#[derive(Copy, Clone)]")
         self.w.writeln("enum InEvent {")
-        for event_name in (self.globals.events.names[i] for i in bm_items(input_events)):
+        for event_name in input_event_names:
             self.w.writeln("  %s," % ident_event_type(event_name))
         self.w.writeln("}")
 
-        for event_name in (self.globals.events.names[i] for i in bm_items(internal_events)):
+        # Until we implement event parameters, internal event types are just empty structs
+        for event_name in internal_event_names:
             self.w.writeln("// Internal Event")
             self.w.writeln("struct %s {" % ident_event_type(event_name))
             self.w.writeln("  // TODO: event parameters")
             self.w.writeln("}")
 
-        if not internal_queue:
-            # Implement internal events as a set
-            self.w.writeln("// Set of (raised) internal events")
-            self.w.writeln("#[derive(Default)]")
-            # Bitmap would be more efficient, but for now struct will do:
-            self.w.writeln("struct Internal {")
-            for event_name in (self.globals.events.names[i] for i in bm_items(internal_events)):
-                self.w.writeln("  %s: Option<%s>," % (ident_event_field(event_name), ident_event_type(event_name)))
-            self.w.writeln("}")
+        # if internal_queue:
+        #     self.w.writeln("enum InternalEvent {")
+        #     for event_name in internal_events:
+        #         self.w.writeln("  %s," % ident_event_type(event_name))
+        #     self.w.writeln("}")
+        # else:
 
+        # Implement internal events as a set
+        self.w.writeln("// Set of (raised) internal events")
+        self.w.writeln("#[derive(Default)]")
+        # Bitmap would be more efficient, but for now struct will do:
+        self.w.writeln("struct Internal {")
+        for event_name in internal_event_names:
+            self.w.writeln("  %s: Option<%s>," % (ident_event_field(event_name), ident_event_type(event_name)))
+        self.w.writeln("}")
+
+        if self.internal_queue:
+            self.w.writeln("type InternalLifeline = ();")
+        else:
             if internal_same_round:
                 self.w.writeln("type InternalLifeline = statechart::SameRoundLifeline<Internal>;")
             else:
                 self.w.writeln("type InternalLifeline = statechart::NextRoundLifeline<Internal>;")
-        elif internal_type == "queue":
-            pass
-            # self.w.writeln("#[derive(Copy, Clone)]")
-            # self.w.writeln("enum Internal {")
-            # for event_name in (self.globals.events.names[i] for i in bm_items(internal_events)):
-            #     self.w.writeln("  %s," % ident_event_type(event_name))
-            # self.w.writeln("}")
         self.w.writeln()
 
         syntactic_maximality = (
@@ -429,7 +439,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln()
 
         # Function fair_step: a single "Take One" Maximality 'round' (= nonoverlapping arenas allowed to fire 1 transition)
-        self.w.writeln("fn fair_step<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(sc: &mut Statechart<TimerId>, input: Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {")
+        self.w.writeln("fn fair_step<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(sc: &mut Statechart<TimerId>, input: &mut Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {")
         self.w.writeln("  let mut fired: Arenas = ARENA_NONE;")
         self.w.writeln("  let mut scope = &mut sc.data;")
         self.w.writeln("  let %s = &mut sc.configuration;" % ident_var(tree.root))
@@ -636,6 +646,10 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                     else:
                         self.w.writeln("fired |= ARENA_UNSTABLE; // Unstable target")
 
+                    if sc.semantics.input_event_lifeline == InputEventLifeline.FIRST_SMALL_STEP:
+                        self.w.writeln("// Input Event Lifeline: First Small Step")
+                        self.w.writeln("*input = Option::None;")
+
                     if sc.semantics.internal_event_lifeline == InternalEventLifeline.NEXT_SMALL_STEP:
                         self.w.writeln("// Internal Event Lifeline: Next Small Step")
                         self.w.writeln("internal.cycle();")
@@ -717,19 +731,19 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         # Write combo step and big step function
         def write_stepping_function(name: str, title: str, maximality: Maximality, substep: str, cycle_input: bool, cycle_internal: bool):
-            self.w.writeln("fn %s<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(sc: &mut Statechart<TimerId>, input: Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {" % (name))
+            self.w.writeln("fn %s<TimerId: Copy, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(statechart::OutEvent)>(sc: &mut Statechart<TimerId>, input: &mut Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {" % (name))
             self.w.writeln("  // %s Maximality: %s" % (title, maximality))
             if maximality == Maximality.TAKE_ONE:
                 self.w.writeln("  %s(sc, input, internal, sched, output, dirty)" % (substep))
             else:
                 self.w.writeln("  let mut fired: Arenas = dirty;")
-                self.w.writeln("  let mut e = input;")
+                # self.w.writeln("  let mut e = input;")
                 self.w.writeln("  let mut ctr: u16 = 0;")
                 self.w.writeln("  loop {")
                 if maximality == Maximality.TAKE_MANY:
-                    self.w.writeln("    let just_fired = %s(sc, e, internal, sched, output, ARENA_NONE);" % (substep))
+                    self.w.writeln("    let just_fired = %s(sc, input, internal, sched, output, ARENA_NONE);" % (substep))
                 elif maximality == Maximality.SYNTACTIC:
-                    self.w.writeln("    let just_fired = %s(sc, e, internal, sched, output, fired);" % (substep))
+                    self.w.writeln("    let just_fired = %s(sc, input, internal, sched, output, fired);" % (substep))
                 self.w.writeln("    if just_fired == ARENA_NONE { // did any transition fire? (incl. unstable)")
                 self.w.writeln("      break;")
                 self.w.writeln("    }")
@@ -738,7 +752,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                 self.w.writeln("    fired |= just_fired;")
                 if cycle_input:
                     self.w.writeln("    // Input Event Lifeline: %s" % sc.semantics.input_event_lifeline)
-                    self.w.writeln("    e = None;")
+                    self.w.writeln("    *input = Option::None;")
                 if cycle_internal:
                     self.w.writeln("    // Internal Event Lifeline: %s" % sc.semantics.internal_event_lifeline)
                     self.w.writeln("    internal.cycle();")
@@ -767,9 +781,9 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("  fn init(&mut self, sched: &mut Sched, output: &mut OutputCallback) {")
         self.w.writeln("    %s::enter_default(&mut self.timers, &mut self.data, &mut Default::default(), sched, output)" % (ident_type(tree.root)))
         self.w.writeln("  }")
-        self.w.writeln("  fn big_step(&mut self, input: Option<InEvent>, sched: &mut Sched, output: &mut OutputCallback) {")
+        self.w.writeln("  fn big_step(&mut self, mut input: Option<InEvent>, sched: &mut Sched, output: &mut OutputCallback) {")
         self.w.writeln("    let mut internal: InternalLifeline = Default::default();")
-        self.w.writeln("    big_step(self, input, &mut internal, sched, output, ARENA_NONE);")
+        self.w.writeln("    big_step(self, &mut input, &mut internal, sched, output, ARENA_NONE);")
         self.w.writeln("  }")
         self.w.writeln("}")
         self.w.writeln()

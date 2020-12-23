@@ -3,9 +3,10 @@
 Code generation
 ===============
 
-44 tests currently passing (flag --rust):
+49 tests currently passing (flag --rust):
 
   features/instate/test_instate.xml
+  features/instate/test_instate_nested.xml
   features/action_lang/test_closure.xml
   features/action_lang/test_cond.xml
   features/action_lang/test_expressions.xml
@@ -33,9 +34,13 @@ Code generation
   semantics/memory_protocol/test_gcsmall.xml
   semantics/event_lifeline/test_flat_nextss_takemany.xml
   semantics/event_lifeline/test_flat_nextss_takeone.xml
+  semantics/event_lifeline/test_flat_queue_first.xml
+  semantics/event_lifeline/test_flat_queue_whole_takemany.xml
   semantics/event_lifeline/test_flat_remainder.xml
+  semantics/event_lifeline/test_ortho_nextcs_takemany.xml
   semantics/event_lifeline/test_ortho_nextcs_takeone.xml
   semantics/event_lifeline/test_ortho_nextss.xml
+  semantics/event_lifeline/test_ortho_queue.xml
   semantics/big_step_maximality/test_cross_region1.xml
   semantics/big_step_maximality/test_cross_region2.xml
   semantics/big_step_maximality/test_flat_syntactic.xml

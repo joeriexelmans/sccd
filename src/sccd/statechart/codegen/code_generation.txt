@@ -102,7 +102,7 @@ Roadmap
 
   (DONE) Milestone 6: Action language
 
-  Milestone 7: INSTATE-function -> INSTATE-macro
+  (DONE) Milestone 7: INSTATE-function -> INSTATE-macro
 
     - INVARIANT: Action lang must never depend on statechart lang!
       - Evaluation of action lang expression can only read/write to the expression's scope (and parent scopes, if expression occurs in a function)
@@ -130,7 +130,6 @@ Roadmap
     - Syntactic output events
     - Event parameters
     - Memory Protocol semantics
-    - 'Queuing' internal event semantics
     - Concurrency semantics
 
 
@@ -149,9 +148,16 @@ Performance over time
 
 for test semantics/big_step_maximality/test_ortho_takemany.xml
 
+commit ae8a94e186ee972c0d3e0b229b77901352137c64 - Dec 23, 2020 - implement additional event lifeline semantics, pass input event by reference instead of by value
+
+binary size, no opt:                            800592 bytes
+binary size, opt-level=3:                       422200 bytes
+instruction count (perf stat) (opt-level=3):    570.824 instructions:u
+
 
 commit 39fc866428c595c7ed909569d998981d1d350059 - Dec 22, 2020 - various fixes, support INSTATE
 
+binary size, no opt:                            800544 bytes
 binary size, opt-level=3:                       422200 bytes
 instruction count (perf stat) (opt-level=3):    570.776 instructions:u
 
@@ -181,5 +187,8 @@ instruction count (perf stat) (opt-level=3):    580.701 instructions:u
 
 Performance insights
 
-  - instruction count improved a little over time (but could be due to non-relevant changes such as debug output)
-  - binary size slightly worse when optimizing for size (opt-level=z). this means that inlining is actually reducing the binaries' size, as we would expect (lots of dead code can be eliminated)
+  - non-optimized binary size increased as features were added, optimized binary size stayed pretty much the same. this assures that Rust is able to inline and optimize away the many unused parameters of enter and exit functions.
+
+  - the same conclusion can be drawn from binary size being slightly worse when setting a lower inline threshold (opt-level=z). this means that inlining is actually reducing the binaries' size, as we would expect (lots of unused parameters can be eliminated)
+
+  - passing input event by reference instead of by value did not change the optimized binary size. probably evidence of Rust inlining or passing by value anyway.

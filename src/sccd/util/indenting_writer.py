@@ -5,6 +5,7 @@ class IndentingWriter:
         self.spaces = spaces
         self.out = out
         self.state = initial
+        self.newline = True
 
     def indent(self):
         self.state += self.spaces
@@ -13,17 +14,13 @@ class IndentingWriter:
         self.state -= self.spaces
 
     def writeln(self, s=""):
-        if s == "":
-            self.out.write('\n')
-        else:
-            self.out.write(' '*self.state + s + '\n')
-
-    # "write no indent"
-    def wno(self, s):
-        self.out.write(s)
-
-    def wnoln(self, s=""):
+        if self.newline:
+            self.out.write(' '*self.state)
         self.out.write(s + '\n')
+        self.newline = True
 
     def write(self, s=""):
-        self.out.write(' '*self.state + s)
+        if self.newline:
+            self.out.write(' '*self.state)
+        self.out.write(s)
+        self.newline = False

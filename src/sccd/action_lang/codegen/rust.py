@@ -80,13 +80,13 @@ class ScopeHelper():
 
     def write_rvalue(self, name, offset, writer):
         if offset < 0:
-            writer.wno("parent%d." % self.current().scope.nested_levels(offset))
-            writer.wno(ident_local(name))
+            writer.write("parent%d." % self.current().scope.nested_levels(offset))
+            writer.write(ident_local(name))
         elif offset < self.current().committed:
-            writer.wno("scope.")
-            writer.wno(ident_local(name))
+            writer.write("scope.")
+            writer.write(ident_local(name))
         else:
-            writer.wno(ident_local(name))
+            writer.write(ident_local(name))
 
 
 class ActionLangRustGenerator(Visitor):
@@ -96,7 +96,7 @@ class ActionLangRustGenerator(Visitor):
         self.functions_to_write = [] # Function and Rust identifier
 
     def default(self, what):
-        # self.w.wno("<%s>" % what)
+        # self.w.write("<%s>" % what)
         raise UnsupportedFeature(what)
 
     def debug_print_stack(self):
@@ -117,7 +117,7 @@ class ActionLangRustGenerator(Visitor):
             ctr += 1
             scope = scope.parent
 
-        self.w.wno(", ".join(reversed(args)))
+        self.w.write(", ".join(reversed(args)))
 
     def write_parent_call_params(self, scope, skip: int = 0):
         args = []
@@ -130,7 +130,7 @@ class ActionLangRustGenerator(Visitor):
             ctr += 1
             scope = scope.parent
 
-        self.w.wno(", ".join(reversed(args)))
+        self.w.write(", ".join(reversed(args)))
 
     # This is not a visit method because Scopes may be encountered whenever there's a function call, but they are written as structs and constructor functions, which can only be written at the module level.
     # When compiling Rust code, the Visitable.accept method must be called on the root of the AST, to write code wherever desired (e.g. in a main-function) followed by 'write_scope' at the module level.
@@ -144,15 +144,15 @@ class ActionLangRustGenerator(Visitor):
 
             for p in function.params_decl:
                 p.accept(self)
-                self.w.wno(", ")
+                self.w.write(", ")
 
             self.write_parent_params(scope)
 
-            self.w.wno(") -> ")
+            self.w.write(") -> ")
 
             self.write_return_type(function)
 
-            self.w.wnoln(" {")
+            self.w.writeln(" {")
             self.w.indent()
             self.w.writeln("let scope = action_lang::Empty{};")
 
@@ -178,7 +178,7 @@ class ActionLangRustGenerator(Visitor):
                 for v in scope.variables[commit.start: commit.end]:
                     self.w.write("  %s: " % ident_local(v.name))
                     v.type.accept(self)
-                    self.w.wnoln(",")
+                    self.w.writeln(",")
                 self.w.writeln("}")
                 self.w.dedent()
                 self.w.writeln("}")
@@ -189,18 +189,17 @@ class ActionLangRustGenerator(Visitor):
             s.accept(self)
 
     def visit_Assignment(self, stmt):
-        #self.w.write('') # indent
         stmt.lhs.accept(self)
-        self.w.wno(" = ")
+        self.w.write(" = ")
         stmt.rhs.accept(self)
-        self.w.wnoln(";")
+        self.w.writeln(";")
         if DEBUG:
             self.w.writeln("eprintln!(\"%s\");" % termcolor.colored(stmt.render(),'blue'))
 
     def visit_IfStatement(self, stmt):
         self.w.write("if ")
         stmt.cond.accept(self)
-        self.w.wnoln(" {")
+        self.w.writeln(" {")
         self.w.indent()
         stmt.if_body.accept(self)
         self.w.dedent()
@@ -221,88 +220,86 @@ class ActionLangRustGenerator(Visitor):
 
         self.w.write("return ")
         if returns_closure_obj:
-            self.w.wno("(scope, ")
+            self.w.write("(scope, ")
         stmt.expr.accept(self)
         if returns_closure_obj:
-            self.w.wno(")")
-        self.w.wnoln(";")
+            self.w.write(")")
+        self.w.writeln(";")
 
     def visit_ExpressionStatement(self, stmt):
         self.w.write('')
         stmt.expr.accept(self)
-        self.w.wnoln(";")
+        self.w.writeln(";")
 
     def visit_BoolLiteral(self, expr):
-        self.w.wno("true" if expr.b else "false")
+        self.w.write("true" if expr.b else "false")
 
     def visit_IntLiteral(self, expr):
-        self.w.wno(str(expr.i))
+        self.w.write(str(expr.i))
 
     def visit_StringLiteral(self, expr):
-        self.w.wno('"'+expr.string+'"')
+        self.w.write('"'+expr.string+'"')
 
     def visit_Array(self, expr):
-        self.w.wno("[")
+        self.w.write("[")
         for el in expr.elements:
             el.accept(self)
-            self.w.wno(", ")
-        self.w.wno("]")
+            self.w.write(", ")
+        self.w.write("]")
 
     def visit_BinaryExpression(self, expr):
         if expr.operator == "**":
             raise UnsupportedFeature("exponent operator")
         else:
             # always put parentheses
-            self.w.wno("(")
+            self.w.write("(")
             expr.lhs.accept(self)
-            self.w.wno(" %s " % expr.operator
+            self.w.write(" %s " % expr.operator
                 .replace('and', '&&')
                 .replace('or', '||')
                 .replace('//', '/')) # integer division
             expr.rhs.accept(self)
-            self.w.wno(")")
+            self.w.write(")")
 
     def visit_UnaryExpression(self, expr):
-        self.w.wno(expr.operator
+        self.w.write(expr.operator
             .replace('not', '! '))
         expr.expr.accept(self)
 
     def visit_Group(self, expr):
-        # self.w.wno(" (")
         expr.subexpr.accept(self)
-        # self.w.wno(") ")
 
     def visit_ParamDecl(self, expr):
-        self.w.wno(ident_local(expr.name))
-        self.w.wno(": ")
+        self.w.write(ident_local(expr.name))
+        self.w.write(": ")
         expr.formal_type.accept(self)
 
     def visit_FunctionDeclaration(self, expr):
         function_identifier = "f%d_%s" % (len(self.functions_to_write), expr.scope.name)
         self.functions_to_write.append( (expr, function_identifier) )
-        self.w.wno(function_identifier)
+        self.w.write(function_identifier)
 
     def visit_FunctionCall(self, expr):
         if isinstance(expr.function.get_type(), SCCDClosureObject):
-            self.w.wno("call_closure!(")
+            self.w.write("call_closure!(")
             expr.function.accept(self)
-            self.w.wno(", ")
+            self.w.write(", ")
         else:
-            self.w.wno("(")
+            self.w.write("(")
             expr.function.accept(self)
-            self.w.wno(")(")
+            self.w.write(")(")
 
         # Call parameters
         for p in expr.params:
             p.accept(self)
-            self.w.wno(", ")
+            self.w.write(", ")
 
         if isinstance(expr.function.get_type(), SCCDClosureObject):
             self.write_parent_call_params(expr.function_being_called.scope, skip=1)
         else:
             self.write_parent_call_params(expr.function_being_called.scope)
 
-        self.w.wno(")")
+        self.w.write(")")
 
 
     def visit_Identifier(self, lval):
@@ -313,41 +310,40 @@ class ActionLangRustGenerator(Visitor):
                 # a child scope exists at the current offset (typically because we encountered a function declaration) - so we must commit our scope
                 self.scope.commit(lval.offset, self.w)
 
-            # self.w.wno("/* is_lvalue */")
             self.w.write('') # indent
 
         if lval.is_init:
-            self.w.wno("let mut ")
-            self.w.wno(ident_local(lval.name))
+            self.w.write("let mut ")
+            self.w.write(ident_local(lval.name))
         else:
             self.scope.write_rvalue(lval.name, lval.offset, self.w)
 
     def visit_SCCDClosureObject(self, type):
-        self.w.wno("(%s, " % self.scope.type(type.scope, type.scope.size()))
+        self.w.write("(%s, " % self.scope.type(type.scope, type.scope.size()))
         type.function_type.accept(self)
-        self.w.wno(")")
+        self.w.write(")")
 
     def write_return_type(self, function: FunctionDeclaration):
         if function.return_type is None:
-            self.w.wno("()")
+            self.w.write("()")
         else:
             function.return_type.accept(self)
 
     def visit_SCCDFunction(self, type):
         scope = type.function.scope
-        self.w.wno("fn(")
+        self.w.write("fn(")
 
         for p in type.param_types:
             p.accept(self)
-            self.w.wno(", ")
+            self.w.write(", ")
 
         self.write_parent_params(scope, with_identifiers=False)
 
-        self.w.wno(") -> ")
+        self.w.write(") -> ")
         self.write_return_type(type.function)
 
     def visit__SCCDSimpleType(self, type):
-        self.w.wno(type.name
+        self.w.write(type.name
             .replace("int", "i32")
             .replace("float", "f64")
         )

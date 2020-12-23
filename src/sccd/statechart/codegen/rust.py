@@ -116,7 +116,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         source = instate.ref.source
         target = instate.ref.target
 
-        self.w.wnoln("{ // macro expansion for @in(\"%s\")" % target.full_name)
+        self.w.writeln("{ // macro expansion for @in(\"%s\")" % target.full_name)
         self.w.indent()
 
         # Non-exhaustive set of current states, given that 'source' is a current state
@@ -125,12 +125,12 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         # Deconstruct state configuration tuple
         self.w.write("let (")
         for parent in parents:
-            self.w.wno("ref ")
-            self.w.wno(ident_var(parent))
-            self.w.wno(", ")
-        self.w.wno(") = ")
+            self.w.write("ref ")
+            self.w.write(ident_var(parent))
+            self.w.write(", ")
+        self.w.write(") = ")
         self.scope.write_rvalue("@conf", instate.offset, self.w)
-        self.w.wnoln(";")
+        self.w.writeln(";")
 
         for parent in parents + [source]:
             if is_ancestor(parent=target, child=parent):
@@ -168,7 +168,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.write("}")
 
     def visit_SCCDStateConfiguration(self, type):
-        self.w.wno(self.get_parallel_states_tuple_type(type.state))
+        self.w.write(self.get_parallel_states_tuple_type(type.state))
 
     def visit_RaiseOutputEvent(self, a):
         # TODO: evaluate event parameters
@@ -190,8 +190,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         self.w.write()
         a.block.accept(self) # block is a function
-        self.w.wno("(%s, scope);" % self.get_parallel_states_tuple(self.state_stack[-1])) # call it!
-        self.w.wnoln()
+        self.w.write("(%s, scope);" % self.get_parallel_states_tuple(self.state_stack[-1])) # call it!
+        self.w.writeln()
 
     def visit_State(self, state):
         self.state_stack.append(state)
@@ -356,13 +356,6 @@ class StatechartRustGenerator(ActionLangRustGenerator):
             self.w.writeln("  // TODO: event parameters")
             self.w.writeln("}")
 
-        # if internal_queue:
-        #     self.w.writeln("enum InternalEvent {")
-        #     for event_name in internal_events:
-        #         self.w.writeln("  %s," % ident_event_type(event_name))
-        #     self.w.writeln("}")
-        # else:
-
         # Implement internal events as a set
         self.w.writeln("// Set of (raised) internal events")
         self.w.writeln("#[derive(Default)]")
@@ -373,6 +366,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("}")
 
         if self.internal_queue:
+            # Internal events are treated like input events
             self.w.writeln("type InternalLifeline = ();")
         else:
             if internal_same_round:
@@ -394,7 +388,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                 bm |= arenas.get(d, 0)
             arenas[arena] = bm
         self.w.writeln("// Transition arenas (bitmap type)")
-        # if syntactic_maximality:
+
         for size, typ in [(8, 'u8'), (16, 'u16'), (32, 'u32'), (64, 'u64'), (128, 'u128')]:
             if len(arenas) + 1 <= size:
                 self.w.writeln("type Arenas = %s;" % typ)
@@ -411,8 +405,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("impl<TimerId: Default> Default for Statechart<TimerId> {")
         self.w.writeln("  fn default() -> Self {")
         self.w.writeln("    // Initialize data model")
-        self.w.indent(); self.w.indent();
         self.w.writeln("    let scope = action_lang::Empty{};")
+        self.w.indent(); self.w.indent();
         if sc.datamodel is not None:
             sc.datamodel.accept(self)
         datamodel_type = self.scope.commit(sc.scope.size(), self.w)
@@ -599,13 +593,13 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                             raise UnsupportedFeature("Event parameters")
                         self.w.write("if ")
                         t.guard.accept(self) # guard is a function...
-                        self.w.wno("(") # call it!
-                        self.w.wno(self.get_parallel_states_tuple(t.source))
-                        self.w.wno(", ")
+                        self.w.write("(") # call it!
+                        self.w.write(self.get_parallel_states_tuple(t.source))
+                        self.w.write(", ")
                         # TODO: write event parameters here
                         self.write_parent_call_params(t.guard.scope)
-                        self.w.wno(")")
-                        self.w.wnoln(" {")
+                        self.w.write(")")
+                        self.w.writeln(" {")
                         self.w.indent()
 
                     # 1. Execute transition's actions

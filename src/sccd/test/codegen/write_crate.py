@@ -74,3 +74,7 @@ def write_crate(src, target):
         w.writeln("name = \"statechartgen\"")
         w.writeln("path = \"statechartgen.rs\"")
         w.writeln()
+
+    with open(target+"/.gitignore", 'w') as file:
+        w = IndentingWriter(out=file)
+        w.writeln("/target/")

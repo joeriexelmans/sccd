@@ -129,16 +129,19 @@ class Transformer(lark.Transformer):
   def func_decl(self, node):
     return FunctionDeclaration(params_decl=node[0], body=node[1])
 
-import os
+import os, tempfile, pathlib
 grammar_dir = os.path.dirname(__file__)
-with open(os.path.join(grammar_dir,"action_lang.g")) as file:
+grammar_path = os.path.join(grammar_dir,"action_lang.g")
+with open(grammar_path) as file:
   grammar = file.read()
-
-_default_parser = lark.Lark(grammar, parser="lalr", start=["expr", "stmt"], transformer=Transformer(), cache=True)
+cache_file = tempfile.gettempdir()+'/lark_cache_'+str(pathlib.Path(grammar_path).stat().st_mtime_ns)
 
 class TextParser:
-  def __init__(self, parser=_default_parser):
-    self.parser = parser
+  def __init__(self, parser=None):
+    if parser is None:
+      self.parser = lark.Lark(grammar, parser="lalr", start=["expr", "stmt"], transformer=Transformer(), cache=cache_file)
+    else:
+      self.parser = parser
 
   def parse_expr(self, text: str) -> Expression:
     return self.parser.parse(text, start="expr")

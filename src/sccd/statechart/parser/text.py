@@ -75,18 +75,21 @@ class Transformer(action_lang.Transformer):
     event_id = self.globals.events.assign_id(event_name)
     return EventDecl(id=event_id, name=event_name, params_decl=node[1])
 
-import os
+import os, pathlib
 grammar_dir = os.path.dirname(__file__)
-with open(os.path.join(grammar_dir, "statechart.g")) as file:
+grammar_path = os.path.join(grammar_dir,"statechart.g")
+with open(grammar_path) as file:
   # Concatenate Action Lang and SC grammars
   grammar = action_lang.grammar + file.read()
+cache_file = action_lang.cache_file+'_'+str(pathlib.Path(grammar_path).stat().st_mtime_ns)
+
 
 # Parses action language expressions and statements, and also event decls, state refs and semantic choices. 
 class TextParser(action_lang.TextParser):
   def __init__(self, globals):
     # Building the parser is actually the slowest step of parsing a statechart model.
     # Doesn't have to happen every time, so should find a way to speed this up.
-    parser = lark.Lark(grammar, parser="lalr", start=["expr", "block", "event_decl_list", "path", "semantic_choice"], transformer=Transformer(globals), cache=True)
+    parser = lark.Lark(grammar, parser="lalr", start=["expr", "block", "event_decl_list", "path", "semantic_choice"], transformer=Transformer(globals), cache=cache_file)
     super().__init__(parser)
 
   def parse_semantic_choice(self, text: str):

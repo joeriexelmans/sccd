@@ -7,7 +7,6 @@ use std::cmp::Reverse;
 use crate::statechart::Timestamp;
 use crate::statechart::Scheduler;
 use crate::statechart::SC;
-use crate::statechart::OutEvent;
 
 pub type TimerIndex = u16;
 
@@ -80,7 +79,7 @@ impl<InEvent: Copy> Controller<InEvent> {
       removed: BinaryHeap::with_capacity(4),
     }
   }
-  pub fn run_until<StatechartType: SC<InEvent, TimerId, Controller<InEvent>, OutputCallback>, OutputCallback: FnMut(OutEvent)>(&mut self, sc: &mut StatechartType, until: Until, output: &mut OutputCallback) {
+  pub fn run_until<StatechartType: SC<InEvent, TimerId, Controller<InEvent>, OutputCallback>, OutEvent, OutputCallback: FnMut(OutEvent)>(&mut self, sc: &mut StatechartType, until: Until, output: &mut OutputCallback) {
     'running: loop {
       if let Some(Reverse(entry)) = self.queue.peek() {
         // Check if event was removed

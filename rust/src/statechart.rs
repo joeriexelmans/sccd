@@ -87,10 +87,3 @@ pub trait SC<InEvent, TimerId, Sched: Scheduler<InEvent, TimerId>, OutputCallbac
   fn init(&mut self, sched: &mut Sched, output: &mut OutputCallback);
   fn big_step(&mut self, event: Option<InEvent>, sched: &mut Sched, output: &mut OutputCallback);
 }
-
-// TODO: Does not belong in "common", this should become a statechart-specific enum-type.
-#[derive(Debug, Eq, PartialEq)]
-pub struct OutEvent {
-  pub port: &'static str,
-  pub event: &'static str,
-}

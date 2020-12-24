@@ -165,6 +165,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
                 # output event - no ID in global namespace
                 statechart.event_outport[event_name] = port
                 globals.outports.assign_id(port)
+                globals.out_events.assign_id(event_name)
                 return RaiseOutputEvent(name=event_name, params=params, outport=port)
             return ([("param*", parse_param)], finish_raise)
 

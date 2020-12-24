@@ -1,5 +1,6 @@
 <html>
 <head>
+  <meta charset="utf-8">
   <title>DWatch</title>
   <style type="text/css">
     body {
@@ -52,7 +53,16 @@
   <p id="log">
   </p>
 
-  <script type="text/javascript">
+  <script type="module">
+    (async () => {
+      const rust = await import("./wasm/pkg/dwatch.js");
+
+      const m = await rust.default();
+
+      m.get_statechart();
+    })();
+
+
     function log(msg) {
       // document.getElementById("log").innerText += msg + '\n';
     }

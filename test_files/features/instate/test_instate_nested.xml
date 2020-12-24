@@ -1,4 +1,5 @@
 <test>
+  <!-- Interestingly, compiling this test with Rust -O3 produces an equally sized binary as test_instate.xml. This means that the anonymous function in the guard of our first transition is being inlined by the compiler. We can conclude that Rust brings zero-cost abstractions to our action language :) -->
   <statechart>
     <root>
       <parallel id="p">

@@ -9,7 +9,7 @@ RUST_DIR = os.path.dirname(sccd.__file__) + "/../../rust"
 # Quick and dirty high-level function, taking a statechart / class diagram / test model in XML format and generating from it a Rust crate, which is written to the filesystem as a directory.
 def write_crate(src, target):
     path = os.path.dirname(src)
-
+    basename = os.path.splitext(os.path.basename(src))[0]
 
     globals = Globals()
 
@@ -26,7 +26,7 @@ def write_crate(src, target):
     if not os.path.isdir(target):
         os.mkdir(target)
 
-    with open(target+"/statechartgen.rs", 'w') as file:
+    with open(target+"/%s.rs" % basename, 'w') as file:
         w = IndentingWriter(out=file)
 
         w.writeln("#![allow(non_camel_case_types)]")
@@ -58,7 +58,7 @@ def write_crate(src, target):
         w = IndentingWriter(out=file)
 
         w.writeln("[package]")
-        w.writeln("name = \"statechartgen\"")
+        w.writeln("name = \"%s\"" % basename)
         w.writeln("version = \"0.1.0\"")
         w.writeln("edition = \"2018\"")
         w.writeln()
@@ -71,8 +71,8 @@ def write_crate(src, target):
         else:
             # Everything else becomes a library
             w.writeln("[lib]")
-        w.writeln("name = \"statechartgen\"")
-        w.writeln("path = \"statechartgen.rs\"")
+        w.writeln("name = \"%s\"" % basename)
+        w.writeln("path = \"%s.rs\"" % basename)
         w.writeln()
 
     with open(target+"/.gitignore", 'w') as file:

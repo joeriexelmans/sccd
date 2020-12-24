@@ -355,12 +355,12 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("// Input Events")
         for event_name in input_event_names:
             self.w.writeln("#[derive(Copy, Clone, Debug)]")
-            self.w.writeln("struct %s {" % ident_event_type(event_name))
+            self.w.writeln("pub struct %s {" % ident_event_type(event_name))
             self.w.writeln("  // TODO: input event parameters")
             self.w.writeln("}")
 
         self.w.writeln("#[derive(Copy, Clone, Debug)]")
-        self.w.writeln("enum InEvent {")
+        self.w.writeln("pub enum InEvent {")
         for event_name in input_event_names:
             self.w.writeln("  %s(%s)," % (ident_event_enum_variant(event_name), ident_event_type(event_name)))
         self.w.writeln("}")
@@ -380,8 +380,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("}")
 
         if self.internal_queue:
-            # Internal events are treated like input events
-            self.w.writeln("type InternalLifeline = ();")
+            # Treat internal events like input events
+            self.w.writeln("type InternalLifeline = ();") # Unit type
         else:
             if internal_same_round:
                 self.w.writeln("type InternalLifeline = statechart::SameRoundLifeline<Internal>;")
@@ -394,12 +394,12 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("// Output Events")
         for event_name in output_event_names:
             self.w.writeln("#[derive(Copy, Clone, Debug, PartialEq, Eq)]")
-            self.w.writeln("struct %s {" % ident_event_type(event_name))
+            self.w.writeln("pub struct %s {" % ident_event_type(event_name))
             self.w.writeln("  // TODO: output event parameters")
             self.w.writeln("}")
 
         self.w.writeln("#[derive(Copy, Clone, Debug, PartialEq, Eq)]")
-        self.w.writeln("enum OutEvent {")
+        self.w.writeln("pub enum OutEvent {")
         for event_name in output_event_names:
             self.w.writeln("  %s(%s)," % (ident_event_enum_variant(event_name), ident_event_type(event_name)))
         self.w.writeln("}")

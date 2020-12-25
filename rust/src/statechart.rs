@@ -79,7 +79,7 @@ pub type Timestamp = u32;
 // scheduler (event queue) implementation.
 pub trait Scheduler<InEvent, TimerId> {
   fn set_timeout(&mut self, delay: Timestamp, event: InEvent) -> TimerId;
-  fn unset_timeout(&mut self, id: TimerId);
+  fn unset_timeout(&mut self, id: &TimerId);
 }
 
 // Generated statechart types will implement this trait.

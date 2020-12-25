@@ -19,7 +19,7 @@ class TestRustGenerator(ClassDiagramRustGenerator):
         self.w.writeln("use sccd::statechart::SC;")
         self.w.writeln("use sccd::statechart::Scheduler;")
         if DEBUG:
-            self.w.writeln("debug_print_sizes::<controller::TimerId>();")
+            self.w.writeln("debug_print_sizes::<controller::TimerId<InEvent>>();")
         self.w.writeln();
 
         self.w.writeln("// Setup ...")
@@ -28,7 +28,7 @@ class TestRustGenerator(ClassDiagramRustGenerator):
         self.w.writeln("  raised.push(out);")
         self.w.writeln("};")
         self.w.writeln("let mut controller = controller::Controller::<InEvent>::new();")
-        self.w.writeln("let mut sc: Statechart::<controller::TimerId> = Default::default();")
+        self.w.writeln("let mut sc: Statechart::<controller::TimerId<InEvent>> = Default::default();")
         self.w.writeln()
         self.w.writeln("// Initialize statechart (execute actions of entering default states)")
         self.w.writeln("sc.init(&mut controller, &mut output);")
@@ -39,14 +39,16 @@ class TestRustGenerator(ClassDiagramRustGenerator):
                 raise UnsupportedFeature("Multiple simultaneous input events not supported")
             elif len(i.events) == 0:
                 raise UnsupportedFeature("Test declares empty bag of input events")
-            self.w.writeln("controller.set_timeout(%d, InEvent::%s(%s{}));" % (i.timestamp.opt, ident_event_enum_variant(i.events[0].name), ident_event_type(i.events[0].name)))
+            # self.w.writeln("controller.set_timeout(%d, InEvent::%s(%s{}));" % (i.timestamp.opt, ident_event_enum_variant(i.events[0].name), ident_event_type(i.events[0].name)))
+            self.w.writeln("controller.set_timeout(%d, InEvent::%s);" % (i.timestamp.opt, ident_event_enum_variant(i.events[0].name)))
         self.w.writeln()
 
         self.w.writeln("// Run simulation, as-fast-as-possible")
         self.w.writeln("controller.run_until(&mut sc, controller::Until::Eternity, &mut output);")
         self.w.writeln()
         self.w.writeln("// Check if output is correct")
-        self.w.writeln("assert_eq!(raised, [%s]);" % ", ".join("OutEvent::%s(%s{})" % (ident_event_enum_variant(e.name), ident_event_type(e.name)) for o in variant.output for e in o))
+        # self.w.writeln("assert_eq!(raised, [%s]);" % ", ".join("OutEvent::%s(%s{})" % (ident_event_enum_variant(e.name), ident_event_type(e.name)) for o in variant.output for e in o))
+        self.w.writeln("assert_eq!(raised, [%s]);" % ", ".join("OutEvent::%s" % (ident_event_enum_variant(e.name)) for o in variant.output for e in o))
 
         self.w.dedent()
         self.w.writeln("}")

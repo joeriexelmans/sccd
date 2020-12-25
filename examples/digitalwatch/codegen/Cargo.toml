@@ -1,0 +1,13 @@
+[package]
+name = "digitalwatch"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+sccd = { path = "/home/maestro/thesis/repos/SCCD/src/sccd/../../rust" }
+wasm-bindgen = "*"
+
+[lib]
+name = "digitalwatch"
+path = "digitalwatch.rs"
+

@@ -5,7 +5,7 @@
     <semantics
       big_step_maximality="take_one"
       internal_event_lifeline="next_small_step"
-      input_event_lifeline="first_small_step"
+      input_event_lifeline="whole"
     />
 
     <inport name="in">
@@ -184,7 +184,7 @@
               <onentry>
                 <raise event="increaseSelection"/>
               </onentry>
-              <transition after="100 ms" target="."/>
+              <transition after="300 ms" target="."/>
               <transition event="bottomLeftReleased" target="../Waiting"/>
             </state>
           </state>

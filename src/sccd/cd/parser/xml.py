@@ -27,6 +27,6 @@ def cd_parser_rules(statechart_parser_rules, default_delta = duration(100, Micro
 # This is usually how you would want to load a class diagram:
 def load_cd(src):
   import os
-  sc_rules = functools.partial(statechart_parser_rules, path=os.path.dirname(src))
-  cd_rules = cd_parser_rules(sc_rules)
+  sc_rules = functools.partial(statechart_parser_rules, path=os.path.dirname(src), load_external=True)
+  cd_rules = { "single_instance_cd": cd_parser_rules(sc_rules) }
   return parse_f(src, rules=cd_rules)

@@ -1,0 +1,291 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DWatch</title>
+  <style type="text/css">
+    body {
+      background-color: #000;
+      color: #fff;
+    }
+    #canvas{
+      /* center on page */
+      position: absolute;
+      top:0; left:0; bottom:0; right:0;
+      margin: auto;
+    }
+    @font-face{
+      font-family: 'digital-font';
+      src: url('font.ttf');
+    }
+    svg text{
+      font: 28px digital-font;
+    }
+    /* disable text selection */
+    svg text {
+      cursor: default;
+        -webkit-user-select: none;
+           -moz-user-select: none;
+            -ms-user-select: none;
+                user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <svg version="1.1"
+     baseProfile="full"
+     width="222" height="236"
+     xmlns="http://www.w3.org/2000/svg"
+     id="canvas">
+
+    <image width="222" height="236" xlink:href="watch.gif"/>
+
+      <rect id="display" x="51" y="95" width="120" height="55" rx="2" fill="#DCDCDC">
+      </rect>
+      <text id="timeText" x="111" y="126" dominant-baseline="middle" text-anchor="middle"></text>
+      <text id="chronoText" x="111" y="126" dominant-baseline="middle" text-anchor="middle" style="display:none"></text>
+      <text id="alarmText" x="111" y="126" dominant-baseline="middle" text-anchor="middle" style="display:none"></text>
+
+    <rect id="topLeft" x="0" y="59", width="16", height="16" fill="#fff" fill-opacity="0.2" />
+    <rect id="topRight" x="206" y="57", width="16", height="16" fill="#fff" fill-opacity="0.2" />
+    <rect id="bottomLeft" x="0" y="158", width="16", height="16" fill="#fff" fill-opacity="0.2" />
+    <rect id="bottomRight" x="208" y="158", width="16", height="16" fill="#fff" fill-opacity="0.2" />
+
+    <image id="note" x="54" y="96" xlink:href="noteSmall.gif" style="display:none"/>
+  </svg>
+  <p id="log">
+  </p>
+
+  <script type="module">
+    Number.prototype.pad = function(size) {
+      let s = String(this);
+      while (s.length < (size || 2)) {s = "0" + s;}
+      return s;
+    };
+
+    class DisplayText {
+      constructor(initial, max, element) {
+        this.initial = initial;
+        this.max = max;
+        this.element = element;
+
+        this.values = [...initial];
+        this.selected = 0;
+        this.timeout = null;
+
+        this.render();
+      }
+      increment() {
+        this.values[0] += 1;
+        this.values[1] += Math.floor(this.values[0] / this.max[0]);
+        this.values[2] += Math.floor(this.values[1] / this.max[1]);
+        this.values[0] %= this.max[0];
+        this.values[1] %= this.max[1];
+        this.values[2] %= this.max[2];
+        this.render();
+      }
+      reset() {
+        this.values = [... this.initial]
+        this.render();
+      }
+      render() {
+        this.element.textContent =
+          this.values[2].pad(2) + ':' +
+          this.values[1].pad(2) + ':' +
+          this.values[0].pad(2);
+      }
+      blink0() {
+        this.element.textContent =
+          (this.selected === 2 ? "__" : this.values[2].pad(2)) + ':' +
+          (this.selected === 1 ? "__" : this.values[1].pad(2)) + ':' +
+          (this.selected === 0 ? "__" : this.values[0].pad(2));
+        this.timeout = setTimeout(this.blink1.bind(this), 500);
+      }
+      blink1() {
+        this.render();
+        this.timeout = setTimeout(this.blink0.bind(this), 500);
+      }
+      selectionStart() {
+        this.selected = 2;
+        this.blink0();
+      }
+      selectionStop() {
+        clearTimeout(this.timeout);
+        this.render();
+      }
+      selectionNext() {
+        this.selected -= 1;
+        if (this.selected < 0)
+          this.selected = 2;
+        clearTimeout(this.timeout);
+        this.blink0();
+      }
+      selectionIncrease() {
+        this.values[this.selected] += 1;
+        this.values[this.selected] %= this.max[this.selected];
+        clearTimeout(this.timeout);
+        this.blink1();
+      }
+      show() {
+        this.element.style.display = "";
+      }
+      hide() {
+        this.element.style.display = "none";
+      }
+      isVisible() {
+        return this.element.style.display !== "none";
+      }
+    }
+
+    (async () => {
+      const startedAt = new Date()
+      const timeZero = +startedAt;
+      const realtime = () => +new Date() - timeZero;
+      const [rust, outputhandler] = await Promise.all([
+        import("./wasm/pkg/dwatch.js"),
+        import("./wasm/outputhandler.js"),
+      ]);
+      const memory = await rust.default();
+      let purposefully_behind = 0;
+
+      const elementNote = document.getElementById("note");
+      const elementDisplay = document.getElementById("display");
+
+      // Time is equal to wall-clock time
+      const time = new DisplayText([startedAt.getSeconds(), startedAt.getMinutes(), startedAt.getHours()], [60, 60, 24], document.getElementById("timeText"));
+
+      // Chrono is zero
+      const chrono = new DisplayText([0, 0, 0], [100, 60, 100], document.getElementById("chronoText"));
+
+      const alarm = new DisplayText([startedAt.getSeconds(), startedAt.getMinutes(), startedAt.getHours()], [60, 60, 24], document.getElementById("alarmText"));
+
+      // Alarm is always equal to time + 10 seconds (makes it easier to test the alarm)
+      for (let i=0; i<10; i++) {
+        alarm.increment();
+      }
+
+      const onVisible = (objs, operation) => {
+        objs.forEach(obj => {
+          if (obj.isVisible()) {
+            obj[operation]();
+          }
+        })
+      }
+
+      const outHandler = new outputhandler.OutputHandler(outEvent => {
+        switch (outEvent) {
+          case rust.OutEvent.E_setAlarm:
+            // console.log("setAlarm");
+            if (elementNote.style.display === "") {
+              elementNote.style.display = "none";
+            } else {
+              elementNote.style.display = "";
+            }
+            break;
+          case rust.OutEvent.E_setIndiglo:
+            // console.log("setIndiglo");
+            elementDisplay.setAttribute("fill", "#96DCFA");
+            break;
+          case rust.OutEvent.E_unsetIndiglo:
+            // console.log("unsetIndiglo");
+            elementDisplay.setAttribute("fill", "#DCDCDC");
+            break;
+          case rust.OutEvent.E_startSelection:
+            // console.log("startSelection");
+            onVisible([time, alarm], "selectionStart")
+            break;
+          case rust.OutEvent.E_selectNext:
+            // console.log("selectNext");
+            onVisible([time, alarm], "selectionNext")
+            break;
+          case rust.OutEvent.E_stopSelection:
+            // console.log("stopSelection");
+            onVisible([time, alarm], "selectionStop")
+            break;
+          case rust.OutEvent.E_increaseSelection:
+            // console.log("increaseSelection");
+            onVisible([time, alarm], "selectionIncrease")
+            break;
+          case rust.OutEvent.E_refreshTimeDisplay:
+            // console.log("refreshTimeDisplay");
+            chrono.hide();
+            alarm.hide();
+            time.show();
+            break;
+          case rust.OutEvent.E_refreshChronoDisplay:
+            // console.log("refreshChronoDisplay");
+            time.hide();
+            alarm.hide();
+            chrono.show();
+            break;
+          case rust.OutEvent.E_refreshAlarmDisplay:
+            // console.log("refreshAlarmDisplay");
+            time.hide();
+            chrono.hide();
+            alarm.show();
+            break;
+          case rust.OutEvent.E_increaseTimeByOne:
+            // console.log("increaseTimeByOne");
+            time.increment();
+            break;
+          case rust.OutEvent.E_increaseChronoByOne:
+            // console.log("increaseChronoByOne");
+            chrono.increment();
+            break;
+          case rust.OutEvent.E_resetChrono:
+            // console.log("resetChrono");
+            chrono.reset();
+            break;
+          case rust.OutEvent.E_checkTime:
+            // console.log("checkTime");
+            for (let i=0; i<3; i++) {
+              if (alarm.values[i] !== time.values[i])
+                return;
+            }
+            setTimeout(() => {
+              rust.add_event(handle, realtime() - simtime, rust.InEvent.E_alarmStart);
+              wakeup();
+            }, 0);
+            break;
+        }
+      });
+
+      // (Soft) Real-time simulation
+      const handle = rust.setup(outHandler);
+      let timeout;
+      let simtime;
+      const wakeup = () => {
+        clearTimeout(timeout);
+        const status = rust.run_until(handle, realtime() + purposefully_behind, outHandler);
+        simtime = status.simtime;
+
+        if (status.reschedule) {
+          let sleep_duration = status.at - realtime();
+          if (sleep_duration < 0) {
+            purposefully_behind = sleep_duration;
+            sleep_duration = 0;
+          }
+          else {
+            purposefully_behind = 0;
+          }
+          timeout = setTimeout(wakeup, sleep_duration);
+        }
+      }
+      wakeup();
+
+      // Send input events
+      ["topLeft", "topRight", "bottomLeft", "bottomRight"].forEach(button => {
+        document.getElementById(button).onmousedown = () => {
+          // console.log(button + "Pressed");
+          const nextWakeup = rust.add_event(handle, realtime() - simtime, rust.InEvent["E_"+button+"Pressed"]);
+          wakeup();
+        }
+        document.getElementById(button).onmouseup = () => {
+          // console.log(button + "Released");
+          const nextWakeup = rust.add_event(handle, realtime() - simtime, rust.InEvent["E_"+button+"Released"]);
+          wakeup();
+        }
+      })
+    })();
+  </script>
+</body>
+</html>

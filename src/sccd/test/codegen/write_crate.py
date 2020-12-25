@@ -2,6 +2,7 @@ from sccd.cd.parser.xml import *
 from sccd.test.parser.xml import *
 from sccd.util.indenting_writer import *
 from functools import partial
+from sccd.util.wasm import *
 
 import sccd
 RUST_DIR = os.path.dirname(sccd.__file__) + "/../../rust"
@@ -41,6 +42,10 @@ def write_crate(src, target):
         w.writeln("#![allow(unused_imports)]")
         w.writeln()
 
+        if WASM:
+            w.writeln("use wasm_bindgen::prelude::*;")
+            w.writeln()
+
         if isinstance(parsed, Statechart):
             from sccd.statechart.codegen.rust import StatechartRustGenerator
 
@@ -64,6 +69,8 @@ def write_crate(src, target):
         w.writeln()
         w.writeln("[dependencies]")
         w.writeln("sccd = { path = \"%s\" }" % RUST_DIR)
+        if WASM:
+            w.writeln("wasm-bindgen = \"*\"")
         w.writeln()
         if isinstance(parsed, Test):
             # Tests are compiled to binaries

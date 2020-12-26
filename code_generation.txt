@@ -149,6 +149,13 @@ Performance over time
 
 for test semantics/big_step_maximality/test_ortho_takemany.xml
 
+commit 950fcc1e7eed1e3b3c5eda75b896078e53eb71c4 - Dec 26, 2020 - syntactic output events (enums instead of strings), re-implemented event queue (entries allocated on heap, 'canceled' flag)
+
+binary size, no opt:                            3833544 bytes <- not sure what caused this sudden drop in unoptimized binary size
+binary size, opt-level=3:                       3255368 bytes
+instruction count (perf stat) (opt-level=3):    569.488 instructions:u
+
+
 commit ae8a94e186ee972c0d3e0b229b77901352137c64 - Dec 23, 2020 - implement additional event lifeline semantics, pass input event by reference instead of by value
 
 binary size, no opt:                            800592 bytes

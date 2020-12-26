@@ -1,9 +1,9 @@
 
-===============
-Code generation
-===============
+=========================
+Code generation with Rust
+=========================
 
-49 tests currently passing (flag --rust):
+50 tests currently passing (flag --rust):
 
   features/instate/test_instate.xml
   features/instate/test_instate_nested.xml
@@ -19,6 +19,7 @@ Code generation
   features/history/test_parallel_deep.xml
   features/history/test_shallow.xml
   features/after/test_after.xml
+  features/after/test_after_reentry.xml
   features/parallel/test_parallel.xml
   day_atlee/test_02_counter_takeone.xml
   day_atlee/test_03_trafficlight_single.xml

@@ -31,22 +31,30 @@ Alternatively, you can just set your `PYTHONPATH` environment variable to the ab
 Assuming you followed the installation instructions above, run:
 
 ```
-python -m sccd.test.cmd.run test/test_files
+python -m sccd.test.cmd.run test_files
 ```
 
 It will recursively visit the directory tree of `test_files` and look for XML files starting with with `test_` (tests that should succeed) or `fail_` (for tests that should fail), and execute them. The tree also contains XML files starting with `statechart_`: these are individual statechart models that are not directly executable, but are used by test files. The tree also contains SVG files: these contain automatically rendered images of statechart models.
 
-### Code generation with Rust
+### Testing Rust
 
 The test framework can also generate a Rust crate for each test, and then invokes Cargo (must be in your PATH as `cargo`) to compile to native code for your machine. The created crates and compilation artifacts are put in a temporary directory. The native code is then run (the main-function of the generated code executes the test).
 
 Add the `--rust` flag to the test command to try it:
 
 ```
-python -m sccd.test.cmd.run --rust test/test_files
+python -m sccd.test.cmd.run --rust test_files
 ```
 
 Rust code generation is a work-in-progress. Some tests may fail, or be skipped.
+
+## Rust code generation
+
+Rust code can be generated from statechart, class diagram or test models. Statechart and class diagram models produce a Rust crate (as a new directory) that can be built with Cargo, producing a library. Test models produce a Rust crate can be built to a binary (the main function executes the test).
+
+```
+python -m sccd.test.cmd.to_rust path/to/model.xml [--output DIRNAME]
+```
 
 ## Runtime environment variables
 

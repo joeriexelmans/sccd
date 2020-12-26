@@ -26,7 +26,7 @@ def main():
             method = getattr(gui.controller, event.name)
             method()
 
-    cd = load_cd("digitalwatch.xml")
+    cd = load_cd("../common/digitalwatch.xml")
 
     # from sccd.statechart.static import tree
     # tree.concurrency_arena_orthogonal( cd.statechart.tree )

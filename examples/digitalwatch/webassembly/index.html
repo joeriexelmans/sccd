@@ -4,8 +4,9 @@
   <title>DWatch</title>
   <style type="text/css">
     body {
-      background-color: #000;
+      background-color: #222;
       color: #fff;
+      font-weight: bold;
     }
     #canvas{
       /* center on page */
@@ -15,13 +16,11 @@
     }
     @font-face{
       font-family: 'digital-font';
-      src: url('font.ttf');
+      src: url('../common/font.ttf');
     }
-    svg text{
-      font: 28px digital-font;
-    }
-    /* disable text selection */
     svg text {
+      font: 28px digital-font;
+      /* disable text selection */
       cursor: default;
         -webkit-user-select: none;
            -moz-user-select: none;
@@ -37,7 +36,7 @@
      xmlns="http://www.w3.org/2000/svg"
      id="canvas">
 
-    <image width="222" height="236" xlink:href="watch.gif"/>
+    <image width="222" height="236" xlink:href="../common/watch.gif"/>
 
       <rect id="display" x="51" y="95" width="120" height="55" rx="2" fill="#DCDCDC">
       </rect>
@@ -50,10 +49,9 @@
     <rect id="bottomLeft" x="0" y="158", width="16", height="16" fill="#fff" fill-opacity="0.2" />
     <rect id="bottomRight" x="208" y="158", width="16", height="16" fill="#fff" fill-opacity="0.2" />
 
-    <image id="note" x="54" y="96" xlink:href="noteSmall.gif" style="display:none"/>
+    <image id="note" x="54" y="96" xlink:href="../common/noteSmall.gif" style="display:none"/>
   </svg>
-  <p id="log">
-  </p>
+  <p>Note: On page reload, time is set to wall-clock time, and alarm is set to wall-clock time + 10s.</p>
 
   <script type="module">
     Number.prototype.pad = function(size) {
@@ -145,7 +143,6 @@
         import("./wasm/outputhandler.js"),
       ]);
       const memory = await rust.default();
-      let purposefully_behind = 0;
 
       const elementNote = document.getElementById("note");
       const elementDisplay = document.getElementById("display");
@@ -156,9 +153,8 @@
       // Chrono is zero
       const chrono = new DisplayText([0, 0, 0], [100, 60, 100], document.getElementById("chronoText"));
 
-      const alarm = new DisplayText([startedAt.getSeconds(), startedAt.getMinutes(), startedAt.getHours()], [60, 60, 24], document.getElementById("alarmText"));
-
       // Alarm is always equal to time + 10 seconds (makes it easier to test the alarm)
+      const alarm = new DisplayText([... time.values], [... time.max], document.getElementById("alarmText"));
       for (let i=0; i<10; i++) {
         alarm.increment();
       }
@@ -253,6 +249,7 @@
       const handle = rust.setup(outHandler);
       let timeout;
       let simtime;
+      let purposefully_behind = 0;
       const wakeup = () => {
         clearTimeout(timeout);
         const status = rust.run_until(handle, realtime() + purposefully_behind, outHandler);

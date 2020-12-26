@@ -184,8 +184,8 @@ class DigitalWatchGUI_Static(Frame):
         self.curChrono = [0, 0, 0]
         self.chronoTag = None
         
-        self.noteImage = PhotoImage(file="./noteSmall.gif")        
-        self.watchImage = PhotoImage(file="./watch.gif")
+        self.noteImage = PhotoImage(file="../common/noteSmall.gif")        
+        self.watchImage = PhotoImage(file="../common/watch.gif")
         
         self.alarmNoteTag = None
         

@@ -1,0 +1,12 @@
+{
+  "name": "wasm",
+  "version": "0.1.0",
+  "files": [
+    "dwatch_bg.wasm",
+    "dwatch.js",
+    "dwatch.d.ts"
+  ],
+  "module": "dwatch.js",
+  "types": "dwatch.d.ts",
+  "sideEffects": false
+}

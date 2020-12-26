@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-sccd = { path = "/home/maestro/thesis/repos/SCCD/src/sccd/../../rust" }
-wasm-bindgen = "*"
+sccd = { path = "/home/maestro/thesis/repos/SCCD/python/sccd/../../rust" }
+
+# Only depend on wasm-bindgen when building for wasm32 architecture
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
 
 [lib]
 name = "digitalwatch"

@@ -7,7 +7,6 @@ from sccd.statechart.static.statechart import *
 from sccd.statechart.static.globals import *
 from sccd.statechart.static import priority
 from sccd.util.indenting_writer import *
-from sccd.util.wasm import *
 
 # Hardcoded limit on number of sub-rounds of combo and big step to detect never-ending superrounds.
 # TODO: make this a model parameter, also allowing for +infinity
@@ -354,23 +353,11 @@ class StatechartRustGenerator(ActionLangRustGenerator):
             sc.semantics.internal_event_lifeline == InternalEventLifeline.REMAINDER or
             sc.semantics.internal_event_lifeline == InternalEventLifeline.SAME)
 
-        # Until we implement event parameters, event types are just empty structs
-
         self.w.writeln("// Input Events")
-        # for event_name in input_event_names:
-        #     if WASM:
-        #         self.w.writeln("#[wasm_bindgen]")
-        #     self.w.writeln("#[derive(Copy, Clone, Debug)]")
-        #     self.w.writeln("pub struct %s {" % ident_event_type(event_name))
-        #     self.w.writeln("  // TODO: input event parameters")
-        #     self.w.writeln("}")
-
-        if WASM:
-            self.w.writeln("#[wasm_bindgen]")
+        self.w.writeln("#[cfg_attr(target_arch = \"wasm32\", wasm_bindgen)]")
         self.w.writeln("#[derive(Copy, Clone, Debug)]")
         self.w.writeln("pub enum InEvent {")
         for event_name in input_event_names:
-            # self.w.writeln("  %s(%s)," % (ident_event_enum_variant(event_name), ident_event_type(event_name)))
             self.w.writeln("  %s," % (ident_event_enum_variant(event_name)))
         self.w.writeln("}")
         self.w.writeln()
@@ -401,20 +388,10 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         # Output events
         output_event_names = self.globals.out_events.names
         self.w.writeln("// Output Events")
-        # for event_name in output_event_names:
-        #     if WASM:
-        #         self.w.writeln("#[wasm_bindgen]")
-        #     self.w.writeln("#[derive(Copy, Clone, Debug, PartialEq, Eq)]")
-        #     self.w.writeln("pub struct %s {" % ident_event_type(event_name))
-        #     self.w.writeln("  // TODO: output event parameters")
-        #     self.w.writeln("}")
-
-        if WASM:
-            self.w.writeln("#[wasm_bindgen]")
+        self.w.writeln("#[cfg_attr(target_arch = \"wasm32\", wasm_bindgen)]")
         self.w.writeln("#[derive(Copy, Clone, Debug, PartialEq, Eq)]")
         self.w.writeln("pub enum OutEvent {")
         for event_name in output_event_names:
-            # self.w.writeln("  %s(%s)," % (ident_event_enum_variant(event_name), ident_event_type(event_name)))
             self.w.writeln("  %s," % (ident_event_enum_variant(event_name)))
         self.w.writeln("}")
         self.w.writeln()

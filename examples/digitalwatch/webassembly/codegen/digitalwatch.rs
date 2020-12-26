@@ -9,6 +9,7 @@
 #![allow(unused_mut)]
 #![allow(unused_imports)]
 
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 use std::ops::Deref;
@@ -23,6 +24,7 @@ use sccd::statechart::EventLifeline;
 type Timers<TimerId> = [TimerId; 11];
 
 // Input Events
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 #[derive(Copy, Clone, Debug)]
 pub enum InEvent {
@@ -75,6 +77,7 @@ struct Internal {
 type InternalLifeline = statechart::NextRoundLifeline<Internal>;
 
 // Output Events
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum OutEvent {

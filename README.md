@@ -60,8 +60,8 @@ python -m sccd.test.cmd.to_rust path/to/model.xml [--output DIRNAME]
 
 The following environment variables can be set to change the behavior of the runtime. These options can be set while running the tests, or while running one of the examples.
 
-* `SCCDDEBUG`: When set, additional debug information is printed, such as a trace of the individual transitions taken.
-* `SCCDTIMINGS`: When set, at exit, the runtime will print information about how much time in total was spent during various parts of its execution, such as loading the model, generating transition candidates, executing transitions, executing actions, and more.
+* `SCCDDEBUG`: When set to 1, additional debug information is printed, such as a trace of the individual transitions taken.
+* `SCCDTIMINGS`: When set to 1, at exit, the runtime will print information about how much time in total was spent during various parts of its execution, such as loading the model, generating transition candidates, executing transitions, executing actions, and more.
 
 ## Included tools
 

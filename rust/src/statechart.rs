@@ -77,13 +77,20 @@ pub type Timestamp = u32;
 // This trait defines the scheduler-operations a statechart may call during a step.
 // By defining them in a trait, the generated statechart code can be independent of the
 // scheduler (event queue) implementation.
-pub trait Scheduler<InEvent, TimerId> {
-  fn set_timeout(&mut self, delay: Timestamp, event: InEvent) -> TimerId;
-  fn unset_timeout(&mut self, id: &TimerId);
+pub trait Scheduler {
+  type InEvent;
+  type TimerId: Default;
+
+  fn set_timeout(&mut self, delay: Timestamp, event: Self::InEvent) -> Self::TimerId;
+  fn unset_timeout(&mut self, id: &Self::TimerId);
 }
 
 // Generated statechart types will implement this trait.
-pub trait SC<InEvent, TimerId, Sched: Scheduler<InEvent, TimerId>, OutputCallback> {
-  fn init(&mut self, sched: &mut Sched, output: &mut OutputCallback);
-  fn big_step(&mut self, event: Option<InEvent>, sched: &mut Sched, output: &mut OutputCallback);
+pub trait SC {
+  type InEvent;
+  type OutEvent;
+  type Sched: Scheduler<InEvent=Self::InEvent>;
+
+  fn init(&mut self, sched: &mut Self::Sched, output: &mut impl FnMut(Self::OutEvent));
+  fn big_step(&mut self, event: Option<Self::InEvent>, sched: &mut Self::Sched, output: &mut impl FnMut(Self::OutEvent));
 }

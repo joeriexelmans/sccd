@@ -56,10 +56,11 @@ pub struct Controller<InEvent> {
   idxs: HashMap<Timestamp, TimerIndex>,
 }
 
-pub type TimerId<InEvent> = Weak<QueueEntry<InEvent>>;
+impl<InEvent> Scheduler for Controller<InEvent> {
+  type InEvent = InEvent;
+  type TimerId = Weak<QueueEntry<InEvent>>;
 
-impl<InEvent> Scheduler<InEvent, TimerId<InEvent>> for Controller<InEvent> {
-  fn set_timeout(&mut self, delay: Timestamp, event: InEvent) -> TimerId<InEvent> {
+  fn set_timeout(&mut self, delay: Timestamp, event: Self::InEvent) -> Self::TimerId {
     let timestamp = self.simtime + delay;
     let idx_ref = self.idxs.entry(timestamp).or_default();
     let idx = *idx_ref;
@@ -71,7 +72,7 @@ impl<InEvent> Scheduler<InEvent, TimerId<InEvent>> for Controller<InEvent> {
 
     weak
   }
-  fn unset_timeout(&mut self, weak: &TimerId<InEvent>) {
+  fn unset_timeout(&mut self, weak: &Self::TimerId) {
     if let Some(strong) = weak.upgrade() {
       strong.canceled.set(true);
     }
@@ -110,7 +111,7 @@ impl<InEvent: Copy> Controller<InEvent> {
       }
     };
   }
-  pub fn run_until<StatechartType: SC<InEvent, Weak<QueueEntry<InEvent>>, Controller<InEvent>, OutputCallback>, OutEvent, OutputCallback: FnMut(OutEvent)>(&mut self, sc: &mut StatechartType, until: Until, output: &mut OutputCallback) -> Until
+  pub fn run_until<OutEvent>(&mut self, sc: &mut impl SC<InEvent=InEvent, OutEvent=OutEvent, Sched=Self>, until: Until, output: &mut impl FnMut(OutEvent)) -> Until
   {
     loop {
       let Reverse(entry) = if let Some(peek_mut) = self.queue.peek_mut() {

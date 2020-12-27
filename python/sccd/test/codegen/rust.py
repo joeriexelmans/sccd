@@ -14,12 +14,12 @@ class TestRustGenerator(ClassDiagramRustGenerator):
         self.w.writeln("pub fn run_test() {")
         self.w.indent()
 
-        self.w.writeln("use sccd::controller;")
+        self.w.writeln("use sccd::controller::*;")
         self.w.writeln("use sccd::statechart;")
         self.w.writeln("use sccd::statechart::SC;")
         self.w.writeln("use sccd::statechart::Scheduler;")
         if DEBUG:
-            self.w.writeln("debug_print_sizes::<controller::TimerId<InEvent>>();")
+            self.w.writeln("debug_print_sizes::<Controller<InEvent>::TimerId>();")
         self.w.writeln();
 
         self.w.writeln("// Setup ...")
@@ -27,8 +27,8 @@ class TestRustGenerator(ClassDiagramRustGenerator):
         self.w.writeln("let mut output = |out: OutEvent| {")
         self.w.writeln("  raised.push(out);")
         self.w.writeln("};")
-        self.w.writeln("let mut controller = controller::Controller::<InEvent>::default();")
-        self.w.writeln("let mut sc = Statechart::<controller::TimerId<InEvent>>::default();")
+        self.w.writeln("let mut controller = Controller::<InEvent>::default();")
+        self.w.writeln("let mut sc = Statechart::<Controller::<InEvent>>::default();")
         self.w.writeln()
         self.w.writeln("// Initialize statechart (execute actions of entering default states)")
         self.w.writeln("sc.init(&mut controller, &mut output);")
@@ -44,7 +44,7 @@ class TestRustGenerator(ClassDiagramRustGenerator):
         self.w.writeln()
 
         self.w.writeln("// Run simulation, as-fast-as-possible")
-        self.w.writeln("controller.run_until(&mut sc, controller::Until::Eternity, &mut output);")
+        self.w.writeln("controller.run_until(&mut sc, Until::Eternity, &mut output);")
         self.w.writeln()
         self.w.writeln("// Check if output is correct")
         # self.w.writeln("assert_eq!(raised, [%s]);" % ", ".join("OutEvent::%s(%s{})" % (ident_event_enum_variant(e.name), ident_event_type(e.name)) for o in variant.output for e in o))

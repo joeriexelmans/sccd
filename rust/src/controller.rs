@@ -83,14 +83,17 @@ pub enum Until {
   Eternity,
 }
 
-impl<InEvent: Copy> Controller<InEvent> {
-  pub fn new() -> Self {
+impl<InEvent> Default for Controller<InEvent> {
+  fn default() -> Self {
     Self {
       simtime: 0,
       queue: BinaryHeap::with_capacity(16),
       idxs: HashMap::<Timestamp, TimerIndex>::with_capacity(16),
     }
   }
+}
+
+impl<InEvent: Copy> Controller<InEvent> {
   pub fn get_simtime(&self) -> Timestamp {
     self.simtime
   }
@@ -100,8 +103,8 @@ impl<InEvent: Copy> Controller<InEvent> {
       Some(Reverse(entry)) => Until::Timestamp(entry.cmp.timestamp),
     }
   }
-  fn cleanup_idx(map: &mut HashMap<Timestamp, TimerIndex>, entry: &QueueEntry<InEvent>) {
-    if let hash_map::Entry::Occupied(o) = map.entry(entry.cmp.timestamp) {
+  fn cleanup_idx(idxs: &mut HashMap<Timestamp, TimerIndex>, entry: &QueueEntry<InEvent>) {
+    if let hash_map::Entry::Occupied(o) = idxs.entry(entry.cmp.timestamp) {
       if *o.get() == entry.cmp.idx+1 {
         o.remove_entry();
       }

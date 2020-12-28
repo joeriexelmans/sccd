@@ -334,6 +334,13 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.state_stack.pop()
 
     def visit_Statechart(self, sc):
+        if sc.semantics.concurrency == Concurrency.MANY:
+            raise UnsupportedFeature("concurrency")
+
+        if sc.semantics.enabledness_memory_protocol != MemoryProtocol.SMALL_STEP or sc.semantics.assignment_memory_protocol != MemoryProtocol.SMALL_STEP:
+            raise UnsupportedFeature("Memory protocol semantics")
+
+
         self.scope.push(sc.scope)
 
         self.w.writeln("use std::ops::Deref;")
@@ -346,8 +353,6 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("use sccd::statechart::EventLifeline;")
         self.w.writeln();
 
-        if sc.semantics.concurrency == Concurrency.MANY:
-            raise UnsupportedFeature("concurrency")
 
         priority_ordered_transitions = priority.priority_and_concurrency(sc) # may raise error
 

@@ -90,8 +90,8 @@ class SemanticConfiguration:
   combo_step_maximality: SemanticChoice[Maximality] = Maximality.TAKE_ONE
   internal_event_lifeline: SemanticChoice[InternalEventLifeline] = InternalEventLifeline.NEXT_COMBO_STEP
   input_event_lifeline: SemanticChoice[InputEventLifeline] = InputEventLifeline.FIRST_COMBO_STEP
-  enabledness_memory_protocol: SemanticChoice[MemoryProtocol] = MemoryProtocol.COMBO_STEP
-  assignment_memory_protocol: SemanticChoice[MemoryProtocol] = MemoryProtocol.COMBO_STEP
+  enabledness_memory_protocol: SemanticChoice[MemoryProtocol] = MemoryProtocol.SMALL_STEP
+  assignment_memory_protocol: SemanticChoice[MemoryProtocol] = MemoryProtocol.SMALL_STEP
 
   hierarchical_priority: SemanticChoice[HierarchicalPriority] = HierarchicalPriority.SOURCE_PARENT
   orthogonal_priority: SemanticChoice[OrthogonalPriority] = OrthogonalPriority.EXPLICIT

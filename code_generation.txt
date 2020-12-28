@@ -131,8 +131,8 @@ Roadmap
 
   Milestone n+1: "TODO"
 
-    - Syntactic output events
-    - Event parameters
+    - (DONE) Syntactic output events
+    - (DONE) Event parameters
     - Memory Protocol semantics
     - Concurrency semantics
 
@@ -151,6 +151,12 @@ Performance over time
 ---------------------
 
 for test semantics/big_step_maximality/test_ortho_takemany.xml
+
+commit 91a048eedb6eaf224df3567b506cbda07d664781 - Dec 28, 2020 - implemented event parameters, use tuple structs for event types
+
+binary size, opt-level=3:                       3244920 bytes
+instruction count (perf stat) (opt-level=3):    562.600 instructions:u
+
 
 commit 950fcc1e7eed1e3b3c5eda75b896078e53eb71c4 - Dec 26, 2020 - syntactic output events (enums instead of strings), re-implemented event queue (entries allocated on heap, 'canceled' flag)
 

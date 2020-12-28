@@ -44,31 +44,38 @@ pub fn setup(out: &OutputHandler) -> Handle {
 }
 
 #[wasm_bindgen]
-pub fn add_event(h: &mut Handle, delay: statechart::Timestamp, i: digitalwatch::InEvent) -> RunUntilResult {
+pub fn add_event(h: &mut Handle, delay: statechart::Timestamp, i: digitalwatch::InEvent) {
   h.controller.set_timeout(delay, i);
-  RunUntilResult::from_controller(&h.controller)
 }
 
+// Wasm_bindgen cannot yet create bindings for enums with values (such as controller::Until) or tuples, so we translate it to a simple struct
 #[wasm_bindgen]
 pub struct RunUntilResult {
   pub simtime: statechart::Timestamp,
-  pub reschedule: bool,
-  pub at: statechart::Timestamp,
+  pub next_wakeup_eternity: bool,
+  pub next_wakeup: statechart::Timestamp,
 }
 
 impl RunUntilResult {
-  fn from_controller(c: &controller::Controller::<digitalwatch::InEvent>) -> Self {
-    let mut result = match c.get_earliest() {
-      controller::Until::Timestamp(t) => RunUntilResult{reschedule: true, at: t, simtime: 0},
-      controller::Until::Eternity => RunUntilResult{reschedule: false, at: 0, simtime: 0},
-    };
-    result.simtime = c.get_simtime();
-    result
+  fn new(simtime: statechart::Timestamp, next_wakeup: controller::Until) -> Self {
+    match next_wakeup {
+      controller::Until::Timestamp(t) => Self{
+        simtime,
+        next_wakeup_eternity: false,
+        next_wakeup: t,
+      },
+      controller::Until::Eternity => Self{
+        simtime,
+        next_wakeup_eternity: true,
+        next_wakeup: 0,
+      },
+    }
   }
 }
 
 #[wasm_bindgen]
 pub fn run_until(h: &mut Handle, t: statechart::Timestamp, out: &OutputHandler) -> RunUntilResult {
-  h.controller.run_until(&mut h.statechart, controller::Until::Timestamp(t), &mut |e|{ out.handle_output(e) });
-  RunUntilResult::from_controller(&h.controller)
+  let (simtime, next_wakeup) = h.controller.run_until(&mut h.statechart, controller::Until::Timestamp(t), &mut |e|{ out.handle_output(e) });
+
+  RunUntilResult::new(simtime, next_wakeup)
 }

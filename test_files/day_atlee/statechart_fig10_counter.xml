@@ -2,6 +2,7 @@
 <statechart>
   <inport name="in">
     <event name="tk0"/>
+    <event name="reset"/>
   </inport>
 
   <outport name="out">

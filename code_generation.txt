@@ -3,15 +3,17 @@
 Code generation with Rust
 =========================
 
-50 tests currently passing (flag --rust):
+53 tests currently passing (flag --rust):
 
   features/instate/test_instate.xml
   features/instate/test_instate_nested.xml
+  features/event_params/test_internalparam.xml
   features/action_lang/test_closure.xml
   features/action_lang/test_cond.xml
   features/action_lang/test_expressions.xml
   features/action_lang/test_functions2.xml
   features/action_lang/test_guard_action.xml
+  features/action_lang/test_guard_readonly.xml
   features/action_lang/test_nested.xml
   features/history/test_composite_shallow.xml
   features/history/test_deep.xml
@@ -21,13 +23,14 @@ Code generation with Rust
   features/after/test_after.xml
   features/after/test_after_reentry.xml
   features/parallel/test_parallel.xml
+  day_atlee/test_01_dialer_takemany.xml
+  day_atlee/test_01_dialer_takeone.xml
   day_atlee/test_02_counter_takeone.xml
   day_atlee/test_03_trafficlight_single.xml
   day_atlee/test_04_counter_single.xml
   day_atlee/test_06_counter_lifeline.xml
   day_atlee/test_13_invar_rhs_smallstep.xml
   day_atlee/test_21_counter_combo.xml
-  day_atlee/test_22_invar_combo_one.xml
   semantics/priority/test_explicit_flat.xml
   semantics/priority/test_explicit_ortho.xml
   semantics/priority/test_source_child.xml

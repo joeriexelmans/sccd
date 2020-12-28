@@ -142,9 +142,8 @@ class HistoryStateType(StateType):
 
 @dataclass
 class EventDecl:
-    __slots__ = ["id", "name", "params_decl"]
+    __slots__ = ["name", "params_decl"]
 
-    id: int
     name: str
     params_decl: List[ParamDecl]
 
@@ -160,36 +159,14 @@ class Trigger:
 
     enabling: List[EventDecl]
 
-    def __post_init__(self):
-        # Optimization: Require 'enabling' to be sorted!
-        assert sorted(self.enabling, key=lambda e: e.id) == self.enabling
-
-        self.enabling_bitmap = bm_from_list(e.id for e in self.enabling)
-
-    def check(self, events_bitmap: Bitmap) -> bool:
-        return (self.enabling_bitmap & events_bitmap) == self.enabling_bitmap
+    def check(self, events: List[InternalEvent]) -> bool:
+        for e in self.enabling:
+            if e.name not in (e.name for e in events):
+                return False
+        return True
 
     def render(self) -> str:
         return ' ∧ '.join(e.render() for e in self.enabling)
-
-    def copy_params_to_stack(self, events: List[InternalEvent], memory: MemoryInterface):
-        # Both 'events' and 'self.enabling' are sorted by event ID,
-        # this way we have to iterate over each of both lists at most once.
-        iterator = iter(self.enabling)
-        try:
-            event_decl = next(iterator)
-            offset = 0
-            for e in events:
-                if e.id < event_decl.id:
-                    continue
-                else:
-                    while e.id > event_decl.id:
-                        event_decl = next(iterator)
-                    for p in e.params:
-                        memory.store(offset, p)
-                        offset += 1
-        except StopIteration:
-            pass
 
 @dataclass
 class NegatedTrigger(Trigger):
@@ -197,34 +174,29 @@ class NegatedTrigger(Trigger):
 
     disabling: List[EventDecl]
 
-    def __post_init__(self):
-        Trigger.__post_init__(self)
-        self.disabling_bitmap = bm_from_list(e.id for e in self.disabling)
-
-    def check(self, events_bitmap: Bitmap) -> bool:
-        return Trigger.check(self, events_bitmap) and not (self.disabling_bitmap & events_bitmap)
+    def check(self, events: List[InternalEvent]) -> bool:
+        if not Trigger.check(self, events):
+            return False
+        for e in self.disabling:
+            if e.name in (e.name for e in events):
+                return False
+        return True
 
     def render(self) -> str:
         return ' ∧ '.join(itertools.chain((e.render() for e in self.enabling), ('¬'+e.render() for e in self.disabling)))
 
 class AfterTrigger(Trigger):
-    def __init__(self, id: int, name: str, after_id: int, delay: Expression):
-        enabling = [EventDecl(id=id, name=name, params_decl=[])]
+    def __init__(self, name: str, after_id: int, delay: Expression):
+        enabling = [EventDecl(name=name, params_decl=[])]
         super().__init__(enabling)
 
-        self.id = id
+        # self.id = id
         self.name = name
         self.after_id = after_id # unique ID for AfterTrigger
         self.delay = delay
 
     def render(self) -> str:
         return "after("+self.delay.render()+")"
-
-    # Override.
-    # An 'after'-event also has 1 parameter, but it is not accessible to the user,
-    # hence the override.
-    def copy_params_to_stack(self, events: List[InternalEvent], memory: MemoryInterface):
-        pass
 
 EMPTY_TRIGGER = Trigger(enabling=[])
 
@@ -404,10 +376,10 @@ class StateTree:
                 if isinstance(t.target, State):
                     target_stable = t.target.stable
 
-                raised_events = Bitmap()
+                raised_events = []
                 for a in t.actions:
                     if isinstance(a, RaiseInternalEvent):
-                        raised_events |= bit(a.event_id)
+                        raised_events.append(a.name)
 
                 t.id = t_id
                 t.exit_mask = arena.descendants

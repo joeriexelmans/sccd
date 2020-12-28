@@ -33,7 +33,9 @@
   </inport>
 
   <outport name="out">
-    <event name="out"/>
+    <event name="out">
+      <param type="int"/>
+    </event>
   </outport>
 
   <root>

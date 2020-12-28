@@ -8,7 +8,10 @@
   </inport>
 
   <outport name="out">
-    <event name="set_light"/>
+    <event name="set_light">
+      <param type="str"/>
+      <param type="str"/>
+    </event>
   </outport>
 
   <root>

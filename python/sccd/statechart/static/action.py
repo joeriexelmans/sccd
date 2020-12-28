@@ -50,7 +50,6 @@ class RaiseEvent(Action):
 
 @dataclass
 class RaiseInternalEvent(RaiseEvent):
-    event_id: int
 
     def render(self) -> str:
         return '^'+self.name
@@ -58,19 +57,19 @@ class RaiseInternalEvent(RaiseEvent):
     def exec(self, ctx: EvalContext):
         params = self._eval_params(ctx)
         ctx.execution.raise_internal(
-            InternalEvent(id=self.event_id, name=self.name, params=params))
+            InternalEvent(name=self.name, params=params))
 
 @dataclass
 class RaiseOutputEvent(RaiseEvent):
-    outport: str
+    # outport: str
 
     def exec(self, ctx: EvalContext):
         params = self._eval_params(ctx)
         ctx.execution.raise_output(
-            OutputEvent(port=self.outport, name=self.name, params=params))
+            OutputEvent(name=self.name, params=params))
 
     def render(self) -> str:
-        return '^'+self.outport + '.' + self.name
+        return '^' + self.name
 
 @dataclass
 class Code(Action):

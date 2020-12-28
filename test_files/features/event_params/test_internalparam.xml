@@ -1,0 +1,38 @@
+<test>
+  <statechart>
+    <semantics internal_event_lifeline="next_combo_step"/>
+    <datamodel>
+      meaningoflife = 42;
+    </datamodel>
+    <inport>
+      <event name="start"/>
+    </inport>
+    <outport>
+      <event name="success"/>
+    </outport>
+    <root initial="A">
+      <state id="A">
+        <transition event="start" target=".">
+          <raise event="go">
+            <param expr="meaningoflife"/>
+          </raise>
+        </transition>
+        <transition event="go(meaning: int)" target="../B"
+          cond='meaning == 42'/>
+      </state>
+      <state id="B">
+        <onentry>
+          <raise event="success"/>
+        </onentry>
+      </state>
+    </root>
+  </statechart>
+  <input>
+    <event name="start" time="0 d"/>
+  </input>
+  <output>
+    <big_step>
+      <event name="success"/>
+    </big_step>
+  </output>
+</test>

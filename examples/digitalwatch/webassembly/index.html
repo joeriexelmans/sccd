@@ -255,8 +255,8 @@
         const status = rust.run_until(handle, realtime() + purposefully_behind, outHandler);
         simtime = status.simtime;
 
-        if (status.reschedule) {
-          let sleep_duration = status.at - realtime();
+        if (!status.next_wakeup_infinity) {
+          let sleep_duration = status.next_wakeup - realtime();
           if (sleep_duration < 0) {
             purposefully_behind = sleep_duration;
             sleep_duration = 0;
@@ -273,12 +273,12 @@
       ["topLeft", "topRight", "bottomLeft", "bottomRight"].forEach(button => {
         document.getElementById(button).onmousedown = () => {
           // console.log(button + "Pressed");
-          const nextWakeup = rust.add_event(handle, realtime() - simtime, rust.InEvent["E_"+button+"Pressed"]);
+          rust.add_event(handle, realtime() - simtime, rust.InEvent["E_"+button+"Pressed"]);
           wakeup();
         }
         document.getElementById(button).onmouseup = () => {
           // console.log(button + "Released");
-          const nextWakeup = rust.add_event(handle, realtime() - simtime, rust.InEvent["E_"+button+"Released"]);
+          rust.add_event(handle, realtime() - simtime, rust.InEvent["E_"+button+"Released"]);
           wakeup();
         }
       })

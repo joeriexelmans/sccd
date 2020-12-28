@@ -57,7 +57,7 @@ array_indexed: atom "[" expr "]"
 func_decl: "func" params_decl stmt
 params_decl: ( "(" param_decl ("," param_decl)* ")" )?
 ?param_decl: IDENTIFIER ":" type_annot
-type_annot: TYPE_INT | TYPE_STR | TYPE_DUR | TYPE_FLOAT
+type_annot: TYPE_INT | TYPE_STR | TYPE_DUR | TYPE_FLOAT | TYPE_BOOL
           | "func" param_types? return_type? -> func_type
 
 param_types: "(" type_annot ( "," type_annot )* ")"
@@ -67,6 +67,7 @@ TYPE_INT: "int"
 TYPE_STR: "str"
 TYPE_DUR: "dur"
 TYPE_FLOAT: "float"
+TYPE_BOOL: "bool"
 
 array: "[" (expr ("," expr)*)? "]"
 

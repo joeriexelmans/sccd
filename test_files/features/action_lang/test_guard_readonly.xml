@@ -12,7 +12,9 @@
     </datamodel>
 
     <inport name="in">
-      <event name="start"/>
+      <event name="start">
+        <param type="int"/>
+      </event>
     </inport>
     <outport name="out">
       <event name="ok"/>

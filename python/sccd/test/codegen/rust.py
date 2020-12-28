@@ -19,7 +19,7 @@ class TestRustGenerator(ClassDiagramRustGenerator):
         self.w.writeln("use sccd::statechart::SC;")
         self.w.writeln("use sccd::statechart::Scheduler;")
         if DEBUG:
-            self.w.writeln("debug_print_sizes::<Controller<InEvent>::TimerId>();")
+            self.w.writeln("debug_print_sizes::<Controller<InEvent>>();")
         self.w.writeln();
 
         self.w.writeln("// Setup ...")
@@ -39,16 +39,25 @@ class TestRustGenerator(ClassDiagramRustGenerator):
                 raise UnsupportedFeature("Multiple simultaneous input events not supported")
             elif len(i.events) == 0:
                 raise UnsupportedFeature("Test declares empty bag of input events")
-            # self.w.writeln("controller.set_timeout(%d, InEvent::%s(%s{}));" % (i.timestamp.opt, ident_event_enum_variant(i.events[0].name), ident_event_type(i.events[0].name)))
-            self.w.writeln("controller.set_timeout(%d, InEvent::%s);" % (i.timestamp.opt, ident_event_enum_variant(i.events[0].name)))
+
+            # Convert python value to rust literal
+            # Should find a better solution ...
+            def to_rust_literal(value):
+                if isinstance(value, int):
+                    return str(value)
+                elif isinstance(value, str):
+                    return '"%s"' % value
+                else:
+                    raise Exception("Incomplete implementation")
+
+            self.w.write("controller.set_timeout(%d, InEvent::%s(%s));" % (i.timestamp.opt, ident_event_enum_variant(i.events[0].name), ", ".join(to_rust_literal(p) for p in i.events[0].params)))
         self.w.writeln()
 
         self.w.writeln("// Run simulation, as-fast-as-possible")
         self.w.writeln("controller.run_until(&mut sc, Until::Eternity, &mut output);")
         self.w.writeln()
         self.w.writeln("// Check if output is correct")
-        # self.w.writeln("assert_eq!(raised, [%s]);" % ", ".join("OutEvent::%s(%s{})" % (ident_event_enum_variant(e.name), ident_event_type(e.name)) for o in variant.output for e in o))
-        self.w.writeln("assert_eq!(raised, [%s]);" % ", ".join("OutEvent::%s" % (ident_event_enum_variant(e.name)) for o in variant.output for e in o))
+        self.w.writeln("assert_eq!(raised, [%s]);" % ", ".join("OutEvent::%s(%s)" % (ident_event_enum_variant(e.name), ", ".join(to_rust_literal(p) for p in e.params)) for o in variant.output for e in o))
 
         self.w.dedent()
         self.w.writeln("}")

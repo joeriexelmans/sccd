@@ -28,16 +28,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
   def parse_statechart(el):
     ext_file = el.get("src")
     if ext_file is None:
-      statechart = Statechart(
-        semantics=SemanticConfiguration(),
-        scope=Scope("statechart", parent=BuiltIn),
-        datamodel=None,
-        internal_events=Bitmap(),
-        internally_raised_events=Bitmap(),
-        inport_events={},
-        event_outport={},
-        tree=None,
-      )
+      statechart = Statechart(scope=Scope("statechart", parent=None))
     else:
       if not load_external:
         raise SkipFile("Parser configured not to load statecharts from external files.")
@@ -64,24 +55,24 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
       body.init_stmt(statechart.scope)
       statechart.datamodel = body
 
-    def parse_inport(el):
-      port_name = require_attribute(el, "name")
-      globals.inports.assign_id(port_name)
-      def parse_event(el):
-        event_name = require_attribute(el, "name")
-        event_id = globals.events.assign_id(event_name)
-        port_events = statechart.inport_events.setdefault(port_name, Bitmap())
-        port_events |= bit(event_id)
-        statechart.inport_events[port_name] = port_events
-        statechart.internal_events |= bit(event_id)
-      return [("event+", parse_event)]
+    def parse_event_param(el):
+      type_text = require_attribute(el, "type")
+      param_type = text_parser.parse_type(type_text)
+      def finish_param():
+        return param_type
+      return ([], finish_param)
 
-    def parse_outport(el):
-      port_name = require_attribute(el, "name")
-      def parse_event(el):
-        event_name = require_attribute(el, "name")
-        statechart.event_outport[event_name] = port_name
-      return [("event+", parse_event)]
+    def get_port_parser(add_to):
+      def parse_port(el):
+        def parse_event(el):
+          event_name = require_attribute(el, "name")
+          if event_name in add_to:
+            raise XmlError("event already declared earlier: %s" % event_name)
+          def finish_event(*params):
+            add_to[event_name] = list(params)
+          return ([("param*", parse_event_param)], finish_event)
+        return [("event*", parse_event)]
+      return parse_port
 
     def parse_root(el):
       if el.get("id") is not None:
@@ -118,7 +109,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
       def state_child_rules(parent, sibling_dict: Dict[str, State]):
 
         # A transition's guard expression and action statements can read the transition's event parameters, and also possibly the current state configuration. We therefore now wrap these into a function with a bunch of parameters for those values that we want to bring into scope.
-        def wrap_transition_params(expr_or_stmt, trigger: Trigger):
+        def wrap_transition_params(expr_or_stmt, transition: Transition):
           if isinstance(expr_or_stmt, Statement):
             # Transition's action code
             body = expr_or_stmt
@@ -128,50 +119,54 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           else:
             raise Exception("Unexpected error in parser")
           # The joy of writing expressions in abstract syntax:
-          wrapped = FunctionDeclaration(
-            params_decl=
-              # The param '@conf' (which, on purpose, is an illegal identifier in textual concrete syntax, to prevent naming collisions) will contain the statechart's configuration as a bitmap (SCCDInt). This parameter is currently only used in the expansion of the INSTATE-macro.
-              [ParamDecl(name="@conf", formal_type=SCCDStateConfiguration(state=parent))]
-              # Plus all the parameters of the enabling events of the transition's trigger:
-              + [param for event in trigger.enabling for param in event.params_decl],
-            body=body)
+          if transition is None:
+            wrapped = FunctionDeclaration(params_decl=[], body=body)
+          else:
+            wrapped = FunctionDeclaration(
+              params_decl=
+                # The param '@conf' (which, on purpose, is an illegal identifier in textual concrete syntax, to prevent naming collisions) will contain the statechart's configuration as a bitmap (SCCDInt). This parameter is currently only used in the expansion of the INSTATE-macro.
+                [ParamDecl(name="@conf", formal_type=SCCDStateConfiguration(state=parent))]
+                # Plus all the parameters of the enabling events of the transition's trigger:
+                + [param for event in transition.trigger.enabling for param in event.params_decl],
+              body=body)
           return wrapped
 
-        def actions_rules(scope, wrap_trigger: Trigger = EMPTY_TRIGGER):
+        def actions_rules(scope, transition: Transition=None):
 
           def parse_raise(el):
+            event_name = require_attribute(el, "event")
             params = []
             def parse_param(el):
+              # Every event parameter becomes a function, with the event trigger's parameters as parameters
               expr_text = require_attribute(el, "expr")
               expr = text_parser.parse_expr(expr_text)
-              function = wrap_transition_params(expr, trigger=wrap_trigger)
+              function = wrap_transition_params(expr, transition=transition)
               function.init_expr(scope)
               function.scope.name = "event_param"
               params.append(function)
 
             def finish_raise():
-              event_name = require_attribute(el, "event")
+              param_types = [p.return_type for p in params]
               try:
-                port = statechart.event_outport[event_name]
+                formal_param_types = statechart.out_events[event_name]
+                result = RaiseOutputEvent(name=event_name, params=params)
               except KeyError:
-                # Legacy fallback: read port from attribute
-                port = el.get("port")
-              if port is None:
-                # internal event
-                event_id = globals.events.assign_id(event_name)
-                statechart.internally_raised_events |= bit(event_id)
-                return RaiseInternalEvent(event_id=event_id, name=event_name, params=params)
-              else:
-                statechart.event_outport[event_name] = port
-                globals.outports.assign_id(port)
-                globals.out_events.assign_id(event_name)
-                return RaiseOutputEvent(name=event_name, params=params, outport=port)
+                try:
+                  formal_param_types = statechart.internal_events[event_name]
+                except KeyError:
+                  formal_param_types = param_types
+                  statechart.internal_events[event_name] = formal_param_types
+                result = RaiseInternalEvent(name=event_name, params=params)
+              if param_types != formal_param_types:
+                raise XmlError("Event '%s': Parameter types %s don't match earlier %s" % (event_name, param_types, formal_param_types))
+              return result
             return ([("param*", parse_param)], finish_raise)
 
           def parse_code(el):
             def finish_code():
+              # Every block of code becomes a function, with the event trigger's parameters as parameters
               block = text_parser.parse_stmt(el.text)
-              function = wrap_transition_params(block, trigger=wrap_trigger)
+              function = wrap_transition_params(block, transition=transition)
               function.init_expr(scope)
               function.scope.name = "code"
               return Code(function)
@@ -244,7 +239,6 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           # INSTATE-macro allowed in transition's guard and actions
           text_parser.parser.options.transformer.set_macro("@in", macro_in_state)
 
-
           if parent is root:
             raise XmlError("Root cannot be source of a transition.")
 
@@ -265,16 +259,10 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
 
             positive_events, negative_events = text_parser.parse_events_decl(event)
 
-            # Optimization: sort events by ID
-            # Allows us to save time later.
-            positive_events.sort(key=lambda e: e.id)
-
             if not negative_events:
               transition.trigger = Trigger(positive_events)
-              statechart.internal_events |= transition.trigger.enabling_bitmap
             else:
               transition.trigger = NegatedTrigger(positive_events, negative_events)
-              statechart.internal_events |= transition.trigger.enabling_bitmap
 
           def parse_attr_after(after):
             nonlocal after_id
@@ -286,14 +274,14 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             # After-events should only be generated by the runtime.
             # By putting a '+' in the event name (which isn't an allowed character in the parser), we ensure that the user will never accidentally (careless) or purposefully (evil) generate a valid after-event.
             event_name = "+%d" % after_id
-            transition.trigger = AfterTrigger(globals.events.assign_id(event_name), event_name, after_id, after_expr)
-            statechart.internal_events |= transition.trigger.enabling_bitmap
+            statechart.in_events[event_name] = []
+            transition.trigger = AfterTrigger(event_name, after_id, after_expr)
             after_id += 1
 
           def parse_attr_cond(cond):
             # Transition's guard expression
             guard_expr = text_parser.parse_expr(cond)
-            guard_function = wrap_transition_params(guard_expr, transition.trigger)
+            guard_function = wrap_transition_params(expr_or_stmt=guard_expr, transition=transition)
             guard_type = guard_function.init_expr(statechart.scope)
             guard_function.scope.name = "guard"
 
@@ -313,7 +301,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
             # INSTATE-macro not allowed outside of transition's guard or actions
             text_parser.parser.options.transformer.unset_macro("@in")
 
-          return (actions_rules(scope=statechart.scope, wrap_trigger=transition.trigger), finish_transition)
+          return (actions_rules(scope=statechart.scope, transition=transition), finish_transition)
 
         return {"state": parse_state, "parallel": parse_parallel, "history": parse_history, "onentry": parse_onentry, "onexit": parse_onexit, "transition": parse_transition}
 
@@ -336,7 +324,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
       return statechart
 
     if ext_file is None:
-      return ([("semantics?", parse_semantics), ("datamodel?", parse_datamodel), ("inport*", parse_inport), ("outport*", parse_outport), ("root", parse_root)], finish_statechart)
+      return ([("semantics?", parse_semantics), ("datamodel?", parse_datamodel), ("inport*", get_port_parser(statechart.in_events)), ("outport*", get_port_parser(statechart.out_events)), ("root", parse_root)], finish_statechart)
     else:
       return ([("override_semantics?", parse_semantics)], finish_statechart)
 

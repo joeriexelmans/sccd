@@ -1,5 +1,15 @@
 <test>
   <statechart>
+    <inport>
+      <event name="try"/>
+      <event name="to_d"/>
+    </inport>
+
+    <outport>
+      <event name="yes"/>
+      <event name="no"/>
+    </outport>
+    
     <root>
       <parallel id="p">
         <state id="o0" initial="a">

@@ -72,8 +72,7 @@ class Transformer(action_lang.Transformer):
 
   def event_decl(self, node):
     event_name = node[0].value
-    event_id = self.globals.events.assign_id(event_name)
-    return EventDecl(id=event_id, name=event_name, params_decl=node[1])
+    return EventDecl(name=event_name, params_decl=node[1])
 
 import os, pathlib
 grammar_dir = os.path.dirname(__file__)
@@ -89,7 +88,7 @@ class TextParser(action_lang.TextParser):
   def __init__(self, globals):
     # Building the parser is actually the slowest step of parsing a statechart model.
     # Doesn't have to happen every time, so should find a way to speed this up.
-    parser = lark.Lark(grammar, parser="lalr", start=["expr", "block", "event_decl_list", "path", "semantic_choice"], transformer=Transformer(globals), cache=cache_file)
+    parser = lark.Lark(grammar, parser="lalr", start=["expr", "block", "type_annot", "event_decl_list", "path", "semantic_choice"], transformer=Transformer(globals), cache=cache_file)
     super().__init__(parser)
 
   def parse_semantic_choice(self, text: str):
@@ -100,3 +99,7 @@ class TextParser(action_lang.TextParser):
 
   def parse_path(self, text: str):
     return self.parser.parse(text, start="path")
+
+  def parse_type(self, text: str):
+    return self.parser.parse(text, start="type_annot")
+    

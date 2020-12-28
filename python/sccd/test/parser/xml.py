@@ -28,8 +28,7 @@ def test_parser_rules(statechart_parser_rules):
         return expr
 
       def make_input_event(name: str, params):
-        event_id = globals.events.get_id(name)
-        return InternalEvent(id=event_id, name=name, params=params)
+        return InternalEvent(name=name, params=params)
 
       def parse_input_event(el):
         # port = require_attribute(el, "port")
@@ -65,9 +64,9 @@ def test_parser_rules(statechart_parser_rules):
 
         def parse_output_event(el):
           name = require_attribute(el, "name")
-          port = require_attribute(el, "port")
+          # port = require_attribute(el, "port")
           params = []
-          big_step.append(OutputEvent(name=name, port=port, params=params))
+          big_step.append(OutputEvent(name=name, params=params))
 
           def parse_param(el):
             val_text = require_attribute(el, "val")
@@ -84,6 +83,17 @@ def test_parser_rules(statechart_parser_rules):
 
     def finish_test(statechart):
       globals.init_durations(delta=None)
+      for bag in input:
+        for event in bag.events:
+          if event.name not in statechart.in_events:
+            raise XmlError("No such input event: %s" % event)
+
+      for big_step in output:
+        for event in big_step:
+          if event.name not in statechart.out_events:
+            raise XmlError("No such output event: %s" % event)
+
+
       variants = statechart.generate_semantic_variants()
 
       def variant_description(i, variant) -> str:

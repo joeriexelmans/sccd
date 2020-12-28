@@ -17,10 +17,14 @@
     <inport name="in">
       <event name="inc_one"/>
       <event name="inc_two"/>
+      <event name="end_process"/>
     </inport>
 
     <outport name="out">
-      <event name="start_process"/>
+      <event name="start_process">
+        <param type="int"/>
+        <param type="int"/>
+      </event>
     </outport>
 
     <root>

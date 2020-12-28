@@ -17,11 +17,11 @@ def run_variant(test: TestVariant, unittest):
   current_big_step = []
   def on_output(event: OutputEvent):
     nonlocal current_big_step
-    if event.port == "trace":
-      if event.name == "big_step_completed":
-        if len(current_big_step) > 0:
-          pipe.put(current_big_step)
-        current_big_step = []
+    # if event.port == "trace":
+    if event.name == "big_step_completed":
+      if len(current_big_step) > 0:
+        pipe.put(current_big_step)
+      current_big_step = []
     else:
       current_big_step.append(event)
 

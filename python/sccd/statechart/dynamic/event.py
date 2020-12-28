@@ -8,9 +8,8 @@ from sccd.util.duration import *
 # Input events are internal events too.
 @dataclass
 class InternalEvent:
-    __slots__ = ["id", "name", "params"]
+    __slots__ = ["name", "params"]
 
-    id: int
     name: str # solely used for pretty printing
     params: List[Any]
 
@@ -22,22 +21,22 @@ class InternalEvent:
         return termcolor.colored(s, 'yellow')
 
     __repr__ = __str__
-    
 
 @dataclass
 class OutputEvent:
-    __slots__ = ["port", "name", "params"]
+    __slots__ = ["name", "params"]
 
-    port: str
+    # port: str
     name: str
     params: List[Any]
 
     # Compare by value
     def __eq__(self, other):
-        return self.port == other.port and self.name == other.name and self.params == other.params
+        # return self.port == other.port and self.name == other.name and self.params == other.params
+        return self.name == other.name and self.params == other.params
 
     def __str__(self):
-        s = "OutputEvent("+self.port+"."+self.name
+        s = "OutputEvent("+self.name
         if self.params:
             s += str(self.params)
         s += ")"

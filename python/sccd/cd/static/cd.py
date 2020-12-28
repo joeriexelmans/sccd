@@ -33,11 +33,16 @@ class SingleInstanceCD(AbstractCD):
 
   def print(self):
     print("%d states. %d transitions." % (len(self.statechart.tree.state_list), len(self.statechart.tree.transition_list)))
-    print("Internal events:")
-    for event_id in bm_items(self.statechart.internal_events):
-      print("  %s" % self.globals.events.get_name(event_id))
-    for outport in self.globals.outports.names:
-      print("Outport \"%s\" events:" % outport)
-      for event_name, port in self.statechart.event_outport.items():
-        if port == outport:
-          print("  %s" % event_name)
+    # if self.statechart.in_events:
+    #   print("Input events:")
+    #   for event_name in self.statechart.in_events:
+    #     print("  %s" % event_name)
+    # if len(self.statechart.out_events) > 0:
+    #   print("Output events:")
+    #   for event_name in self.statechart.out_events:
+    #     print("  %s" % event_name)
+    # if self.statechart.internal_events:
+    #   print("Internal events:")
+    #   for event_name in self.statechart.internal_events:
+    #     print("  %s" % event_name)
+    print()

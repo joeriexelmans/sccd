@@ -118,27 +118,14 @@ class StatechartExecution:
         for after in triggers:
             delay: Duration = after.delay.eval(
                 EvalContext(memory=self.gc_memory, execution=self, params=[]))
-            self.timer_ids[after.after_id] = self.schedule_callback(delay, InternalEvent(id=after.id, name=after.name, params=[]), [self.instance])
+            self.timer_ids[after.after_id] = self.schedule_callback(delay, InternalEvent(name=after.name, params=[]), [self.instance])
 
     def _cancel_timers(self, triggers: List[AfterTrigger]):
         for after in triggers:
             if self.timer_ids[after.after_id] is not None:
                 self.cancel_callback(self.timer_ids[after.after_id])
                 self.timer_ids[after.after_id] = None
-
-    # Return whether the current configuration includes ALL the states given.
-    def in_state(self, state_strings: List[str]) -> bool:
-        try:
-            state_ids_bitmap = bm_union(self.statechart.tree.state_dict[s].state_id_bitmap for s in state_strings)
-        except KeyError as e:
-            raise ModelRuntimeError("INSTATE argument %s: invalid state" % str(e)) from e
-        in_state = bm_has_all(self.configuration, state_ids_bitmap)
-        # if in_state:
-        #     print_debug("in state"+str(state_strings))
-        # else:
-        #     print_debug("not in state"+str(state_strings))
-        return in_state
-
+                
 
 def _perform_actions(ctx: EvalContext, actions: List[Action]):
     for a in actions:
@@ -146,20 +133,9 @@ def _perform_actions(ctx: EvalContext, actions: List[Action]):
 
 
 def get_event_params(events: List[InternalEvent], trigger) -> List[any]:
-    # Both 'events' and 'self.enabling' are sorted by event ID,
-    # this way we have to iterate over each of both lists at most once.
-    iterator = iter(trigger.enabling)
     params = []
-    try:
-        event_decl = next(iterator)
-        for e in events:
-            if e.id < event_decl.id:
-                continue
-            else:
-                while e.id > event_decl.id:
-                    event_decl = next(iterator)
-                for p in e.params:
-                    params.append(p)
-    except StopIteration:
-        pass
+    for e in trigger.enabling:
+        for f in events:
+            if e.name == f.name:
+                params.extend(f.params)
     return params

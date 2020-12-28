@@ -41,8 +41,8 @@ class StatechartInstance(Instance):
         with timer.Context("priority"):
             priority_ordered_transitions = priority.priority_and_concurrency(statechart)
 
-        # strategy = CurrentConfigStrategy(priority_ordered_transitions)
-        strategy = EnabledEventsStrategy(priority_ordered_transitions, statechart)
+        strategy = CurrentConfigStrategy(priority_ordered_transitions)
+        # strategy = EnabledEventsStrategy(priority_ordered_transitions, statechart)
         # strategy = CurrentConfigAndEnabledEventsStrategy(priority_ordered_transitions, statechart)
 
         if semantics.concurrency == Concurrency.SINGLE:
@@ -165,7 +165,7 @@ class StatechartInstance(Instance):
     # enter default states, generating a set of output events
     def initialize(self):
         self.execution.initialize()
-        self.output_callback(OutputEvent(port="trace", name="big_step_completed", params=self.self_list))
+        self.output_callback(OutputEvent(name="big_step_completed", params=self.self_list))
 
     # perform a big step. generating a set of output events
     def big_step(self, input_events: List[InternalEvent]):
@@ -175,4 +175,4 @@ class StatechartInstance(Instance):
             self.set_input(input_events)
             self._big_step.run_and_cycle_events()
 
-        self.output_callback(OutputEvent(port="trace", name="big_step_completed", params=self.self_list))
+        self.output_callback(OutputEvent(name="big_step_completed", params=self.self_list))

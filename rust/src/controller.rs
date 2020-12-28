@@ -97,15 +97,15 @@ impl<InEvent> Default for Controller<InEvent> {
 }
 
 impl<InEvent: Copy> Controller<InEvent> {
-  pub fn get_simtime(&self) -> Timestamp {
-    self.simtime
-  }
-  pub fn get_earliest(&self) -> Until {
-    match self.queue.peek() {
-      None => Until::Eternity,
-      Some(Reverse(entry)) => Until::Timestamp(entry.cmp.timestamp),
-    }
-  }
+  // pub fn get_simtime(&self) -> Timestamp {
+  //   self.simtime
+  // }
+  // pub fn get_earliest(&self) -> Until {
+  //   match self.queue.peek() {
+  //     None => Until::Eternity,
+  //     Some(Reverse(entry)) => Until::Timestamp(entry.cmp.timestamp),
+  //   }
+  // }
   fn cleanup_idx(idxs: &mut HashMap<Timestamp, TimerIndex>, entry: &QueueEntry<InEvent>) {
     if let hash_map::Entry::Occupied(o) = idxs.entry(entry.cmp.timestamp) {
       if *o.get() == entry.cmp.idx+1 {
@@ -113,7 +113,7 @@ impl<InEvent: Copy> Controller<InEvent> {
       }
     };
   }
-  pub fn run_until<OutEvent>(&mut self, sc: &mut impl SC<InEvent=InEvent, OutEvent=OutEvent, Sched=Self>, until: Until, output: &mut impl FnMut(OutEvent)) -> Until
+  pub fn run_until<OutEvent>(&mut self, sc: &mut impl SC<InEvent=InEvent, OutEvent=OutEvent, Sched=Self>, until: Until, output: &mut impl FnMut(OutEvent)) -> (Timestamp, Until)
   {
     loop {
       let Reverse(entry) = if let Some(peek_mut) = self.queue.peek_mut() {
@@ -128,7 +128,7 @@ impl<InEvent: Copy> Controller<InEvent> {
         // Check if event too far in the future
         if let Until::Timestamp(t) = until {
           if entry.cmp.timestamp > t {
-            return until; // return next wakeup
+            return (self.simtime, until); // return next wakeup
           }
         };
         // OK, we'll handle the event
@@ -139,10 +139,10 @@ impl<InEvent: Copy> Controller<InEvent> {
       };
 
       // Handle event
-      println!("time is now {}", self.simtime);
       self.simtime = entry.cmp.timestamp;
       sc.big_step(Some(entry.event), self, output);
     };
-    Until::Eternity
+    // Queue empty
+    (self.simtime, Until::Eternity)
   }
 }

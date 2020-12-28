@@ -31,15 +31,15 @@ class GeneratorStrategy(ABC):
         pass
 
     @abstractmethod
-    def key(self, execution, events_bitmap, forbidden_arenas):
+    def key(self, execution, events, forbidden_arenas):
         pass
 
     @abstractmethod
-    def generate(self, execution, events_bitmap, forbidden_arenas):
+    def generate(self, execution, events, forbidden_arenas):
         pass
 
     @abstractmethod
-    def filter_f(self, execution, enabled_events, events_bitmap):
+    def filter_f(self, execution, events):
         pass
 
 
@@ -49,63 +49,63 @@ class CurrentConfigStrategy(GeneratorStrategy):
     def cache_init(self):
         return {}
 
-    def key(self, execution, events_bitmap, forbidden_arenas):
+    def key(self, execution, events, forbidden_arenas):
         return (execution.configuration, forbidden_arenas)
 
-    def generate(self, execution, events_bitmap, forbidden_arenas):
+    def generate(self, execution, events, forbidden_arenas):
         return [ t for t in self.priority_ordered_transitions
                       if (t.source.state_id_bitmap & execution.configuration)
                        and (not forbidden_arenas & t.arena_bitmap) ]
 
-    def filter_f(self, execution, enabled_events, events_bitmap):
-        return lambda t: (not t.trigger or t.trigger.check(events_bitmap)) and execution.check_guard(t, enabled_events)
+    def filter_f(self, execution, events):
+        return lambda t: (not t.trigger or t.trigger.check(events)) and execution.check_guard(t, events)
 
-# First filter based on current events, then filter on current state
-class EnabledEventsStrategy(GeneratorStrategy):
-    __slots__ = ["statechart"]
-    def __init__(self, priority_ordered_transitions, statechart):
-        super().__init__(priority_ordered_transitions)
-        self.statechart = statechart
+# # First filter based on current events, then filter on current state
+# class EnabledEventsStrategy(GeneratorStrategy):
+#     __slots__ = ["statechart"]
+#     def __init__(self, priority_ordered_transitions, statechart):
+#         super().__init__(priority_ordered_transitions)
+#         self.statechart = statechart
 
-    def cache_init(self):
-        cache = {}
-        cache[(0, 0)] = self.generate(None, 0, 0)
-        for event_id in bm_items(self.statechart.internal_events):
-            events_bitmap = bit(event_id)
-            cache[(events_bitmap, 0)] = self.generate(None, events_bitmap, 0)
-        return cache
+#     def cache_init(self):
+#         cache = {}
+#         cache[(0, 0)] = self.generate(None, 0, 0)
+#         for event_id in bm_items(self.statechart.internal_events):
+#             events_bitmap = bit(event_id)
+#             cache[(events_bitmap, 0)] = self.generate(None, events_bitmap, 0)
+#         return cache
 
-    def key(self, execution, events_bitmap, forbidden_arenas):
-        return (events_bitmap, forbidden_arenas)
+#     def key(self, execution, events, forbidden_arenas):
+#         return (events_bitmap, forbidden_arenas)
 
-    def generate(self, execution, events_bitmap, forbidden_arenas):
-        return [ t for t in self.priority_ordered_transitions
-                      if (not t.trigger or t.trigger.check(events_bitmap))
-                      and (not forbidden_arenas & t.arena_bitmap) ]
+#     def generate(self, execution, events, forbidden_arenas):
+#         return [ t for t in self.priority_ordered_transitions
+#                       if (not t.trigger or t.trigger.check(events))
+#                       and (not forbidden_arenas & t.arena_bitmap) ]
 
-    def filter_f(self, execution, enabled_events, events_bitmap):
-        return lambda t: (execution.configuration & t.source.state_id_bitmap) and execution.check_guard(t, enabled_events)
+#     def filter_f(self, execution, events):
+#         return lambda t: (execution.configuration & t.source.state_id_bitmap) and execution.check_guard(t, enabled_events)
 
-class CurrentConfigAndEnabledEventsStrategy(GeneratorStrategy):
-    __slots__ = ["statechart"]
-    def __init__(self, priority_ordered_transitions, statechart):
-        super().__init__(priority_ordered_transitions)
-        self.statechart = statechart
+# class CurrentConfigAndEnabledEventsStrategy(GeneratorStrategy):
+#     __slots__ = ["statechart"]
+#     def __init__(self, priority_ordered_transitions, statechart):
+#         super().__init__(priority_ordered_transitions)
+#         self.statechart = statechart
 
-    def cache_init(self):
-        return {}
+#     def cache_init(self):
+#         return {}
 
-    def key(self, execution, events_bitmap, forbidden_arenas):
-        return (execution.configuration, events_bitmap, forbidden_arenas)
+#     def key(self, execution, events, forbidden_arenas):
+#         return (execution.configuration, events_bitmap, forbidden_arenas)
 
-    def generate(self, execution, events_bitmap, forbidden_arenas):
-        return [ t for t in self.priority_ordered_transitions
-                      if (not t.trigger or t.trigger.check(events_bitmap))
-                      and (t.source.state_id_bitmap & execution.configuration)
-                      and (not forbidden_arenas & t.arena_bitmap) ]
+#     def generate(self, execution, events, forbidden_arenas):
+#         return [ t for t in self.priority_ordered_transitions
+#                       if (not t.trigger or t.trigger.check(events))
+#                       and (t.source.state_id_bitmap & execution.configuration)
+#                       and (not forbidden_arenas & t.arena_bitmap) ]
 
-    def filter_f(self, execution, enabled_events, events_bitmap):
-        return lambda t: execution.check_guard(t, enabled_events)
+#     def filter_f(self, execution, events):
+#         return lambda t: execution.check_guard(t, enabled_events)
 
 
 class CandidateGenerator:
@@ -116,17 +116,17 @@ class CandidateGenerator:
 
     def generate(self, execution, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> List[Transition]:
         with timer.Context("generate candidates"):
-            events_bitmap = bm_from_list(e.id for e in enabled_events)
-            key = self.strategy.key(execution, events_bitmap, forbidden_arenas)
+            # events_bitmap = bm_from_list(e.id for e in enabled_events)
+            key = self.strategy.key(execution, enabled_events, forbidden_arenas)
 
             try:
                 candidates = self.cache[key]
                 ctr.cache_hits += 1
             except KeyError:
-                candidates = self.cache[key] = self.strategy.generate(execution, events_bitmap, forbidden_arenas)
+                candidates = self.cache[key] = self.strategy.generate(execution, enabled_events, forbidden_arenas)
                 ctr.cache_misses += 1
 
-            candidates = filter(self.strategy.filter_f(execution, enabled_events, events_bitmap), candidates)
+            candidates = filter(self.strategy.filter_f(execution, enabled_events), candidates)
 
             if DEBUG:
                 candidates = list(candidates) # convert generator to list (gotta do this, otherwise the generator will be all used up by our debug printing
@@ -153,23 +153,22 @@ class ConcurrentCandidateGenerator:
 
     def generate(self, execution, enabled_events: List[InternalEvent], forbidden_arenas: Bitmap) -> List[Transition]:
         with timer.Context("generate candidates"):
-            events_bitmap = bm_from_list(e.id for e in enabled_events)
+            events = list(enabled_events)
             transitions = []
             while True:
-                key = self.strategy.key(execution, events_bitmap, forbidden_arenas)
+                key = self.strategy.key(execution, events, forbidden_arenas)
                 try:
                     candidates = self.cache[key]
                     ctr.cache_hits += 1
                 except KeyError:
-                    candidates = self.cache[key] = self.strategy.generate(execution, events_bitmap, forbidden_arenas)
+                    candidates = self.cache[key] = self.strategy.generate(execution, events, forbidden_arenas)
                     ctr.cache_misses += 1
-                candidates = filter(self.strategy.filter_f(execution, enabled_events, events_bitmap), candidates)
+                candidates = filter(self.strategy.filter_f(execution, events), candidates)
                 t = next(candidates, None)
                 if t:
                     transitions.append(t)
                 else:
                     break
-                if self.synchronous:
-                    events_bitmap |= t.raised_events
+                events.extend(InternalEvent(name=event_name, params=[]) for event_name in t.raised_events)
                 forbidden_arenas |= t.arena_bitmap
             return transitions

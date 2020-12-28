@@ -108,7 +108,7 @@ class ActionLangRustGenerator(Visitor):
     def write_parent_params(self, scope, with_identifiers=True):
         args = []
         ctr = 1
-        while scope is not self.scope.root() and ctr <= scope.deepest_lookup:
+        while scope is not self.scope.root() and scope.deepest_lookup > 0:
             arg = ""
             if with_identifiers:
                 arg += "parent%d: " % ctr
@@ -122,8 +122,9 @@ class ActionLangRustGenerator(Visitor):
     def write_parent_call_params(self, scope, skip: int = 0):
         args = []
         ctr = 0
-        while scope is not self.scope.root() and ctr < scope.deepest_lookup:
+        while scope is not self.scope.root() and scope.deepest_lookup > 0:
             if ctr == skip:
+                # args.append("&mut scope")
                 args.append("&mut scope")
             elif ctr > skip:
                 args.append("parent%d" % (ctr-skip))
@@ -346,4 +347,5 @@ class ActionLangRustGenerator(Visitor):
         self.w.write(type.name
             .replace("int", "i32")
             .replace("float", "f64")
+            .replace("str", "&'static str")
         )

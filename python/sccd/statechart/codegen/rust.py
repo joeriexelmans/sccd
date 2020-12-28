@@ -1,5 +1,6 @@
 from typing import *
 import io
+import itertools
 from sccd.action_lang.codegen.rust import *
 from sccd.statechart.static.tree import *
 from sccd.util.visit_tree import *
@@ -84,6 +85,8 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         self.tree = None
         self.state_stack = []
+
+        self.trigger = None
 
     def get_parallel_states(self, state):
         try:
@@ -178,30 +181,49 @@ class StatechartRustGenerator(ActionLangRustGenerator):
     def visit_SCCDStateConfiguration(self, type):
         self.w.write(self.get_parallel_states_tuple_type(type.state))
 
-    def visit_RaiseOutputEvent(self, event):
-        # TODO: evaluate event parameters
-        if DEBUG:
-            self.w.writeln("eprintln!(\"raise out %s:%s\");" % (event.outport, event.name))
-        # self.w.writeln("(output)(OutEvent::%s(%s{}));" % (ident_event_enum_variant(event.name), ident_event_type(event.name)))
-        self.w.writeln("(output)(OutEvent::%s);" % (ident_event_enum_variant(event.name)))
+    def write_event_params(self, event):
+        for param_eval_func in event.params:
+            param_eval_func.accept(self) # param eval is a function
+            self.w.write("(")
+            if self.trigger is not None:
+                self.w.write("%s, " % (self.get_parallel_states_tuple(self.state_stack[-1])))
+                self.write_trigger_params()
+            self.write_parent_call_params(param_eval_func.scope, skip=0) # call it!
+            self.w.write("), ")
 
-    def visit_RaiseInternalEvent(self, event):
+    def write_trigger_params(self):
+        for e in self.trigger.enabling:
+            for p in e.params_decl:
+                self.w.write("*%s, " % p.name)
+
+    def visit_RaiseOutputEvent(self, raise_event):
         if DEBUG:
-            self.w.writeln("eprintln!(\"raise internal %s\");" % (event.name))
+            self.w.writeln("eprintln!(\"raise out %s\");" % (raise_event.name))
+        self.w.write("(output)(OutEvent::%s(" % (ident_event_enum_variant(raise_event.name)))
+        self.write_event_params(raise_event)
+        self.w.writeln("));")
+
+    def visit_RaiseInternalEvent(self, raise_event):
+        if DEBUG:
+            self.w.writeln("eprintln!(\"raise internal %s\");" % (raise_event.name))
         if self.internal_queue:
-            # self.w.writeln("sched.set_timeout(%d, InEvent::%s(%s{}));" % (0, ident_event_enum_variant(event.name), ident_event_type(event.name)))
-            self.w.writeln("sched.set_timeout(%d, InEvent::%s);" % (0, ident_event_enum_variant(event.name)))
+            self.w.write("sched.set_timeout(%d, InEvent::%s(" % (0, ident_event_enum_variant(raise_event.name)))
+            self.write_event_params(raise_event)
+            self.w.writeln("));")
         else:
-            self.w.writeln("internal.raise().%s = Some(%s{});" % (ident_event_field(event.name), (ident_event_type(event.name))))
+            self.w.write("internal.raise().%s = Some(%s(" % (ident_event_field(raise_event.name), (ident_event_type(raise_event.name))))
+            self.write_event_params(raise_event)
+            self.w.writeln("));")
 
     def visit_Code(self, a):
-        if a.block.scope.size() > 1:
-            raise UnsupportedFeature("Event parameters")
-
         self.w.write()
         a.block.accept(self) # block is a function
-        self.w.write("(%s, scope);" % self.get_parallel_states_tuple(self.state_stack[-1])) # call it!
-        self.w.writeln()
+        self.w.write("(") # call it...
+        if self.trigger is not None:
+            self.w.write("%s, " % self.get_parallel_states_tuple(self.state_stack[-1]))
+            self.write_trigger_params()
+        self.write_parent_call_params(a.block.scope, skip=0) # call it!
+        self.w.writeln(");")
 
     def visit_State(self, state):
         self.state_stack.append(state)
@@ -244,19 +266,18 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {")
         if DEBUG:
             self.w.writeln("    eprintln!(\"enter %s\");" % state.full_name);
-        self.w.writeln("    let scope = data;")
+        self.w.writeln("    let mut scope = data;")
         self.w.indent(); self.w.indent()
         for a in state.enter:
             a.accept(self)
         self.w.dedent(); self.w.dedent()
         for a in state.after_triggers:
-            # self.w.writeln("    timers[%d] = sched.set_timeout(%d, InEvent::%s(%s{}));" % (a.after_id, a.delay.opt, ident_event_enum_variant(a.enabling[0].name), ident_event_type(a.enabling[0].name)))
-            self.w.writeln("    timers[%d] = sched.set_timeout(%d, InEvent::%s);" % (a.after_id, a.delay.opt, ident_event_enum_variant(a.enabling[0].name)))
+            self.w.writeln("    timers[%d] = sched.set_timeout(%d, InEvent::%s());" % (a.after_id, a.delay.opt, ident_event_enum_variant(a.enabling[0].name)))
         self.w.writeln("  }")
 
         # Enter actions: Executes exit actions of only this state
         self.w.writeln("  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {")
-        self.w.writeln("    let scope = data;")
+        self.w.writeln("    let mut scope = data;")
         for a in state.after_triggers:
             self.w.writeln("    sched.unset_timeout(&timers[%d]);" % (a.after_id))
         self.w.indent(); self.w.indent()
@@ -340,14 +361,11 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
         # Write event types
         if self.internal_queue:
-            input_events = sc.internal_events
-            internal_events = Bitmap()
+            input_events = {key: val for key,val in itertools.chain(sc.in_events.items(), sc.internal_events.items())}
+            internal_events = {}
         else:
-            input_events = sc.internal_events & ~sc.internally_raised_events
-            internal_events = sc.internally_raised_events
-
-        input_event_names = [self.globals.events.names[i] for i in bm_items(input_events)]
-        internal_event_names = [self.globals.events.names[i] for i in bm_items(internal_events)]
+            input_events = sc.in_events
+            internal_events = sc.internal_events
 
         internal_same_round = (
             sc.semantics.internal_event_lifeline == InternalEventLifeline.REMAINDER or
@@ -357,21 +375,27 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln("#[cfg_attr(target_arch = \"wasm32\", wasm_bindgen)]")
         self.w.writeln("#[derive(Copy, Clone, Debug)]")
         self.w.writeln("pub enum InEvent {")
-        for event_name in input_event_names:
-            self.w.writeln("  %s," % (ident_event_enum_variant(event_name)))
+        for event_name in input_events:
+            self.w.write("  %s(" % (ident_event_enum_variant(event_name)))
+            for param_type in input_events[event_name]:
+                param_type.accept(self)
+                self.w.write(", ")
+            self.w.writeln("),")
         self.w.writeln("}")
         self.w.writeln()
 
         self.w.writeln("// Internal Events")
-        for event_name in internal_event_names:
-            self.w.writeln("struct %s {" % ident_event_type(event_name))
-            self.w.writeln("  // TODO: internal event parameters")
-            self.w.writeln("}")
+        for event_name in internal_events:
+            self.w.write("struct %s(" % ident_event_type(event_name))
+            for param_type in internal_events[event_name]:
+                param_type.accept(self)
+                self.w.write(", ")
+            self.w.writeln(");")
 
         # Implement internal events as a set
         self.w.writeln("#[derive(Default)]")
         self.w.writeln("struct Internal {")
-        for event_name in internal_event_names:
+        for event_name in internal_events:
             self.w.writeln("  %s: Option<%s>," % (ident_event_field(event_name), ident_event_type(event_name)))
         self.w.writeln("}")
 
@@ -386,13 +410,17 @@ class StatechartRustGenerator(ActionLangRustGenerator):
         self.w.writeln()
 
         # Output events
-        output_event_names = self.globals.out_events.names
+        # output_event_names = self.globals.out_events.names
         self.w.writeln("// Output Events")
         self.w.writeln("#[cfg_attr(target_arch = \"wasm32\", wasm_bindgen)]")
         self.w.writeln("#[derive(Copy, Clone, Debug, PartialEq, Eq)]")
         self.w.writeln("pub enum OutEvent {")
-        for event_name in output_event_names:
-            self.w.writeln("  %s," % (ident_event_enum_variant(event_name)))
+        for event_name in sc.out_events:
+            self.w.write("  %s(" % (ident_event_enum_variant(event_name)))
+            for param_type in sc.out_events[event_name]:
+                param_type.accept(self)
+                self.w.write(", ")
+            self.w.writeln("),")
         self.w.writeln("}")
         self.w.writeln()
 
@@ -582,6 +610,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
 
             def parent():
                 for i, t in enumerate(state.transitions):
+                    self.trigger = t.trigger
                     self.w.writeln("// Outgoing transition %d" % i)
 
                     # If a transition with an overlapping arena that is an ancestor of ours, we wouldn't arrive here because of the "break 'arena_label" statements.
@@ -600,25 +629,27 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                     if t.trigger is not EMPTY_TRIGGER:
                         condition = []
                         for e in t.trigger.enabling:
-                            if bit(e.id) & input_events:
-                                # condition.append("let Some(InEvent::%s(%s{})) = &input" % (ident_event_enum_variant(e.name), ident_event_type(e.name)))
-                                condition.append("let Some(InEvent::%s) = &input" % (ident_event_enum_variant(e.name)))
-                            elif bit(e.id) & internal_events:
-                                condition.append("let Some(%s) = &internal.current().%s" % (ident_event_type(e.name), ident_event_field(e.name)))
+                            if e.name in input_events:
+                                condition.append("let Some(InEvent::%s(%s)) = &input" % (ident_event_enum_variant(e.name), ", ".join(p.name for p in e.params_decl)))
+                            elif e.name in internal_events:
+                                condition.append("let Some(%s(%s)) = &internal.current().%s" % (ident_event_type(e.name), ", ".join(p.name for p in e.params_decl), ident_event_field(e.name)))
                             else:
+                                print(e.name)
+                                print(input_events)
+                                print(internal_events)
                                 raise Exception("Illegal event ID - Bug in SCCD :(")
                         self.w.writeln("if %s {" % " && ".join(condition))
                         self.w.indent()
 
+
+
                     if t.guard is not None:
-                        if t.guard.scope.size() > 1:
-                            raise UnsupportedFeature("Event parameters")
                         self.w.write("if ")
                         t.guard.accept(self) # guard is a function...
                         self.w.write("(") # call it!
                         self.w.write(self.get_parallel_states_tuple(t.source))
                         self.w.write(", ")
-                        # TODO: write event parameters here
+                        self.write_trigger_params()
                         self.write_parent_call_params(t.guard.scope)
                         self.w.write(")")
                         self.w.writeln(" {")
@@ -686,6 +717,7 @@ class StatechartRustGenerator(ActionLangRustGenerator):
                         self.w.writeln("}")
 
                     transitions_written.append(t)
+                    self.trigger = None
 
             def child():
                 # Here is were we recurse and write the transition code for the children of our 'state'.

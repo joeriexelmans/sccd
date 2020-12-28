@@ -13,7 +13,10 @@
   </inport>
 
   <outport name="out">
-    <event name="done"/>
+    <event name="done">
+      <param type="int"/>
+      <param type="int"/>
+    </event>
   </outport>
 
   <root initial="Invar">

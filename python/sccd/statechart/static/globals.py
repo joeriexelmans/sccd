@@ -8,8 +8,8 @@ from sccd.common.exceptions import *
 class Globals:
   def __init__(self):
     # All the event names in the model
-    self.events = Namespace()
-    self.out_events = Namespace()
+    # self.events = Namespace()
+    # self.out_events = Namespace()
 
     self.inports = Namespace()
     self.outports = Namespace()

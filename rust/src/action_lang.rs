@@ -1,8 +1,8 @@
 
 // Requirements for working with time durations in SCCD:
 //  1) Use of integer types. Floating point types have complex behavior when it comes to precision, mathematical operations introducing roundoff errors that are hard to predict.
-//  2) The type system should prevent mixing up durations' units (e.g. assuming a value in milliseconds is a value in microsends).
-//  3) Under the hood, duration values should not all be converted to the same "base" unit (e.g. microseconds). There is always a tradeoff between the smallest duration expressable vs. the largest duration expressable, and the optimal tradeoff is model-specific.
+//  2) The type system should prevent mixing up durations' units (e.g. mistaking a value in milliseconds to be a value in microseconds).
+//  3) Under the hood, duration values should not all be converted to the same "base" unit (e.g. microseconds). Because we use integers, there is always a tradeoff between the smallest duration expressable vs. the largest duration expressable, and the optimal tradeoff is model-specific.
 //  4) There should be no additional runtime cost when performing arithmetic on durations of the same unit.
 
 use std::marker::PhantomData;

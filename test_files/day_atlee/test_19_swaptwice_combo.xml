@@ -16,12 +16,18 @@
     </datamodel>
 
     <inport name="in">
-      <event name="set_a_b"/>
+      <event name="set_a_b">
+        <param type="int"/>
+        <param type="int"/>
+      </event>
       <event name="swap_twice"/>
     </inport>
 
     <outport name="out">
-      <event name="swapped"/>
+      <event name="swapped">
+        <param type="int"/>
+        <param type="int"/>
+      </event>
     </outport>
 
 

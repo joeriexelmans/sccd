@@ -129,7 +129,7 @@ class SmallStep(Round):
     def _run(self, forbidden_arenas: Bitmap) -> RoundResult:
         enabled_events = self.enabled_events()
         # The cost of sorting our enabled events is smaller than the benefit gained by having to loop less often over it in our transition execution code:
-        enabled_events.sort(key=lambda e: e.id)
+        # enabled_events.sort(key=lambda e: e.id)
 
         transitions = self.generator.generate(self.execution, enabled_events, forbidden_arenas)
 
@@ -143,6 +143,6 @@ class SmallStep(Round):
             if t.target_stable:
                 stable_arenas |= arena
             enabled_events = self.enabled_events()
-            enabled_events.sort(key=lambda e: e.id)
+            # enabled_events.sort(key=lambda e: e.id)
 
         return (dirty_arenas, stable_arenas)

@@ -29,18 +29,18 @@ extern {
 }
 
 #[wasm_bindgen]
+#[derive(Default)]
 pub struct Handle {
   controller: controller::Controller<digitalwatch::InEvent>,
-  statechart: digitalwatch::Statechart<controller::TimerId<digitalwatch::InEvent>>,
+  statechart: digitalwatch::Statechart<controller::Controller<digitalwatch::InEvent>>,
 }
 
 #[wasm_bindgen]
 pub fn setup(out: &OutputHandler) -> Handle {
-  let mut controller = controller::Controller::<digitalwatch::InEvent>::new();
-  let mut statechart = digitalwatch::Statechart::<controller::TimerId<digitalwatch::InEvent>>::default();
-  statechart.init(&mut controller, &mut |e|{ out.handle_output(e) });
+  let mut handle = Handle::default();
+  handle.statechart.init(&mut handle.controller, &mut |e|{ out.handle_output(e) });
 
-  Handle{controller, statechart}
+  handle
 }
 
 #[wasm_bindgen]

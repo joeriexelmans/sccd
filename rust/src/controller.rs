@@ -53,6 +53,8 @@ pub struct Controller<InEvent> {
   // Queue entries allocated on the heap.
   // Reverse<T> turns BinaryHeap into a min-heap.
   queue: BinaryHeap<Reverse<Rc<QueueEntry<InEvent>>>>,
+
+  // Counts number of entries per timestamp. To maintain FIFO order for equally-timestamped entries.
   idxs: HashMap<Timestamp, TimerIndex>,
 }
 

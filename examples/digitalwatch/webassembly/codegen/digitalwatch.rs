@@ -24,8 +24,7 @@ use sccd::statechart::EventLifeline;
 type Timers<TimerId> = [TimerId; 11];
 
 // Input Events
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Copy, Clone, Debug)]
 pub enum InEvent {
   E_bottomLeftPressed,
@@ -77,8 +76,7 @@ struct Internal {
 type InternalLifeline = statechart::NextRoundLifeline<Internal>;
 
 // Output Events
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum OutEvent {
   E_setAlarm,
@@ -111,7 +109,7 @@ const ARENA_P_Display_EditingTime: Arenas = 0b10000000;
 const ARENA_P_Time: Arenas = 0b100000000;
 const ARENA_UNSTABLE: Arenas = 0b1000000000; // indicates any transition fired with an unstable target
 
-impl<TimerId: Default> Default for Statechart<TimerId> {
+impl<Sched: statechart::Scheduler> Default for Statechart<Sched> {
   fn default() -> Self {
     // Initialize data model
     let scope = action_lang::Empty{};
@@ -123,13 +121,13 @@ impl<TimerId: Default> Default for Statechart<TimerId> {
   }
 }
 type DataModel = action_lang::Empty;
-pub struct Statechart<TimerId> {
+pub struct Statechart<Sched: statechart::Scheduler> {
   configuration: Root,
-  timers: Timers<TimerId>,
+  timers: Timers<Sched::TimerId>,
   data: DataModel,
 }
 
-fn fair_step<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(sc: &mut Statechart<TimerId>, input: &mut Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {
+fn fair_step<Sched: statechart::Scheduler<InEvent=InEvent>>(sc: &mut Statechart<Sched>, input: &mut Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent), dirty: Arenas) -> Arenas {
   let mut fired: Arenas = ARENA_NONE;
   let mut scope = &mut sc.data;
   let root = &mut sc.configuration;
@@ -991,20 +989,24 @@ fn fair_step<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, O
   }
   fired
 }
-fn combo_step<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(sc: &mut Statechart<TimerId>, input: &mut Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {
+fn combo_step<Sched: statechart::Scheduler<InEvent=InEvent>>(sc: &mut Statechart<Sched>, input: &mut Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent), dirty: Arenas) -> Arenas {
   // Combo-Step Maximality: TAKE_ONE
   fair_step(sc, input, internal, sched, output, dirty)
 }
-fn big_step<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(sc: &mut Statechart<TimerId>, input: &mut Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback, dirty: Arenas) -> Arenas {
+fn big_step<Sched: statechart::Scheduler<InEvent=InEvent>>(sc: &mut Statechart<Sched>, input: &mut Option<InEvent>, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent), dirty: Arenas) -> Arenas {
   // Big-Step Maximality: TAKE_ONE
   combo_step(sc, input, internal, sched, output, dirty)
 }
 
-impl<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)> statechart::SC<InEvent, TimerId, Sched, OutputCallback> for Statechart<TimerId> {
-  fn init(&mut self, sched: &mut Sched, output: &mut OutputCallback) {
+impl<Sched: statechart::Scheduler<InEvent=InEvent>> statechart::SC for Statechart<Sched> {
+  type InEvent = InEvent;
+  type OutEvent = OutEvent;
+  type Sched = Sched;
+
+  fn init(&mut self, sched: &mut Self::Sched, output: &mut impl FnMut(Self::OutEvent)) {
     Root::enter_default(&mut self.timers, &mut self.data, &mut Default::default(), sched, output)
   }
-  fn big_step(&mut self, mut input: Option<InEvent>, sched: &mut Sched, output: &mut OutputCallback) {
+  fn big_step(&mut self, mut input: Option<InEvent>, sched: &mut Self::Sched, output: &mut impl FnMut(Self::OutEvent)) {
     let mut internal: InternalLifeline = Default::default();
     big_step(self, &mut input, &mut internal, sched, output, ARENA_NONE);
   }
@@ -1015,19 +1017,19 @@ impl<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCal
 struct State_P_Alarm_Off {
 }
 impl State_P_Alarm_Off {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_Off::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_Off::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_Off::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1037,19 +1039,19 @@ impl State_P_Alarm_Off {
 struct State_P_Alarm_On_NotBlinking {
 }
 impl State_P_Alarm_On_NotBlinking {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_NotBlinking::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_NotBlinking::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_NotBlinking::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1059,23 +1061,23 @@ impl State_P_Alarm_On_NotBlinking {
 struct State_P_Alarm_On_Blinking_On {
 }
 impl State_P_Alarm_On_Blinking_On {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     (output)(OutEvent::E_setIndiglo);
     timers[0] = sched.set_timeout(500, InEvent::A0);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[0]);
     (output)(OutEvent::E_unsetIndiglo);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_Blinking_On::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_Blinking_On::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_Blinking_On::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1085,21 +1087,21 @@ impl State_P_Alarm_On_Blinking_On {
 struct State_P_Alarm_On_Blinking_Off {
 }
 impl State_P_Alarm_On_Blinking_Off {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     timers[1] = sched.set_timeout(500, InEvent::A1);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[1]);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_Blinking_Off::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_Blinking_Off::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_Blinking_Off::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1116,26 +1118,26 @@ impl Default for State_P_Alarm_On_Blinking {
   }
 }
 impl State_P_Alarm_On_Blinking {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     timers[2] = sched.set_timeout(4000, InEvent::A2);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[2]);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_Blinking::enter_actions(timers, data, internal, sched, output);
     State_P_Alarm_On_Blinking_On::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     match self {
       Self::S_On(s) => { s.exit_current(timers, data, internal, sched, output); },
       Self::S_Off(s) => { s.exit_current(timers, data, internal, sched, output); },
     }
     State_P_Alarm_On_Blinking::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On_Blinking::enter_actions(timers, data, internal, sched, output);
     match self {
       Self::S_On(s) => { s.enter_current(timers, data, internal, sched, output); },
@@ -1156,26 +1158,26 @@ impl Default for State_P_Alarm_On {
   }
 }
 impl State_P_Alarm_On {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     (output)(OutEvent::E_setAlarm);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     (output)(OutEvent::E_setAlarm);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On::enter_actions(timers, data, internal, sched, output);
     State_P_Alarm_On_NotBlinking::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     match self {
       Self::S_NotBlinking(s) => { s.exit_current(timers, data, internal, sched, output); },
       Self::S_Blinking(s) => { s.exit_current(timers, data, internal, sched, output); },
     }
     State_P_Alarm_On::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm_On::enter_actions(timers, data, internal, sched, output);
     match self {
       Self::S_NotBlinking(s) => { s.enter_current(timers, data, internal, sched, output); },
@@ -1196,24 +1198,24 @@ impl Default for State_P_Alarm {
   }
 }
 impl State_P_Alarm {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm::enter_actions(timers, data, internal, sched, output);
     State_P_Alarm_Off::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     match self {
       Self::S_Off(s) => { s.exit_current(timers, data, internal, sched, output); },
       Self::S_On(s) => { s.exit_current(timers, data, internal, sched, output); },
     }
     State_P_Alarm::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Alarm::enter_actions(timers, data, internal, sched, output);
     match self {
       Self::S_Off(s) => { s.enter_current(timers, data, internal, sched, output); },
@@ -1227,19 +1229,19 @@ impl State_P_Alarm {
 struct State_P_Indiglo_Off {
 }
 impl State_P_Indiglo_Off {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo_Off::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo_Off::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo_Off::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1249,19 +1251,19 @@ impl State_P_Indiglo_Off {
 struct State_P_Indiglo_Pushed {
 }
 impl State_P_Indiglo_Pushed {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo_Pushed::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo_Pushed::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo_Pushed::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1271,21 +1273,21 @@ impl State_P_Indiglo_Pushed {
 struct State_P_Indiglo_Released {
 }
 impl State_P_Indiglo_Released {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     timers[3] = sched.set_timeout(2000, InEvent::A3);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[3]);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo_Released::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo_Released::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo_Released::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1303,17 +1305,17 @@ impl Default for State_P_Indiglo {
   }
 }
 impl State_P_Indiglo {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo::enter_actions(timers, data, internal, sched, output);
     State_P_Indiglo_Off::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     match self {
       Self::S_Off(s) => { s.exit_current(timers, data, internal, sched, output); },
       Self::S_Pushed(s) => { s.exit_current(timers, data, internal, sched, output); },
@@ -1321,7 +1323,7 @@ impl State_P_Indiglo {
     }
     State_P_Indiglo::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Indiglo::enter_actions(timers, data, internal, sched, output);
     match self {
       Self::S_Off(s) => { s.enter_current(timers, data, internal, sched, output); },
@@ -1336,19 +1338,19 @@ impl State_P_Indiglo {
 struct State_P_ChronoWrapper_Chrono_Stopped {
 }
 impl State_P_ChronoWrapper_Chrono_Stopped {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_ChronoWrapper_Chrono_Stopped::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_ChronoWrapper_Chrono_Stopped::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_ChronoWrapper_Chrono_Stopped::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1358,21 +1360,21 @@ impl State_P_ChronoWrapper_Chrono_Stopped {
 struct State_P_ChronoWrapper_Chrono_Running {
 }
 impl State_P_ChronoWrapper_Chrono_Running {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     timers[4] = sched.set_timeout(10, InEvent::A4);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[4]);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_ChronoWrapper_Chrono_Running::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_ChronoWrapper_Chrono_Running::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_ChronoWrapper_Chrono_Running::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1389,24 +1391,24 @@ impl Default for State_P_ChronoWrapper_Chrono {
   }
 }
 impl State_P_ChronoWrapper_Chrono {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_ChronoWrapper_Chrono::enter_actions(timers, data, internal, sched, output);
     State_P_ChronoWrapper_Chrono_Stopped::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     match self {
       Self::S_Stopped(s) => { s.exit_current(timers, data, internal, sched, output); },
       Self::S_Running(s) => { s.exit_current(timers, data, internal, sched, output); },
     }
     State_P_ChronoWrapper_Chrono::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_ChronoWrapper_Chrono::enter_actions(timers, data, internal, sched, output);
     match self {
       Self::S_Stopped(s) => { s.enter_current(timers, data, internal, sched, output); },
@@ -1426,23 +1428,23 @@ impl Default for State_P_ChronoWrapper {
   }
 }
 impl State_P_ChronoWrapper {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_ChronoWrapper::enter_actions(timers, data, internal, sched, output);
     State_P_ChronoWrapper_Chrono::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     match self {
       Self::S_Chrono(s) => { s.exit_current(timers, data, internal, sched, output); },
     }
     State_P_ChronoWrapper::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_ChronoWrapper::enter_actions(timers, data, internal, sched, output);
     match self {
       Self::S_Chrono(s) => { s.enter_current(timers, data, internal, sched, output); },
@@ -1455,20 +1457,20 @@ impl State_P_ChronoWrapper {
 struct State_P_Display_TimeUpdate {
 }
 impl State_P_Display_TimeUpdate {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     (output)(OutEvent::E_refreshTimeDisplay);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_TimeUpdate::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_TimeUpdate::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_TimeUpdate::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1478,21 +1480,21 @@ impl State_P_Display_TimeUpdate {
 struct State_P_Display_WaitingToEdit {
 }
 impl State_P_Display_WaitingToEdit {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     timers[5] = sched.set_timeout(1500, InEvent::A5);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[5]);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_WaitingToEdit::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_WaitingToEdit::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_WaitingToEdit::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1502,22 +1504,22 @@ impl State_P_Display_WaitingToEdit {
 struct State_P_Display_WaitingForAlarm {
 }
 impl State_P_Display_WaitingForAlarm {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     (output)(OutEvent::E_refreshAlarmDisplay);
     timers[6] = sched.set_timeout(1500, InEvent::A6);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[6]);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_WaitingForAlarm::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_WaitingForAlarm::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_WaitingForAlarm::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1527,21 +1529,21 @@ impl State_P_Display_WaitingForAlarm {
 struct State_P_Display_EditingTime_Waiting {
 }
 impl State_P_Display_EditingTime_Waiting {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     timers[7] = sched.set_timeout(5000, InEvent::A7);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[7]);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime_Waiting::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime_Waiting::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime_Waiting::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1551,21 +1553,21 @@ impl State_P_Display_EditingTime_Waiting {
 struct State_P_Display_EditingTime_GoingToNext {
 }
 impl State_P_Display_EditingTime_GoingToNext {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     timers[8] = sched.set_timeout(2000, InEvent::A8);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[8]);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime_GoingToNext::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime_GoingToNext::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime_GoingToNext::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1575,22 +1577,22 @@ impl State_P_Display_EditingTime_GoingToNext {
 struct State_P_Display_EditingTime_Increasing {
 }
 impl State_P_Display_EditingTime_Increasing {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     (output)(OutEvent::E_increaseSelection);
     timers[9] = sched.set_timeout(300, InEvent::A9);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[9]);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime_Increasing::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime_Increasing::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime_Increasing::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1608,21 +1610,21 @@ impl Default for State_P_Display_EditingTime {
   }
 }
 impl State_P_Display_EditingTime {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     (output)(OutEvent::E_startSelection);
     internal.raise().e_time_edit = Some(Event_time_edit{});
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     (output)(OutEvent::E_stopSelection);
     internal.raise().e_edit_done = Some(Event_edit_done{});
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime::enter_actions(timers, data, internal, sched, output);
     State_P_Display_EditingTime_Waiting::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     match self {
       Self::S_Waiting(s) => { s.exit_current(timers, data, internal, sched, output); },
       Self::S_GoingToNext(s) => { s.exit_current(timers, data, internal, sched, output); },
@@ -1630,7 +1632,7 @@ impl State_P_Display_EditingTime {
     }
     State_P_Display_EditingTime::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_EditingTime::enter_actions(timers, data, internal, sched, output);
     match self {
       Self::S_Waiting(s) => { s.enter_current(timers, data, internal, sched, output); },
@@ -1645,20 +1647,20 @@ impl State_P_Display_EditingTime {
 struct State_P_Display_ChronoUpdate {
 }
 impl State_P_Display_ChronoUpdate {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     (output)(OutEvent::E_refreshChronoDisplay);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_ChronoUpdate::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_ChronoUpdate::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display_ChronoUpdate::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1678,17 +1680,17 @@ impl Default for State_P_Display {
   }
 }
 impl State_P_Display {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display::enter_actions(timers, data, internal, sched, output);
     State_P_Display_TimeUpdate::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     match self {
       Self::S_TimeUpdate(s) => { s.exit_current(timers, data, internal, sched, output); },
       Self::S_WaitingToEdit(s) => { s.exit_current(timers, data, internal, sched, output); },
@@ -1698,7 +1700,7 @@ impl State_P_Display {
     }
     State_P_Display::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Display::enter_actions(timers, data, internal, sched, output);
     match self {
       Self::S_TimeUpdate(s) => { s.enter_current(timers, data, internal, sched, output); },
@@ -1715,21 +1717,21 @@ impl State_P_Display {
 struct State_P_Time_Increasing {
 }
 impl State_P_Time_Increasing {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     timers[10] = sched.set_timeout(1000, InEvent::A10);
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
     sched.unset_timeout(&timers[10]);
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Time_Increasing::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Time_Increasing::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Time_Increasing::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1739,19 +1741,19 @@ impl State_P_Time_Increasing {
 struct State_P_Time_Editing {
 }
 impl State_P_Time_Editing {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Time_Editing::enter_actions(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Time_Editing::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Time_Editing::enter_actions(timers, data, internal, sched, output);
   }
 }
@@ -1768,24 +1770,24 @@ impl Default for State_P_Time {
   }
 }
 impl State_P_Time {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Time::enter_actions(timers, data, internal, sched, output);
     State_P_Time_Increasing::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     match self {
       Self::S_Increasing(s) => { s.exit_current(timers, data, internal, sched, output); },
       Self::S_Editing(s) => { s.exit_current(timers, data, internal, sched, output); },
     }
     State_P_Time::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P_Time::enter_actions(timers, data, internal, sched, output);
     match self {
       Self::S_Increasing(s) => { s.enter_current(timers, data, internal, sched, output); },
@@ -1804,13 +1806,13 @@ struct State_P {
   s_P_Time: State_P_Time,
 }
 impl State_P {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P::enter_actions(timers, data, internal, sched, output);
     State_P_Alarm::enter_default(timers, data, internal, sched, output);
     State_P_Indiglo::enter_default(timers, data, internal, sched, output);
@@ -1818,7 +1820,7 @@ impl State_P {
     State_P_Display::enter_default(timers, data, internal, sched, output);
     State_P_Time::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     self.s_P_Alarm.exit_current(timers, data, internal, sched, output);
     self.s_P_Indiglo.exit_current(timers, data, internal, sched, output);
     self.s_P_ChronoWrapper.exit_current(timers, data, internal, sched, output);
@@ -1826,7 +1828,7 @@ impl State_P {
     self.s_P_Time.exit_current(timers, data, internal, sched, output);
     State_P::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     State_P::enter_actions(timers, data, internal, sched, output);
     self.s_P_Alarm.enter_current(timers, data, internal, sched, output);
     self.s_P_Indiglo.enter_current(timers, data, internal, sched, output);
@@ -1847,23 +1849,23 @@ impl Default for Root {
   }
 }
 impl Root {
-  fn enter_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn exit_actions<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_actions<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     let scope = data;
   }
-  fn enter_default<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_default<Sched: statechart::Scheduler<InEvent=InEvent>>(timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     Root::enter_actions(timers, data, internal, sched, output);
     State_P::enter_default(timers, data, internal, sched, output);
   }
-  fn exit_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn exit_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     match self {
       Self::S_P(s) => { s.exit_current(timers, data, internal, sched, output); },
     }
     Root::exit_actions(timers, data, internal, sched, output);
   }
-  fn enter_current<TimerId: Default, Sched: statechart::Scheduler<InEvent, TimerId>, OutputCallback: FnMut(OutEvent)>(&self, timers: &mut Timers<TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut OutputCallback) {
+  fn enter_current<Sched: statechart::Scheduler<InEvent=InEvent>>(&self, timers: &mut Timers<Sched::TimerId>, data: &mut DataModel, internal: &mut InternalLifeline, sched: &mut Sched, output: &mut impl FnMut(OutEvent)) {
     Root::enter_actions(timers, data, internal, sched, output);
     match self {
       Self::S_P(s) => { s.enter_current(timers, data, internal, sched, output); },

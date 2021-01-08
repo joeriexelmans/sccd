@@ -2,6 +2,7 @@ from abc import *
 from dataclasses import *
 from typing import *
 import termcolor
+from sccd.util.duration import Duration
 from sccd.util.visitable import *
 from functools import reduce
 
@@ -87,10 +88,12 @@ class _SCCDSimpleType(SCCDType):
     def exp(self, other):
         return self.__dict_lookup(self.exp_dict, other)
 
+    # Can this type be '=='ed with other type?
     def is_eq(self, other):
         if other is self:
             return self.eq
 
+    # Can this type by compared to other type?
     def is_ord(self, other):
         if other is self:
             return self.ord
@@ -145,6 +148,26 @@ class SCCDClosureObject(SCCDType):
 
     def _str(self):
         return "Closure(scope=%s, func=%s)" % (self.scope.name, self.function_type._str())
+
+
+@dataclass(frozen=True, repr=False)
+class SCCDDurationFixedUnit(SCCDType):
+    unit: Duration
+
+    def _str(self):
+        return "dur_fixed(%s)" % self.unit
+
+    def is_summable(self, other):
+        return isinstance(other, SCCDDurationFixedUnit) and self.unit == other.unit
+
+    def is_eq(self, other):
+        return self.is_summable(other)
+
+    def is_ord(self, other):
+        return self.is_summable(other)
+
+    def mult(self, other):
+        return other is SCCDInt
 
 
 SCCDBool = _SCCDSimpleType("bool", eq=True, bool_cast=True)

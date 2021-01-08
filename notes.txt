@@ -37,13 +37,18 @@ Long-term vision:
 
 Random notes:
 
+  - Refactor XML parsing code to use domain-specific types for parsing rules instead of tuples, dicts and lists.
+
+  - (DONE) Currently event IDs are unique within a CD model. They only have to be unique within a statechart model.
+      DONE: Events are matched by name in the interpreter, and event names become enum variant identifiers in generated Rust code.
+
   - Explore per-state data models
       - Right now, there's a single datamodel for the entire statechart. All of the statechart's variables are declared there.
       - We could have datamodels per state: Variables declared in state A's enter actions would belong to A, and be readable/writable by any transition (guard, actions) sourcing from A's substates, as well as the enter- and exit actions of A's substates.
       - The benefit would be composability: 2 statechart models could be merged without having conflicting variables
         - The same non-conflicting merge could also be achieved by automatic renaming, though.
       - Another benefit would be savings on memory consumption: The memory consumed by the datamodel of 2 non-orthogonal states would only be the size of the biggest datamodel, instead of the sum of the 2 datamodels.
-      - Conclusion: Could be interesting for very large, composed, statecharts
+      - An argument against this, is that variables often serve as "communication" between states, or to "remember" stuff for as long as the statechart runs. Therefore, in many models, they would only be declared at the "root" state. There may not be a need to compose statecharts by merging them into one statechart, if we can instantiate and destroy instances of statechart models at runtime (the "CD" part of SCCD).
 
   - Durations in action language are a single type, consisting of an integer value and a unit. Perhaps it would be better to have a separate duration type for every unit. Especially in Rust it is better to leave the units to the type system, and only work with 'the numbers' in the machine code :)
 

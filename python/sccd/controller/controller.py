@@ -61,10 +61,10 @@ class Controller:
     # Low-level utility function, intended to map a port name to a list of instances
     # For now, all known ports map to all instances (i.e. all ports are broadcast ports)
     def inport_to_instances(self, port: str) -> List[Instance]:
-        try:
-            self.cd.globals.inports.get_id(port)
-        except KeyError as e:
-            raise Exception("No such port: '%s'" % port) from e
+        # try:
+        #     self.cd.globals.inports.get_id(port)
+        # except KeyError as e:
+        #     raise Exception("No such port: '%s'" % port) from e
 
         # For now, we just broadcast all input events.
         # We don't even check if the event is allowed on the input port.
@@ -77,13 +77,14 @@ class Controller:
     # Higher-level way of adding an event to the queue.
     # See also method 'schedule'
     def add_input(self, timestamp: int, port: str, event_name: str, params = []):
-        try:
-            event_id = self.cd.globals.events.get_id(event_name)
-        except KeyError as e:
-            raise Exception("No such event: '%s'" % event_name) from e
+        # try:
+        #     event_id = self.cd.globals.events.get_id(event_name)
+        # except KeyError as e:
+        #     raise Exception("No such event: '%s'" % event_name) from e
 
         instances = self.inport_to_instances(port)
-        event = InternalEvent(event_id, event_name, params)
+        # event = InternalEvent(event_id, event_name, params)
+        event = InternalEvent(event_name, params)
 
         self.schedule(timestamp, [event], instances)
 

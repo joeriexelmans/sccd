@@ -20,24 +20,20 @@ def main():
     gui.controller.send_event = on_gui_event
 
     def on_output(event: OutputEvent):
-        if event.port == "out":
+        # if event.port == "out":
             # print("out:", e.name)
             # the output event names happen to be functions on our GUI controller:
-            method = getattr(gui.controller, event.name)
+        method = getattr(gui.controller, event.name, None)
+        if method is not None:
             method()
 
     cd = load_cd("../common/digitalwatch.xml")
 
-    # from sccd.statechart.static import tree
-    # tree.concurrency_arena_orthogonal( cd.statechart.tree )
-    # # tree.concurrency_src_dst_orthogonal( cd.statechart.tree )
-    # exit()
-
     controller = Controller(cd, output_callback=on_output)
     eventloop = EventLoop(controller, TkInterImplementation(tk))
 
-    eventloop.start()
-    tk.mainloop()
+    eventloop.start() # Just marks the current wall-clock time as "time zero", and schedules the first controller wakeup with Tk.
+    tk.mainloop() # This actually runs Tk's eventloop in the current thread, with our own event loop interleaved.
 
 if __name__ == '__main__':
     main()

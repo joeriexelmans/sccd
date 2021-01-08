@@ -18,6 +18,8 @@ webassembly/
 
         Then navigate your browser to http://localhost:8000/webassembly/
 
+        Note that this WebAssembly demo is only a proof-of-concept. Currently the package "wasm_bindgen", which generates bindings between WebAssembly and JavaScript, has very limited support for Algebraic Data Types, which we use for our input and output events.
+
     codegen/
         Generated code: This is a Rust crate produced by SCCD compiler (module "sccd.test.cmd.to_rust") from 'common/digitalwatch.xml'. Building it with 'cargo' produces a library.
 

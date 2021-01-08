@@ -8,3 +8,5 @@ class ClassDiagramRustGenerator:
         from sccd.statechart.codegen.rust import StatechartRustGenerator
         gen = StatechartRustGenerator(self.w, cd.globals)
         cd.statechart.accept(gen)
+
+        # self.w.write()

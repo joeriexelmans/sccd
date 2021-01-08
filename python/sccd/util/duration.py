@@ -21,8 +21,7 @@ class _Unit:
       self.conv_dict[unit] = rel_size
       larger = unit.larger
 
-Day = _Unit("D")
-Hour = _Unit("h", (24, Day))
+Hour = _Unit("h")
 Minute = _Unit("m", (60, Hour))
 Second = _Unit("s", (60, Minute))
 Millisecond = _Unit("ms", (1000, Second))

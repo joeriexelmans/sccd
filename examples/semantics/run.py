@@ -13,7 +13,9 @@ if __name__ == "__main__":
   # Generate semantic variants, and filter invalid ones
   variants = statechart_model.generate_semantic_variants()
 
-  print("Total variants:", len(variants))
+  variants_filtered = [v for v in variants if v.semantics.enabledness_memory_protocol == v.semantics.assignment_memory_protocol]
+
+  print("Total variants:", len(variants_filtered))
   
   # These rules perfectly partition the set of variants into "valid" and "invalid":
   def is_valid(semantics):
@@ -21,34 +23,27 @@ if __name__ == "__main__":
     if semantics.combo_step_maximality > semantics.big_step_maximality:
       return False
 
-    # I cannot think of a reason why someone would ever set assignment memory protocol to a different value from enabledness memory protocol.
-    # The model currently only detects enabledness memory protocol, anyway.
-    if semantics.assignment_memory_protocol != semantics.enabledness_memory_protocol:
-      return False
-
     # Combo steps only make sense if another semantic option refers to them
-    must_have_combo_steps = (semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP or
+    combo_steps_defined = (semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP or
           semantics.internal_event_lifeline == InternalEventLifeline.NEXT_COMBO_STEP or
           semantics.enabledness_memory_protocol == MemoryProtocol.COMBO_STEP)
 
-    # "Combo Take One" is the default combo-step maximality option in SCCD, and is also the option
-    # that is chosen when no combo-steps are being defined. Therefore, options different from "Combo Take One"
-    # are only allowed when combo-step semantics are being used.
-    if not must_have_combo_steps and semantics.combo_step_maximality > Maximality.TAKE_ONE:
-      return False
-
-    # If big-step maximality is "Take One", a big-step will always equal a combo step. 
-    # Therefore combo-steps do not really exist as entities that should be referred to by other semantic options.
-    # E.g. Input event lifeline "Present in First Combo Step" should be "Present in Whole" instead.
-    # E.g. Internal event lifeline "Present in Next Combo Step" makes no sense, the event will never be sensed!
-    # E.g. Memory protocol "Combo Step" should be "Big Step" instead.
-    if semantics.big_step_maximality == Maximality.TAKE_ONE and must_have_combo_steps:
-      return False
+    if combo_steps_defined:
+      if semantics.big_step_maximality == Maximality.TAKE_ONE:
+        # Combo steps will always equal big steps, and therefore don't really exist!
+        # E.g. Input event lifeline "Present in First Combo Step" should be "Present in Whole" instead.
+        # E.g. Internal event lifeline "Present in Next Combo Step" makes no sense, the event will never be sensed!
+        # E.g. Memory protocol "Combo Step" should be "Big Step" instead.
+        return False
+    else:
+      # Has no effect
+      if semantics.combo_step_maximality > Maximality.TAKE_ONE:
+        return False
 
     return True
 
-  valid_variants = [v for v in variants if is_valid(v.semantics)]
-  invalid_variants = [v for v in variants if not is_valid(v.semantics)]
+  valid_variants = [v for v in variants_filtered if is_valid(v.semantics)]
+  invalid_variants = [v for v in variants_filtered if not is_valid(v.semantics)]
 
   print("Valid variants:", len(valid_variants))
   print("Invalid variants:", len(invalid_variants))
@@ -82,7 +77,7 @@ if __name__ == "__main__":
   }
 
   state_id_to_semantics = {
-    statechart_model.tree.state_dict[state_name].opt.state_id: tup
+    statechart_model.tree.state_dict[state_name].state_id: tup
       for state_name, tup in state_name_to_semantics.items()
   }
 
@@ -98,8 +93,7 @@ if __name__ == "__main__":
     pass
 
   # List of input events for the big-step is always the same, so declare it outside the loop
-  input0_id = globals.events.get_id("input0")
-  input_events = [InternalEvent(id=input0_id, name="", params=[])]
+  input_events = [InternalEvent(name="input0", params=[])]
 
 
   def check_variants(variants):
@@ -140,6 +134,21 @@ if __name__ == "__main__":
 
 
   correct, incorrect = check_variants(valid_variants)
-  print("\nOf the valid variants, corrently inferred %d, incorrectly inferred %d." % (len(correct), len(incorrect)))
+  # for inc in correct:
+  #   print("CORRECT:")
+  #   print(inc)
+  # for inc in incorrect:
+  #   print("INCORRECT:")
+  #   print("what it was:", inc[0])
+  #   print("what the SC says it is:", inc[1])
+  print("\nOf the valid variants, correctly inferred %d, incorrectly inferred %d." % (len(correct), len(incorrect)))
   correct, incorrect = check_variants(invalid_variants)
-  print("Of the invalid variants, corrently inferred %d, incorrectly inferred %d." % (len(correct), len(incorrect)))
+  print("Of the invalid variants, correctly inferred %d, incorrectly inferred %d." % (len(correct), len(incorrect)))
+  # for inc in correct:
+  #   print("CORRECT:")
+  #   print(inc)
+  # for inc in incorrect:
+  #   print("INCORRECT:")
+  #   print("what it was:", inc[0])
+  #   print("what the SC says it is:", inc[1])
+

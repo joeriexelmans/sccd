@@ -79,8 +79,8 @@
         <state id="InternalEventLifeline" initial="Initial">
           <!-- <state id="NonRemainder" initial="Initial"> -->
           <state id="Initial">
-            <transition cond='INSTATE(["/P/InternalEventLifeline/RegionReceive1/GotEvent"]) and not INSTATE(["/P/InternalEventLifeline/RegionReceive2/GotEvent"])' target="../NextSmallStep"/>
-            <transition cond='INSTATE(["/P/InternalEventLifeline/RegionReceive1/GotEvent", "/P/InternalEventLifeline/RegionReceive2/GotEvent"])' target="../Remainder"/>
+            <transition cond='@in("/P/InternalEventLifeline/RegionReceive1/GotEvent") and not @in("/P/InternalEventLifeline/RegionReceive2/GotEvent")' target="../NextSmallStep"/>
+            <transition cond='@in("/P/InternalEventLifeline/RegionReceive1/GotEvent") and @in("/P/InternalEventLifeline/RegionReceive2/GotEvent")' target="../Remainder"/>
             <transition target="../Queue"/>
           </state>
           <state id="NextSmallStep">
@@ -90,7 +90,7 @@
           <state id="NextComboStep">
           </state>
           <state id="Queue">
-            <transition cond='INSTATE(["/P/InternalEventLifeline/RegionReceive1/GotEvent", "/P/InternalEventLifeline/RegionReceive2/GotEvent"])' target="../NextComboStep"/>
+            <transition cond='@in("/P/InternalEventLifeline/RegionReceive1/GotEvent") and @in("/P/InternalEventLifeline/RegionReceive2/GotEvent")' target="../NextComboStep"/>
           </state>
         </state>
       </parallel>
@@ -182,17 +182,17 @@
 
         <state id="ComboStepMaximality" initial="NoComboSteps">
           <state id="NoComboSteps">
-            <transition event="not input0" cond='INSTATE(["/P/InputEventLifeline/FirstComboStep", "/P/ComboStepMaximality/InputEventDeducer/TakeOne"])' target="../TakeOne"/>
-            <transition event="not input0" cond='INSTATE(["/P/InputEventLifeline/FirstComboStep", "/P/ComboStepMaximality/InputEventDeducer/Syntactic"])' target="../Syntactic"/>
-            <transition event="not input0" cond='INSTATE(["/P/InputEventLifeline/FirstComboStep", "/P/ComboStepMaximality/InputEventDeducer/TakeMany"])' target="../TakeMany"/>
+            <transition event="not input0" cond='@in("/P/InputEventLifeline/FirstComboStep") and @in("/P/ComboStepMaximality/InputEventDeducer/TakeOne")' target="../TakeOne"/>
+            <transition event="not input0" cond='@in("/P/InputEventLifeline/FirstComboStep") and @in("/P/ComboStepMaximality/InputEventDeducer/Syntactic")' target="../Syntactic"/>
+            <transition event="not input0" cond='@in("/P/InputEventLifeline/FirstComboStep") and @in("/P/ComboStepMaximality/InputEventDeducer/TakeMany")' target="../TakeMany"/>
 
-            <transition event="not internal0" cond='INSTATE(["/P/InternalEventLifeline/InternalEventLifeline/NextComboStep", "/P/ComboStepMaximality/InternalEventDeducer/TakeOne"])' target="../TakeOne"/>
-            <transition event="not internal0" cond='INSTATE(["/P/InternalEventLifeline/InternalEventLifeline/NextComboStep", "/P/ComboStepMaximality/InternalEventDeducer/Syntactic"])' target="../Syntactic"/>
-            <transition event="not internal0" cond='INSTATE(["/P/InternalEventLifeline/InternalEventLifeline/NextComboStep", "/P/ComboStepMaximality/InternalEventDeducer/TakeMany"])' target="../TakeMany"/>
+            <transition event="not internal0" cond='@in("/P/InternalEventLifeline/InternalEventLifeline/NextComboStep") and @in("/P/ComboStepMaximality/InternalEventDeducer/TakeOne")' target="../TakeOne"/>
+            <transition event="not internal0" cond='@in("/P/InternalEventLifeline/InternalEventLifeline/NextComboStep") and @in("/P/ComboStepMaximality/InternalEventDeducer/Syntactic")' target="../Syntactic"/>
+            <transition event="not internal0" cond='@in("/P/InternalEventLifeline/InternalEventLifeline/NextComboStep") and @in("/P/ComboStepMaximality/InternalEventDeducer/TakeMany")' target="../TakeMany"/>
 
-            <transition cond='x == 1 and INSTATE(["/P/MemoryProtocol/MemoryProtocol/ComboStep", "/P/ComboStepMaximality/MemoryProtocolDeducer/TakeOne"])' target="../TakeOne"/>
-            <transition cond='x == 1 and INSTATE(["/P/MemoryProtocol/MemoryProtocol/ComboStep", "/P/ComboStepMaximality/MemoryProtocolDeducer/Syntactic"])' target="../Syntactic"/>
-            <transition cond='x == 1 and INSTATE(["/P/MemoryProtocol/MemoryProtocol/ComboStep", "/P/ComboStepMaximality/MemoryProtocolDeducer/TakeMany"])' target="../TakeMany"/>
+            <transition cond='x == 1 and @in("/P/MemoryProtocol/MemoryProtocol/ComboStep") and @in("/P/ComboStepMaximality/MemoryProtocolDeducer/TakeOne")' target="../TakeOne"/>
+            <transition cond='x == 1 and @in("/P/MemoryProtocol/MemoryProtocol/ComboStep") and @in("/P/ComboStepMaximality/MemoryProtocolDeducer/Syntactic")' target="../Syntactic"/>
+            <transition cond='x == 1 and @in("/P/MemoryProtocol/MemoryProtocol/ComboStep") and @in("/P/ComboStepMaximality/MemoryProtocolDeducer/TakeMany")' target="../TakeMany"/>
           </state>
 
           <state id="TakeOne"/>

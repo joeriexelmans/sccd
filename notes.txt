@@ -16,9 +16,16 @@ Long-term vision:
   - improve action language:
     - highest priority:
       - interfacing with external code only works with Python modules
-    - less important, deal with it when it becomes a problem: 
+          envisioned approach:
+          - import external functions: type-safe bindings with other language (check IDL?)
+          - also: declare external types
+              these types cannot be manipulated within SCCD,
+              but can be used as parameters for imported functions
+                -> typical use case: "self" parameter of a method call
+    - less important, deal with it when it becomes a problem:
+      - explicit syntactic distinction between pass-by-value and pass-by-reference, like in C/C++/Rust
       - statically typed (good), but no generics (bad)
-      - user cannot define his/her own types
+      - user cannot define his/her own (complex) types
 
   - dynamic creation/destruction of instances (the "CD" part of SCCD)
 
@@ -36,6 +43,8 @@ Long-term vision:
 
 
 Random notes:
+
+  - Apparently Python3's standard library XML parser (ElementTree) also features event-driven parsing. Probably we no longer need 'lxml'.
 
   - Refactor XML parsing code to use domain-specific types for parsing rules instead of tuples, dicts and lists.
 

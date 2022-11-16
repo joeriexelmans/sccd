@@ -4,12 +4,25 @@
 
 pkgs.mkShell {
   buildInputs = [
-    pkgs.python38
-    pkgs.python38Packages.tkinter
-    pkgs.python38Packages.lark-parser
-    pkgs.python38Packages.lxml
-    pkgs.python38Packages.termcolor
+    pkgs.python3
+    pkgs.python3Packages.tkinter
+    pkgs.python3Packages.lark
+    pkgs.python3Packages.lxml
+    pkgs.python3Packages.termcolor
+
+    #pkgs.rustc
+    pkgs.rustup
+    #pkgs.cargo
+    pkgs.wasm-pack
+
+    pkgs.perf-tools
+
   ];
 
-  PYTHONPATH = ./. + "/src";
+  shellHook =
+    ''
+      export PYTHONPATH=$PYTHONPATH:$pwd/python
+    '';
+
+   PYTHONPATH = ./python;
 }

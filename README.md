@@ -24,7 +24,7 @@ Tip: Users of the Nix package manager can get a usable development environment t
 
 There's a `setup.py` script in the `src` directory.
 
-Alternatively, you can just set your `PYTHONPATH` environment variable to the absolute path of the `src` directory. This is recommended for development.
+Alternatively, you can just add the toplevel `python` directory of this project to your `PYTHONPATH` environment variable. This is recommended for development.
 
 ## Running the tests
 

@@ -147,4 +147,4 @@ class TextParser:
     return self.parser.parse(text, start="expr")
 
   def parse_stmt(self, text: str) -> Statement:
-    return self.parser.parse(text, start="block")
+    return self.parser.parse(text, start="stmt")

@@ -13,7 +13,21 @@ if __name__ == "__main__":
   # Generate semantic variants, and filter invalid ones
   variants = statechart_model.generate_semantic_variants()
 
-  variants_filtered = [v for v in variants if v.semantics.enabledness_memory_protocol == v.semantics.assignment_memory_protocol]
+  def filter(semantics):
+    if semantics.enabledness_memory_protocol != semantics.assignment_memory_protocol:
+      return False
+    if semantics.input_event_lifeline == InputEventLifeline.FIRST_SMALL_STEP:
+      if semantics.internal_event_lifeline != InternalEventLifeline.NEXT_SMALL_STEP:
+        return False
+    if semantics.input_event_lifeline == InputEventLifeline.FIRST_COMBO_STEP:
+      if semantics.internal_event_lifeline != InternalEventLifeline.NEXT_COMBO_STEP:
+        return False
+    if semantics.input_event_lifeline == InputEventLifeline.WHOLE:
+      if semantics.internal_event_lifeline != InternalEventLifeline.REMAINDER:
+        return False
+    return True
+
+  variants_filtered = [v for v in variants if filter(v.semantics)]
 
   print("Total variants:", len(variants_filtered))
   

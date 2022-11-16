@@ -5,7 +5,7 @@ from sccd.util.debug import print_debug
 from sccd.util.bitmap import *
 from sccd.statechart.static.statechart import *
 from sccd.statechart.static import priority, concurrency
-from sccd.statechart.dynamic.builtin_scope import *
+# from sccd.statechart.dynamic.builtin_scope import *
 from sccd.statechart.dynamic.round import *
 from sccd.statechart.dynamic.statechart_execution import *
 from sccd.statechart.dynamic.memory_snapshot import *
@@ -122,7 +122,7 @@ class StatechartInstance(Instance):
         # Memory protocol semantics
 
         memory = Memory()
-        load_builtins(memory, self.execution)
+        # load_builtins(memory, self.execution)
         memory.push_frame(statechart.scope)
 
         instance_frame = memory.current_frame() # this is the stack frame that contains the statechart's "instance" variables

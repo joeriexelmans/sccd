@@ -21,7 +21,7 @@ if __name__ == "__main__":
   print("    apply(10, func(i: int) { return i+1; })")
   print()
 
-  parser = ActionLangParser()
+  parser = TextParser()
 
   while True:
     try:

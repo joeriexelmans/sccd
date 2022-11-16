@@ -102,4 +102,6 @@ class TextParser(action_lang.TextParser):
 
   def parse_type(self, text: str):
     return self.parser.parse(text, start="type_annot")
-    
+
+  def parse_block(self, text: str) -> Statement:
+    return self.parser.parse(text, start="block")

@@ -51,7 +51,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
         setattr(statechart.semantics, aspect_name, semantic_choice)
 
     def parse_datamodel(el):
-      body = text_parser.parse_stmt(el.text)
+      body = text_parser.parse_block(el.text)
       body.init_stmt(statechart.scope)
       statechart.datamodel = body
 
@@ -165,7 +165,7 @@ def statechart_parser_rules(globals, path, load_external = True, parse_f = parse
           def parse_code(el):
             def finish_code():
               # Every block of code becomes a function, with the event trigger's parameters as parameters
-              block = text_parser.parse_stmt(el.text)
+              block = text_parser.parse_block(el.text)
               function = wrap_transition_params(block, transition=transition)
               function.init_expr(scope)
               function.scope.name = "code"

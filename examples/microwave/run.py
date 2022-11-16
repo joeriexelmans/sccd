@@ -18,8 +18,7 @@ if __name__ == '__main__':
     GUI.gui.send_event = send_event
 
     def on_output(event):
-        if event.port == "out":
-            GUI.gui.handle_event(event)
+        GUI.gui.handle_event(event)
 
     controller = Controller(cd, output_callback=on_output)
     eventloop = EventLoop(controller, TkInterImplementation(GUI.tk))

@@ -173,9 +173,9 @@ class DigitalWatchGUI_Static(Frame):
         tmpDate = list(localtime()[0:3]) 
         self.curDate = [tmpDate[1], tmpDate[2], int(str(tmpDate[0])[3:]) ] 
         self.dateTag = None
-        
-        # self.curTime = list(localtime()[3:6])
-        self.curTime = [11, 59, 55]
+
+        self.curTime = list(localtime()[3:6])
+        # self.curTime = [11, 59, 55]
         self.timeTag = None
         
         self.curAlarm = [12, 0, 0]
